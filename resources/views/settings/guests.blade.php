@@ -3,44 +3,7 @@
 @section('settings-section', 'guests')
 
 @section('settings-content')
-<style>
-    .settings-switch {
-        position: relative;
-        width: 2.75rem;
-        height: 1.5rem;
-        flex-shrink: 0;
-        cursor: pointer;
-        appearance: none;
-        border-radius: 9999px;
-        background: #d1d5db;
-        transition: background-color 150ms ease;
-    }
 
-    .settings-switch::after {
-        position: absolute;
-        top: 0.125rem;
-        left: 0.125rem;
-        width: 1.25rem;
-        height: 1.25rem;
-        content: '';
-        border-radius: 9999px;
-        background: #fff;
-        transition: transform 150ms ease;
-    }
-
-    .settings-switch:checked {
-        background: #9333ea;
-    }
-
-    .settings-switch:checked::after {
-        transform: translateX(1.25rem);
-    }
-
-    .settings-switch:focus-visible {
-        outline: 2px solid #9333ea;
-        outline-offset: 2px;
-    }
-</style>
 
 <h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">Гости</h4>
 <div class="flex flex-col items-start gap-3">

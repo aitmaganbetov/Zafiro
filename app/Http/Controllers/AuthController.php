@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +21,7 @@ class AuthController extends Controller
     /**
      * Handle login
      */
-    public function login(Request $request)
+    public function login(Request $request, ActivityLogger $activity)
     {
         $credentials = $request->validate([
             'phone' => ['required', 'string', 'regex:/^\+?[1-9]\d{1,14}$/'],
@@ -33,6 +34,9 @@ class AuthController extends Controller
 
         if (Auth::attempt(['phone' => $credentials['phone'], 'password' => $credentials['password']], $request->filled('remember'))) {
             $request->session()->regenerate();
+            $user = $request->user();
+            $activity->record('auth.login', "Вход в систему: {$user->name}", $user->getKey(), $user);
+
             return redirect()->intended('/dashboard');
         }
 
@@ -52,7 +56,7 @@ class AuthController extends Controller
     /**
      * Handle registration
      */
-    public function register(Request $request)
+    public function register(Request $request, ActivityLogger $activity)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -75,6 +79,7 @@ class AuthController extends Controller
         ]);
 
         Auth::login($user);
+        $activity->record('auth.registered', "Регистрация пользователя: {$user->name}", $user->getKey(), $user);
 
         return redirect('/dashboard')->with('success', 'Добро пожаловать!');
     }
@@ -82,8 +87,10 @@ class AuthController extends Controller
     /**
      * Handle logout
      */
-    public function logout(Request $request)
+    public function logout(Request $request, ActivityLogger $activity)
     {
+        $user = $request->user();
+        $activity->record('auth.logout', "Выход из системы: {$user->name}", $user->getKey(), $user);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

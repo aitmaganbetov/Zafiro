@@ -1,11 +1,17 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\CashRegisterController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\ClubComputerController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\TariffController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,23 +30,28 @@ Route::middleware('guest')->group(function () {
 
 // Protected routes
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('/warehouse', WarehouseController::class)->name('warehouse');
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::resource('/club-map', ClubZoneController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::patch('/club-map/{clubMap}/layout', [ClubZoneController::class, 'updateLayout'])->name('club-map.layout');
+    Route::post('/club-map/{clubMap}/computers', [ClubComputerController::class, 'store'])->name('club-computers.store');
     Route::post('/club-map/align', [ClubZoneController::class, 'align'])->name('club-map.align');
     Route::patch('/club-computers/{clubComputer}/layout', ClubComputerController::class)->name('club-computers.layout');
     Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');
     Route::post('/warehouse/stock-movements', StockMovementController::class)
         ->name('warehouse.stock-movements.store');
+    Route::post('/warehouse/products', ProductController::class)->name('warehouse.products.store');
+    Route::post('/warehouse/categories', ProductCategoryController::class)->name('warehouse.categories.store');
 
     Route::get('/cash-register', [CashRegisterController::class, 'index'])->name('cash-register.index');
     Route::post('/cash-register/shifts', [CashRegisterController::class, 'open'])->name('cash-register.shifts.open');
     Route::post('/cash-register/transactions', [CashRegisterController::class, 'transaction'])->name('cash-register.transactions.store');
     Route::post('/cash-register/sales', [CashRegisterController::class, 'sale'])->name('cash-register.sales.store');
+    Route::post('/cash-register/balance-top-ups', [CashRegisterController::class, 'topUpBalance'])->name('cash-register.balance-top-ups.store');
     Route::get('/cash-register/receipts/{cashTransaction}', [CashRegisterController::class, 'receipt'])->name('cash-register.receipt');
     Route::get('/cash-register/reports/x', [CashRegisterController::class, 'xReport'])->name('cash-register.x-report');
     Route::post('/cash-register/shifts/{cashShift}/close', [CashRegisterController::class, 'close'])->name('cash-register.shifts.close');
@@ -60,6 +71,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/api', [SettingsController::class, 'api'])->name('settings.api');
 
     Route::post('/settings/save', [SettingsController::class, 'save'])->name('settings.save');
+
+    Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
+    Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 });

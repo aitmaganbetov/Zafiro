@@ -6,7 +6,7 @@ use App\Http\Requests\StoreClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
 use App\Models\ClubZone;
-use App\Services\ClubZoneComputerService;
+use App\Models\Tariff;
 use App\Services\ClubZoneLayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -14,31 +14,38 @@ use Illuminate\View\View;
 
 class ClubZoneController extends Controller
 {
-    public function __construct(private ClubZoneComputerService $computers, private ClubZoneLayoutService $layout) {}
+    public function __construct(private ClubZoneLayoutService $layout) {}
 
     public function index(): View
     {
-        return view('club-map.index', ['zones' => ClubZone::query()->with('computers')->orderBy('sort_order')->orderBy('id')->get()]);
+        return view('club-map.index', [
+            'zones' => ClubZone::query()->with(['computers', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get(),
+            'tariffs' => Tariff::query()->orderBy('name')->get(),
+        ]);
     }
 
     public function store(StoreClubZoneRequest $request): RedirectResponse
     {
         $offset = ClubZone::query()->count() * 30;
-        $zone = ClubZone::query()->create($request->validated() + [
+        $data = $request->validated();
+        $tariffIds = $data['tariff_ids'] ?? [];
+        unset($data['tariff_ids']);
+        $zone = ClubZone::query()->create($data + [
             'position_x' => 20 + ($offset % 240),
             'position_y' => 20 + ($offset % 180),
         ]);
-        $this->computers->sync($zone);
-
-        return back()->with('status', 'Зона добавлена.');
+        $zone->tariffs()->sync($tariffIds);
+        return back()->with('status', 'Зона добавлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
     public function update(UpdateClubZoneRequest $request, ClubZone $clubMap): RedirectResponse
     {
-        $clubMap->update($request->validated());
-        $this->computers->sync($clubMap);
-
-        return back()->with('status', 'Зона обновлена.');
+        $data = $request->validated();
+        $tariffIds = $data['tariff_ids'] ?? [];
+        unset($data['tariff_ids']);
+        $clubMap->update($data);
+        $clubMap->tariffs()->sync($tariffIds);
+        return back()->with('status', 'Зона обновлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
     public function destroy(ClubZone $clubMap): RedirectResponse

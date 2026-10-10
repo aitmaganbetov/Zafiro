@@ -19,14 +19,14 @@
             </div>
         </div>
 
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 animate-slide" style="animation-delay: 0.1s">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 animate-slide animation-delay-100">
             <div class="space-y-8">
                 <div>
                     <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Настройка клуба</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Название клуба</label>
-                            <input type="text" value="Panze Club" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-600">
+                            <input type="text" value="Zafiro" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-600">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Город</label>
@@ -53,11 +53,11 @@
             </div>
         </div>
 
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 animate-slide" style="animation-delay: 0.2s">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 animate-slide animation-delay-200">
             <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">API</h4>
             <pre class="overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-gray-200"><code>{
   "club": {
-    "name": "Panze Club",
+    "name": "Zafiro",
     "city": "Москва",
     "session_idle_timeout": "15 минут",
     "pc_restart_after_session_end": "30 секунд",

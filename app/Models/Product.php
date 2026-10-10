@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['sku', 'name', 'category', 'price', 'quantity'])]
+#[Fillable(['sku', 'name', 'category', 'product_category_id', 'price', 'quantity'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -25,5 +26,10 @@ class Product extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function productCategory(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class);
     }
 }

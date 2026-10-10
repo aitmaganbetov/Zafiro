@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\StockMovement;
 use Illuminate\View\View;
 
@@ -11,7 +12,7 @@ class WarehouseController extends Controller
     public function __invoke(): View
     {
         $products = Product::query()
-            ->select(['id', 'sku', 'name', 'category', 'price', 'quantity'])
+            ->select(['id', 'sku', 'name', 'category', 'product_category_id', 'price', 'quantity'])
             ->orderBy('name')
             ->get();
 
@@ -24,6 +25,7 @@ class WarehouseController extends Controller
 
         return view('warehouse', [
             'products' => $products,
+            'categories' => ProductCategory::query()->withCount('products')->orderBy('name')->get(),
             'movements' => $movements,
         ]);
     }

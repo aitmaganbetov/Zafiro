@@ -20,7 +20,7 @@ class ControlClubComputersRequest extends FormRequest
         return [
             'computer_ids' => ['required', 'array', 'min:1', 'max:200'],
             'computer_ids.*' => ['required', 'integer', 'distinct', Rule::exists((new ClubComputer)->getTable(), 'id')],
-            'action' => ['required', Rule::in(['power_on', 'restart', 'power_off'])],
+            'action' => ['required', Rule::in(['power_on', 'restart', 'power_off', 'reserve'])],
         ];
     }
 }

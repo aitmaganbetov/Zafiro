@@ -4,11 +4,14 @@ namespace App\Actions;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AdjustStockAction
 {
+    public function __construct(private ActivityLogger $activity) {}
+
     public function handle(array $data, ?int $userId): StockMovement
     {
         return DB::transaction(function () use ($data, $userId): StockMovement {
@@ -29,7 +32,7 @@ class AdjustStockAction
                 : -$quantity;
             $product->save();
 
-            return StockMovement::create([
+            $movement = StockMovement::create([
                 'product_id' => $product->id,
                 'user_id' => $userId,
                 'type' => $data['type'],
@@ -37,6 +40,17 @@ class AdjustStockAction
                 'balance_after' => $product->quantity,
                 'note' => $data['note'] ?? null,
             ]);
+
+            $isReceipt = $data['type'] === StockMovement::TYPE_RECEIPT;
+            $this->activity->record(
+                $isReceipt ? 'stock.received' : 'stock.written_off',
+                ($isReceipt ? 'Оприходование: ' : 'Списание: ')."{$product->name}, {$quantity} шт.",
+                $userId,
+                $product,
+                ['quantity' => $quantity, 'balance_after' => $product->quantity, 'note' => $movement->note ?: '—'],
+            );
+
+            return $movement;
         });
     }
 }

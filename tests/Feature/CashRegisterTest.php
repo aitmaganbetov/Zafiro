@@ -2,6 +2,7 @@
 
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -71,5 +72,68 @@ test('POS page displays products when shift is open', function () {
     $user = User::factory()->create();
     CashShift::create(['opened_by'=>$user->id,'status'=>'open','open_marker'=>true,'opening_balance'=>0,'opened_at'=>now()]);
     Product::factory()->create(['name'=>'POS Test Product','quantity'=>2]);
-    $this->actingAs($user)->get('/cash-register')->assertSuccessful()->assertSee('POS Test Product')->assertSee('Оплатить');
+    $this->actingAs($user)->get('/cash-register')
+        ->assertSuccessful()
+        ->assertSee('POS Test Product')
+        ->assertSee('Оплатить')
+        ->assertSee('data-pos-view="sale"', false)
+        ->assertSee('data-pos-view="balance"', false)
+        ->assertSee('Пополнение баланса')
+        ->assertSee('role="combobox"', false)
+        ->assertSee('Поиск по имени или телефону')
+        ->assertDontSee('Стол 1')
+        ->assertDontSee('pos-tables', false);
+});
+
+test('cashier can top up a users main or bonus balance from the POS', function () {
+    $cashier = User::factory()->create();
+    $customer = User::factory()->create([
+        'name' => 'Клиент POS',
+        'balance' => 100,
+        'bonus_balance' => 25,
+    ]);
+    CashShift::query()->create([
+        'opened_by' => $cashier->id,
+        'status' => 'open',
+        'open_marker' => true,
+        'opening_balance' => 500,
+        'opened_at' => now(),
+    ]);
+
+    $this->actingAs($cashier)->post(route('cash-register.balance-top-ups.store'), [
+        'user_id' => $customer->id,
+        'amount' => 750,
+        'balance_type' => 'balance',
+        'payment_method' => 'card',
+    ])->assertRedirect()
+        ->assertSessionHas('status', 'Баланс пользователя пополнен.');
+
+    expect($customer->refresh()->balance)->toBe('850.00')
+        ->and($customer->bonus_balance)->toBe('25.00');
+
+    $transaction = CashTransaction::query()->where('description', 'like', '%Клиент POS%')->firstOrFail();
+    expect($transaction->type)->toBe('income')
+        ->and($transaction->amount)->toBe('750.00')
+        ->and(ActivityLog::query()->where('event', 'user.balance_topped_up')->where('subject_id', $customer->id)->exists())->toBeTrue()
+        ->and(ActivityLog::query()->where('event', 'cash.income')->where('subject_id', $transaction->id)->exists())->toBeTrue();
+});
+
+test('balance top-up validates user, amount, account, and payment method', function () {
+    $cashier = User::factory()->create();
+    CashShift::query()->create([
+        'opened_by' => $cashier->id,
+        'status' => 'open',
+        'open_marker' => true,
+        'opening_balance' => 0,
+        'opened_at' => now(),
+    ]);
+
+    $this->actingAs($cashier)->post(route('cash-register.balance-top-ups.store'), [
+        'user_id' => 999999,
+        'amount' => 0,
+        'balance_type' => 'unknown',
+        'payment_method' => 'unknown',
+    ])->assertSessionHasErrors(['user_id', 'amount', 'balance_type', 'payment_method']);
+
+    expect(CashTransaction::query()->count())->toBe(0);
 });

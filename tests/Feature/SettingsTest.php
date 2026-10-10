@@ -15,10 +15,10 @@ test('club settings can be saved and reused on the next request', function () {
 
     $response = $this->post('/settings/save', [
         'section' => 'club',
-        'session_idle_timeout' => '20 минут',
-        'pc_restart_after_session_end' => '45 секунд',
-        'session_auto_terminate_when_pc_unavailable' => '10 минут',
-        'booking_interval' => '40 минут',
+        'session_idle_timeout' => 20,
+        'pc_restart_after_session_end' => 0.75,
+        'session_auto_terminate_when_pc_unavailable' => 10,
+        'booking_interval' => 40,
     ]);
 
     $response->assertRedirect();
@@ -28,10 +28,10 @@ test('club settings can be saved and reused on the next request', function () {
 
     $settings = json_decode(Storage::get('settings.json'), true);
 
-    expect($settings['club']['session_idle_timeout'])->toBe('20 минут');
-    expect($settings['club']['pc_restart_after_session_end'])->toBe('45 секунд');
-    expect($settings['club']['session_auto_terminate_when_pc_unavailable'])->toBe('10 минут');
-    expect($settings['club']['booking_interval'])->toBe('40 минут');
+    expect($settings['club']['session_idle_timeout'])->toBe(20);
+    expect($settings['club']['pc_restart_after_session_end'])->toBe(0.75);
+    expect($settings['club']['session_auto_terminate_when_pc_unavailable'])->toBe(10);
+    expect($settings['club']['booking_interval'])->toBe(40);
 });
 
 test('finance currency setting can be selected', function () {
@@ -164,7 +164,7 @@ test('API settings page displays every setting with saved values', function () {
     $this->get('/settings/api')
         ->assertSuccessful()
         ->assertViewHas('settings', function (array $settings): bool {
-            return $settings['club']['booking_interval'] === '30 минут'
+            return $settings['club']['booking_interval'] === 30
                 && $settings['finances']['currency'] === 'RUB'
                 && $settings['guests']['show_qr_code_on_login'] === false
                 && $settings['guests']['allow_guest_self_transfer'] === false

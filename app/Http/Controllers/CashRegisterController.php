@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\OpenCashShiftRequest;
 use App\Http\Requests\StoreCashTransactionRequest;
 use App\Http\Requests\StorePosSaleRequest;
+use App\Http\Requests\StoreBalanceTopUpRequest;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\CashRegisterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +25,9 @@ class CashRegisterController extends Controller
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->with(['transactions' => fn ($q) => $q->latest()])->first();
         $products = Product::query()->select(['id','name','category','price','quantity'])->where('quantity','>',0)->orderBy('name')->get();
-        return view('cash-register.index', ['shift'=>$shift, 'totals'=>$shift ? $this->cash->totals($shift) : null, 'products'=>$products]);
+        $users = User::query()->orderBy('name')->get(['id', 'name', 'phone', 'balance', 'bonus_balance']);
+
+        return view('cash-register.index', ['shift'=>$shift, 'totals'=>$shift ? $this->cash->totals($shift) : null, 'products'=>$products, 'users'=>$users]);
     }
 
     public function open(OpenCashShiftRequest $request): RedirectResponse
@@ -44,6 +48,20 @@ class CashRegisterController extends Controller
 
         return redirect()->route('cash-register.receipt', $transaction)
             ->with('status', 'Продажа проведена. Распечатайте чек.');
+    }
+
+    public function topUpBalance(StoreBalanceTopUpRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $this->cash->topUpBalance(
+            (int) $data['user_id'],
+            (float) $data['amount'],
+            $data['balance_type'],
+            $data['payment_method'],
+            $request->user()?->getKey(),
+        );
+
+        return back()->with('status', 'Баланс пользователя пополнен.')->with('cash_view', 'balance');
     }
 
     public function receipt(CashTransaction $cashTransaction): View

@@ -2,11 +2,41 @@
 
 use App\Models\User;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\StockMovement;
 use Database\Seeders\ProductSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+test('category and product can be created in warehouse', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('warehouse.categories.store'), [
+        'name' => 'Десерты',
+    ])->assertRedirect()->assertSessionHas('status');
+
+    $category = ProductCategory::query()->firstOrFail();
+    $this->assertModelExists($category);
+
+    $this->actingAs($user)->post(route('warehouse.products.store'), [
+        'sku' => 'DST-001',
+        'name' => 'Чизкейк',
+        'product_category_id' => $category->id,
+        'price' => 1800,
+        'quantity' => 7,
+    ])->assertRedirect()->assertSessionHas('status');
+
+    $product = Product::query()->firstOrFail();
+    expect($product->sku)->toBe('DST-001')
+        ->and($product->category)->toBe('Десерты')
+        ->and($product->product_category_id)->toBe($category->id)
+        ->and($product->quantity)->toBe(7);
+    expect(StockMovement::query()->first())
+        ->type->toBe(StockMovement::TYPE_RECEIPT)
+        ->quantity->toBe(7)
+        ->balance_after->toBe(7);
+});
 
 test('authenticated user can open warehouse page', function () {
     $this->seed(ProductSeeder::class);

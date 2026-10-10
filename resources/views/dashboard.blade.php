@@ -6,22 +6,20 @@
 <div class="p-6 lg:p-8">
                 <!-- Welcome Section -->
                 <div class="mb-8 animate-slide">
-                    <h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Добро пожаловать, {{ Auth::user()->name }}! 👋
-                    </h3>
+                    <h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Добро пожаловать, {{ Auth::user()->name }}!</h3>
                     <p class="text-gray-600 dark:text-gray-400">
-                        Вот краткая информация о вашем бизнесе
+                        Сводка по кассе, залу и складу за сегодня
                     </p>
                 </div>
 
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <!-- Total Sales -->
-                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.1s">
+                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-100">
                         <div class="flex items-center justify-between mb-4">
                             <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Sales</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">$12,345</p>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Доход сегодня</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-shopping-cart text-purple-600 dark:text-purple-400 text-xl"></i>
@@ -29,16 +27,16 @@
                         </div>
                         <div class="flex items-center gap-2 text-green-600 text-sm">
                             <i class="fas fa-arrow-up"></i>
-                            <span>20% от прошлого месяца</span>
+                            <span>{{ $todayTransactionCount }} операций сегодня</span>
                         </div>
                     </div>
 
                     <!-- Total Expense -->
-                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.2s">
+                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-200">
                         <div class="flex items-center justify-between mb-4">
                             <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expense</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">$3,213</p>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Расходы сегодня</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-credit-card text-blue-600 dark:text-blue-400 text-xl"></i>
@@ -46,16 +44,16 @@
                         </div>
                         <div class="flex items-center gap-2 text-red-600 text-sm">
                             <i class="fas fa-arrow-down"></i>
-                            <span>8% от прошлого месяца</span>
+                            <span>{{ $todayExpenseCount }} расходных операций</span>
                         </div>
                     </div>
 
                     <!-- Total Orders -->
-                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.3s">
+                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-300">
                         <div class="flex items-center justify-between mb-4">
                             <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Orders</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">342</p>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Чистый итог</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome - $todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-boxes text-green-600 dark:text-green-400 text-xl"></i>
@@ -63,16 +61,16 @@
                         </div>
                         <div class="flex items-center gap-2 text-green-600 text-sm">
                             <i class="fas fa-arrow-up"></i>
-                            <span>15% от прошлого месяца</span>
+                            <span>Доходы минус расходы за сегодня</span>
                         </div>
                     </div>
 
                     <!-- Total Revenue -->
-                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.4s">
+                    <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-400">
                         <div class="flex items-center justify-between mb-4">
                             <div>
-                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net Revenue</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">$9,132</p>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Пользователи</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($userCount, 0, ',', ' ') }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-chart-line text-orange-600 dark:text-orange-400 text-xl"></i>
@@ -80,7 +78,7 @@
                         </div>
                         <div class="flex items-center gap-2 text-green-600 text-sm">
                             <i class="fas fa-arrow-up"></i>
-                            <span>12% от прошлого месяца</span>
+                            <span>Зарегистрировано в системе</span>
                         </div>
                     </div>
                 </div>
@@ -88,109 +86,51 @@
                 <!-- Charts Row -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     <!-- Main Chart -->
-                    <div class="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.5s">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Sales & Purchases</h3>
-                        <canvas id="chart" style="max-height: 300px;"></canvas>
+                    <div class="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-500">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Доходы и расходы за 7 дней</h3>
+                        <canvas id="chart" class="dashboard-chart"></canvas>
                     </div>
 
                     <!-- Quick Stats -->
-                    <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.6s">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Quick Stats</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Completion Rate</span>
-                                    <span class="text-sm font-bold text-purple-600">87%</span>
-                                </div>
-                                <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                                    <div class="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full" style="width: 87%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Customer Satisfaction</span>
-                                    <span class="text-sm font-bold text-blue-600">92%</span>
-                                </div>
-                                <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                                    <div class="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full" style="width: 92%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">On-Time Delivery</span>
-                                    <span class="text-sm font-bold text-green-600">95%</span>
-                                </div>
-                                <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                                    <div class="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full" style="width: 95%"></div>
-                                </div>
-                            </div>
+                    <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-600">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Состояние клуба</h3>
+                        <div class="space-y-5">
+                            <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-desktop mr-2 text-green-600"></i>ПК онлайн</span><strong class="text-gray-900 dark:text-white">{{ $onlineComputerCount }} / {{ $computerCount }}</strong></a>
+                            <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-bookmark mr-2 text-amber-500"></i>ПК забронировано</span><strong class="text-gray-900 dark:text-white">{{ $reservedComputerCount }}</strong></a>
+                            <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-map-location-dot mr-2 text-blue-600"></i>Зоны</span><strong class="text-gray-900 dark:text-white">{{ $zoneCount }}</strong></a>
+                            <a href="{{ route('warehouse') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-boxes-stacked mr-2 text-rose-500"></i>Товары с низким остатком</span><strong class="text-gray-900 dark:text-white">{{ $lowStockCount }}</strong></a>
+                            <a href="{{ route('warehouse') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-box mr-2 text-gray-500"></i>Всего товаров</span><strong class="text-gray-900 dark:text-white">{{ $productCount }}</strong></a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recent Invoice -->
-                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide" style="animation-delay: 0.7s">
+                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-700">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Recent Invoice</h3>
-                        <a href="#" class="text-purple-600 hover:text-purple-700 dark:text-purple-400 text-sm font-medium">View All →</a>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Последние операции</h3>
+                        <a href="{{ route('cash-register.index') }}" class="text-green-700 hover:text-green-800 dark:text-green-400 text-sm font-medium">Открыть кассу →</a>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="border-b border-gray-200 dark:border-gray-800">
                                 <tr>
-                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Invoice</th>
-                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Date</th>
-                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Amount</th>
-                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
-                                    <th class="text-right py-3 font-semibold text-gray-700 dark:text-gray-300">Action</th>
+                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Операция</th>
+                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Описание</th>
+                                    <th class="text-left py-3 font-semibold text-gray-700 dark:text-gray-300">Дата</th>
+                                    <th class="text-right py-3 font-semibold text-gray-700 dark:text-gray-300">Сумма</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-medium">#INV001</td>
-                                    <td class="py-4 text-gray-600 dark:text-gray-400">2026-08-05</td>
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-semibold">$1,200</td>
-                                    <td class="py-4">
-                                        <span class="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-semibold">
-                                            <i class="fas fa-check-circle"></i> Paid
-                                        </span>
-                                    </td>
-                                    <td class="py-4 text-right">
-                                        <button class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                                            <i class="fas fa-ellipsis-h"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-medium">#INV002</td>
-                                    <td class="py-4 text-gray-600 dark:text-gray-400">2026-08-04</td>
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-semibold">$850</td>
-                                    <td class="py-4">
-                                        <span class="inline-flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full text-xs font-semibold">
-                                            <i class="fas fa-clock"></i> Pending
-                                        </span>
-                                    </td>
-                                    <td class="py-4 text-right">
-                                        <button class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                                            <i class="fas fa-ellipsis-h"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-medium">#INV003</td>
-                                    <td class="py-4 text-gray-600 dark:text-gray-400">2026-08-03</td>
-                                    <td class="py-4 text-gray-900 dark:text-gray-100 font-semibold">$2,100</td>
-                                    <td class="py-4">
-                                        <span class="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-semibold">
-                                            <i class="fas fa-check-circle"></i> Paid
-                                        </span>
-                                    </td>
-                                    <td class="py-4 text-right">
-                                        <button class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                                            <i class="fas fa-ellipsis-h"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                                @forelse($recentTransactions as $transaction)
+                                    <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                        <td class="py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $transaction->type === 'income' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' }}">{{ $transaction->type === 'income' ? 'Доход' : 'Расход' }}</span></td>
+                                        <td class="py-4 text-gray-700 dark:text-gray-300">{{ $transaction->description }}</td>
+                                        <td class="py-4 text-gray-600 dark:text-gray-400">{{ $transaction->created_at->format('d.m.Y H:i') }}</td>
+                                        <td class="py-4 text-right font-semibold {{ $transaction->type === 'income' ? 'text-green-700 dark:text-green-400' : 'text-rose-700 dark:text-rose-400' }}">{{ $transaction->type === 'expense' ? '−' : '+' }}{{ number_format((float) $transaction->amount, 0, ',', ' ') }} {{ $currency }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Кассовых операций пока нет.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -239,29 +179,21 @@
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                labels: @json($chartLabels),
                 datasets: [
                     {
-                        label: 'Sales Target',
-                        data: [5000, 6000, 5500, 6500, 7000],
-                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                        borderColor: 'rgba(168, 85, 247, 0.5)',
+                        label: 'Доход',
+                        data: @json($chartIncome),
+                        backgroundColor: 'rgba(34, 197, 94, 0.75)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
                         borderWidth: 1,
                         borderRadius: 8
                     },
                     {
-                        label: 'Sales',
-                        data: [4200, 5100, 4800, 5900, 6200],
-                        backgroundColor: 'rgba(168, 85, 247, 0.8)',
-                        borderColor: 'rgba(168, 85, 247, 1)',
-                        borderWidth: 1,
-                        borderRadius: 8
-                    },
-                    {
-                        label: 'Purchases',
-                        data: [3000, 3500, 3200, 3800, 4100],
-                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                        borderColor: 'rgba(239, 68, 68, 1)',
+                        label: 'Расход',
+                        data: @json($chartExpenses),
+                        backgroundColor: 'rgba(244, 63, 94, 0.7)',
+                        borderColor: 'rgba(225, 29, 72, 1)',
                         borderWidth: 1,
                         borderRadius: 8
                     }
@@ -287,10 +219,9 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 7000,
                         ticks: {
-                            stepSize: 1000,
                             color: '#9ca3af',
+                            callback: (value) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(value),
                             font: {
                                 size: 11
                             }

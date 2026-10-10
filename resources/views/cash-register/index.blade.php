@@ -1,11 +1,6 @@
 @extends('layouts.admin')
 @section('page-title', 'Касса POS')
 
-@push('styles')
-<style>
-    .pos-page{background:#f4f6f5;border-radius:24px;padding:18px;color:#17201b}.pos-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}.pos-status{font-size:13px;color:#788078}.pos-actions{display:flex;gap:8px}.pos-actions a,.pos-actions button{border:0;border-radius:10px;padding:9px 14px;background:#fff;font-size:12px;font-weight:700}.pos-actions .danger{color:#b42318}.pos-layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px}.pos-main,.pos-order{background:#fff;border:1px solid #edf0ed;border-radius:18px;padding:14px}.pos-categories{display:grid;grid-template-columns:repeat(6,minmax(88px,1fr));gap:10px;margin-bottom:16px}.pos-category{border:1px solid #edf0ed;border-radius:13px;background:#fff;padding:10px;text-align:left;color:#5d665f;cursor:pointer;transition:.2s}.pos-category.active{background:#ccebd7;border-color:#ccebd7;color:#17201b}.pos-category-icon{display:block;font-size:22px;line-height:1;margin-bottom:14px;color:#149447}.pos-category strong{display:block;font-size:12px}.pos-category small{display:block;margin-top:3px;font-size:9px;color:#8b938d}.pos-products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.pos-product{position:relative;border:1px solid #edf0ed;border-radius:15px;padding:7px;background:#fff;transition:.2s}.pos-product.selected{border-color:#47ba70;box-shadow:0 0 0 1px #47ba70}.pos-product img{width:100%;height:135px;border-radius:11px;background:#f4f5f4;object-fit:contain}.pos-product h4{min-height:36px;margin:9px 3px 2px;font-size:12px;line-height:1.35}.pos-product-meta{margin:0 3px 8px;font-size:9px;color:#8b938d}.pos-product-price{display:flex;align-items:center;justify-content:space-between;margin:0 3px 8px;font-size:12px;font-weight:800}.pos-stock{color:#159447;font-size:9px;font-weight:600}.pos-stock.low{color:#d65c4b}.pos-add{width:100%;border:0;border-radius:8px;background:#d5f0dd;padding:8px;color:#16733a;font-size:10px;font-weight:700;cursor:pointer}.pos-add:disabled{opacity:.5;cursor:not-allowed}.pos-tables{display:flex;gap:10px;overflow:auto;margin-top:14px}.pos-table{display:flex;align-items:center;gap:8px;min-width:145px;border:1px solid #edf0ed;border-radius:24px;background:#fff;padding:7px 10px}.pos-table span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#ffcf4b;font-size:10px}.pos-table strong{display:block;font-size:10px}.pos-table small{display:block;color:#929a94;font-size:8px}.pos-order-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.pos-order-head h3{font-size:16px;font-weight:800}.pos-modes{display:flex;background:#f1f3f1;border-radius:9px;padding:3px}.pos-mode{border:0;border-radius:7px;background:transparent;padding:7px 10px;font-size:9px;cursor:pointer}.pos-mode.active{background:#fff;box-shadow:0 2px 8px #dfe4df}.pos-cart{min-height:320px;max-height:420px;overflow:auto}.pos-empty{padding:80px 20px;text-align:center;color:#9ba29d;font-size:13px}.pos-cart-item{display:grid;grid-template-columns:52px minmax(0,1fr);gap:9px;padding:9px 0;border-bottom:1px solid #f0f2f0}.pos-cart-item img{width:52px;height:52px;border-radius:10px;background:#f5f6f5}.pos-cart-name{font-size:11px;font-weight:700}.pos-cart-sub{font-size:9px;color:#919991;margin-top:3px}.pos-cart-line{display:flex;align-items:center;justify-content:space-between;margin-top:7px}.pos-cart-price{font-size:11px;font-weight:800;color:#159447}.pos-qty{display:flex;align-items:center;gap:7px}.pos-qty button{display:grid;place-items:center;width:23px;height:23px;border:0;border-radius:50%;background:#eef1ee;font-weight:800;cursor:pointer}.pos-summary{margin-top:12px;border:1px solid #edf0ed;border-radius:12px;padding:12px}.pos-summary-row{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px;color:#778078}.pos-summary-total{display:flex;justify-content:space-between;border-top:1px dashed #dfe4df;padding-top:10px;font-size:14px;font-weight:800}.pos-payments{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.pos-payment{border:1px solid #e6eae6;border-radius:11px;background:#fff;padding:11px 5px;font-size:9px;cursor:pointer}.pos-payment span{display:block;font-size:17px;margin-bottom:5px}.pos-payment.active{background:#ccebd7;border-color:#ccebd7}.pos-checkout{width:100%;border:0;border-radius:10px;background:#07933d;padding:13px;color:#fff;font-size:12px;font-weight:800;cursor:pointer}.pos-checkout:disabled{opacity:.45}.pos-open{max-width:560px;margin:30px auto;border-radius:18px;background:#fff;padding:26px}.pos-open h3{margin-bottom:18px;font-size:20px;font-weight:800}.pos-open form{display:flex;align-items:end;gap:12px}.pos-open label{display:block;margin-bottom:6px;font-size:12px}.pos-open input{border:1px solid #dfe4df;border-radius:10px;padding:10px 12px}.pos-open button{border:0;border-radius:10px;background:#07933d;padding:11px 18px;color:#fff;font-weight:700}@media(max-width:1100px){.pos-layout{grid-template-columns:1fr}.pos-categories{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.pos-page{padding:10px}.pos-products{grid-template-columns:repeat(2,minmax(0,1fr))}.pos-categories{display:flex;overflow:auto}.pos-category{min-width:100px}.pos-product img{height:110px}.pos-top{align-items:flex-start;flex-direction:column}.pos-order{padding:11px}}
-</style>
-@endpush
 
 @section('content')
 <div class="p-4 lg:p-6">
@@ -47,13 +42,14 @@
                             </article>
                         @endforeach
                     </div>
-                    <div class="pos-tables">
-                        @foreach([['T1','Стол 1'],['T2','Стол 2'],['T3','Стол 3']] as [$code,$table])
-                            <button type="button" class="pos-table"><span>{{ $code }}</span><span style="display:block;width:auto;height:auto;background:none;text-align:left"><strong>{{ $table }}</strong><small>Свободен · зал</small></span></button>
-                        @endforeach
-                    </div>
                 </main>
                 <aside class="pos-order">
+                    @php($showBalanceTopUp = session('cash_view') === 'balance' || old('cash_view') === 'balance')
+                    <div class="pos-view-tabs" role="tablist" aria-label="Раздел кассы">
+                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? '' : 'active' }}" data-pos-view="sale" role="tab" aria-selected="{{ $showBalanceTopUp ? 'false' : 'true' }}">Продажа товаров</button>
+                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? 'active' : '' }}" data-pos-view="balance" role="tab" aria-selected="{{ $showBalanceTopUp ? 'true' : 'false' }}">Пополнение баланса</button>
+                    </div>
+                    <div id="sale-view" @if($showBalanceTopUp) hidden @endif>
                     <div class="pos-order-head"><h3>Новый заказ</h3><div class="pos-modes"><button type="button" class="pos-mode active">В зале</button><button type="button" class="pos-mode">С собой</button><button type="button" class="pos-mode">Доставка</button></div></div>
                     <div id="cart" class="pos-cart"><div class="pos-empty">Добавьте товары в заказ</div></div>
                     <div class="pos-summary">
@@ -63,6 +59,43 @@
                     </div>
                     <div class="pos-payments"><button type="button" class="pos-payment active"><span>▣</span>Наличные</button><button type="button" class="pos-payment"><span>▤</span>Карта</button><button type="button" class="pos-payment"><span>▦</span>QR-код</button></div>
                     <form id="sale-form" method="POST" action="{{ route('cash-register.sales.store') }}">@csrf<div id="sale-items"></div><button id="checkout" disabled class="pos-checkout">Оформить заказ · Оплатить</button></form>
+                    </div>
+                    <section id="balance-view" class="pos-balance-view" @if(!$showBalanceTopUp) hidden @endif>
+                        <div class="pos-order-head"><h3>Пополнение баланса</h3></div>
+                        @php($selectedTopUpUser = $users->firstWhere('id', (int) old('user_id')))
+                        <form method="POST" action="{{ route('cash-register.balance-top-ups.store') }}" class="pos-balance-form">
+                            @csrf
+                            <input type="hidden" name="cash_view" value="balance">
+                            <div class="pos-user-picker" data-user-picker>
+                                <label for="top-up-user-search">Пользователь</label>
+                                <input id="top-up-user-id" type="hidden" name="user_id" value="{{ old('user_id') }}" data-user-id>
+                                <input id="top-up-user-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="top-up-user-options" aria-expanded="false" autocomplete="off" required value="{{ $selectedTopUpUser ? $selectedTopUpUser->name.' · '.$selectedTopUpUser->phone : '' }}" placeholder="Поиск по имени или телефону" class="pos-balance-input" data-user-search>
+                                <div id="top-up-user-options" class="pos-user-options" role="listbox" hidden data-user-options>
+                                    @foreach($users as $user)
+                                        <button type="button" class="pos-user-option" role="option" aria-selected="{{ (string) old('user_id') === (string) $user->id ? 'true' : 'false' }}" data-user-option data-user-id="{{ $user->id }}" data-label="{{ $user->name }} · {{ $user->phone }}" data-search="{{ mb_strtolower($user->name.' '.$user->phone) }}">
+                                            <span><strong>{{ $user->name }}</strong><small>{{ $user->phone }} · Основной {{ number_format((float) $user->balance, 0, ',', ' ') }} ₸ · Бонусный {{ number_format((float) $user->bonus_balance, 0, ',', ' ') }} ₸</small></span>
+                                        </button>
+                                    @endforeach
+                                    <p class="pos-user-no-results" data-user-no-results hidden>Пользователь не найден</p>
+                                </div>
+                            </div>
+                            <label>Сумма, ₸<input name="amount" type="number" min="1" max="9999999999.99" step="0.01" value="{{ old('amount') }}" required class="pos-balance-input" placeholder="Введите сумму"></label>
+                            <label>Зачислить на
+                                <select name="balance_type" required class="pos-balance-input">
+                                    <option value="balance" @selected(old('balance_type', 'balance') === 'balance')>Основной баланс</option>
+                                    <option value="bonus_balance" @selected(old('balance_type') === 'bonus_balance')>Бонусный баланс</option>
+                                </select>
+                            </label>
+                            <label>Способ оплаты
+                                <select name="payment_method" required class="pos-balance-input">
+                                    <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Наличные</option>
+                                    <option value="card" @selected(old('payment_method') === 'card')>Карта</option>
+                                    <option value="qr" @selected(old('payment_method') === 'qr')>QR-код</option>
+                                </select>
+                            </label>
+                            <button type="submit" class="pos-checkout">Пополнить баланс</button>
+                        </form>
+                    </section>
                 </aside>
             </div>
         </div>
@@ -76,6 +109,71 @@
     const cart = new Map();
     const box = document.getElementById('cart');
     if (!box) return;
+    const saleView = document.getElementById('sale-view');
+    const balanceView = document.getElementById('balance-view');
+    const userPicker = document.querySelector('[data-user-picker]');
+    if (userPicker) {
+        const search = userPicker.querySelector('[data-user-search]');
+        const userId = userPicker.querySelector('[data-user-id]');
+        const optionsList = userPicker.querySelector('[data-user-options]');
+        const options = Array.from(userPicker.querySelectorAll('[data-user-option]'));
+        const noResults = userPicker.querySelector('[data-user-no-results]');
+        const filterUsers = () => {
+            const query = search.value.trim().toLocaleLowerCase('ru');
+            let visibleCount = 0;
+            options.forEach(option => {
+                const visible = option.dataset.search.includes(query);
+                option.hidden = !visible;
+                if (visible) visibleCount++;
+            });
+            noResults.hidden = visibleCount > 0;
+            optionsList.hidden = false;
+            search.setAttribute('aria-expanded', 'true');
+        };
+        search.addEventListener('focus', filterUsers);
+        search.addEventListener('input', () => {
+            userId.value = '';
+            search.setCustomValidity('');
+            filterUsers();
+        });
+        optionsList.addEventListener('click', event => {
+            const option = event.target.closest('[data-user-option]');
+            if (!option) return;
+            userId.value = option.dataset.userId;
+            search.value = option.dataset.label;
+            search.setCustomValidity('');
+            options.forEach(item => item.setAttribute('aria-selected', String(item === option)));
+            optionsList.hidden = true;
+            search.setAttribute('aria-expanded', 'false');
+        });
+        document.addEventListener('click', event => {
+            if (!userPicker.contains(event.target)) {
+                optionsList.hidden = true;
+                search.setAttribute('aria-expanded', 'false');
+            }
+        });
+        userPicker.closest('form').addEventListener('submit', event => {
+            if (!userId.value) {
+                event.preventDefault();
+                search.setCustomValidity('Выберите пользователя из списка.');
+                search.reportValidity();
+            }
+        });
+        if (userId.value) {
+            const selectedOption = options.find(option => option.dataset.userId === userId.value);
+            if (selectedOption) selectedOption.setAttribute('aria-selected', 'true');
+        }
+    }
+    document.querySelectorAll('[data-pos-view]').forEach(button => button.addEventListener('click', () => {
+        const showBalance = button.dataset.posView === 'balance';
+        document.querySelectorAll('[data-pos-view]').forEach(tab => {
+            const active = tab === button;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', String(active));
+        });
+        saleView.hidden = showBalance;
+        balanceView.hidden = !showBalance;
+    }));
     const placeholder = @json(asset('images/product-placeholder.svg'));
     const money = value => new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
     const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));

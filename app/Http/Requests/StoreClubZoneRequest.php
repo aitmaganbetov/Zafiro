@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Tariff;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,8 @@ class StoreClubZoneRequest extends FormRequest
             'status' => ['required', Rule::in(['available', 'busy', 'service'])],
             'is_featured' => ['required', 'boolean'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:10000'],
+            'tariff_ids' => ['sometimes', 'array', 'max:100'],
+            'tariff_ids.*' => ['required', 'integer', 'distinct', Rule::exists((new Tariff)->getTable(), 'id')],
         ];
     }
 }
