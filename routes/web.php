@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingsController;
@@ -40,6 +41,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
     Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
     });
