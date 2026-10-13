@@ -19,7 +19,7 @@ class NotificationController extends Controller
             'items' => $items->map(fn (array $item): array => [
                 ...$item,
                 'at' => $item['at']->toIso8601String(),
-                'at_human' => $item['at']->locale('ru')->diffForHumans(),
+                'at_human' => $item['at']->locale(app()->getLocale())->diffForHumans(),
             ])->all(),
         ]);
     }
