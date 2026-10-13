@@ -16,6 +16,7 @@ class ActivityLog extends Model
         'stock.received' => 'Оприходование',
         'stock.written_off' => 'Списание со склада',
         'product.created' => 'Создание товара',
+        'product.updated' => 'Изменение товара',
         'warehouse.category_created' => 'Создание категории склада',
         'product.purchased' => 'Покупка товаров',
         'cash.income' => 'Пополнение кассы',

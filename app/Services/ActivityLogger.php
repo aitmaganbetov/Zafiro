@@ -32,6 +32,13 @@ class ActivityLogger
             throw new LogicException('Activity log entries require the client IP address.');
         }
 
+        // Changes made by an integration name the API key (its public prefix only).
+        $apiKey = request()->attributes->get('api_key');
+
+        if (is_array($apiKey)) {
+            $details['api_key'] = $apiKey['prefix'];
+        }
+
         $log = new ActivityLog([
             'event' => $event,
             'description' => $description,
