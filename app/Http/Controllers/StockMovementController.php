@@ -12,7 +12,7 @@ class StockMovementController extends Controller
         StoreStockMovementRequest $request,
         AdjustStockAction $adjustStock,
     ): RedirectResponse {
-        $adjustStock->handle($request->validated(), $request->user()?->getKey());
+        $adjustStock->handle($request->validated(), $request->user()->getKey());
 
         return back()->with('status', 'Складская операция выполнена');
     }

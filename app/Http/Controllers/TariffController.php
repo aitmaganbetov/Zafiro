@@ -45,7 +45,7 @@ class TariffController extends Controller
 
         $tariff = Tariff::query()->create($data);
         $tariff->zones()->syncWithPivotValues($zoneIds, ['club_id' => $this->currentClub->id()]);
-        $activity->record('tariff.created', "Создан тариф: {$tariff->name}", $request->user()?->getKey(), $tariff, [
+        $activity->record('tariff.created', "Создан тариф: {$tariff->name}", $request->user()->getKey(), $tariff, [
             'price' => (float) $tariff->price,
             'currency' => $tariff->currency,
             'duration_minutes' => $tariff->duration_minutes,

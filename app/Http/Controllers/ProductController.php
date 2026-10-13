@@ -10,7 +10,7 @@ class ProductController extends Controller
 {
     public function __invoke(StoreProductRequest $request, CreateProductAction $createProduct): RedirectResponse
     {
-        $createProduct->handle($request->validated(), $request->user()?->getKey());
+        $createProduct->handle($request->validated(), $request->user()->getKey());
 
         return back()->with('status', 'Товар создан.');
     }

@@ -12,7 +12,7 @@ class CreateProductAction
 {
     public function __construct(private ActivityLogger $activity) {}
 
-    public function handle(array $data, ?int $userId): Product
+    public function handle(array $data, int $userId): Product
     {
         return DB::transaction(function () use ($data, $userId): Product {
             $category = ProductCategory::query()->findOrFail($data['product_category_id']);

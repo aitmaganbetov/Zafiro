@@ -14,7 +14,7 @@ class CashRegisterService
 {
     public function __construct(private ActivityLogger $activity) {}
 
-    public function sale(array $items, ?int $userId): CashTransaction
+    public function sale(array $items, int $userId): CashTransaction
     {
         return DB::transaction(function () use ($items, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
@@ -63,7 +63,7 @@ class CashRegisterService
         });
     }
 
-    public function open(float $balance, ?int $userId): CashShift
+    public function open(float $balance, int $userId): CashShift
     {
         return DB::transaction(function () use ($balance, $userId) {
             if (CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->exists()) {
@@ -76,7 +76,7 @@ class CashRegisterService
         });
     }
 
-    public function topUpBalance(int $userId, float $amount, string $balanceType, string $paymentMethod, ?int $operatorId): CashTransaction
+    public function topUpBalance(int $userId, float $amount, string $balanceType, string $paymentMethod, int $operatorId): CashTransaction
     {
         return DB::transaction(function () use ($userId, $amount, $balanceType, $paymentMethod, $operatorId): CashTransaction {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
@@ -111,7 +111,7 @@ class CashRegisterService
         });
     }
 
-    public function transact(array $data, ?int $userId): CashTransaction
+    public function transact(array $data, int $userId): CashTransaction
     {
         return DB::transaction(function () use ($data, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
@@ -135,7 +135,7 @@ class CashRegisterService
         });
     }
 
-    public function close(CashShift $shift, ?int $userId): CashShift
+    public function close(CashShift $shift, int $userId): CashShift
     {
         return DB::transaction(function () use ($shift, $userId) {
             $shift = CashShift::query()->lockForUpdate()->findOrFail($shift->id);

@@ -42,7 +42,7 @@ class UserController extends Controller
 
             return [$user, $membership];
         });
-        $activity->record('user.created', "Создан пользователь: {$user->name}", $request->user()?->getKey(), $user, [
+        $activity->record('user.created', "Создан пользователь: {$user->name}", $request->user()->getKey(), $user, [
             'phone' => $user->phone,
             'role' => $membership->role,
         ]);

@@ -40,21 +40,21 @@ class CashRegisterController extends Controller
 
     public function open(OpenCashShiftRequest $request): RedirectResponse
     {
-        $this->cash->open((float) $request->validated('opening_balance'), $request->user()?->getKey());
+        $this->cash->open((float) $request->validated('opening_balance'), $request->user()->getKey());
 
         return back()->with('status', 'Смена открыта');
     }
 
     public function transaction(StoreCashTransactionRequest $request): RedirectResponse
     {
-        $this->cash->transact($request->validated(), $request->user()?->getKey());
+        $this->cash->transact($request->validated(), $request->user()->getKey());
 
         return back()->with('status', 'Операция проведена');
     }
 
     public function sale(StorePosSaleRequest $request): RedirectResponse
     {
-        $transaction = $this->cash->sale($request->validated('items'), $request->user()?->getKey());
+        $transaction = $this->cash->sale($request->validated('items'), $request->user()->getKey());
 
         return redirect()->route('cash-register.receipt', $transaction)
             ->with('status', 'Продажа проведена. Распечатайте чек.');
@@ -68,7 +68,7 @@ class CashRegisterController extends Controller
             (float) $data['amount'],
             $data['balance_type'],
             $data['payment_method'],
-            $request->user()?->getKey(),
+            $request->user()->getKey(),
         );
 
         return back()->with('status', 'Баланс пользователя пополнен.')->with('cash_view', 'balance');
@@ -97,7 +97,7 @@ class CashRegisterController extends Controller
                 ->withErrors(['shift' => 'Сначала распечатайте Z-отчёт. Без печати смена не закрывается.']);
         }
 
-        $shift = $this->cash->close($cashShift, request()->user()?->getKey());
+        $shift = $this->cash->close($cashShift, request()->user()->getKey());
 
         return redirect()->route('cash-register.z-report', $shift);
     }

@@ -4,6 +4,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -71,16 +72,19 @@ test('activity log filters by event, user, date range, and search', function () 
         'description' => 'Оприходование: Кофе, 8 шт.',
         'user_id' => $user->id,
         'details' => ['quantity' => 8],
+        'ip_address' => '127.0.0.1',
     ]);
     ActivityLog::query()->create([
         'event' => 'cash.income',
         'description' => 'Кассовое поступление тест',
         'user_id' => $otherUser->id,
+        'ip_address' => '127.0.0.1',
     ]);
     $oldLog = ActivityLog::query()->create([
         'event' => 'stock.received',
         'description' => 'Оприходование: Чай, 3 шт.',
         'user_id' => $user->id,
+        'ip_address' => '127.0.0.1',
     ]);
     $oldLog->created_at = now()->subDays(10);
     $oldLog->saveQuietly();
@@ -100,4 +104,17 @@ test('activity log filters by event, user, date range, and search', function () 
 
 test('activity log page is protected from guests', function () {
     $this->get(route('activity-logs.index'))->assertRedirect(route('auth.show-login'));
+});
+
+test('activity log entries always name the acting user and the client ip', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('cash-register.shifts.open'), ['opening_balance' => 100])->assertRedirect();
+
+    $log = ActivityLog::query()->where('event', 'cash.shift_opened')->firstOrFail();
+    expect($log->user_id)->toBe($user->id)
+        ->and($log->ip_address)->toBe('127.0.0.1');
+
+    expect(fn () => ActivityLog::query()->create(['event' => 'auth.login', 'description' => 'Без IP', 'user_id' => $user->id]))
+        ->toThrow(QueryException::class);
 });

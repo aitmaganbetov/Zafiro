@@ -12,7 +12,7 @@ class AdjustStockAction
 {
     public function __construct(private ActivityLogger $activity) {}
 
-    public function handle(array $data, ?int $userId): StockMovement
+    public function handle(array $data, int $userId): StockMovement
     {
         return DB::transaction(function () use ($data, $userId): StockMovement {
             $product = Product::query()
