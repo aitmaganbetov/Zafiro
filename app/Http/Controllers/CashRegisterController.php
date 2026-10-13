@@ -10,6 +10,7 @@ use App\Models\CashShift;
 use App\Models\CashTransaction;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\CashRegisterService;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
@@ -115,7 +116,7 @@ class CashRegisterController extends Controller
         ]);
     }
 
-    public function markZReportPrinted(Request $request, CashShift $cashShift): JsonResponse
+    public function markZReportPrinted(Request $request, CashShift $cashShift, ActivityLogger $activity): JsonResponse
     {
         abort_unless($cashShift->status === CashShift::STATUS_OPEN, 422);
 
@@ -124,6 +125,7 @@ class CashRegisterController extends Controller
         abort_unless($expected !== '' && hash_equals($expected, $nonce), 419);
 
         $request->session()->put("z_report_printed.{$cashShift->id}", true);
+        $activity->record('cash.z_report_printed', "Напечатан Z-отчёт смены #{$cashShift->id}", $request->user()->getKey(), $cashShift);
 
         return response()->json(['printed' => true]);
     }

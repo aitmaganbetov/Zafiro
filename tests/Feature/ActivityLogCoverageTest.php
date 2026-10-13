@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\CashShift;
 use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubInvitation;
@@ -161,4 +162,20 @@ test('adding, registering and controlling PCs is logged', function () {
     $this->withToken($token)->postJson(route('api.club-computers.register'), ['device_name' => 'DESKTOP-NEW', 'device_id' => 'machine-42'])
         ->assertSuccessful();
     expect(ActivityLog::query()->where('event', 'computer.registered')->count())->toBe(1);
+});
+
+test('confirmed Z-report printing is logged', function () {
+    $user = User::factory()->create();
+    $shift = CashShift::query()->create(['opened_by' => $user->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
+
+    $this->actingAs($user)->get(route('cash-register.z-report', $shift))->assertSuccessful();
+    $nonce = session("z_report_nonce.{$shift->id}");
+
+    $this->postJson(route('cash-register.z-report.printed', $shift), ['nonce' => 'wrong'])->assertStatus(419);
+    expect(ActivityLog::query()->where('event', 'cash.z_report_printed')->exists())->toBeFalse();
+
+    $this->get(route('cash-register.z-report', $shift));
+    $this->postJson(route('cash-register.z-report.printed', $shift), ['nonce' => session("z_report_nonce.{$shift->id}")])->assertSuccessful();
+    $log = latestLog('cash.z_report_printed');
+    expect($log->user_id)->toBe($user->id)->and($log->subject_id)->toBe($shift->id)->and($nonce)->not->toBeNull();
 });
