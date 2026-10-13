@@ -31,6 +31,19 @@ class ActivityLog extends Model
         'auth.api_logout' => 'Выход через API',
         'user.created' => 'Создание пользователя',
         'user.balance_topped_up' => 'Пополнение баланса пользователя',
+        'auth.login_failed' => 'Неудачный вход',
+        'auth.api_login_failed' => 'Неудачный вход через API',
+        'invitation.created' => 'Создание приглашения',
+        'invitation.accepted' => 'Принятие приглашения',
+        'club.switched' => 'Переключение клуба',
+        'settings.updated' => 'Изменение настроек',
+        'zone.created' => 'Создание зоны',
+        'zone.updated' => 'Изменение зоны',
+        'zone.deleted' => 'Удаление зоны',
+        'computer.created' => 'Добавление ПК',
+        'computer.registered' => 'Регистрация ПК агентом',
+        'computer.controlled' => 'Управление ПК',
+        'cash.z_report_printed' => 'Печать Z-отчёта',
     ];
 
     protected function casts(): array

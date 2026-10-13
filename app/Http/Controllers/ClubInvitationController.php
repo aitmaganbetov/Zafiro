@@ -6,6 +6,7 @@ use App\Models\ClubInvitation;
 use App\Models\ClubMembership;
 use App\Models\MemberBalance;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class ClubInvitationController extends Controller
 {
     public function __construct(private CurrentClub $currentClub) {}
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ActivityLogger $activity): RedirectResponse
     {
         $validated = $request->validate([
             'email' => ['nullable', 'email', 'max:255'],
@@ -29,13 +30,20 @@ class ClubInvitationController extends Controller
         abort_if($inviterRole === 'manager' && $validated['role'] === 'admin', 403);
 
         $token = Str::random(64);
-        ClubInvitation::query()->create([
-            'email' => $validated['email'] ?? null,
-            'role' => $validated['role'],
-            'token_hash' => hash('sha256', $token),
-            'invited_by' => $request->user()->getKey(),
-            'expires_at' => now()->addDays(7),
-        ]);
+        DB::transaction(function () use ($validated, $token, $request, $activity): void {
+            $invitation = ClubInvitation::query()->create([
+                'email' => $validated['email'] ?? null,
+                'role' => $validated['role'],
+                'token_hash' => hash('sha256', $token),
+                'invited_by' => $request->user()->getKey(),
+                'expires_at' => now()->addDays(7),
+            ]);
+            $activity->record('invitation.created', "Создано приглашение в клуб: роль {$invitation->role}", $request->user()->getKey(), $invitation, [
+                'role' => $invitation->role,
+                'email' => $invitation->email ?? '—',
+                'expires_at' => $invitation->expires_at->toDateTimeString(),
+            ]);
+        });
 
         return redirect()->route('users.index')
             ->with('invite_url', route('club-invitations.show', $token))
@@ -56,7 +64,7 @@ class ClubInvitationController extends Controller
         ]);
     }
 
-    public function accept(Request $request, string $token): RedirectResponse
+    public function accept(Request $request, string $token, ActivityLogger $activity): RedirectResponse
     {
         $invitation = $this->findValidInvitation($token);
         $user = $request->user();
@@ -78,7 +86,7 @@ class ClubInvitationController extends Controller
             abort(403, 'Это приглашение предназначено для другого email.');
         }
 
-        DB::transaction(function () use ($request, $invitation, $user, $validated): void {
+        DB::transaction(function () use ($request, $invitation, $user, $validated, $activity): void {
             $lockedInvitation = ClubInvitation::query()
                 ->withoutGlobalScope('club')
                 ->lockForUpdate()
@@ -105,6 +113,10 @@ class ClubInvitationController extends Controller
             ]);
             MemberBalance::query()->create(['user_id' => $acceptingUser->getKey()]);
             $lockedInvitation->update(['accepted_at' => now()]);
+            $activity->record('invitation.accepted', "Принято приглашение: {$acceptingUser->name}, роль {$invitation->role}", $acceptingUser->getKey(), $invitation, [
+                'role' => $invitation->role,
+                'new_account' => $user === null,
+            ]);
 
             if ($user === null) {
                 Auth::login($acceptingUser);
