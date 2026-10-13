@@ -46,6 +46,7 @@ class AuthController extends Controller
 
             if ($membership === null) {
                 Auth::logout();
+                $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'no_club_access');
 
                 return back()->withErrors(['phone' => 'У аккаунта нет доступа ни к одному клубу.'])->onlyInput('phone');
             }
@@ -56,6 +57,8 @@ class AuthController extends Controller
 
             return redirect()->intended('/dashboard');
         }
+
+        $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'invalid_credentials');
 
         return back()->withErrors([
             'phone' => 'Неверные учетные данные.',

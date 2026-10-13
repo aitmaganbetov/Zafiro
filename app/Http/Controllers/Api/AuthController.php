@@ -21,7 +21,14 @@ class AuthController extends Controller
     {
         $user = User::query()->where('phone', $request->validated('phone'))->first();
 
+        $phone = (string) $request->validated('phone');
+        $failed = fn (string $reason) => $activity->recordFailedLogin('auth.api_login_failed', $phone, $reason, [
+            'device' => $request->validated('device_name') ?: 'mobile',
+        ]);
+
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
+            $failed('invalid_credentials');
+
             return response()->json(['message' => 'Неверный номер телефона или пароль.'], 401);
         }
 
@@ -31,10 +38,14 @@ class AuthController extends Controller
             $keyClub = $installationKeys->resolve($request->validated('club_key'));
 
             if ($keyClub === null) {
+                $failed('invalid_club_key');
+
                 return response()->json(['message' => 'Ключ установки недействителен.'], 401);
             }
 
             if ($requestedClubId !== null && (int) $requestedClubId !== $keyClub->getKey()) {
+                $failed('club_key_mismatch');
+
                 return response()->json(['message' => 'Ключ установки относится к другому клубу.'], 403);
             }
 
@@ -49,6 +60,8 @@ class AuthController extends Controller
             ->first();
 
         if (! $membership) {
+            $failed('no_club_access');
+
             return response()->json(['message' => 'У аккаунта нет доступа к выбранному клубу.'], 403);
         }
 
@@ -56,6 +69,8 @@ class AuthController extends Controller
         $subscription = ClubSubscription::query()->where('club_id', $membership->club_id)->first();
 
         if ($subscription?->isActive() !== true) {
+            $failed('subscription_inactive');
+
             return response()->json(['message' => 'Подписка клуба не активна.'], 402);
         }
 

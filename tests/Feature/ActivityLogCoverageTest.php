@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -57,4 +58,43 @@ test('switching clubs is logged in the club the user switched to', function () {
     expect($log->club_id)->toBe($other->id)
         ->and($log->user_id)->toBe($user->id)
         ->and($log->details)->toMatchArray(['from_club_id' => $fromClubId]);
+});
+
+test('failed web sign-in for an existing account is logged with the reason', function () {
+    $user = User::factory()->create(['password' => 'right-secret']);
+
+    $this->post(route('auth.login'), ['phone' => substr($user->phone, 2), 'password' => 'wrong-secret'])
+        ->assertSessionHasErrors('phone');
+
+    $log = latestLog('auth.login_failed');
+    expect($log->user_id)->toBe($user->id)
+        ->and($log->ip_address)->not->toBeEmpty()
+        ->and($log->details)->toBe(['reason' => 'invalid_credentials'])
+        ->and(json_encode($log))->not->toContain('wrong-secret');
+});
+
+test('failed sign-in for an unknown phone goes to the system log', function () {
+    Log::spy();
+
+    $this->post(route('auth.login'), ['phone' => '7009998877', 'password' => 'whatever'])
+        ->assertSessionHasErrors('phone');
+
+    expect(ActivityLog::query()->withoutGlobalScope('club')->where('event', 'auth.login_failed')->exists())->toBeFalse();
+    Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $context['phone'] === '+77009998877'
+        && $context['reason'] === 'invalid_credentials'
+        && $context['ip'] === '127.0.0.1');
+});
+
+test('failed API sign-ins are logged with the reason', function () {
+    $user = User::factory()->create(['password' => 'right-secret']);
+
+    $this->postJson(route('api.auth.login'), ['phone' => $user->phone, 'password' => 'nope', 'device_name' => 'PC-01'])
+        ->assertUnauthorized();
+    expect(latestLog('auth.api_login_failed')->details)->toBe(['reason' => 'invalid_credentials', 'device' => 'PC-01']);
+
+    $this->postJson(route('api.auth.login'), ['phone' => $user->phone, 'password' => 'right-secret', 'club_key' => str_repeat('x', 64)])
+        ->assertUnauthorized();
+    $log = latestLog('auth.api_login_failed');
+    expect($log->user_id)->toBe($user->id)
+        ->and($log->details['reason'])->toBe('invalid_club_key');
 });

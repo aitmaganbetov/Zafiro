@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\ClubMembership;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use LogicException;
 
 class ActivityLogger
@@ -46,5 +50,42 @@ class ActivityLogger
         $log->save();
 
         return $log;
+    }
+
+    /**
+     * A failed sign-in is logged in every club of the account it targeted. Attempts
+     * for unknown phone numbers have no user to attach, so they go to the system log.
+     *
+     * @param  array<string, mixed>  $details
+     */
+    public function recordFailedLogin(string $event, string $phone, string $reason, array $details = []): void
+    {
+        $user = User::query()->where('phone', $phone)->first();
+        $clubIds = $user === null
+            ? collect()
+            : ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $user->getKey())->pluck('club_id');
+
+        if ($clubIds->isEmpty()) {
+            Log::warning('Failed sign-in without a club account', [
+                'event' => $event,
+                'phone' => $phone,
+                'reason' => $reason,
+                'user_id' => $user?->getKey(),
+                'ip' => request()->ip(),
+            ]);
+
+            return;
+        }
+
+        $description = ($event === 'auth.api_login_failed' ? 'Неудачный вход через API: ' : 'Неудачный вход: ').$user->name;
+
+        DB::transaction(fn () => $clubIds->each(fn (int $clubId) => $this->record(
+            $event,
+            $description,
+            $user->getKey(),
+            $user,
+            ['reason' => $reason, ...$details],
+            $clubId,
+        )));
     }
 }
