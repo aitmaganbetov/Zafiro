@@ -47,3 +47,10 @@ Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting
     ])
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1'])
     ->name('api.settings.show');
+
+// Integration API for external systems: API keys bound to one club, see routes/api_v1.php.
+// Separate prefix, so the routes above keep their contracts.
+Route::prefix('v1')
+    ->name('api.v1.')
+    ->middleware(['api.log', 'api.size', 'api.key', 'throttle:api-v1'])
+    ->group(base_path('routes/api_v1.php'));
