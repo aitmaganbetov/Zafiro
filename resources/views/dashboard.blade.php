@@ -141,39 +141,6 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
 <script>
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.getElementById('overlay');
-
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        });
-    }
-
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-        });
-    }
-
-    const userMenuBtn = document.getElementById('userMenuBtn');
-    const userMenu = document.getElementById('userMenu');
-
-    if (userMenuBtn) {
-        userMenuBtn.addEventListener('click', () => {
-            userMenu.classList.toggle('active');
-        });
-    }
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.relative')) {
-            userMenu?.classList.remove('active');
-        }
-    });
-
     const chartElement = document.getElementById('chart');
     if (chartElement) {
         const ctx = chartElement.getContext('2d');
