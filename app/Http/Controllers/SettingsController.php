@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveSettingsRequest;
+use App\Services\CurrentClub;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
+    public function __construct(private CurrentClub $currentClub) {}
+
     public function club()
     {
         return view('settings.club', ['settings' => $this->loadSettings()]);
@@ -127,22 +129,18 @@ class SettingsController extends Controller
             }
         }
 
-        Storage::put('settings.json', json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $club = $this->currentClub->get();
+        $club->settings = $settings;
+        $club->save();
 
         return back()->with('status', 'Настройки сохранены');
     }
 
     private function loadSettings(): array
     {
-        if (!Storage::exists('settings.json')) {
-            return $this->defaultSettings();
-        }
-
-        $contents = Storage::get('settings.json');
-
         $settings = array_replace_recursive(
             $this->defaultSettings(),
-            json_decode($contents, true) ?: [],
+            $this->currentClub->settings(),
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {

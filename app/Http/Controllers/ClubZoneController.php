@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CurrentClub;
 use App\Http\Requests\StoreClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
@@ -14,7 +15,7 @@ use Illuminate\View\View;
 
 class ClubZoneController extends Controller
 {
-    public function __construct(private ClubZoneLayoutService $layout) {}
+    public function __construct(private ClubZoneLayoutService $layout, private CurrentClub $currentClub) {}
 
     public function index(): View
     {
@@ -34,7 +35,7 @@ class ClubZoneController extends Controller
             'position_x' => 20 + ($offset % 240),
             'position_y' => 20 + ($offset % 180),
         ]);
-        $zone->tariffs()->sync($tariffIds);
+        $zone->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
         return back()->with('status', 'Зона добавлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
@@ -44,7 +45,7 @@ class ClubZoneController extends Controller
         $tariffIds = $data['tariff_ids'] ?? [];
         unset($data['tariff_ids']);
         $clubMap->update($data);
-        $clubMap->tariffs()->sync($tariffIds);
+        $clubMap->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
         return back()->with('status', 'Зона обновлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 

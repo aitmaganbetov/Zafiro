@@ -9,10 +9,23 @@
             <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Пользователи</h3>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Всего: {{ $users->total() }}</p>
         </div>
-        <button id="open-user-dialog" type="button" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white hover:bg-green-800"><i class="fas fa-user-plus"></i>Добавить пользователя</button>
+        <div class="flex flex-wrap items-center gap-3">
+            <form action="{{ route('club-invitations.store') }}" method="POST" class="flex flex-wrap items-center gap-2">
+                @csrf
+                <input name="email" type="email" value="{{ old('email') }}" placeholder="Email (необязательно)" aria-label="Email приглашённого" class="min-h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                <select name="role" required aria-label="Роль приглашённого" class="min-h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                    <option value="operator">Оператор</option>
+                    <option value="cashier">Кассир</option>
+                    <option value="manager">Менеджер</option>
+                </select>
+                <button type="submit" class="brand-button min-h-10 px-4"><i class="fas fa-link"></i>Создать ссылку</button>
+            </form>
+            <button id="open-user-dialog" type="button" class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"><i class="fas fa-user-plus"></i>Добавить напрямую</button>
+        </div>
     </div>
 
     @if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
+    @if(session('invite_url'))<div class="mb-4 flex gap-2"><input id="club-invite-url" readonly value="{{ session('invite_url') }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"><button type="button" data-copy-invite class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium dark:border-gray-700">Копировать ссылку</button></div>@endif
 
     <dialog id="user-create-dialog" class="user-create-dialog" @if($errors->any()) data-open-on-load @endif>
         <div class="user-create-dialog-shell">
@@ -33,7 +46,7 @@
                     <div><label for="new-user-discount" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Скидка, %</label><input id="new-user-discount" name="discount" type="number" value="{{ old('discount', 0) }}" min="0" max="100" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
                     <div><label for="new-user-balance" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Баланс</label><input id="new-user-balance" name="balance" type="number" value="{{ old('balance', 0) }}" min="0" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
                     <div><label for="new-user-bonus-balance" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Бонусный баланс</label><input id="new-user-bonus-balance" name="bonus_balance" type="number" value="{{ old('bonus_balance', 0) }}" min="0" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
-                    <div class="flex items-end justify-end gap-3 md:col-span-2"><button type="button" data-close-user-dialog class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Отмена</button><button type="submit" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-green-700 px-5 text-sm font-semibold text-white hover:bg-green-800"><i class="fas fa-user-plus"></i>Создать</button></div>
+                    <div class="flex items-end justify-end gap-3 md:col-span-2"><button type="button" data-close-user-dialog class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Отмена</button><button type="submit" class="brand-button min-h-10 px-5"><i class="fas fa-user-plus"></i>Создать</button></div>
                 </form>
             </div>
         </div>
@@ -53,14 +66,14 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @forelse ($users as $user)
+                    @forelse ($users as $membership)
                         <tr class="text-gray-700 dark:text-gray-300">
-                            <td class="px-5 py-4 font-medium text-gray-900 dark:text-white">{{ $user->name }}</td>
-                            <td class="px-5 py-4 whitespace-nowrap">{{ $user->phone }}</td>
-                            <td class="px-5 py-4">{{ $user->role }}</td>
-                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $user->discount, 2, '.', ' ') }}%</td>
-                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $user->balance, 2, '.', ' ') }}</td>
-                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $user->bonus_balance, 2, '.', ' ') }}</td>
+                            <td class="px-5 py-4 font-medium text-gray-900 dark:text-white">{{ $membership->user->name }}</td>
+                            <td class="px-5 py-4 whitespace-nowrap">{{ $membership->user->phone }}</td>
+                            <td class="px-5 py-4">{{ $membership->role }}</td>
+                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->discount, 2, '.', ' ') }}%</td>
+                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->balance, 2, '.', ' ') }}</td>
+                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -82,6 +95,6 @@
 
 @push('scripts')
 <script>
-(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal()})();
+(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();document.querySelector('[data-copy-invite]')?.addEventListener('click',async()=>{const field=document.getElementById('club-invite-url');await navigator.clipboard.writeText(field.value)})})();
 </script>
 @endpush

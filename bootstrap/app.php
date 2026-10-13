@@ -4,6 +4,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
+use App\Http\Middleware\SetCurrentClub;
+use App\Http\Middleware\RequireClubRole;
+use App\Http\Middleware\RequireActiveSubscription;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(fn (Request $request) => route('auth.show-login'));
+        $middleware->alias([
+            'current-club' => SetCurrentClub::class,
+            'club-role' => RequireClubRole::class,
+            'subscription' => RequireActiveSubscription::class,
+        ]);
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, SetCurrentClub::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

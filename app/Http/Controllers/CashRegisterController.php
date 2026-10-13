@@ -25,7 +25,11 @@ class CashRegisterController extends Controller
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->with(['transactions' => fn ($q) => $q->latest()])->first();
         $products = Product::query()->select(['id','name','category','price','quantity'])->where('quantity','>',0)->orderBy('name')->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'phone', 'balance', 'bonus_balance']);
+        $users = User::query()
+            ->whereHas('currentMembership')
+            ->with('currentMembership.balance')
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone']);
 
         return view('cash-register.index', ['shift'=>$shift, 'totals'=>$shift ? $this->cash->totals($shift) : null, 'products'=>$products, 'users'=>$users]);
     }

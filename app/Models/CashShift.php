@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable(['opened_by', 'closed_by', 'status', 'open_marker', 'opening_balance', 'closing_balance', 'opened_at', 'closed_at'])]
 class CashShift extends Model
 {
+    use BelongsToClub;
+
     public const STATUS_OPEN = 'open';
     public const STATUS_CLOSED = 'closed';
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\CurrentClub;
+use App\Models\Concerns\BelongsToClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 #[Fillable(['name', 'description', 'duration_minutes', 'price', 'is_active', 'payment_method', 'currency', 'discount_enabled', 'color', 'club_name', 'usage_limit_enabled', 'usage_limit_minutes', 'quantity_limit_enabled', 'quantity_limit', 'validity_periods'])]
 class Tariff extends Model
 {
+    use BelongsToClub;
+
     protected $attributes = ['is_active' => true];
 
     protected function casts(): array
@@ -28,6 +32,8 @@ class Tariff extends Model
 
     public function zones(): BelongsToMany
     {
-        return $this->belongsToMany(ClubZone::class);
+        return $this->belongsToMany(ClubZone::class)
+            ->withPivot('club_id')
+            ->wherePivot('club_id', app(CurrentClub::class)->id());
     }
 }

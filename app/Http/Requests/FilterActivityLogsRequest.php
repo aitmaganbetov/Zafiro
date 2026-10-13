@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Models\ClubMembership;
 
 class FilterActivityLogsRequest extends FormRequest
 {
@@ -28,7 +29,7 @@ class FilterActivityLogsRequest extends FormRequest
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
             'event' => ['nullable', Rule::in(array_keys(ActivityLog::EVENT_LABELS))],
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            'user_id' => ['nullable', 'integer', Rule::in(ClubMembership::query()->pluck('user_id')->all())],
             'search' => ['nullable', 'string', 'max:120'],
         ];
     }

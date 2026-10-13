@@ -53,7 +53,7 @@
             @csrf
             <div>
                 <label for="product_id" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Товар</label>
-                <select id="product_id" name="product_id" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <select id="product_id" name="product_id" required class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                     @foreach ($products as $product)
                         <option value="{{ $product->id }}" @selected((int) old('product_id') === $product->id)>
                             {{ $product->name }} (остаток: {{ $product->quantity }})
@@ -64,7 +64,7 @@
 
             <div>
                 <label for="type" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Операция</label>
-                <select id="type" name="type" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <select id="type" name="type" required class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                     <option value="receipt" @selected(old('type') === 'receipt')>Оприходование</option>
                     <option value="write_off" @selected(old('type') === 'write_off')>Списание</option>
                 </select>
@@ -72,16 +72,16 @@
 
             <div>
                 <label for="quantity" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Количество</label>
-                <input id="quantity" type="number" name="quantity" value="{{ old('quantity', 1) }}" min="1" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <input id="quantity" type="number" name="quantity" value="{{ old('quantity', 1) }}" min="1" required class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
             </div>
 
             <div>
                 <label for="note" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Комментарий</label>
-                <input id="note" type="text" name="note" value="{{ old('note') }}" maxlength="255" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <input id="note" type="text" name="note" value="{{ old('note') }}" maxlength="255" class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
             </div>
 
             <div class="lg:col-span-4 flex justify-end">
-                <button type="submit" class="rounded-lg bg-purple-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-purple-700">Провести операцию</button>
+                <button type="submit" class="brand-button rounded-lg px-5 py-2 text-sm transition">Провести операцию</button>
             </div>
         </form>
     </div>

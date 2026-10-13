@@ -3,6 +3,7 @@
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -16,6 +17,7 @@ test('authenticated agent heartbeat marks computer online and returns polling in
         'status' => 'offline',
     ]);
     $token = $user->createToken('wpf-agent')->plainTextToken;
+    app(CurrentClub::class)->clear();
 
     $this->withToken($token)
         ->postJson(route('api.club-computers.heartbeat', $computer))

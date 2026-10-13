@@ -1,10 +1,13 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
+uses(RefreshDatabase::class);
+
 test('club settings can be saved and reused on the next request', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -24,9 +27,7 @@ test('club settings can be saved and reused on the next request', function () {
     $response->assertRedirect();
     $response->assertSessionHas('status', 'Настройки сохранены');
 
-    Storage::assertExists('settings.json');
-
-    $settings = json_decode(Storage::get('settings.json'), true);
+    $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
     expect($settings['club']['session_idle_timeout'])->toBe(20);
     expect($settings['club']['pc_restart_after_session_end'])->toBe(0.75);
@@ -35,7 +36,7 @@ test('club settings can be saved and reused on the next request', function () {
 });
 
 test('finance currency setting can be selected', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -50,14 +51,14 @@ test('finance currency setting can be selected', function () {
             'currency' => $currency,
         ])->assertRedirect();
 
-        $settings = json_decode(Storage::get('settings.json'), true);
+        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['finances']['currency'])->toBe($currency);
     }
 });
 
 test('guest login QR code setting is saved as a boolean', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -72,14 +73,14 @@ test('guest login QR code setting is saved as a boolean', function () {
             'show_qr_code_on_login' => $value,
         ])->assertRedirect();
 
-        $settings = json_decode(Storage::get('settings.json'), true);
+        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['show_qr_code_on_login'])->toBe($expected);
     }
 });
 
 test('guest self transfer setting is saved as a boolean', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -94,14 +95,14 @@ test('guest self transfer setting is saved as a boolean', function () {
             'allow_guest_self_transfer' => $value,
         ])->assertRedirect();
 
-        $settings = json_decode(Storage::get('settings.json'), true);
+        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_guest_self_transfer'])->toBe($expected);
     }
 });
 
 test('adding friends setting is saved as a boolean', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -116,14 +117,14 @@ test('adding friends setting is saved as a boolean', function () {
             'allow_adding_friends' => $value,
         ])->assertRedirect();
 
-        $settings = json_decode(Storage::get('settings.json'), true);
+        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_adding_friends'])->toBe($expected);
     }
 });
 
 test('balance transfer to friends setting is saved as a boolean', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -138,14 +139,14 @@ test('balance transfer to friends setting is saved as a boolean', function () {
             'allow_balance_transfer_to_friends' => $value,
         ])->assertRedirect();
 
-        $settings = json_decode(Storage::get('settings.json'), true);
+        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_balance_transfer_to_friends'])->toBe($expected);
     }
 });
 
 test('API settings page displays every setting with saved values', function () {
-    $user = new User([
+    $user = User::factory()->create([
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => bcrypt('secret'),
@@ -176,6 +177,8 @@ test('API settings page displays every setting with saved values', function () {
 });
 
 test('each setting has its own public JSON API endpoint', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
     Storage::put('settings.json', json_encode([
         'guests' => [
             'allow_adding_friends' => true,

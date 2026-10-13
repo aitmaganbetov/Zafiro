@@ -12,14 +12,18 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $membership = $this->currentMembership;
+        $balance = $membership?->balance;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'phone' => $this->phone,
-            'role' => $this->role,
-            'discount' => (float) $this->discount,
-            'balance' => (float) $this->balance,
-            'bonus_balance' => (float) $this->bonus_balance,
+            'club_id' => $membership?->club_id,
+            'role' => $membership?->role,
+            'discount' => (float) ($membership?->discount ?? 0),
+            'balance' => (float) ($balance?->balance ?? 0),
+            'bonus_balance' => (float) ($balance?->bonus_balance ?? 0),
         ];
     }
 }

@@ -37,7 +37,7 @@
         </div>
         <div class="flex gap-2">
             <input name="search" value="{{ $filters['search'] ?? '' }}" maxlength="120" placeholder="Описание, имя, телефон" aria-label="Поиск по журналу" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"><i class="fas fa-filter"></i>Фильтр</button>
+            <button type="submit" class="brand-button"><i class="fas fa-filter"></i>Фильтр</button>
         </div>
         <div class="xl:col-span-5">
             <a href="{{ route('activity-logs.index') }}" class="text-xs font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">Сбросить фильтры</a>

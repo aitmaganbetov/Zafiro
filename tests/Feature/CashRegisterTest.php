@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Models\MemberBalance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -89,9 +90,8 @@ test('cashier can top up a users main or bonus balance from the POS', function (
     $cashier = User::factory()->create();
     $customer = User::factory()->create([
         'name' => 'Клиент POS',
-        'balance' => 100,
-        'bonus_balance' => 25,
     ]);
+    MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 100, 'bonus_balance' => 25]);
     CashShift::query()->create([
         'opened_by' => $cashier->id,
         'status' => 'open',
@@ -108,8 +108,8 @@ test('cashier can top up a users main or bonus balance from the POS', function (
     ])->assertRedirect()
         ->assertSessionHas('status', 'Баланс пользователя пополнен.');
 
-    expect($customer->refresh()->balance)->toBe('850.00')
-        ->and($customer->bonus_balance)->toBe('25.00');
+    expect($customer->currentMembership()->firstOrFail()->balance->refresh()->balance)->toBe('850.00')
+        ->and($customer->currentMembership()->firstOrFail()->balance->bonus_balance)->toBe('25.00');
 
     $transaction = CashTransaction::query()->where('description', 'like', '%Клиент POS%')->firstOrFail();
     expect($transaction->type)->toBe('income')

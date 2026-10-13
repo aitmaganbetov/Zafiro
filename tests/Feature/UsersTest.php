@@ -12,11 +12,12 @@ test('authenticated users can view the user list and account details', function 
     User::factory()->create([
         'name' => 'Иван Петров',
         'phone' => '+79991234567',
-        'role' => 'Гость',
-        'discount' => 12.5,
-        'balance' => 1250.5,
-        'bonus_balance' => 75,
-    ]);
+    ])->currentMembership()->firstOrFail()->update(['role' => 'Гость', 'discount' => 12.5]);
+    $guest = User::query()->where('phone', '+79991234567')->firstOrFail();
+    $guest->currentMembership()->firstOrFail()->balance()->updateOrCreate(
+        ['club_id' => app(\App\Services\CurrentClub::class)->id(), 'user_id' => $guest->id],
+        ['balance' => 1250.5, 'bonus_balance' => 75],
+    );
 
     $this->actingAs($admin)
         ->get(route('users.index'))
@@ -33,12 +34,20 @@ test('guest users are redirected away from the user list', function () {
     $this->get(route('users.index'))->assertRedirect(route('auth.show-login'));
 });
 
+test('cashiers can open the cash register but cannot change club settings', function () {
+    $cashier = User::factory()->create();
+    $cashier->currentMembership()->firstOrFail()->update(['role' => 'cashier']);
+
+    $this->actingAs($cashier)->get(route('cash-register.index'))->assertSuccessful();
+    $this->actingAs($cashier)->get(route('settings.club'))->assertForbidden();
+});
+
 test('authenticated users can create an account from the user list', function () {
     $admin = User::factory()->create();
 
     $this->actingAs($admin)->get(route('users.index'))
         ->assertSuccessful()
-        ->assertSee('Добавить пользователя')
+        ->assertSee('Добавить напрямую')
         ->assertSee('<dialog id="user-create-dialog"', false)
         ->assertSee('>+7</span>', false)
         ->assertSee('<option value="admin"', false)
@@ -60,11 +69,12 @@ test('authenticated users can create an account from the user list', function ()
         ->assertSessionHas('status', 'Пользователь добавлен.');
 
     $createdUser = User::query()->where('phone', '+77001234567')->firstOrFail();
+    $membership = $createdUser->currentMembership()->firstOrFail();
     expect($createdUser->name)->toBe('Айжан Садыкова')
-        ->and($createdUser->role)->toBe('cashier')
-        ->and($createdUser->discount)->toBe('10.50')
-        ->and($createdUser->balance)->toBe('2500.00')
-        ->and($createdUser->bonus_balance)->toBe('150.00')
+        ->and($membership->role)->toBe('cashier')
+        ->and($membership->discount)->toBe('10.50')
+        ->and($membership->balance->balance)->toBe('2500.00')
+        ->and($membership->balance->bonus_balance)->toBe('150.00')
         ->and(Hash::check('guest-secret', $createdUser->password))->toBeTrue();
 
     expect(ActivityLog::query()->where('event', 'user.created')->where('user_id', $admin->id)->exists())->toBeTrue();
@@ -87,4 +97,11 @@ test('user creation validates unique phone and password confirmation', function 
 
 test('guest users cannot create accounts through the admin form', function () {
     $this->post(route('users.store'), [])->assertRedirect(route('auth.show-login'));
+});
+
+test('non-staff members can still log out', function () {
+    $member = User::factory()->create();
+    $member->currentMembership()->firstOrFail()->update(['role' => 'Пользователь']);
+
+    $this->actingAs($member)->post(route('auth.logout'))->assertRedirect('/');
 });

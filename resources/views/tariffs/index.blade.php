@@ -22,7 +22,7 @@
     @php
         $weekdays = ['mon' => 'Пн', 'tue' => 'Вт', 'wed' => 'Ср', 'thu' => 'Чт', 'fri' => 'Пт', 'sat' => 'Сб', 'sun' => 'Вс'];
         $periods = old('validity_periods', [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']]);
-        $tariffColors = ['#ef4444', '#e11d48', '#c026d3', '#9333ea', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#14b8a6', '#22c55e', '#84cc16', '#a3e635', '#eab308', '#facc15', '#f97316', '#fb7185', '#fda4af', '#fbcfe8', '#e9d5ff', '#c4b5fd', '#bfdbfe', '#bae6fd', '#a5f3fc', '#99f6e4', '#bbf7d0', '#d9f99d', '#fef08a', '#fef3c7', '#fed7aa', '#fdba74'];
+        $tariffColors = ['#ff0169', '#e11d48', '#c026d3', '#9333ea', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#14b8a6', '#22c55e', '#84cc16', '#a3e635', '#eab308', '#facc15', '#f97316', '#fb7185', '#fda4af', '#fbcfe8', '#e9d5ff', '#c4b5fd', '#bfdbfe', '#bae6fd', '#a5f3fc', '#99f6e4', '#bbf7d0', '#d9f99d', '#fef08a', '#fef3c7', '#fed7aa', '#fdba74'];
     @endphp
     <dialog id="tariff-dialog" class="tariff-dialog" @if($errors->any()) data-open-on-load @endif>
         <div class="tariff-dialog-shell">
@@ -61,14 +61,14 @@
                     <input id="tariff-price" name="price" type="number" value="{{ old('price') }}" required min="0" max="9999999999.99" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                 </div>
                 <div class="flex items-center gap-3 pt-6">
-                    <input type="hidden" name="discount_enabled" value="0"><input id="discount-enabled" type="checkbox" name="discount_enabled" value="1" @checked(old('discount_enabled', '0') === '1') class="rounded border-gray-300 text-green-600 focus:ring-green-600">
+                    <input type="hidden" name="discount_enabled" value="0"><input id="discount-enabled" type="checkbox" name="discount_enabled" value="1" @checked(old('discount_enabled', '0') === '1') class="brand-check rounded border-gray-300">
                     <label for="discount-enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">Применять скидку</label>
                 </div>
                 <div>
                     <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Цвет</span>
                     <div class="flex flex-wrap gap-2">
                         @foreach($tariffColors as $color)
-                            <label class="cursor-pointer"><input class="tariff-color-radio peer sr-only" type="radio" name="color" value="{{ $color }}" @checked(old('color', '#ef4444') === $color)><span class="tariff-color-swatch tariff-color-{{ substr($color, 1) }}"></span></label>
+                            <label class="cursor-pointer"><input class="tariff-color-radio peer sr-only" type="radio" name="color" value="{{ $color }}" @checked(old('color', '#ff0169') === $color)><span class="tariff-color-swatch tariff-color-{{ substr($color, 1) }}"></span></label>
                         @endforeach
                     </div>
                 </div>
@@ -89,13 +89,13 @@
                 <div class="space-y-4">
                     <div>
                         <input type="hidden" name="usage_limit_enabled" value="0">
-                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="usage_limit_enabled" value="1" @checked(old('usage_limit_enabled', '0') === '1') class="rounded border-gray-300 text-green-600">Ограничить использование</label>
+                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="usage_limit_enabled" value="1" @checked(old('usage_limit_enabled', '0') === '1') class="brand-check rounded border-gray-300">Ограничить использование</label>
                         <p class="mb-2 text-xs text-gray-500">Абонемент сгорит через указанное время после активации.</p>
                         <div class="tariff-duration-fields"><input name="usage_limit_value" type="number" min="1" max="10080" value="{{ old('usage_limit_value') }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"><select name="usage_limit_unit" class="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"><option value="hours">Часов</option><option value="minutes">Минут</option><option value="days">Дней</option></select></div>
                     </div>
                     <div>
                         <input type="hidden" name="quantity_limit_enabled" value="0">
-                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="quantity_limit_enabled" value="1" @checked(old('quantity_limit_enabled', '0') === '1') class="rounded border-gray-300 text-green-600">Ограничить количество</label>
+                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="quantity_limit_enabled" value="1" @checked(old('quantity_limit_enabled', '0') === '1') class="brand-check rounded border-gray-300">Ограничить количество</label>
                         <p class="mb-2 text-xs text-gray-500">Сколько абонементов будет доступно к продаже.</p>
                         <input name="quantity_limit" type="number" min="1" max="1000000" value="{{ old('quantity_limit') }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800">
                     </div>
@@ -113,7 +113,7 @@
                             <label class="text-xs text-gray-500">Время<input name="validity_periods[{{ $periodIndex }}][start_time]" type="time" value="{{ $period['start_time'] ?? '00:00' }}" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
                             <label class="text-xs text-gray-500">До<select name="validity_periods[{{ $periodIndex }}][end_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}" @selected(($period['end_day'] ?? 'sun') === $day)>{{ $dayName }}</option>@endforeach</select></label>
                             <label class="text-xs text-gray-500">Время<input name="validity_periods[{{ $periodIndex }}][end_time]" type="time" value="{{ $period['end_time'] ?? '23:59' }}" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                            <button type="button" data-add-validity-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20" aria-label="Добавить период"><i class="fas fa-plus"></i></button>
+                            <button type="button" data-add-validity-period class="brand-period-add mb-1 grid h-9 w-9 place-items-center rounded-lg" aria-label="Добавить период"><i class="fas fa-plus"></i></button>
                             <button type="button" data-remove-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" aria-label="Удалить период"><i class="fas fa-trash"></i></button>
                         </div>
                     @endforeach
@@ -124,15 +124,15 @@
                         <label class="text-xs text-gray-500">Время<input name="validity_periods[__INDEX__][start_time]" type="time" value="00:00" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
                         <label class="text-xs text-gray-500">До<select name="validity_periods[__INDEX__][end_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}">{{ $dayName }}</option>@endforeach</select></label>
                         <label class="text-xs text-gray-500">Время<input name="validity_periods[__INDEX__][end_time]" type="time" value="23:59" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                        <button type="button" data-add-validity-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20" aria-label="Добавить период"><i class="fas fa-plus"></i></button>
+                        <button type="button" data-add-validity-period class="brand-period-add mb-1 grid h-9 w-9 place-items-center rounded-lg" aria-label="Добавить период"><i class="fas fa-plus"></i></button>
                         <button type="button" data-remove-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" aria-label="Удалить период"><i class="fas fa-trash"></i></button>
                     </div>
                 </template>
             </section>
 
             <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5 dark:border-gray-800">
-                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', '1') === '1') class="rounded border-gray-300 text-green-600">Активен</label>
-                <button type="submit" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-green-700 px-5 text-sm font-semibold text-white transition hover:bg-green-800"><i class="fas fa-plus"></i>Создать тариф</button>
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', '1') === '1') class="brand-check rounded border-gray-300">Активен</label>
+                <button type="submit" class="brand-button min-h-10 px-5"><i class="fas fa-plus"></i>Создать тариф</button>
             </div>
         </form>
             </div>

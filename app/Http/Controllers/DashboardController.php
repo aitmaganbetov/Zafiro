@@ -6,12 +6,14 @@ use App\Models\CashTransaction;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Product;
-use App\Models\User;
-use Illuminate\Support\Facades\Storage;
+use App\Models\ClubMembership;
+use App\Services\CurrentClub;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private CurrentClub $currentClub) {}
+
     public function __invoke(): View
     {
         $now = now();
@@ -35,7 +37,7 @@ class DashboardController extends Controller
 
         $computerStatuses = ClubComputer::query()->get(['status', 'is_reserved', 'last_seen_at'])
             ->map(fn (ClubComputer $computer): string => $computer->currentStatus());
-        $settings = Storage::exists('settings.json') ? json_decode(Storage::get('settings.json'), true) : [];
+        $settings = $this->currentClub->settings();
 
         return view('dashboard', [
             'todayIncome' => (float) $todayTransactions->where('type', CashTransaction::TYPE_INCOME)->sum('amount'),
@@ -52,7 +54,7 @@ class DashboardController extends Controller
             'computerCount' => $computerStatuses->count(),
             'onlineComputerCount' => $computerStatuses->filter(fn (string $status): bool => $status === 'online')->count(),
             'reservedComputerCount' => $computerStatuses->filter(fn (string $status): bool => $status === 'reserved')->count(),
-            'userCount' => User::query()->count(),
+            'userCount' => ClubMembership::query()->count(),
             'recentTransactions' => CashTransaction::query()
                 ->latest('created_at')
                 ->limit(6)

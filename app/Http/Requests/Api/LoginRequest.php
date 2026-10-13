@@ -20,6 +20,8 @@ class LoginRequest extends FormRequest
             'phone' => ['required', 'string', 'regex:/^\+?[1-9]\d{1,14}$/'],
             'password' => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:255'],
+            'club_id' => ['nullable', 'integer'],
+            'club_key' => ['nullable', 'string', 'size:64'],
         ];
     }
 }

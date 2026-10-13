@@ -49,8 +49,12 @@ test('warehouse, cash, and POS operations are recorded in the activity log', fun
 test('successful web login and logout are recorded with the actor', function () {
     $user = User::factory()->create(['password' => 'secret123']);
 
+    $this->get(route('auth.show-login'))
+        ->assertSuccessful()
+        ->assertSee('>+7</span>', false);
+
     $this->post(route('auth.login'), [
-        'phone' => $user->phone,
+        'phone' => substr($user->phone, 2),
         'password' => 'secret123',
     ])->assertRedirect(route('dashboard'));
 

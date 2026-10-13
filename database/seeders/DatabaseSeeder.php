@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Club;
+use App\Services\CurrentClub;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,6 +17,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $club = Club::query()->where('slug', 'legacy')->firstOrFail();
+        app(CurrentClub::class)->set($club);
+
         $this->call(ProductSeeder::class);
         $this->call(ProductCategorySeeder::class);
 

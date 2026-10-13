@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\CurrentClub;
+use App\Models\Concerns\BelongsToClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 #[Fillable(['name', 'description', 'capacity', 'icon', 'theme', 'status', 'is_featured', 'sort_order', 'position_x', 'position_y', 'width', 'height', 'rotation'])]
 class ClubZone extends Model
 {
+    use BelongsToClub;
+
     protected $attributes = ['icon' => 'desktop', 'theme' => 'neutral', 'status' => 'available', 'is_featured' => false, 'sort_order' => 0, 'position_x' => 20, 'position_y' => 20, 'width' => 320, 'height' => 180, 'rotation' => 0];
 
     protected function casts(): array
@@ -24,6 +28,8 @@ class ClubZone extends Model
 
     public function tariffs(): BelongsToMany
     {
-        return $this->belongsToMany(Tariff::class);
+        return $this->belongsToMany(Tariff::class)
+            ->withPivot('club_id')
+            ->wherePivot('club_id', app(CurrentClub::class)->id());
     }
 }

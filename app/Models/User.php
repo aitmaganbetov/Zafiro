@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'phone', 'email', 'password', 'role', 'discount', 'balance', 'bonus_balance'])]
+#[Fillable(['name', 'phone', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,9 +30,17 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'discount' => 'decimal:2',
-            'balance' => 'decimal:2',
-            'bonus_balance' => 'decimal:2',
         ];
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(ClubMembership::class);
+    }
+
+    public function currentMembership(): HasOne
+    {
+        return $this->hasOne(ClubMembership::class)
+            ->where('club_id', app(\App\Services\CurrentClub::class)->id() ?? 0);
     }
 }

@@ -10,6 +10,7 @@
         <a href="{{ route('activity-logs.index') }}" class="sidebar-link {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>Логи</span></a>
         <span class="sidebar-label">Система</span>
         <a href="{{ route('settings') }}" class="sidebar-link {{ request()->routeIs('settings*') ? 'active' : '' }}"><i class="fas fa-sliders"></i><span>Настройки</span></a>
+        <a href="{{ route('billing.show') }}" class="sidebar-link {{ request()->routeIs('billing.*') ? 'active' : '' }}"><i class="fas fa-credit-card"></i><span>Подписка</span></a>
         <details class="sidebar-group" @if(request()->routeIs('club-map.*', 'tariffs.*')) open @endif>
             <summary class="sidebar-link"><i class="fas fa-layer-group"></i><span>Зоны и тарифы</span></summary>
             <div class="sidebar-subnav">
@@ -18,7 +19,7 @@
             </div>
         </details>
     </nav>
-    <div class="sidebar-footer"><div class="sidebar-user-mini"><span>{{ mb_substr(Auth::user()->name,0,1) }}</span><div><strong>{{ Auth::user()->name }}</strong><small>Администратор</small></div></div><form action="{{ route('auth.logout') }}" method="POST">@csrf<button title="Выйти"><i class="fas fa-arrow-right-from-bracket"></i></button></form></div>
+    <div class="sidebar-footer"><div class="sidebar-user-mini"><span>{{ mb_substr(Auth::user()->name,0,1) }}</span><div><strong>{{ Auth::user()->name }}</strong><small>{{ ['owner' => 'Владелец', 'admin' => 'Администратор', 'manager' => 'Менеджер', 'cashier' => 'Кассир', 'operator' => 'Оператор'][$currentMembership->role] ?? $currentMembership->role }}</small></div></div><form action="{{ route('auth.logout') }}" method="POST">@csrf<button title="Выйти"><i class="fas fa-arrow-right-from-bracket"></i></button></form></div>
 </aside>
 
 

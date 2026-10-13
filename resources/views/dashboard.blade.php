@@ -108,7 +108,7 @@
                 <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-700">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Последние операции</h3>
-                        <a href="{{ route('cash-register.index') }}" class="text-green-700 hover:text-green-800 dark:text-green-400 text-sm font-medium">Открыть кассу →</a>
+                        <a href="{{ route('cash-register.index') }}" class="brand-link text-sm font-medium">Открыть кассу →</a>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">

@@ -4,17 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUserRequest;
 use App\Services\ActivityLogger;
+use App\Models\ClubMembership;
+use App\Models\MemberBalance;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::query()
-            ->select(['id', 'name', 'phone', 'role', 'discount', 'balance', 'bonus_balance'])
-            ->orderBy('name')
+        $users = ClubMembership::query()
+            ->with(['user:id,name,phone', 'balance'])
+            ->orderBy('user_id')
             ->paginate(25);
 
         return view('users', ['users' => $users]);
@@ -22,10 +26,25 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
     {
-        $user = User::query()->create($request->validated());
+        $data = $request->validated();
+        [$user, $membership] = DB::transaction(function () use ($data): array {
+            $user = User::query()->create(Arr::only($data, ['name', 'phone', 'email', 'password']));
+            $membership = ClubMembership::query()->create([
+                'user_id' => $user->getKey(),
+                'role' => $data['role'],
+                'discount' => $data['discount'] ?? 0,
+            ]);
+            MemberBalance::query()->create([
+                'user_id' => $user->getKey(),
+                'balance' => $data['balance'] ?? 0,
+                'bonus_balance' => $data['bonus_balance'] ?? 0,
+            ]);
+
+            return [$user, $membership];
+        });
         $activity->record('user.created', "Создан пользователь: {$user->name}", $request->user()?->getKey(), $user, [
             'phone' => $user->phone,
-            'role' => $user->role,
+            'role' => $membership->role,
         ]);
 
         return redirect()->route('users.index')->with('status', 'Пользователь добавлен.');

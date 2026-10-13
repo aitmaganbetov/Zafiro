@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['club_zone_id', 'number', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at'])]
 class ClubComputer extends Model
 {
+    use BelongsToClub;
+
     public const HEARTBEAT_TIMEOUT_SECONDS = 90;
 
     protected $attributes = ['status' => 'available', 'is_reserved' => false, 'position_x' => 5, 'position_y' => 5];

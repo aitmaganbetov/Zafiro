@@ -6,12 +6,14 @@ use App\Http\Requests\StoreTariffRequest;
 use App\Models\Tariff;
 use App\Models\ClubZone;
 use App\Services\ActivityLogger;
+use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class TariffController extends Controller
 {
+    public function __construct(private CurrentClub $currentClub) {}
+
     public function index(): View
     {
         return view('tariffs.index', [
@@ -23,7 +25,7 @@ class TariffController extends Controller
     public function store(StoreTariffRequest $request, ActivityLogger $activity): RedirectResponse
     {
         $data = $request->validated();
-        $settings = Storage::exists('settings.json') ? json_decode(Storage::get('settings.json'), true) : [];
+        $settings = $this->currentClub->settings();
         $data['currency'] = data_get($settings ?: [], 'finances.currency', 'KZT');
         $zoneIds = $data['zone_ids'] ?? [];
         $durationFactors = ['minutes' => 1, 'hours' => 60, 'days' => 1440];
@@ -42,7 +44,7 @@ class TariffController extends Controller
         }
 
         $tariff = Tariff::query()->create($data);
-        $tariff->zones()->sync($zoneIds);
+        $tariff->zones()->syncWithPivotValues($zoneIds, ['club_id' => $this->currentClub->id()]);
         $activity->record('tariff.created', "Создан тариф: {$tariff->name}", $request->user()?->getKey(), $tariff, [
             'price' => (float) $tariff->price,
             'currency' => $tariff->currency,

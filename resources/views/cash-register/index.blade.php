@@ -73,7 +73,7 @@
                                 <div id="top-up-user-options" class="pos-user-options" role="listbox" hidden data-user-options>
                                     @foreach($users as $user)
                                         <button type="button" class="pos-user-option" role="option" aria-selected="{{ (string) old('user_id') === (string) $user->id ? 'true' : 'false' }}" data-user-option data-user-id="{{ $user->id }}" data-label="{{ $user->name }} · {{ $user->phone }}" data-search="{{ mb_strtolower($user->name.' '.$user->phone) }}">
-                                            <span><strong>{{ $user->name }}</strong><small>{{ $user->phone }} · Основной {{ number_format((float) $user->balance, 0, ',', ' ') }} ₸ · Бонусный {{ number_format((float) $user->bonus_balance, 0, ',', ' ') }} ₸</small></span>
+                                            <span><strong>{{ $user->name }}</strong><small>{{ $user->phone }} · Основной {{ number_format((float) $user->currentMembership?->balance?->balance, 0, ',', ' ') }} ₸ · Бонусный {{ number_format((float) $user->currentMembership?->balance?->bonus_balance, 0, ',', ' ') }} ₸</small></span>
                                         </button>
                                     @endforeach
                                     <p class="pos-user-no-results" data-user-no-results hidden>Пользователь не найден</p>

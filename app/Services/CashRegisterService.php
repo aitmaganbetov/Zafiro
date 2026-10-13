@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
-use App\Models\User;
 use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -81,11 +81,12 @@ class CashRegisterService
                 throw ValidationException::withMessages(['amount' => 'Сначала откройте смену.']);
             }
 
-            $user = User::query()->lockForUpdate()->findOrFail($userId);
+            $balance = MemberBalance::query()->where('user_id', $userId)->lockForUpdate()->firstOrFail();
+            $user = $balance->user()->firstOrFail();
             $balanceLabel = $balanceType === 'balance' ? 'основной баланс' : 'бонусный баланс';
             $paymentLabels = ['cash' => 'наличные', 'card' => 'карта', 'qr' => 'QR-код'];
-            $user->increment($balanceType, $amount);
-            $user->refresh();
+            $balance->increment($balanceType, $amount);
+            $balance->refresh();
 
             $transaction = $shift->transactions()->create([
                 'user_id' => $operatorId,
@@ -98,7 +99,7 @@ class CashRegisterService
                 'amount' => $amount,
                 'balance_type' => $balanceLabel,
                 'payment_method' => $paymentLabels[$paymentMethod],
-                'new_balance' => (float) $user->{$balanceType},
+                'new_balance' => (float) $balance->{$balanceType},
             ];
             $this->activity->record('cash.income', $transaction->description, $operatorId, $transaction, $details);
             $this->activity->record('user.balance_topped_up', $transaction->description, $operatorId, $user, $details);

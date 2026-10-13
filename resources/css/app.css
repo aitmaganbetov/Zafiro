@@ -14,7 +14,9 @@ body {
 }
 
 :root {
-  --main-color: #ff0169;
+    --main-color: #ff0169;
+    --brand: #ff0169;
+    --brand-dark: #d90058;
 }
 
 /* Extracted from resources/views/warehouse.blade.php */
@@ -90,13 +92,13 @@ body {
 }
 
 .warehouse-action.product {
-    background: #07933d;
+    background: var(--brand);
     color: #fff;
-    box-shadow: 0 7px 18px rgba(7, 147, 61, .2)
+    box-shadow: 0 7px 18px rgba(255, 1, 105, .2)
 }
 
 .warehouse-action.product:hover {
-    background: #067d35;
+    background: var(--brand-dark);
     transform: translateY(-1px)
 }
 
@@ -279,7 +281,7 @@ body {
 }
 
 .warehouse-button.save {
-    background: #07933d;
+    background: var(--brand);
     color: #fff
 }
 
@@ -716,7 +718,7 @@ body {
     width: 100%;
     border: 0;
     border-radius: 10px;
-    background: #07933d;
+    background: var(--brand);
     padding: 13px;
     color: #fff;
     font-size: 12px;
@@ -763,7 +765,7 @@ body {
 .pos-open button {
     border: 0;
     border-radius: 10px;
-    background: #07933d;
+    background: var(--brand);
     padding: 11px 18px;
     color: #fff;
     font-weight: 700
@@ -847,7 +849,7 @@ body {
 }
 
 .receipt-actions button {
-    background: #07933d;
+    background: var(--brand);
     color: #fff
 }
 
@@ -994,7 +996,7 @@ body {
 }
 
 .report-btn.primary {
-    background: #07933d;
+    background: var(--brand);
     color: #fff
 }
 
@@ -1022,7 +1024,7 @@ body {
     justify-content: space-between;
     gap: 18px;
     padding: 28px;
-    background: linear-gradient(135deg, #103c25, #07933d);
+    background: linear-gradient(135deg, #3a0019, #ff0169);
     color: #fff
 }
 
@@ -1251,7 +1253,7 @@ body {
 .cm-save {
     border: 0;
     border-radius: 11px;
-    background: #07933d;
+    background: var(--brand);
     padding: 11px 16px;
     color: #fff;
     font-size: 12px;
@@ -1356,7 +1358,7 @@ body {
     margin: auto;
     border-radius: 14px;
     background: #fff;
-    color: #07883c;
+    color: var(--brand);
     font-size: 20px;
     box-shadow: 0 8px 20px rgba(31, 69, 43, .08)
 }
@@ -1444,8 +1446,8 @@ body {
     bottom: 5px;
     width: 9px;
     height: 9px;
-    border-right: 2px solid #07933d;
-    border-bottom: 2px solid #07933d
+    border-right: 2px solid var(--brand);
+    border-bottom: 2px solid var(--brand)
 }
 
 .cm-empty {
@@ -1632,7 +1634,7 @@ body {
 }
 
 .cm-editor-switch input:checked+.cm-switch-track {
-    background: #07933d
+    background: var(--brand)
 }
 
 .cm-editor-switch input:checked+.cm-switch-track:after {
@@ -1936,7 +1938,7 @@ body {
     border-radius: 11px;
     background: #fff;
     padding: 10px 14px;
-    color: #087638;
+    color: var(--brand);
     font-size: 12px;
     font-weight: 800;
     cursor: pointer
@@ -2131,8 +2133,8 @@ body {
 
 /* Extracted from resources/views/layouts/admin.blade.php */
 :root {
-    --brand: #07933d;
-    --brand-dark: #067431;
+    --brand: #ff0169;
+    --brand-dark: #d90058;
     --surface: #fff;
     --canvas: #f3f6f4;
     --line: #e3e9e5;
@@ -2158,7 +2160,7 @@ body {
     min-width: 0;
     flex: 1;
     overflow-y: auto;
-    background: radial-gradient(circle at 90% 0, rgba(7, 147, 61, .055), transparent 28%), var(--canvas)
+    background: radial-gradient(circle at 90% 0, rgba(255, 1, 105, .055), transparent 28%), var(--canvas)
 }
 
 .admin-topbar {
@@ -2238,7 +2240,7 @@ body {
     width: 250px;
     border-color: #62ba7f;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(7, 147, 61, .1)
+    box-shadow: 0 0 0 3px rgba(255, 1, 105, .1)
 }
 
 .admin-icon-button {
@@ -2369,7 +2371,7 @@ body {
 
 .admin-content :where(input, select, textarea):focus {
     border-color: #43a966 !important;
-    box-shadow: 0 0 0 3px rgba(7, 147, 61, .1) !important
+    box-shadow: 0 0 0 3px rgba(255, 1, 105, .1) !important
 }
 
 .admin-content table {
@@ -2555,7 +2557,7 @@ body {
     overflow: hidden;
     align-items: flex-end;
     padding: 48px;
-    background: linear-gradient(145deg, #07170d, #0a5127 62%, #07933d);
+    background: linear-gradient(145deg, #19000b, #69002b 62%, #ff0169);
     color: #fff
 }
 
@@ -2606,7 +2608,7 @@ body {
     place-items: center;
     border-radius: 13px;
     background: #fff;
-    color: #07863a
+    color: var(--brand)
 }
 
 .auth-message {
@@ -2707,6 +2709,8 @@ body {
     font-size: 12px
 }
 
+.auth-phone-prefix{position:absolute;left:36px;top:50%;z-index:1;transform:translateY(-50%);color:#556159;font-size:13px;font-weight:600;pointer-events:none}
+
 .auth-field input:not([type=checkbox]) {
     width: 100%;
     border: 1px solid #dce4de;
@@ -2719,9 +2723,14 @@ body {
     transition: .15s
 }
 
+.auth-field input.auth-phone-local {
+    padding-left: 55px;
+}
+
+
 .auth-field input:focus {
-    border-color: #2aa75a;
-    box-shadow: 0 0 0 4px rgba(7, 147, 61, .1)
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px rgba(255, 1, 105, .12)
 }
 
 .auth-row {
@@ -2742,17 +2751,17 @@ body {
     width: 100%;
     border: 0;
     border-radius: 11px;
-    background: #07933d;
+    background: var(--brand);
     padding: 13px;
     color: #fff;
     font-size: 12px;
     font-weight: 850;
     cursor: pointer;
-    box-shadow: 0 9px 22px rgba(7, 147, 61, .2)
+    box-shadow: 0 9px 22px rgba(255, 1, 105, .2)
 }
 
 .auth-submit:hover {
-    background: #067b34
+    background: var(--brand-dark)
 }
 
 .auth-footer {
@@ -2838,9 +2847,9 @@ body {
     width: 39px;
     height: 39px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #12b955, #057331);
+    background: linear-gradient(135deg, #ff5c9f, #d90058);
     color: #fff;
-    box-shadow: 0 8px 22px rgba(7, 147, 61, .25)
+    box-shadow: 0 8px 22px rgba(255, 1, 105, .25)
 }
 
 .sidebar-brand strong {
@@ -2910,7 +2919,7 @@ body {
 .sidebar-link.active {
     background: var(--main-color);
     color: #fff;
-    box-shadow: 0 8px 20px rgba(7, 147, 61, .18)
+    box-shadow: 0 8px 20px rgba(255, 1, 105, .18)
 }
 
 .sidebar-link.active:before {
@@ -3200,25 +3209,25 @@ body {
     min-height: 40px;
     align-items: center;
     gap: 8px;
-    border: 1px solid #056b2e;
+    border: 1px solid #d90058;
     border-radius: 8px;
-    background: #078a3e;
+    background: var(--brand);
     padding: 0 16px;
     color: #fff;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 7px 18px rgba(7, 147, 61, .22);
+    box-shadow: 0 7px 18px rgba(255, 1, 105, .22);
     transition: background .15s, transform .15s
 }
 
 .tariff-add-button:hover {
-    background: #056b2e;
+    background: var(--brand-dark);
     transform: translateY(-1px)
 }
 
 .tariff-add-button:focus-visible {
-    outline: 3px solid rgba(7, 147, 61, .35);
+    outline: 3px solid rgba(255, 1, 105, .35);
     outline-offset: 2px
 }
 
@@ -3258,6 +3267,8 @@ body {
 }
 
 .user-create-dialog{width:min(720px,calc(100% - 32px));max-height:90vh;overflow:hidden;margin:auto;border:1px solid #d1d5db;border-radius:12px;padding:0;background:#fff;color:#111827;box-shadow:0 25px 80px rgba(0,0,0,.3)}.user-create-dialog::backdrop{background:rgba(10,15,12,.68);backdrop-filter:blur(3px)}.user-create-dialog-shell{display:flex;max-height:90vh;flex-direction:column}.user-create-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #e5e7eb;padding:18px 24px}.user-create-dialog-body{overflow-y:auto;padding:24px}.dark .user-create-dialog{border-color:#374151;background:#111827;color:#f9fafb}.dark .user-create-dialog-head{border-color:#374151}
+.brand-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #d90058;border-radius:8px;background:#ff0169;padding:9px 16px;color:#fff;font-weight:700;cursor:pointer;transition:background .15s,transform .15s}.brand-button:hover{background:#d90058;transform:translateY(-1px)}.brand-tab{background:#ff0169!important;color:#fff!important;box-shadow:0 6px 16px rgba(255,1,105,.2)!important}.brand-focus:focus{border-color:#ff0169!important;outline:2px solid rgba(255,1,105,.18)!important;outline-offset:1px}.brand-check{accent-color:#ff0169}.brand-link{color:#ff0169}.brand-link:hover{color:#d90058}.brand-period-add{color:#ff0169!important}.brand-period-add:hover{background:#fff0f6!important}
+.brand-note{border-color:#ffc2db;background:#fff0f6}.dark .brand-note{border-color:#7a123e;background:rgba(255,1,105,.12)}
 
 .animation-delay-100 {
     animation-delay: .1s
@@ -3318,6 +3329,10 @@ body {
 
 .tariff-color-ef4444 {
     background: #ef4444
+}
+
+.tariff-color-ff0169 {
+    background: #ff0169;
 }
 
 .tariff-color-e11d48 {

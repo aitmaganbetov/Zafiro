@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\CurrentClub;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockMovement;
@@ -41,11 +42,7 @@ test('category and product can be created in warehouse', function () {
 test('authenticated user can open warehouse page', function () {
     $this->seed(ProductSeeder::class);
 
-    $user = new User([
-        'name' => 'Test User',
-        'email' => 'test@example.com',
-        'password' => bcrypt('secret'),
-    ]);
+    $user = User::factory()->create(['name' => 'Test User', 'email' => 'test@example.com']);
 
     $this->actingAs($user)
         ->get('/warehouse')
@@ -123,7 +120,10 @@ test('mobile API returns paginated products with image and stock data', function
         'quantity' => 5,
     ]);
 
-    $this->getJson('/api/products')
+    $user = User::factory()->create();
+    $token = $user->createToken('test', ['club:'.app(CurrentClub::class)->id()])->plainTextToken;
+
+    $this->withToken($token)->getJson('/api/products')
         ->assertSuccessful()
         ->assertJsonPath('data.0.sku', 'MOB-001')
         ->assertJsonPath('data.0.name', 'Мобильный товар')

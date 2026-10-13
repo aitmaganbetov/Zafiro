@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
+use App\Models\ClubMembership;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,7 +25,7 @@ class StoreBalanceTopUpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'integer', Rule::exists((new User)->getTable(), 'id')],
+            'user_id' => ['required', 'integer', Rule::in(ClubMembership::query()->pluck('user_id')->all())],
             'amount' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'],
             'balance_type' => ['required', Rule::in(['balance', 'bonus_balance'])],
             'payment_method' => ['required', Rule::in(['cash', 'card', 'qr'])],

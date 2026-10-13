@@ -18,6 +18,15 @@
                 <div class="admin-topbar-inner">
                     <div class="admin-title-wrap"><button id="sidebarToggle" class="admin-mobile-toggle" aria-label="Открыть меню"><i class="fas fa-bars"></i></button><h2 class="admin-title">@yield('page-title', 'Панель управления')</h2></div>
                     <div class="admin-topbar-actions">
+                        @if(($availableClubs ?? collect())->count() > 1)
+                            <form method="POST" action="{{ route('clubs.switch') }}">@csrf
+                                <select name="club_id" aria-label="Активный клуб" onchange="this.form.submit()" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+                                    @foreach($availableClubs as $membership)
+                                        <option value="{{ $membership->club_id }}" @selected($currentClub?->id === $membership->club_id)>{{ $membership->club->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        @endif
                         <label class="admin-search"><i class="fas fa-search"></i><input type="search" placeholder="Поиск..."></label>
                         <button class="admin-icon-button" aria-label="Уведомления"><i class="far fa-bell"></i><span class="dot"></span></button>
                     </div>
