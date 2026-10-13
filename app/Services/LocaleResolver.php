@@ -19,13 +19,15 @@ class LocaleResolver
 
     public const DEFAULT_CLUB_LOCALE = 'ru';
 
-    /** @var list<string>|null */
-    private ?array $enabled = null;
+    /** @var array<int, list<string>> enabled codes per translations cache version */
+    private array $enabled = [];
 
     /** @return list<string> */
     public function enabledCodes(): array
     {
-        return $this->enabled ??= Cache::rememberForever('languages.enabled.'.Cache::get('translations.version', 1), function (): array {
+        $version = (int) Cache::get('translations.version', 1);
+
+        return $this->enabled[$version] ??= Cache::rememberForever("languages.enabled.{$version}", function (): array {
             try {
                 return DB::table('languages')->where('is_enabled', true)->orderBy('sort_order')->orderBy('id')->pluck('code')->all();
             } catch (QueryException) {

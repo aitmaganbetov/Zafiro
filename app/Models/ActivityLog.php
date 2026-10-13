@@ -44,6 +44,11 @@ class ActivityLog extends Model
         'computer.registered' => 'Регистрация ПК агентом',
         'computer.controlled' => 'Управление ПК',
         'cash.z_report_printed' => 'Печать Z-отчёта',
+        'club.language_changed' => 'Смена языка клуба',
+        'language.created' => 'Добавление языка',
+        'language.updated' => 'Изменение языка',
+        'language.deleted' => 'Удаление языка',
+        'translations.updated' => 'Изменение переводов',
     ];
 
     protected function casts(): array

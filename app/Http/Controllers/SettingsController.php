@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveSettingsRequest;
+use App\Models\Language;
+use App\Models\Translation;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\LocaleResolver;
+use App\Services\TranslationCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,9 +16,17 @@ class SettingsController extends Controller
 {
     public function __construct(private CurrentClub $currentClub) {}
 
-    public function club()
+    public function club(TranslationCatalog $catalog, LocaleResolver $locales)
     {
-        return view('settings.club', ['settings' => $this->loadSettings()]);
+        $translated = Translation::query()->selectRaw('language_id, count(*) as aggregate')->groupBy('language_id')->pluck('aggregate', 'language_id');
+
+        return view('settings.club', [
+            'settings' => $this->loadSettings(),
+            'languages' => Language::query()->orderBy('sort_order')->orderBy('id')->get()
+                ->each(fn (Language $language) => $language->setAttribute('translated_count', (int) ($translated[$language->id] ?? 0))),
+            'clubLocale' => $locales->forClub($this->currentClub->get()),
+            'translationTotal' => $catalog->sourceKeyCount(),
+        ]);
     }
 
     public function finances()

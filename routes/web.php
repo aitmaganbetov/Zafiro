@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
@@ -67,8 +68,17 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/settings/guests', [SettingsController::class, 'guests'])->name('settings.guests');
         Route::get('/settings/api', [SettingsController::class, 'api'])->name('settings.api');
         Route::post('/settings/save', [SettingsController::class, 'save'])->name('settings.save');
+        Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
+    });
+
+    Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
+        Route::post('/settings/languages', [LanguageController::class, 'store'])->name('languages.store');
+        Route::patch('/settings/languages/{language}', [LanguageController::class, 'update'])->name('languages.update');
+        Route::delete('/settings/languages/{language}', [LanguageController::class, 'destroy'])->name('languages.destroy');
+        Route::get('/settings/languages/{language}/translations', [LanguageController::class, 'translations'])->name('languages.translations');
+        Route::put('/settings/languages/{language}/translations', [LanguageController::class, 'saveTranslations'])->name('languages.translations.save');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {

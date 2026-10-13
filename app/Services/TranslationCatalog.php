@@ -50,6 +50,11 @@ class TranslationCatalog
     {
         Cache::forever(self::CACHE_VERSION_KEY, $this->version() + 1);
         $this->memory = [];
+
+        // The translator keeps loaded groups for the process lifetime (tests, queue workers).
+        if (app()->resolved('translator')) {
+            app('translator')->setLoaded([]);
+        }
     }
 
     /**

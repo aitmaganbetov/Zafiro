@@ -45,6 +45,8 @@
                     </button>
                 </div>
             </form>
+
+            @yield('settings-after')
         </div>
     </div>
 </div>
