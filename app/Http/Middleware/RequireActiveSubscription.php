@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\ClubSubscription;
 use App\Services\CurrentClub;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,9 +15,7 @@ class RequireActiveSubscription
             return $next($request);
         }
 
-        $subscription = ClubSubscription::query()
-            ->where('club_id', app(CurrentClub::class)->id())
-            ->first();
+        $subscription = app(CurrentClub::class)->get()?->subscription;
         $active = $subscription !== null && (
             $subscription->status === 'active'
             || ($subscription->status === 'trialing' && $subscription->trial_ends_at?->isFuture())

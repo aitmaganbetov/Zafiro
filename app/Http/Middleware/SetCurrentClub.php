@@ -16,7 +16,7 @@ class SetCurrentClub
         $currentClub = app(CurrentClub::class);
         $memberships = ClubMembership::query()
             ->withoutGlobalScope('club')
-            ->with('club')
+            ->with('club.subscription')
             ->where('user_id', $request->user()->getKey())
             ->get();
 
@@ -42,7 +42,7 @@ class SetCurrentClub
 
         abort_if($membership === null, 403, 'Нет доступа к выбранному клубу.');
 
-        $currentClub->set($membership->club);
+        $currentClub->set($membership->club, $membership);
 
         if (! $request->is('api/*')) {
             $request->session()->put('current_club_id', $membership->club_id);

@@ -3,25 +3,35 @@
 namespace App\Services;
 
 use App\Models\Club;
+use App\Models\ClubMembership;
 use Illuminate\Support\Facades\Storage;
 
 class CurrentClub
 {
     private ?Club $club = null;
 
-    public function set(Club $club): void
+    private ?ClubMembership $membership = null;
+
+    public function set(Club $club, ?ClubMembership $membership = null): void
     {
         $this->club = $club;
+        $this->membership = $membership;
     }
 
     public function clear(): void
     {
         $this->club = null;
+        $this->membership = null;
     }
 
     public function get(): ?Club
     {
         return $this->club;
+    }
+
+    public function membership(): ?ClubMembership
+    {
+        return $this->membership;
     }
 
     public function id(): ?int
