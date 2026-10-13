@@ -23,7 +23,7 @@ class AdjustStockAction
 
             if ($data['type'] === StockMovement::TYPE_WRITE_OFF && $quantity > $product->quantity) {
                 throw ValidationException::withMessages([
-                    'quantity' => 'Нельзя списать больше, чем есть на складе.',
+                    'quantity' => __('Нельзя списать больше, чем есть на складе.'),
                 ]);
             }
 
@@ -44,7 +44,9 @@ class AdjustStockAction
             $isReceipt = $data['type'] === StockMovement::TYPE_RECEIPT;
             $this->activity->record(
                 $isReceipt ? 'stock.received' : 'stock.written_off',
-                ($isReceipt ? 'Оприходование: ' : 'Списание: ')."{$product->name}, {$quantity} шт.",
+                $isReceipt
+                    ? __('Оприходование: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity])
+                    : __('Списание: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity]),
                 $userId,
                 $product,
                 ['quantity' => $quantity, 'balance_after' => $product->quantity, 'note' => $movement->note ?: '—'],

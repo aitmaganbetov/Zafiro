@@ -24,7 +24,7 @@ class CreateProductAction
             ]);
             $this->activity->record(
                 'product.created',
-                "Создан товар: {$product->name}",
+                __('Создан товар: :product', ['product' => $product->name]),
                 $userId,
                 $product,
                 ['sku' => $product->sku, 'quantity' => $quantity],
@@ -36,14 +36,14 @@ class CreateProductAction
                     'type' => StockMovement::TYPE_RECEIPT,
                     'quantity' => $quantity,
                     'balance_after' => $quantity,
-                    'note' => 'Начальный остаток при создании товара',
+                    'note' => __('Начальный остаток при создании товара'),
                 ]);
                 $this->activity->record(
                     'stock.received',
-                    "Начальное оприходование: {$product->name}, {$quantity} шт.",
+                    __('Начальное оприходование: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity]),
                     $userId,
                     $product,
-                    ['quantity' => $quantity, 'balance_after' => $quantity, 'note' => 'Начальный остаток'],
+                    ['quantity' => $quantity, 'balance_after' => $quantity, 'note' => __('Начальный остаток')],
                 );
             }
 

@@ -14,7 +14,7 @@ class ClubInstallationController extends Controller
         $club = $keys->resolve($request->validated('club_key'));
 
         if ($club === null) {
-            return response()->json(['message' => 'Ключ установки недействителен.'], 401);
+            return response()->json(['message' => __('Ключ установки недействителен.')], 401);
         }
 
         return response()->json([

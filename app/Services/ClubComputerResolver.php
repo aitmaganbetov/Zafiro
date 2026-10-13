@@ -32,7 +32,7 @@ class ClubComputerResolver
         }
 
         if ($matches->count() > 1) {
-            throw new ConflictHttpException('Имя компьютера не уникально в клубе; задайте device_id.');
+            throw new ConflictHttpException(__('Имя компьютера не уникально в клубе; задайте device_id.'));
         }
 
         return $matches->first();

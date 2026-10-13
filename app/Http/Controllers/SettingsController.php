@@ -49,14 +49,14 @@ class SettingsController extends Controller
             'endpoints' => $endpoints,
             'ip' => request()->getHost(),
             'productEndpoint' => [
-                'name' => 'Товары для мобильного приложения',
+                'name' => __('Товары для мобильного приложения'),
                 'url' => route('api.products.index'),
                 'response' => [
                     'data' => [[
                         'id' => 1,
                         'sku' => 'DRK-001',
-                        'name' => 'Coca-Cola 0,5 л',
-                        'category' => 'Напитки',
+                        'name' => __('Coca-Cola 0,5 л'),
+                        'category' => __('Напитки'),
                         'price' => 650,
                         'currency' => 'KZT',
                         'quantity' => 48,
@@ -132,7 +132,7 @@ class SettingsController extends Controller
             }
         }
 
-        $readable = fn (mixed $value): string => is_bool($value) ? ($value ? 'да' : 'нет') : (string) ($value ?? '—');
+        $readable = fn (mixed $value): string => is_bool($value) ? ($value ? __('да') : __('нет')) : (string) ($value ?? '—');
         $changes = collect($settings[$section])
             ->filter(fn (mixed $value, string $field): bool => ($before[$field] ?? null) !== $value)
             ->map(fn (mixed $value, string $field): string => $readable($before[$field] ?? null).' → '.$readable($value))
@@ -144,14 +144,14 @@ class SettingsController extends Controller
             $club->save();
 
             if ($changes !== []) {
-                $activity->record('settings.updated', 'Изменены настройки: '.implode(', ', array_keys($changes)), $request->user()->getKey(), $club, [
+                $activity->record('settings.updated', __('Изменены настройки: ').implode(', ', array_keys($changes)), $request->user()->getKey(), $club, [
                     'section' => $section,
                     ...$changes,
                 ]);
             }
         });
 
-        return back()->with('status', 'Настройки сохранены');
+        return back()->with('status', __('Настройки сохранены'));
     }
 
     private function loadSettings(): array
@@ -193,19 +193,19 @@ class SettingsController extends Controller
     {
         return [
             'club' => [
-                'session_idle_timeout' => 'Время завершения сессии при бездействии (в минутах)',
-                'pc_restart_after_session_end' => 'Время перезагрузки ПК после завершения сессии (в минутах)',
-                'session_auto_terminate_when_pc_unavailable' => 'Время до автоматического завершения сессии при недоступности ПК (в минутах)',
-                'booking_interval' => 'Интервал между бронированиями (в минутах)',
+                'session_idle_timeout' => __('Время завершения сессии при бездействии (в минутах)'),
+                'pc_restart_after_session_end' => __('Время перезагрузки ПК после завершения сессии (в минутах)'),
+                'session_auto_terminate_when_pc_unavailable' => __('Время до автоматического завершения сессии при недоступности ПК (в минутах)'),
+                'booking_interval' => __('Интервал между бронированиями (в минутах)'),
             ],
             'finances' => [
-                'currency' => 'Валюта',
+                'currency' => __('Валюта'),
             ],
             'guests' => [
-                'show_qr_code_on_login' => 'Отображать QR-код на странице авторизации',
-                'allow_guest_self_transfer' => 'Разрешить самостоятельную пересадку гостя',
-                'allow_adding_friends' => 'Возможность добавления в друзья',
-                'allow_balance_transfer_to_friends' => 'Разрешить перевод баланса друзьям',
+                'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),
+                'allow_guest_self_transfer' => __('Разрешить самостоятельную пересадку гостя'),
+                'allow_adding_friends' => __('Возможность добавления в друзья'),
+                'allow_balance_transfer_to_friends' => __('Разрешить перевод баланса друзьям'),
             ],
         ];
     }
@@ -219,7 +219,7 @@ class SettingsController extends Controller
         preg_match('/[\d]+(?:[.,][\d]+)?/u', (string) $value, $matches);
         $amount = isset($matches[0]) ? (float) str_replace(',', '.', $matches[0]) : 0.0;
 
-        return $this->number(str_contains(mb_strtolower((string) $value), 'сек') ? $amount / 60 : $amount);
+        return $this->number(str_contains(mb_strtolower((string) $value), __('сек')) ? $amount / 60 : $amount);
     }
 
     private function number(float $value): int|float

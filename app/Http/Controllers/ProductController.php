@@ -12,6 +12,6 @@ class ProductController extends Controller
     {
         $createProduct->handle($request->validated(), $request->user()->getKey());
 
-        return back()->with('status', 'Товар создан.');
+        return back()->with('status', __('Товар создан.'));
     }
 }

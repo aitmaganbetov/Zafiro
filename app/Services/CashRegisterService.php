@@ -19,7 +19,7 @@ class CashRegisterService
         return DB::transaction(function () use ($items, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
             if (! $shift) {
-                throw ValidationException::withMessages(['items' => 'Сначала откройте смену.']);
+                throw ValidationException::withMessages(['items' => __('Сначала откройте смену.')]);
             }
             $total = 0.0;
             $receiptItems = [];
@@ -27,7 +27,7 @@ class CashRegisterService
                 $product = Product::query()->lockForUpdate()->findOrFail($item['product_id']);
                 $quantity = (int) $item['quantity'];
                 if ($quantity > $product->quantity) {
-                    throw ValidationException::withMessages(['items' => "Недостаточно товара: {$product->name}."]);
+                    throw ValidationException::withMessages(['items' => __('Недостаточно товара: :product.', ['product' => $product->name])]);
                 }
                 $total += (float) $product->price * $quantity;
                 $receiptItems[] = [
@@ -39,7 +39,7 @@ class CashRegisterService
                 $product->decrement('quantity', $quantity);
                 $balanceAfter = $product->refresh()->quantity;
                 StockMovement::create(['product_id' => $product->id, 'user_id' => $userId, 'type' => StockMovement::TYPE_WRITE_OFF, 'quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
-                $this->activity->record('stock.written_off', "Списание при продаже: {$product->name}, {$quantity} шт.", $userId, $product, ['quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
+                $this->activity->record('stock.written_off', __('Списание при продаже: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity]), $userId, $product, ['quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
             }
             $transaction = $shift->transactions()->create([
                 'user_id' => $userId,
@@ -53,7 +53,7 @@ class CashRegisterService
                 ->implode(', ');
             $this->activity->record(
                 'product.purchased',
-                'Покупка товаров: '.$itemsSummary,
+                __('Покупка товаров: ').$itemsSummary,
                 $userId,
                 $transaction,
                 ['amount' => $total, 'item_count' => count($receiptItems)],
@@ -67,10 +67,10 @@ class CashRegisterService
     {
         return DB::transaction(function () use ($balance, $userId) {
             if (CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->exists()) {
-                throw ValidationException::withMessages(['opening_balance' => 'Смена уже открыта.']);
+                throw ValidationException::withMessages(['opening_balance' => __('Смена уже открыта.')]);
             }
             $shift = CashShift::create(['opened_by' => $userId, 'status' => CashShift::STATUS_OPEN, 'open_marker' => true, 'opening_balance' => $balance, 'opened_at' => now()]);
-            $this->activity->record('cash.shift_opened', 'Открыта кассовая смена', $userId, $shift, ['opening_balance' => $balance]);
+            $this->activity->record('cash.shift_opened', __('Открыта кассовая смена'), $userId, $shift, ['opening_balance' => $balance]);
 
             return $shift;
         });
@@ -81,13 +81,13 @@ class CashRegisterService
         return DB::transaction(function () use ($userId, $amount, $balanceType, $paymentMethod, $operatorId): CashTransaction {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
             if (! $shift) {
-                throw ValidationException::withMessages(['amount' => 'Сначала откройте смену.']);
+                throw ValidationException::withMessages(['amount' => __('Сначала откройте смену.')]);
             }
 
             $balance = MemberBalance::query()->where('user_id', $userId)->lockForUpdate()->firstOrFail();
             $user = $balance->user()->firstOrFail();
-            $balanceLabel = $balanceType === 'balance' ? 'основной баланс' : 'бонусный баланс';
-            $paymentLabels = ['cash' => 'наличные', 'card' => 'карта', 'qr' => 'QR-код'];
+            $balanceLabel = $balanceType === 'balance' ? __('основной баланс') : __('бонусный баланс');
+            $paymentLabels = ['cash' => __('наличные'), 'card' => __('карта'), 'qr' => __('QR-код')];
             $balance->increment($balanceType, $amount);
             $balance->refresh();
 
@@ -95,7 +95,7 @@ class CashRegisterService
                 'user_id' => $operatorId,
                 'type' => CashTransaction::TYPE_INCOME,
                 'amount' => $amount,
-                'description' => "Пополнение {$balanceLabel}: {$user->name} ({$paymentLabels[$paymentMethod]})",
+                'description' => __('Пополнение :balance: :user (:payment)', ['balance' => $balanceLabel, 'user' => $user->name, 'payment' => $paymentLabels[$paymentMethod]]),
             ]);
 
             $details = [
@@ -116,16 +116,16 @@ class CashRegisterService
         return DB::transaction(function () use ($data, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
             if (! $shift) {
-                throw ValidationException::withMessages(['amount' => 'Сначала откройте смену.']);
+                throw ValidationException::withMessages(['amount' => __('Сначала откройте смену.')]);
             }
             if ($data['type'] === CashTransaction::TYPE_EXPENSE && (float) $data['amount'] > $this->balance($shift)) {
-                throw ValidationException::withMessages(['amount' => 'В кассе недостаточно средств.']);
+                throw ValidationException::withMessages(['amount' => __('В кассе недостаточно средств.')]);
             }
             $transaction = $shift->transactions()->create($data + ['user_id' => $userId]);
             $isIncome = $transaction->type === CashTransaction::TYPE_INCOME;
             $this->activity->record(
                 $isIncome ? 'cash.income' : 'cash.expense',
-                ($isIncome ? 'Пополнение кассы: ' : 'Расход из кассы: ').$transaction->description,
+                ($isIncome ? __('Пополнение кассы: ') : __('Расход из кассы: ')).$transaction->description,
                 $userId,
                 $transaction,
                 ['amount' => (float) $transaction->amount],
@@ -140,10 +140,10 @@ class CashRegisterService
         return DB::transaction(function () use ($shift, $userId) {
             $shift = CashShift::query()->lockForUpdate()->findOrFail($shift->id);
             if ($shift->status !== CashShift::STATUS_OPEN) {
-                throw ValidationException::withMessages(['shift' => 'Смена уже закрыта.']);
+                throw ValidationException::withMessages(['shift' => __('Смена уже закрыта.')]);
             }
             $shift->update(['closed_by' => $userId, 'status' => CashShift::STATUS_CLOSED, 'open_marker' => null, 'closing_balance' => $this->balance($shift), 'closed_at' => now()]);
-            $this->activity->record('cash.shift_closed', 'Закрыта кассовая смена', $userId, $shift, ['closing_balance' => (float) $shift->closing_balance]);
+            $this->activity->record('cash.shift_closed', __('Закрыта кассовая смена'), $userId, $shift, ['closing_balance' => (float) $shift->closing_balance]);
 
             return $shift;
         });

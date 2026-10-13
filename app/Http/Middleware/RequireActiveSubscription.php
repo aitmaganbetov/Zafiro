@@ -20,7 +20,7 @@ class RequireActiveSubscription
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['message' => 'Подписка клуба не активна.'], 402);
+            return response()->json(['message' => __('Подписка клуба не активна.')], 402);
         }
 
         return redirect()->route('billing.show');

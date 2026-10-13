@@ -77,7 +77,9 @@ class ActivityLogger
             return;
         }
 
-        $description = ($event === 'auth.api_login_failed' ? 'Неудачный вход через API: ' : 'Неудачный вход: ').$user->name;
+        $description = $event === 'auth.api_login_failed'
+            ? __('Неудачный вход через API: :user', ['user' => $user->name])
+            : __('Неудачный вход: :user', ['user' => $user->name]);
 
         DB::transaction(fn () => $clubIds->each(fn (int $clubId) => $this->record(
             $event,

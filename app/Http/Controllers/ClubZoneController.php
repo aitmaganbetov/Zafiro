@@ -44,14 +44,14 @@ class ClubZoneController extends Controller
                 'position_y' => 20 + ($offset % 180),
             ]);
             $zone->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
-            $this->activity->record('zone.created', "Создана зона: {$zone->name}", $request->user()->getKey(), $zone, [
+            $this->activity->record('zone.created', __('Создана зона: :zone', ['zone' => $zone->name]), $request->user()->getKey(), $zone, [
                 'capacity' => $zone->capacity ?? '—',
                 'icon' => $zone->icon,
                 'tariff_ids' => $tariffIds === [] ? '—' : implode(', ', $tariffIds),
             ]);
         });
 
-        return back()->with('status', 'Зона добавлена.')->with('edit_mode', $request->boolean('edit_mode'));
+        return back()->with('status', __('Зона добавлена.'))->with('edit_mode', $request->boolean('edit_mode'));
     }
 
     public function update(UpdateClubZoneRequest $request, ClubZone $clubMap): RedirectResponse
@@ -73,11 +73,11 @@ class ClubZoneController extends Controller
             }
 
             if ($changes !== []) {
-                $this->activity->record('zone.updated', "Изменена зона: {$clubMap->name}", $request->user()->getKey(), $clubMap, $changes);
+                $this->activity->record('zone.updated', __('Изменена зона: :club_map', ['club_map' => $clubMap->name]), $request->user()->getKey(), $clubMap, $changes);
             }
         });
 
-        return back()->with('status', 'Зона обновлена.')->with('edit_mode', $request->boolean('edit_mode'));
+        return back()->with('status', __('Зона обновлена.'))->with('edit_mode', $request->boolean('edit_mode'));
     }
 
     public function destroy(Request $request, ClubZone $clubMap): RedirectResponse
@@ -85,12 +85,12 @@ class ClubZoneController extends Controller
         DB::transaction(function () use ($request, $clubMap): void {
             $computerCount = $clubMap->computers()->count();
             $clubMap->delete();
-            $this->activity->record('zone.deleted', "Удалена зона: {$clubMap->name}", $request->user()->getKey(), $clubMap, [
+            $this->activity->record('zone.deleted', __('Удалена зона: :club_map', ['club_map' => $clubMap->name]), $request->user()->getKey(), $clubMap, [
                 'computers_removed' => $computerCount,
             ]);
         });
 
-        return back()->with('status', 'Зона удалена.');
+        return back()->with('status', __('Зона удалена.'));
     }
 
     public function updateLayout(UpdateClubZoneLayoutRequest $request, ClubZone $clubMap): JsonResponse
@@ -106,7 +106,7 @@ class ClubZoneController extends Controller
                 && $zone->position_y < $layout['position_y'] + $layout['height'] + $gap);
 
         if ($overlaps) {
-            return response()->json(['message' => 'Карточки залов не могут пересекаться.'], 409);
+            return response()->json(['message' => __('Карточки залов не могут пересекаться.')], 409);
         }
 
         $clubMap->update($layout);
@@ -118,6 +118,6 @@ class ClubZoneController extends Controller
     {
         $this->layout->align();
 
-        return back()->with('status', 'Карточки выровнены по сетке с одинаковыми отступами.');
+        return back()->with('status', __('Карточки выровнены по сетке с одинаковыми отступами.'));
     }
 }

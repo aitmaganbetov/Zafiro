@@ -34,9 +34,9 @@ class AuthController extends Controller
             'phone' => ['required', 'string', 'regex:/^\+7\d{10}$/'],
             'password' => ['required'],
         ], [
-            'phone.required' => 'Номер телефона обязателен.',
-            'phone.regex' => 'Введите корректный номер телефона.',
-            'password.required' => 'Пароль обязателен.',
+            'phone.required' => __('Номер телефона обязателен.'),
+            'phone.regex' => __('Введите корректный номер телефона.'),
+            'password.required' => __('Пароль обязателен.'),
         ]);
 
         if (Auth::attempt(['phone' => $credentials['phone'], 'password' => $credentials['password']], $request->filled('remember'))) {
@@ -48,12 +48,12 @@ class AuthController extends Controller
                 Auth::logout();
                 $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'no_club_access');
 
-                return back()->withErrors(['phone' => 'У аккаунта нет доступа ни к одному клубу.'])->onlyInput('phone');
+                return back()->withErrors(['phone' => __('У аккаунта нет доступа ни к одному клубу.')])->onlyInput('phone');
             }
 
             $currentClub->set($membership->club);
             $request->session()->put('current_club_id', $membership->club_id);
-            $activity->record('auth.login', "Вход в систему: {$user->name}", $user->getKey(), $user);
+            $activity->record('auth.login', __('Вход в систему: :user', ['user' => $user->name]), $user->getKey(), $user);
 
             return redirect()->intended('/dashboard');
         }
@@ -61,7 +61,7 @@ class AuthController extends Controller
         $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'invalid_credentials');
 
         return back()->withErrors([
-            'phone' => 'Неверные учетные данные.',
+            'phone' => __('Неверные учетные данные.'),
         ])->onlyInput('phone');
     }
 
@@ -85,14 +85,14 @@ class AuthController extends Controller
             'phone' => ['required', 'string', 'regex:/^\+7\d{10}$/', 'unique:users'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
         ], [
-            'name.required' => 'Имя обязательно.',
-            'club_name.required' => 'Название клуба обязательно.',
-            'phone.required' => 'Номер телефона обязателен.',
-            'phone.regex' => 'Введите корректный номер телефона.',
-            'phone.unique' => 'Этот номер телефона уже зарегистрирован.',
-            'password.required' => 'Пароль обязателен.',
-            'password.min' => 'Пароль должен содержать минимум 6 символов.',
-            'password.confirmed' => 'Пароли не совпадают.',
+            'name.required' => __('Имя обязательно.'),
+            'club_name.required' => __('Название клуба обязательно.'),
+            'phone.required' => __('Номер телефона обязателен.'),
+            'phone.regex' => __('Введите корректный номер телефона.'),
+            'phone.unique' => __('Этот номер телефона уже зарегистрирован.'),
+            'password.required' => __('Пароль обязателен.'),
+            'password.min' => __('Пароль должен содержать минимум 6 символов.'),
+            'password.confirmed' => __('Пароли не совпадают.'),
         ]);
 
         [$user, $club] = DB::transaction(function () use ($validated, $currentClub, $activity): array {
@@ -119,7 +119,7 @@ class AuthController extends Controller
                 'started_at' => now(),
                 'trial_ends_at' => now()->addDays($plan->trial_days ?: 14),
             ]);
-            $activity->record('auth.registered', "Регистрация пользователя: {$user->name}", $user->getKey(), $user);
+            $activity->record('auth.registered', __('Регистрация пользователя: :user', ['user' => $user->name]), $user->getKey(), $user);
 
             return [$user, $club];
         });
@@ -127,7 +127,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->put('current_club_id', $club->getKey());
 
-        return redirect('/dashboard')->with('success', 'Добро пожаловать!');
+        return redirect('/dashboard')->with('success', __('Добро пожаловать!'));
     }
 
     private function normalizePhone(Request $request): void
@@ -152,7 +152,7 @@ class AuthController extends Controller
     public function logout(Request $request, ActivityLogger $activity)
     {
         $user = $request->user();
-        $activity->record('auth.logout', "Выход из системы: {$user->name}", $user->getKey(), $user);
+        $activity->record('auth.logout', __('Выход из системы: :user', ['user' => $user->name]), $user->getKey(), $user);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

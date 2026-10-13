@@ -43,14 +43,14 @@ class CashRegisterController extends Controller
     {
         $this->cash->open((float) $request->validated('opening_balance'), $request->user()->getKey());
 
-        return back()->with('status', 'Смена открыта');
+        return back()->with('status', __('Смена открыта'));
     }
 
     public function transaction(StoreCashTransactionRequest $request): RedirectResponse
     {
         $this->cash->transact($request->validated(), $request->user()->getKey());
 
-        return back()->with('status', 'Операция проведена');
+        return back()->with('status', __('Операция проведена'));
     }
 
     public function sale(StorePosSaleRequest $request): RedirectResponse
@@ -58,7 +58,7 @@ class CashRegisterController extends Controller
         $transaction = $this->cash->sale($request->validated('items'), $request->user()->getKey());
 
         return redirect()->route('cash-register.receipt', $transaction)
-            ->with('status', 'Продажа проведена. Распечатайте чек.');
+            ->with('status', __('Продажа проведена. Распечатайте чек.'));
     }
 
     public function topUpBalance(StoreBalanceTopUpRequest $request): RedirectResponse
@@ -72,7 +72,7 @@ class CashRegisterController extends Controller
             $request->user()->getKey(),
         );
 
-        return back()->with('status', 'Баланс пользователя пополнен.')->with('cash_view', 'balance');
+        return back()->with('status', __('Баланс пользователя пополнен.'))->with('cash_view', 'balance');
     }
 
     public function receipt(CashTransaction $cashTransaction): View
@@ -95,7 +95,7 @@ class CashRegisterController extends Controller
     {
         if (! request()->session()->pull("z_report_printed.{$cashShift->id}", false)) {
             return redirect()->route('cash-register.z-report', $cashShift)
-                ->withErrors(['shift' => 'Сначала распечатайте Z-отчёт. Без печати смена не закрывается.']);
+                ->withErrors(['shift' => __('Сначала распечатайте Z-отчёт. Без печати смена не закрывается.')]);
         }
 
         $shift = $this->cash->close($cashShift, request()->user()->getKey());
@@ -125,7 +125,7 @@ class CashRegisterController extends Controller
         abort_unless($expected !== '' && hash_equals($expected, $nonce), 419);
 
         $request->session()->put("z_report_printed.{$cashShift->id}", true);
-        $activity->record('cash.z_report_printed', "Напечатан Z-отчёт смены #{$cashShift->id}", $request->user()->getKey(), $cashShift);
+        $activity->record('cash.z_report_printed', __('Напечатан Z-отчёт смены #:id', ['id' => $cashShift->id]), $request->user()->getKey(), $cashShift);
 
         return response()->json(['printed' => true]);
     }

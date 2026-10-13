@@ -29,7 +29,7 @@ class ClubComputerController extends Controller
             $computer = $computers->add($clubMap);
 
             if ($computer !== null) {
-                $activity->record('computer.created', "Добавлен ПК {$computer->displayName()} в зону {$clubMap->name}", $request->user()->getKey(), $computer, [
+                $activity->record('computer.created', __('Добавлен ПК :computer в зону :zone', ['computer' => $computer->displayName(), 'zone' => $clubMap->name]), $request->user()->getKey(), $computer, [
                     'zone' => $clubMap->name,
                     'number' => $computer->number,
                 ]);
@@ -37,7 +37,7 @@ class ClubComputerController extends Controller
 
             return $computer;
         });
-        $status = $computer === null ? 'Достигнута вместимость зоны.' : 'Компьютер добавлен в зону.';
+        $status = $computer === null ? __('Достигнута вместимость зоны.') : __('Компьютер добавлен в зону.');
 
         return back()->with('status', $status)->with('edit_mode', true);
     }
@@ -48,7 +48,7 @@ class ClubComputerController extends Controller
         $logControl = function (string $action, int $updated) use ($data, $request, $activity): void {
             $names = ClubComputer::query()->whereKey($data['computer_ids'])->orderBy('number')->get()
                 ->map(fn (ClubComputer $computer): string => $computer->displayName())->implode(', ');
-            $activity->record('computer.controlled', "Управление ПК ({$action}): {$names}", $request->user()->getKey(), null, [
+            $activity->record('computer.controlled', __('Управление ПК (:action): :names', ['action' => $action, 'names' => $names]), $request->user()->getKey(), null, [
                 'action' => $action,
                 'computers' => $names,
                 'updated' => $updated,
@@ -97,7 +97,7 @@ class ClubComputerController extends Controller
         if ($computer === null) {
             return response()->json([
                 'code' => 'computer_not_found',
-                'message' => 'Компьютер не найден в текущем клубе.',
+                'message' => __('Компьютер не найден в текущем клубе.'),
             ], 404);
         }
 
@@ -205,7 +205,7 @@ class ClubComputerController extends Controller
             ->exists();
 
         if ($occupied) {
-            return response()->json(['message' => 'Эта ячейка уже занята другим компьютером.'], 409);
+            return response()->json(['message' => __('Эта ячейка уже занята другим компьютером.')], 409);
         }
 
         $clubComputer->update($layout);

@@ -79,7 +79,7 @@ class ClubNotifications
             ->map(fn (ActivityLog $log): array => [
                 'id' => 'activity-'.$log->id,
                 'icon' => self::ACTIVITY_EVENTS[$log->event],
-                'title' => ActivityLog::EVENT_LABELS[$log->event],
+                'title' => __(ActivityLog::EVENT_LABELS[$log->event]),
                 'body' => $log->user && ! str_contains($log->description, $log->user->name)
                     ? $log->description.' · '.$log->user->name
                     : $log->description,
@@ -102,13 +102,13 @@ class ClubNotifications
             return [];
         }
 
-        $names = $products->take(3)->map(fn (Product $product): string => "{$product->name} ({$product->quantity} шт.)")->implode(', ');
-        $more = $products->count() > 3 ? ' и ещё '.($products->count() - 3) : '';
+        $names = $products->take(3)->map(fn (Product $product): string => __(':product (:quantity шт.)', ['product' => $product->name, 'quantity' => $product->quantity]))->implode(', ');
+        $more = $products->count() > 3 ? __(' и ещё ').($products->count() - 3) : '';
 
         return [[
             'id' => 'low-stock',
             'icon' => 'fa-boxes-stacked',
-            'title' => 'Низкий остаток: '.$products->count().' '.$this->plural($products->count(), 'товар', 'товара', 'товаров'),
+            'title' => __('Низкий остаток: ').$products->count().' '.$this->plural($products->count(), __('товар'), __('товара'), __('товаров')),
             'body' => $names.$more,
             'url' => route('warehouse'),
             'at' => $products->max('updated_at'),
@@ -133,12 +133,12 @@ class ClubNotifications
         }
 
         $names = $computers->take(5)->map(fn (ClubComputer $computer): string => "{$computer->displayName()} ({$computer->zone->name})")->implode(', ');
-        $more = $computers->count() > 5 ? ' и ещё '.($computers->count() - 5) : '';
+        $more = $computers->count() > 5 ? __(' и ещё ').($computers->count() - 5) : '';
 
         return [[
             'id' => 'computers-offline',
             'icon' => 'fa-plug-circle-xmark',
-            'title' => 'Не на связи: '.$computers->count().' ПК',
+            'title' => __('Не на связи: ').$computers->count().__(' ПК'),
             'body' => $names.$more,
             'url' => route('club-computers.index'),
             'at' => $computers->max('last_seen_at')->copy()->addSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS),
@@ -159,13 +159,18 @@ class ClubNotifications
             return [];
         }
 
-        $label = $subscription->status === 'trialing' ? 'Пробный период' : 'Подписка';
-
         return [[
             'id' => 'subscription',
             'icon' => 'fa-credit-card',
-            'title' => $endsAt->isPast() ? "{$label} закончился" : "{$label} заканчивается",
-            'body' => ($endsAt->isPast() ? 'Окончание: ' : 'Действует до ').$endsAt->format('d.m.Y H:i'),
+            'title' => match (true) {
+                $subscription->status === 'trialing' && $endsAt->isPast() => __('Пробный период закончился'),
+                $subscription->status === 'trialing' => __('Пробный период заканчивается'),
+                $endsAt->isPast() => __('Подписка закончилась'),
+                default => __('Подписка заканчивается'),
+            },
+            'body' => $endsAt->isPast()
+                ? __('Окончание: :date', ['date' => $endsAt->format('d.m.Y H:i')])
+                : __('Действует до :date', ['date' => $endsAt->format('d.m.Y H:i')]),
             'url' => route('billing.show'),
             'at' => $endsAt->copy()->subDays(3),
         ]];
@@ -182,8 +187,10 @@ class ClubNotifications
             ->map(fn (ClubInvitation $invitation): array => [
                 'id' => 'invitation-'.$invitation->id,
                 'icon' => 'fa-envelope-open-text',
-                'title' => 'Приглашение скоро истечёт',
-                'body' => "Роль {$invitation->role}".($invitation->email ? ", {$invitation->email}" : '').' · до '.$invitation->expires_at->format('d.m H:i'),
+                'title' => __('Приглашение скоро истечёт'),
+                'body' => $invitation->email
+                    ? __('Роль :role, :email · до :date', ['role' => $invitation->role, 'email' => $invitation->email, 'date' => $invitation->expires_at->format('d.m H:i')])
+                    : __('Роль :role · до :date', ['role' => $invitation->role, 'date' => $invitation->expires_at->format('d.m H:i')]),
                 'url' => route('users.index'),
                 'at' => $invitation->expires_at->copy()->subDay(),
             ])

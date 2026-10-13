@@ -34,7 +34,7 @@ class ClubComputerRegistrar
 
                 $computerLimit = data_get($club->subscription?->plan?->features, 'max_computers');
                 if (is_numeric($computerLimit) && ClubComputer::query()->count() >= (int) $computerLimit) {
-                    throw ValidationException::withMessages(['device_name' => 'Достигнут лимит компьютеров по тарифу клуба.']);
+                    throw ValidationException::withMessages(['device_name' => __('Достигнут лимит компьютеров по тарифу клуба.')]);
                 }
 
                 $zone = isset($data['zone_id'])
@@ -42,7 +42,7 @@ class ClubComputerRegistrar
                     : $this->defaultZone();
 
                 if ($zone->capacity !== null && $zone->computers()->count() >= $zone->capacity) {
-                    throw ValidationException::withMessages(['zone_id' => 'В зоне достигнут лимит мест.']);
+                    throw ValidationException::withMessages(['zone_id' => __('В зоне достигнут лимит мест.')]);
                 }
 
                 $computer = $zone->computers()->create([
@@ -52,7 +52,7 @@ class ClubComputerRegistrar
                     'mac_address' => $data['mac_address'] ?? null,
                     'status' => 'available',
                 ]);
-                $this->activity->record('computer.registered', "Агент зарегистрировал ПК {$computer->displayName()} в зоне {$zone->name}", $actorId, $computer, [
+                $this->activity->record('computer.registered', __('Агент зарегистрировал ПК :computer в зоне :zone', ['computer' => $computer->displayName(), 'zone' => $zone->name]), $actorId, $computer, [
                     'device_name' => $computer->device_name,
                     'device_id' => $computer->device_id ?? '—',
                     'mac_address' => $computer->mac_address ?? '—',
@@ -72,7 +72,7 @@ class ClubComputerRegistrar
                 return ['computer' => $existing->load('zone'), 'created' => false];
             }
 
-            throw new ConflictHttpException('Этот device_id уже зарегистрирован.', $exception);
+            throw new ConflictHttpException(__('Этот device_id уже зарегистрирован.'), $exception);
         }
     }
 

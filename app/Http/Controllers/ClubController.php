@@ -22,7 +22,7 @@ class ClubController extends Controller
         $request->session()->put('current_club_id', $membership->club_id);
 
         if ($membership->club_id !== $currentClub->id()) {
-            $activity->record('club.switched', "Переход в клуб из клуба #{$currentClub->id()}", $request->user()->getKey(), null, [
+            $activity->record('club.switched', __('Переход в клуб из клуба #:id', ['id' => $currentClub->id()]), $request->user()->getKey(), null, [
                 'from_club_id' => $currentClub->id(),
             ], $membership->club_id);
         }

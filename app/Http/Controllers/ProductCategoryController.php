@@ -14,9 +14,9 @@ class ProductCategoryController extends Controller
     {
         DB::transaction(function () use ($request, $activity): void {
             $category = ProductCategory::query()->create($request->validated());
-            $activity->record('warehouse.category_created', "Создана категория склада: {$category->name}", $request->user()->getKey(), $category);
+            $activity->record('warehouse.category_created', __('Создана категория склада: :category', ['category' => $category->name]), $request->user()->getKey(), $category);
         });
 
-        return back()->with('status', 'Категория создана.');
+        return back()->with('status', __('Категория создана.'));
     }
 }

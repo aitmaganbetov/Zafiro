@@ -38,7 +38,7 @@ class ClubInvitationController extends Controller
                 'invited_by' => $request->user()->getKey(),
                 'expires_at' => now()->addDays(7),
             ]);
-            $activity->record('invitation.created', "Создано приглашение в клуб: роль {$invitation->role}", $request->user()->getKey(), $invitation, [
+            $activity->record('invitation.created', __('Создано приглашение в клуб: роль :role', ['role' => $invitation->role]), $request->user()->getKey(), $invitation, [
                 'role' => $invitation->role,
                 'email' => $invitation->email ?? '—',
                 'expires_at' => $invitation->expires_at->toDateTimeString(),
@@ -47,7 +47,7 @@ class ClubInvitationController extends Controller
 
         return redirect()->route('users.index')
             ->with('invite_url', route('club-invitations.show', $token))
-            ->with('status', 'Ссылка-приглашение создана. Она действует 7 дней.');
+            ->with('status', __('Ссылка-приглашение создана. Она действует 7 дней.'));
     }
 
     public function show(Request $request, string $token): View
@@ -83,7 +83,7 @@ class ClubInvitationController extends Controller
                 'password' => ['required', 'string', 'min:6', 'confirmed'],
             ]);
         } elseif ($invitation->email !== null && $user->email !== $invitation->email) {
-            abort(403, 'Это приглашение предназначено для другого email.');
+            abort(403, __('Это приглашение предназначено для другого email.'));
         }
 
         DB::transaction(function () use ($request, $invitation, $user, $validated, $activity): void {
@@ -104,7 +104,7 @@ class ClubInvitationController extends Controller
                 ->withoutGlobalScope('club')
                 ->where('club_id', $invitation->club_id)
                 ->where('user_id', $acceptingUser->getKey())
-                ->exists(), 409, 'Аккаунт уже состоит в этом клубе.');
+                ->exists(), 409, __('Аккаунт уже состоит в этом клубе.'));
 
             $this->currentClub->set($invitation->club);
             $invitation->club->memberships()->create([
@@ -113,7 +113,7 @@ class ClubInvitationController extends Controller
             ]);
             MemberBalance::query()->create(['user_id' => $acceptingUser->getKey()]);
             $lockedInvitation->update(['accepted_at' => now()]);
-            $activity->record('invitation.accepted', "Принято приглашение: {$acceptingUser->name}, роль {$invitation->role}", $acceptingUser->getKey(), $invitation, [
+            $activity->record('invitation.accepted', __('Принято приглашение: :accepting_user, роль :role', ['accepting_user' => $acceptingUser->name, 'role' => $invitation->role]), $acceptingUser->getKey(), $invitation, [
                 'role' => $invitation->role,
                 'new_account' => $user === null,
             ]);
@@ -125,7 +125,7 @@ class ClubInvitationController extends Controller
             $request->session()->put('current_club_id', $invitation->club_id);
         });
 
-        return redirect()->route('dashboard')->with('status', 'Вы присоединились к клубу.');
+        return redirect()->route('dashboard')->with('status', __('Вы присоединились к клубу.'));
     }
 
     private function findValidInvitation(string $token): ClubInvitation

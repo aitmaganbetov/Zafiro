@@ -40,12 +40,12 @@ class UserController extends Controller
                 'balance' => $data['balance'] ?? 0,
                 'bonus_balance' => $data['bonus_balance'] ?? 0,
             ]);
-            $activity->record('user.created', "Создан пользователь: {$user->name}", $actorId, $user, [
+            $activity->record('user.created', __('Создан пользователь: :user', ['user' => $user->name]), $actorId, $user, [
                 'phone' => $user->phone,
                 'role' => $membership->role,
             ]);
         });
 
-        return redirect()->route('users.index')->with('status', 'Пользователь добавлен.');
+        return redirect()->route('users.index')->with('status', __('Пользователь добавлен.'));
     }
 }

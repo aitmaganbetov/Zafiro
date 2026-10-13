@@ -39,10 +39,10 @@ class StoreStockMovementRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'product_id' => 'товар',
-            'type' => 'тип операции',
-            'quantity' => 'количество',
-            'note' => 'комментарий',
+            'product_id' => __('товар'),
+            'type' => __('тип операции'),
+            'quantity' => __('количество'),
+            'note' => __('комментарий'),
         ];
     }
 }

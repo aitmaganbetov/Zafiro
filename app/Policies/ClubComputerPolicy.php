@@ -20,6 +20,6 @@ class ClubComputerPolicy
 
         return in_array($role, ['owner', 'admin', 'manager', 'operator'], true)
             ? Response::allow()
-            : Response::deny('Недостаточно прав для регистрации компьютера в клубе.');
+            : Response::deny(__('Недостаточно прав для регистрации компьютера в клубе.'));
     }
 }

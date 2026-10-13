@@ -29,7 +29,7 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             $failed('invalid_credentials');
 
-            return response()->json(['message' => 'Неверный номер телефона или пароль.'], 401);
+            return response()->json(['message' => __('Неверный номер телефона или пароль.')], 401);
         }
 
         $requestedClubId = $request->validated('club_id');
@@ -40,13 +40,13 @@ class AuthController extends Controller
             if ($keyClub === null) {
                 $failed('invalid_club_key');
 
-                return response()->json(['message' => 'Ключ установки недействителен.'], 401);
+                return response()->json(['message' => __('Ключ установки недействителен.')], 401);
             }
 
             if ($requestedClubId !== null && (int) $requestedClubId !== $keyClub->getKey()) {
                 $failed('club_key_mismatch');
 
-                return response()->json(['message' => 'Ключ установки относится к другому клубу.'], 403);
+                return response()->json(['message' => __('Ключ установки относится к другому клубу.')], 403);
             }
 
             $requestedClubId = $keyClub->getKey();
@@ -62,7 +62,7 @@ class AuthController extends Controller
         if (! $membership) {
             $failed('no_club_access');
 
-            return response()->json(['message' => 'У аккаунта нет доступа к выбранному клубу.'], 403);
+            return response()->json(['message' => __('У аккаунта нет доступа к выбранному клубу.')], 403);
         }
 
         $currentClub->set($membership->club);
@@ -71,7 +71,7 @@ class AuthController extends Controller
         if ($subscription?->isActive() !== true) {
             $failed('subscription_inactive');
 
-            return response()->json(['message' => 'Подписка клуба не активна.'], 402);
+            return response()->json(['message' => __('Подписка клуба не активна.')], 402);
         }
 
         $token = $user->createToken(
@@ -79,7 +79,7 @@ class AuthController extends Controller
             ['club:'.$membership->club_id],
             now()->addDays(30),
         )->plainTextToken;
-        $activity->record('auth.api_login', "Вход через API: {$user->name}", $user->getKey(), $user, ['device' => $request->validated('device_name') ?: 'mobile']);
+        $activity->record('auth.api_login', __('Вход через API: :user', ['user' => $user->name]), $user->getKey(), $user, ['device' => $request->validated('device_name') ?: 'mobile']);
 
         return response()->json([
             'token' => $token,
@@ -100,10 +100,10 @@ class AuthController extends Controller
     public function logout(Request $request, ActivityLogger $activity): JsonResponse
     {
         $user = $request->user();
-        $activity->record('auth.api_logout', "Выход через API: {$user->name}", $user->getKey(), $user);
+        $activity->record('auth.api_logout', __('Выход через API: :user', ['user' => $user->name]), $user->getKey(), $user);
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Сессия завершена.']);
+        return response()->json(['message' => __('Сессия завершена.')]);
     }
 
     /**
