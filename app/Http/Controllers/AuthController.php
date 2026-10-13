@@ -92,7 +92,7 @@ class AuthController extends Controller
             'password.confirmed' => 'Пароли не совпадают.',
         ]);
 
-        [$user, $club] = DB::transaction(function () use ($validated, $currentClub): array {
+        [$user, $club] = DB::transaction(function () use ($validated, $currentClub, $activity): array {
             $user = User::create([
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
@@ -116,13 +116,13 @@ class AuthController extends Controller
                 'started_at' => now(),
                 'trial_ends_at' => now()->addDays($plan->trial_days ?: 14),
             ]);
+            $activity->record('auth.registered', "Регистрация пользователя: {$user->name}", $user->getKey(), $user);
 
             return [$user, $club];
         });
 
         Auth::login($user);
         $request->session()->put('current_club_id', $club->getKey());
-        $activity->record('auth.registered', "Регистрация пользователя: {$user->name}", $user->getKey(), $user);
 
         return redirect('/dashboard')->with('success', 'Добро пожаловать!');
     }

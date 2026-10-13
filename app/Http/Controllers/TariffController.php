@@ -8,6 +8,7 @@ use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class TariffController extends Controller
@@ -43,14 +44,16 @@ class TariffController extends Controller
             $data['quantity_limit'] = null;
         }
 
-        $tariff = Tariff::query()->create($data);
-        $tariff->zones()->syncWithPivotValues($zoneIds, ['club_id' => $this->currentClub->id()]);
-        $activity->record('tariff.created', "Создан тариф: {$tariff->name}", $request->user()->getKey(), $tariff, [
-            'price' => (float) $tariff->price,
-            'currency' => $tariff->currency,
-            'duration_minutes' => $tariff->duration_minutes,
-            'zone_count' => count($zoneIds),
-        ]);
+        DB::transaction(function () use ($data, $zoneIds, $request, $activity): void {
+            $tariff = Tariff::query()->create($data);
+            $tariff->zones()->syncWithPivotValues($zoneIds, ['club_id' => $this->currentClub->id()]);
+            $activity->record('tariff.created', "Создан тариф: {$tariff->name}", $request->user()->getKey(), $tariff, [
+                'price' => (float) $tariff->price,
+                'currency' => $tariff->currency,
+                'duration_minutes' => $tariff->duration_minutes,
+                'zone_count' => count($zoneIds),
+            ]);
+        });
 
         return redirect()->route('tariffs.index')->with('status', 'Тариф создан.');
     }

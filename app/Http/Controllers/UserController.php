@@ -27,7 +27,8 @@ class UserController extends Controller
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
     {
         $data = $request->validated();
-        [$user, $membership] = DB::transaction(function () use ($data): array {
+        $actorId = $request->user()->getKey();
+        DB::transaction(function () use ($data, $actorId, $activity): void {
             $user = User::query()->create(Arr::only($data, ['name', 'phone', 'email', 'password']));
             $membership = ClubMembership::query()->create([
                 'user_id' => $user->getKey(),
@@ -39,13 +40,11 @@ class UserController extends Controller
                 'balance' => $data['balance'] ?? 0,
                 'bonus_balance' => $data['bonus_balance'] ?? 0,
             ]);
-
-            return [$user, $membership];
+            $activity->record('user.created', "Создан пользователь: {$user->name}", $actorId, $user, [
+                'phone' => $user->phone,
+                'role' => $membership->role,
+            ]);
         });
-        $activity->record('user.created', "Создан пользователь: {$user->name}", $request->user()->getKey(), $user, [
-            'phone' => $user->phone,
-            'role' => $membership->role,
-        ]);
 
         return redirect()->route('users.index')->with('status', 'Пользователь добавлен.');
     }
