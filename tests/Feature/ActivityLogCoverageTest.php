@@ -98,3 +98,20 @@ test('failed API sign-ins are logged with the reason', function () {
     expect($log->user_id)->toBe($user->id)
         ->and($log->details['reason'])->toBe('invalid_club_key');
 });
+
+test('settings changes are logged with old and new values and render in the log', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('settings.save'), [
+        'section' => 'guests',
+        'show_qr_code_on_login' => '1',
+    ])->assertRedirect();
+    $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT'])->assertRedirect();
+
+    $log = latestLog('settings.updated');
+    expect($log->user_id)->toBe($user->id)
+        ->and($log->details)->toBe(['section' => 'guests', 'show_qr_code_on_login' => 'нет → да'])
+        ->and(ActivityLog::query()->where('event', 'settings.updated')->count())->toBe(1);
+
+    $this->get(route('activity-logs.index'))->assertSuccessful()->assertSee('show_qr_code_on_login: нет → да');
+});

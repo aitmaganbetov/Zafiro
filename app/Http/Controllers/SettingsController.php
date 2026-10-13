@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveSettingsRequest;
+use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SettingsController extends Controller
 {
@@ -81,10 +83,11 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function save(SaveSettingsRequest $request)
+    public function save(SaveSettingsRequest $request, ActivityLogger $activity)
     {
         $section = $request->input('section', 'club');
         $settings = $this->loadSettings();
+        $before = $settings[$section] ?? [];
         $settings[$section] = $settings[$section] ?? [];
 
         $fields = [
@@ -129,9 +132,24 @@ class SettingsController extends Controller
             }
         }
 
-        $club = $this->currentClub->get();
-        $club->settings = $settings;
-        $club->save();
+        $readable = fn (mixed $value): string => is_bool($value) ? ($value ? 'да' : 'нет') : (string) ($value ?? '—');
+        $changes = collect($settings[$section])
+            ->filter(fn (mixed $value, string $field): bool => ($before[$field] ?? null) !== $value)
+            ->map(fn (mixed $value, string $field): string => $readable($before[$field] ?? null).' → '.$readable($value))
+            ->all();
+
+        DB::transaction(function () use ($settings, $section, $changes, $request, $activity): void {
+            $club = $this->currentClub->get();
+            $club->settings = $settings;
+            $club->save();
+
+            if ($changes !== []) {
+                $activity->record('settings.updated', 'Изменены настройки: '.implode(', ', array_keys($changes)), $request->user()->getKey(), $club, [
+                    'section' => $section,
+                    ...$changes,
+                ]);
+            }
+        });
 
         return back()->with('status', 'Настройки сохранены');
     }
