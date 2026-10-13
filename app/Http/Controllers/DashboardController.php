@@ -19,20 +19,26 @@ class DashboardController extends Controller
         $now = now();
         $today = $now->copy()->startOfDay();
         $weekStart = $today->copy()->subDays(6);
-        $transactions = CashTransaction::query()
+        $dailyTotals = CashTransaction::query()
             ->whereBetween('created_at', [$weekStart, $now])
-            ->get(['type', 'amount', 'created_at']);
-        $todayTransactions = $transactions->filter(fn (CashTransaction $transaction): bool => $transaction->created_at->isSameDay($today));
+            ->selectRaw('DATE(created_at) as day, type, SUM(amount) as total, COUNT(*) as transaction_count')
+            ->groupByRaw('DATE(created_at), type')
+            ->toBase()
+            ->get();
+        $totalFor = fn (string $day, string $type, string $column = 'total'): float => (float) $dailyTotals
+            ->where('day', $day)
+            ->where('type', $type)
+            ->sum($column);
+        $todayKey = $today->toDateString();
         $chartLabels = [];
         $chartIncome = [];
         $chartExpenses = [];
 
         foreach (range(6, 0) as $daysAgo) {
             $day = $today->copy()->subDays($daysAgo);
-            $dayTransactions = $transactions->filter(fn (CashTransaction $transaction): bool => $transaction->created_at->isSameDay($day));
             $chartLabels[] = $day->format('d.m');
-            $chartIncome[] = (float) $dayTransactions->where('type', CashTransaction::TYPE_INCOME)->sum('amount');
-            $chartExpenses[] = (float) $dayTransactions->where('type', CashTransaction::TYPE_EXPENSE)->sum('amount');
+            $chartIncome[] = $totalFor($day->toDateString(), CashTransaction::TYPE_INCOME);
+            $chartExpenses[] = $totalFor($day->toDateString(), CashTransaction::TYPE_EXPENSE);
         }
 
         $computerStatuses = ClubComputer::query()->get(['status', 'is_reserved', 'last_seen_at'])
@@ -40,10 +46,10 @@ class DashboardController extends Controller
         $settings = $this->currentClub->settings();
 
         return view('dashboard', [
-            'todayIncome' => (float) $todayTransactions->where('type', CashTransaction::TYPE_INCOME)->sum('amount'),
-            'todayExpenses' => (float) $todayTransactions->where('type', CashTransaction::TYPE_EXPENSE)->sum('amount'),
-            'todayTransactionCount' => $todayTransactions->count(),
-            'todayExpenseCount' => $todayTransactions->where('type', CashTransaction::TYPE_EXPENSE)->count(),
+            'todayIncome' => $totalFor($todayKey, CashTransaction::TYPE_INCOME),
+            'todayExpenses' => $totalFor($todayKey, CashTransaction::TYPE_EXPENSE),
+            'todayTransactionCount' => (int) $dailyTotals->where('day', $todayKey)->sum('transaction_count'),
+            'todayExpenseCount' => (int) $totalFor($todayKey, CashTransaction::TYPE_EXPENSE, 'transaction_count'),
             'currency' => data_get($settings ?: [], 'finances.currency', 'KZT'),
             'chartLabels' => $chartLabels,
             'chartIncome' => $chartIncome,
