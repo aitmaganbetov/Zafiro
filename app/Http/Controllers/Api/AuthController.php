@@ -54,12 +54,8 @@ class AuthController extends Controller
 
         $currentClub->set($membership->club);
         $subscription = ClubSubscription::query()->where('club_id', $membership->club_id)->first();
-        $subscriptionActive = $subscription !== null && (
-            $subscription->status === 'active'
-            || ($subscription->status === 'trialing' && $subscription->trial_ends_at?->isFuture())
-        );
 
-        if (! $subscriptionActive) {
+        if ($subscription?->isActive() !== true) {
             return response()->json(['message' => 'Подписка клуба не активна.'], 402);
         }
 

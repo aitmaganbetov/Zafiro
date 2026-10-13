@@ -15,13 +15,7 @@ class RequireActiveSubscription
             return $next($request);
         }
 
-        $subscription = app(CurrentClub::class)->get()?->subscription;
-        $active = $subscription !== null && (
-            $subscription->status === 'active'
-            || ($subscription->status === 'trialing' && $subscription->trial_ends_at?->isFuture())
-        );
-
-        if ($active) {
+        if (app(CurrentClub::class)->get()?->subscription?->isActive() === true) {
             return $next($request);
         }
 

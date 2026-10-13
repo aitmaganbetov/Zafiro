@@ -19,6 +19,12 @@ class ClubSubscription extends Model
         ];
     }
 
+    public function isActive(): bool
+    {
+        return $this->status === 'active'
+            || ($this->status === 'trialing' && $this->trial_ends_at?->isFuture() === true);
+    }
+
     public function plan(): BelongsTo
     {
         return $this->belongsTo(SaasPlan::class, 'saas_plan_id');
