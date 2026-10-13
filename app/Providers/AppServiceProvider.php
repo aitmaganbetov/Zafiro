@@ -28,18 +28,18 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(ClubComputer::class, ClubComputerPolicy::class);
 
-        RateLimiter::for('club-computers', function (Request $request): Limit {
-            $token = $request->user()?->currentAccessToken();
-            $tokenId = is_object($token) && method_exists($token, 'getKey') ? $token->getKey() : null;
+        RateLimiter::for('club-computers', fn (Request $request): Limit => Limit::perMinute(60)
+            ->by('club-computer-agent:'.$this->agentRateLimitKey($request)));
 
-            return Limit::perMinute(60)->by('club-computer-agent:'.($tokenId ?? $request->ip()));
-        });
+        RateLimiter::for('club-computer-registration', fn (Request $request): Limit => Limit::perMinute(10)
+            ->by('club-computer-registration:'.$this->agentRateLimitKey($request)));
+    }
 
-        RateLimiter::for('club-computer-registration', function (Request $request): Limit {
-            $token = $request->user()?->currentAccessToken();
-            $tokenId = is_object($token) && method_exists($token, 'getKey') ? $token->getKey() : null;
+    private function agentRateLimitKey(Request $request): string
+    {
+        $token = $request->user()?->currentAccessToken();
+        $tokenId = is_object($token) && method_exists($token, 'getKey') ? $token->getKey() : null;
 
-            return Limit::perMinute(10)->by('club-computer-registration:'.($tokenId ?? $request->ip()));
-        });
+        return (string) ($tokenId ?? $request->ip());
     }
 }
