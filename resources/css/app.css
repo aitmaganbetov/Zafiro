@@ -4,6 +4,11 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
+    /* Type scale: small 14, body 16, H4 18, H3 20, H2 24, H1 32 */
+    --text-xs: 0.875rem;
+    --text-xs--line-height: 1.25rem;
+    --text-3xl: 2rem;
+    --text-3xl--line-height: 2.5rem;
     --font-sans: 'Inter', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
@@ -50,7 +55,7 @@ body {
 }
 
 .warehouse-catalog-title {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     color: #17251c
 }
@@ -58,7 +63,7 @@ body {
 .warehouse-catalog-meta {
     margin-top: 4px;
     color: #7a857d;
-    font-size: 11px
+    font-size: 14px
 }
 
 .warehouse-catalog-actions {
@@ -74,7 +79,7 @@ body {
     border: 0;
     border-radius: 11px;
     padding: 10px 14px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     transition: .18s
@@ -122,7 +127,7 @@ body {
     background: #fff;
     padding: 6px 10px;
     color: #657068;
-    font-size: 10px
+    font-size: 14px
 }
 
 .warehouse-modal {
@@ -198,7 +203,7 @@ body {
 .warehouse-dialog-subtitle {
     margin-top: 2px;
     color: #89918b;
-    font-size: 10px
+    font-size: 14px
 }
 
 .warehouse-modal-close {
@@ -232,7 +237,7 @@ body {
     display: block;
     margin-bottom: 6px;
     color: #59645c;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -245,7 +250,7 @@ body {
     background: #f9fbf9;
     padding: 11px 12px;
     color: #17231b;
-    font-size: 12px;
+    font-size: 14px;
     outline: none;
     transition: .15s
 }
@@ -268,7 +273,7 @@ body {
     border: 0;
     border-radius: 10px;
     padding: 10px 15px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -398,7 +403,7 @@ body {
 }
 
 .pos-status {
-    font-size: 13px;
+    font-size: 14px;
     color: #788078
 }
 
@@ -413,7 +418,7 @@ body {
     border-radius: 10px;
     padding: 9px 14px;
     background: #fff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -461,7 +466,7 @@ body {
 
 .pos-category-icon {
     display: block;
-    font-size: 22px;
+    font-size: 24px;
     line-height: 1;
     margin-bottom: 14px;
     color: #149447
@@ -469,13 +474,13 @@ body {
 
 .pos-category strong {
     display: block;
-    font-size: 12px
+    font-size: 14px
 }
 
 .pos-category small {
     display: block;
     margin-top: 3px;
-    font-size: 9px;
+    font-size: 14px;
     color: #8b938d
 }
 
@@ -510,13 +515,13 @@ body {
 .pos-product h4 {
     min-height: 36px;
     margin: 9px 3px 2px;
-    font-size: 12px;
-    line-height: 1.35
+    font-size: 14px;
+    line-height: 1.4
 }
 
 .pos-product-meta {
     margin: 0 3px 8px;
-    font-size: 9px;
+    font-size: 14px;
     color: #8b938d
 }
 
@@ -525,13 +530,13 @@ body {
     align-items: center;
     justify-content: space-between;
     margin: 0 3px 8px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700
 }
 
 .pos-stock {
     color: #159447;
-    font-size: 9px;
+    font-size: 14px;
     font-weight: 600
 }
 
@@ -546,7 +551,7 @@ body {
     background: #d5f0dd;
     padding: 8px;
     color: #16733a;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -568,8 +573,8 @@ body {
     font-weight: 700
 }
 
-.pos-view-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px;border-radius:10px;background:#f1f3f1;padding:4px}.pos-view-tab{min-height:36px;border:0;border-radius:7px;background:transparent;padding:7px 10px;color:#4b5563;font-size:11px;font-weight:600;cursor:pointer}.pos-view-tab.active{background:#fff;color:#166534;box-shadow:0 2px 8px #dfe4df}.pos-balance-view[hidden],#sale-view[hidden]{display:none}.pos-balance-form{display:grid;min-height:340px;align-content:start;gap:16px}.pos-balance-form label{display:grid;gap:7px;color:#4b5563;font-size:12px;font-weight:600}.pos-balance-input{width:100%;min-height:42px;border:1px solid #dfe5e0;border-radius:10px;background:#fff;padding:10px 12px;color:#17201b;font-size:13px}.pos-balance-input:focus{border-color:#51a66d;outline:3px solid rgba(34,197,94,.12)}
-.pos-user-picker{position:relative;display:grid;gap:7px;color:#4b5563;font-size:12px;font-weight:600}.pos-user-options{position:absolute;top:calc(100% + 3px);right:0;left:0;z-index:60;max-height:240px;overflow-y:auto;border:1px solid #dfe5e0;border-radius:10px;background:#fff;padding:4px;box-shadow:0 12px 28px rgba(15,23,42,.16)}.pos-user-option{display:block;width:100%;border:0;border-radius:7px;background:transparent;padding:9px 10px;text-align:left;color:#17201b;cursor:pointer}.pos-user-option:hover,.pos-user-option[aria-selected=true]{background:#edf7f0}.pos-user-option strong,.pos-user-option small{display:block}.pos-user-option strong{font-size:13px}.pos-user-option small{margin-top:3px;color:#77817a;font-size:11px;font-weight:400}.pos-user-no-results{margin:0;padding:12px;color:#77817a;font-size:12px;font-weight:400}.dark .pos-user-options{border-color:#374151;background:#111827}.dark .pos-user-option{color:#f9fafb}.dark .pos-user-option:hover,.dark .pos-user-option[aria-selected=true]{background:#1f2937}
+.pos-view-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px;border-radius:10px;background:#f1f3f1;padding:4px}.pos-view-tab{min-height:36px;border:0;border-radius:7px;background:transparent;padding:7px 10px;color:#4b5563;font-size:14px;font-weight:600;cursor:pointer}.pos-view-tab.active{background:#fff;color:#166534;box-shadow:0 2px 8px #dfe4df}.pos-balance-view[hidden],#sale-view[hidden]{display:none}.pos-balance-form{display:grid;min-height:340px;align-content:start;gap:16px}.pos-balance-form label{display:grid;gap:7px;color:#4b5563;font-size:14px;font-weight:600}.pos-balance-input{width:100%;min-height:42px;border:1px solid #dfe5e0;border-radius:10px;background:#fff;padding:10px 12px;color:#17201b;font-size:14px}.pos-balance-input:focus{border-color:#51a66d;outline:3px solid rgba(34,197,94,.12)}
+.pos-user-picker{position:relative;display:grid;gap:7px;color:#4b5563;font-size:14px;font-weight:600}.pos-user-options{position:absolute;top:calc(100% + 3px);right:0;left:0;z-index:60;max-height:240px;overflow-y:auto;border:1px solid #dfe5e0;border-radius:10px;background:#fff;padding:4px;box-shadow:0 12px 28px rgba(15,23,42,.16)}.pos-user-option{display:block;width:100%;border:0;border-radius:7px;background:transparent;padding:9px 10px;text-align:left;color:#17201b;cursor:pointer}.pos-user-option:hover,.pos-user-option[aria-selected=true]{background:#edf7f0}.pos-user-option strong,.pos-user-option small{display:block}.pos-user-option strong{font-size:14px}.pos-user-option small{margin-top:3px;color:#77817a;font-size:14px;font-weight:400}.pos-user-no-results{margin:0;padding:12px;color:#77817a;font-size:14px;font-weight:400}.dark .pos-user-options{border-color:#374151;background:#111827}.dark .pos-user-option{color:#f9fafb}.dark .pos-user-option:hover,.dark .pos-user-option[aria-selected=true]{background:#1f2937}
 
 .pos-modes {
     display: flex;
@@ -583,7 +588,7 @@ body {
     border-radius: 7px;
     background: transparent;
     padding: 7px 10px;
-    font-size: 9px;
+    font-size: 14px;
     cursor: pointer
 }
 
@@ -602,7 +607,7 @@ body {
     padding: 80px 20px;
     text-align: center;
     color: #9ba29d;
-    font-size: 13px
+    font-size: 14px
 }
 
 .pos-cart-item {
@@ -621,12 +626,12 @@ body {
 }
 
 .pos-cart-name {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
 .pos-cart-sub {
-    font-size: 9px;
+    font-size: 14px;
     color: #919991;
     margin-top: 3px
 }
@@ -639,7 +644,7 @@ body {
 }
 
 .pos-cart-price {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     color: #159447
 }
@@ -673,7 +678,7 @@ body {
     display: flex;
     justify-content: space-between;
     margin-bottom: 7px;
-    font-size: 11px;
+    font-size: 14px;
     color: #778078
 }
 
@@ -698,13 +703,13 @@ body {
     border-radius: 11px;
     background: #fff;
     padding: 11px 5px;
-    font-size: 9px;
+    font-size: 14px;
     cursor: pointer
 }
 
 .pos-payment span {
     display: block;
-    font-size: 17px;
+    font-size: 18px;
     margin-bottom: 5px
 }
 
@@ -720,7 +725,7 @@ body {
     background: var(--brand);
     padding: 13px;
     color: #fff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -752,7 +757,7 @@ body {
 .pos-open label {
     display: block;
     margin-bottom: 6px;
-    font-size: 12px
+    font-size: 14px
 }
 
 .pos-open input {
@@ -842,7 +847,7 @@ body {
     color: #253029;
     text-align: center;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -871,7 +876,7 @@ body {
 }
 
 .receipt-logo span {
-    font-size: 10px;
+    font-size: 14px;
     color: #7c847e
 }
 
@@ -885,7 +890,7 @@ body {
     justify-content: space-between;
     gap: 12px;
     margin: 7px 0;
-    font-size: 11px
+    font-size: 14px
 }
 
 .receipt-item {
@@ -893,7 +898,7 @@ body {
 }
 
 .receipt-item-name {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -902,7 +907,7 @@ body {
     justify-content: space-between;
     margin-top: 4px;
     color: #656d67;
-    font-size: 10px
+    font-size: 14px
 }
 
 .receipt-total {
@@ -915,7 +920,7 @@ body {
 .receipt-thanks {
     text-align: center;
     margin-top: 18px;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1.6
 }
 
@@ -975,7 +980,7 @@ body {
 .report-back {
     color: #4d5850;
     text-decoration: none;
-    font-size: 13px
+    font-size: 14px
 }
 
 .report-actions {
@@ -989,7 +994,7 @@ body {
     padding: 11px 16px;
     background: #fff;
     color: #263029;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -1032,20 +1037,20 @@ body {
     border-radius: 20px;
     background: rgba(255, 255, 255, .16);
     padding: 6px 10px;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: .12em
 }
 
 .report-head h1 {
     margin: 10px 0 4px;
-    font-size: 28px
+    font-size: 32px
 }
 
 .report-head p {
     margin: 0;
     color: #d7f0df;
-    font-size: 12px
+    font-size: 14px
 }
 
 .report-state {
@@ -1054,7 +1059,7 @@ body {
     background: #fff;
     color: #176434;
     padding: 9px 12px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -1079,11 +1084,11 @@ body {
     display: block;
     margin-bottom: 5px;
     color: #89918b;
-    font-size: 10px
+    font-size: 14px
 }
 
 .report-info strong {
-    font-size: 12px
+    font-size: 14px
 }
 
 .report-metrics {
@@ -1101,7 +1106,7 @@ body {
 .report-metric span {
     display: block;
     color: #7d877f;
-    font-size: 11px
+    font-size: 14px
 }
 
 .report-metric strong {
@@ -1129,7 +1134,7 @@ body {
 }
 
 .report-total span {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -1144,7 +1149,7 @@ body {
     background: #fffaf0;
     padding: 12px 14px;
     color: #74602e;
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.5
 }
 
@@ -1154,7 +1159,7 @@ body {
     background: #fff0ee;
     padding: 12px;
     color: #a72d23;
-    font-size: 12px
+    font-size: 14px
 }
 
 @media(max-width:650px) {
@@ -1245,7 +1250,7 @@ body {
 .cm-head p {
     margin: 5px 0 0;
     color: #7b847d;
-    font-size: 13px
+    font-size: 14px
 }
 
 .cm-add,
@@ -1255,7 +1260,7 @@ body {
     background: var(--brand);
     padding: 11px 16px;
     color: #fff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -1264,7 +1269,7 @@ body {
     margin-bottom: 14px;
     border-radius: 11px;
     padding: 12px 14px;
-    font-size: 12px
+    font-size: 14px
 }
 
 .cm-alert.ok {
@@ -1367,7 +1372,7 @@ body {
     right: 18px;
     bottom: 12px;
     color: #929b94;
-    font-size: 10px
+    font-size: 14px
 }
 
 .cm-status {
@@ -1380,7 +1385,7 @@ body {
     border-radius: 15px;
     background: #fff;
     padding: 5px 8px;
-    font-size: 9px
+    font-size: 14px
 }
 
 .cm-status:before {
@@ -1465,7 +1470,7 @@ body {
     background: #173d27;
     padding: 9px 13px;
     color: #fff;
-    font-size: 11px
+    font-size: 14px
 }
 
 .cm-saving.show {
@@ -1505,7 +1510,7 @@ body {
 }
 
 .cm-dialog-head h3 {
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 700
 }
 
@@ -1530,7 +1535,7 @@ body {
     display: block;
     margin-bottom: 6px;
     color: #5f6961;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -1543,7 +1548,7 @@ body {
     border-radius: 10px;
     background: #fafbfa;
     padding: 10px 11px;
-    font-size: 12px
+    font-size: 14px
 }
 
 .cm-field textarea {
@@ -1599,7 +1604,7 @@ body {
     border-radius: 12px;
     background: #fff;
     padding: 8px 11px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -1693,17 +1698,17 @@ body {
     width: 35px;
     height: 35px;
     border-radius: 10px;
-    font-size: 15px
+    font-size: 16px
 }
 
 .cm-zone-info h3 {
     margin-top: 5px;
-    font-size: 13px
+    font-size: 14px
 }
 
 .cm-zone-info small {
     margin-top: 1px;
-    font-size: 9px
+    font-size: 14px
 }
 
 .cm-computers {
@@ -1730,7 +1735,7 @@ body {
     background: #1e293b;
     color: #bfdbfe;
     text-align: center;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 25px;
     box-shadow: 0 3px 7px rgba(15, 23, 42, .16)
 }
@@ -1853,7 +1858,7 @@ body {
 .cm-control-count {
     min-width: 105px;
     padding: 0 10px;
-    font-size: 11px;
+    font-size: 14px;
     color: #cbd5e1
 }
 
@@ -1872,7 +1877,7 @@ body {
     background: #263247;
     padding: 10px 13px;
     color: #e5e7eb;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer
 }
@@ -2166,7 +2171,7 @@ body {
 .admin-title {
     margin: 0;
     color: #162119;
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 600;
     letter-spacing: -.025em
 }
@@ -2198,7 +2203,7 @@ body {
     top: 50%;
     transform: translateY(-50%);
     color: #9aa49d;
-    font-size: 12px
+    font-size: 14px
 }
 
 .admin-search input {
@@ -2208,7 +2213,7 @@ body {
     background: #f7f9f7;
     padding: 9px 13px 9px 34px;
     color: var(--text);
-    font-size: 12px;
+    font-size: 14px;
     outline: none;
     transition: .15s
 }
@@ -2462,7 +2467,7 @@ body {
     display: flex;
     align-items: center;
     gap: 11px;
-    font-size: 23px;
+    font-size: 24px;
     font-weight: 700
 }
 
@@ -2487,7 +2492,7 @@ body {
     border-radius: 20px;
     background: rgba(255, 255, 255, .1);
     padding: 7px 11px;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: .08em;
     text-transform: uppercase
@@ -2495,8 +2500,8 @@ body {
 
 .auth-message h1 {
     margin: 16px 0 10px;
-    font-size: 42px;
-    line-height: 1.08;
+    font-size: 32px;
+    line-height: 1.25;
     letter-spacing: -.04em
 }
 
@@ -2527,14 +2532,14 @@ body {
 .auth-card-head h2 {
     margin: 0;
     color: #17221a;
-    font-size: 28px;
+    font-size: 24px;
     letter-spacing: -.035em
 }
 
 .auth-card-head p {
     margin: 7px 0 0;
     color: #7a857d;
-    font-size: 12px
+    font-size: 14px
 }
 
 .auth-errors {
@@ -2544,7 +2549,7 @@ body {
     background: #fff1ef;
     padding: 11px 13px;
     color: #ad3128;
-    font-size: 11px
+    font-size: 14px
 }
 
 .auth-form {
@@ -2557,7 +2562,7 @@ body {
     display: block;
     margin-bottom: 6px;
     color: #556159;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -2571,10 +2576,10 @@ body {
     top: 50%;
     transform: translateY(-50%);
     color: #9ba49e;
-    font-size: 12px
+    font-size: 14px
 }
 
-.auth-phone-prefix{position:absolute;left:36px;top:50%;z-index:1;transform:translateY(-50%);color:#556159;font-size:13px;font-weight:600;pointer-events:none}
+.auth-phone-prefix{position:absolute;left:36px;top:50%;z-index:1;transform:translateY(-50%);color:#556159;font-size:14px;font-weight:600;pointer-events:none}
 
 .auth-field input:not([type=checkbox]) {
     width: 100%;
@@ -2583,7 +2588,7 @@ body {
     background: #fff;
     padding: 12px 13px 12px 38px;
     color: #17221a;
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
     transition: .15s
 }
@@ -2609,7 +2614,7 @@ body {
     align-items: center;
     gap: 7px;
     color: #657068;
-    font-size: 11px
+    font-size: 14px
 }
 
 .auth-submit {
@@ -2619,7 +2624,7 @@ body {
     background: var(--brand);
     padding: 13px;
     color: #fff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 9px 22px rgba(255, 1, 105, .2)
@@ -2633,7 +2638,7 @@ body {
     margin-top: 20px;
     text-align: center;
     color: #7c877f;
-    font-size: 11px
+    font-size: 14px
 }
 
 .auth-footer a {
@@ -2645,7 +2650,7 @@ body {
 .auth-error-text {
     margin: 5px 0 0;
     color: #c33d32;
-    font-size: 10px
+    font-size: 14px
 }
 
 @media(max-width:850px) {
@@ -2709,7 +2714,7 @@ body {
 .sidebar-brand strong {
     display: block;
     color: #fff;
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: -.03em
 }
@@ -2718,7 +2723,7 @@ body {
     display: block;
     margin-top: 1px;
     color: #7f9185;
-    font-size: 9px
+    font-size: 14px
 }
 
 .sidebar-nav {
@@ -2730,7 +2735,7 @@ body {
 .sidebar-label {
     display: block;
     padding: 13px 11px 7px;
-    font-size: 8px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: .13em;
     text-transform: uppercase
@@ -2745,7 +2750,7 @@ body {
     border-radius: 11px;
     padding: 10px 11px;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     transition: .17s
 }
@@ -2757,7 +2762,7 @@ body {
     place-items: center;
     border-radius: 8px;
     color: #819287;
-    font-size: 13px;
+    font-size: 14px;
     transition: .17s
 }
 
@@ -2816,7 +2821,7 @@ body {
     border-radius: 9px;
     background: #243029;
     color: #74df99;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700
 }
 
@@ -2835,13 +2840,13 @@ body {
 
 .sidebar-user-mini strong {
     color: #edf3ef;
-    font-size: 10px
+    font-size: 14px
 }
 
 .sidebar-user-mini small {
     margin-top: 2px;
     color: #73847a;
-    font-size: 8px
+    font-size: 14px
 }
 
 .sidebar-footer form button {
@@ -2892,7 +2897,7 @@ body {
 .sidebar-group>summary:after {
     content: '\f078';
     font-family: 'Font Awesome 6 Free';
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     margin-left: auto;
     transition: transform .18s
@@ -2912,13 +2917,13 @@ body {
     gap: 8px;
     margin: 2px 0;
     padding: 8px 9px;
-    font-size: 11px
+    font-size: 14px
 }
 
 .sidebar-subnav .sidebar-link i {
     width: 22px;
     height: 22px;
-    font-size: 11px
+    font-size: 14px
 }
 
 .sidebar-subnav .sidebar-link.active {
@@ -3279,4 +3284,18 @@ body {
 
 .tariff-color-fdba74 {
     background: #fdba74
+}
+/* Layout baseline: readable body text, form controls that iOS does not zoom */
+body {
+    font-size: 16px;
+    line-height: 1.5
+}
+
+@media(max-width:767px) {
+    input:not([type=checkbox], [type=radio], [type=range], [type=color]),
+    select,
+    textarea,
+    button {
+        font-size: 16px !important
+    }
 }
