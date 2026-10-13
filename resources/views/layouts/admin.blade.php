@@ -30,6 +30,7 @@
                             </form>
                         @endif
                         <label class="admin-search"><i class="fas fa-search"></i><input type="search" placeholder="{{ __('Поиск...') }}"></label>
+                        <button type="button" class="admin-icon-button" data-pwa-install aria-label="{{ __('Установить приложение') }}" title="{{ __('Установить приложение') }}" hidden><i class="fas fa-download"></i></button>
                         <div class="admin-notifications" data-notifications data-url="{{ route('notifications.index') }}" data-seen-url="{{ route('notifications.seen') }}" data-csrf="{{ csrf_token() }}">
                             <button type="button" id="notifications-button" class="admin-icon-button" aria-label="{{ __('Уведомления') }}" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
                             <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="{{ __('Уведомления') }}" hidden>
@@ -119,5 +120,12 @@
             sync();
         })();
     </script>
+<dialog class="pwa-install-dialog" data-pwa-dialog aria-labelledby="pwa-install-title">
+    <h2 id="pwa-install-title">{{ __('Установить приложение') }}</h2>
+    <p data-pwa-hint="ios" hidden>{{ __('В Safari нажмите «Поделиться», затем «На экран „Домой“».') }}</p>
+    <p data-pwa-hint="samsung" hidden>{{ __('Нажмите значок установки в адресной строке или откройте меню браузера и выберите «Добавить страницу на» → «Главный экран».') }}</p>
+    <p data-pwa-hint="other" hidden>{{ __('Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».') }}</p>
+    <form method="dialog"><button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Понятно') }}</button></form>
+</dialog>
 </body>
 </html>

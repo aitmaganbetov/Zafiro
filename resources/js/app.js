@@ -68,13 +68,18 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
 	});
 }
 
+// Install: browsers that support it hand over a prompt (beforeinstallprompt); Chrome may
+// also show its own banner. Safari, Samsung Internet and others get short instructions.
 let installPrompt = null;
 const installButtons = () => document.querySelectorAll('[data-pwa-install]');
+const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+if (!isInstalled()) {
+	installButtons().forEach((button) => { button.hidden = false; });
+}
 
 window.addEventListener('beforeinstallprompt', (event) => {
-	event.preventDefault();
 	installPrompt = event;
-	installButtons().forEach((button) => { button.hidden = false; });
 });
 
 window.addEventListener('appinstalled', () => {
@@ -82,12 +87,26 @@ window.addEventListener('appinstalled', () => {
 	installButtons().forEach((button) => { button.hidden = true; });
 });
 
+const installHint = () => {
+	const ua = navigator.userAgent;
+	if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+	if (/SamsungBrowser/.test(ua)) return 'samsung';
+	return 'other';
+};
+
 installButtons().forEach((button) => {
 	button.addEventListener('click', async () => {
-		if (!installPrompt) return;
-		installPrompt.prompt();
-		await installPrompt.userChoice;
-		installPrompt = null;
-		button.hidden = true;
+		if (installPrompt) {
+			const prompt = installPrompt;
+			installPrompt = null;
+			prompt.prompt();
+			await prompt.userChoice;
+			return;
+		}
+		const dialog = document.querySelector('[data-pwa-dialog]');
+		if (!dialog) return;
+		const hint = installHint();
+		dialog.querySelectorAll('[data-pwa-hint]').forEach((p) => { p.hidden = p.dataset.pwaHint !== hint; });
+		dialog.showModal();
 	});
 });
