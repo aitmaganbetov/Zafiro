@@ -73,7 +73,7 @@ class ClubZoneController extends Controller
             }
 
             if ($changes !== []) {
-                $this->activity->record('zone.updated', __('Изменена зона: :club_map', ['club_map' => $clubMap->name]), $request->user()->getKey(), $clubMap, $changes);
+                $this->activity->record('zone.updated', __('Изменена зона: :zone', ['zone' => $clubMap->name]), $request->user()->getKey(), $clubMap, $changes);
             }
         });
 
@@ -85,7 +85,7 @@ class ClubZoneController extends Controller
         DB::transaction(function () use ($request, $clubMap): void {
             $computerCount = $clubMap->computers()->count();
             $clubMap->delete();
-            $this->activity->record('zone.deleted', __('Удалена зона: :club_map', ['club_map' => $clubMap->name]), $request->user()->getKey(), $clubMap, [
+            $this->activity->record('zone.deleted', __('Удалена зона: :zone', ['zone' => $clubMap->name]), $request->user()->getKey(), $clubMap, [
                 'computers_removed' => $computerCount,
             ]);
         });

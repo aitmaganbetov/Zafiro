@@ -19,7 +19,7 @@
 @if($zone->computers->isNotEmpty())
 <div class="cm-computers" aria-label="{{ __('Компьютеры в зоне :name', ['name' => $zone->name]) }}">@foreach($zone->computers as $computer)@php($computerStatus = $computer->currentStatus())@php($computerDetails = collect([$computer->mac_address ? 'MAC '.$computer->mac_address : null, $computer->local_ip ? 'LAN '.$computer->local_ip : null, $computer->remote_ip ? 'WAN '.$computer->remote_ip : null, $computer->cpu_model, $computer->cpu_cores ? $computer->cpu_cores.' cores' : null, $computer->ram_total_mb ? number_format($computer->ram_total_mb).' MB RAM' : null, $computer->gpu_model, $computer->os_version])->filter()->implode(' · '))<span class="cm-computer {{ $computerStatus }}" data-id="{{ $computer->id }}" data-save-url="{{ route('club-computers.layout',$computer) }}" style="left:{{ $computer->position_x }}px;top:{{ $computer->position_y }}px" title="{{ $computer->displayName() }} · {{ $computerStatus }}{{ $computerDetails !== '' ? ' · '.$computerDetails : '' }}">{{ $computer->number }}</span>@endforeach</div>
 @endif
-@if($zone->computers->isNotEmpty())<span class="cm-capacity">{{ $zone->capacity!==null?$zone->capacity.__(' мест'):__('Без мест') }}</span>@endif
+@if($zone->computers->isNotEmpty())<span class="cm-capacity">{{ $zone->capacity!==null?trans_choice(':count место|:count места|:count мест', $zone->capacity):__('Без мест') }}</span>@endif
 <span class="cm-resize" title="{{ __('Изменить размер') }}"></span>
 </section>
 @empty<div class="cm-empty">{{ __('На карте пока нет зон. Нажмите «Добавить зону».') }}</div>@endforelse

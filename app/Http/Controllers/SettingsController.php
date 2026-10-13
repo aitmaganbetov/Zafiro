@@ -144,7 +144,7 @@ class SettingsController extends Controller
             $club->save();
 
             if ($changes !== []) {
-                $activity->record('settings.updated', __('Изменены настройки: ').implode(', ', array_keys($changes)), $request->user()->getKey(), $club, [
+                $activity->record('settings.updated', __('Изменены настройки: :fields', ['fields' => implode(', ', array_keys($changes))]), $request->user()->getKey(), $club, [
                     'section' => $section,
                     ...$changes,
                 ]);
@@ -219,7 +219,7 @@ class SettingsController extends Controller
         preg_match('/[\d]+(?:[.,][\d]+)?/u', (string) $value, $matches);
         $amount = isset($matches[0]) ? (float) str_replace(',', '.', $matches[0]) : 0.0;
 
-        return $this->number(str_contains(mb_strtolower((string) $value), __('сек')) ? $amount / 60 : $amount);
+        return $this->number(str_contains(mb_strtolower((string) $value), 'сек') ? $amount / 60 : $amount);
     }
 
     private function number(float $value): int|float

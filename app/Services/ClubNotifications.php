@@ -103,13 +103,12 @@ class ClubNotifications
         }
 
         $names = $products->take(3)->map(fn (Product $product): string => __(':product (:quantity шт.)', ['product' => $product->name, 'quantity' => $product->quantity]))->implode(', ');
-        $more = $products->count() > 3 ? __(' и ещё ').($products->count() - 3) : '';
 
         return [[
             'id' => 'low-stock',
             'icon' => 'fa-boxes-stacked',
-            'title' => __('Низкий остаток: ').$products->count().' '.$this->plural($products->count(), __('товар'), __('товара'), __('товаров')),
-            'body' => $names.$more,
+            'title' => trans_choice('Низкий остаток: :count товар|Низкий остаток: :count товара|Низкий остаток: :count товаров', $products->count()),
+            'body' => $this->listWithMore($names, $products->count() - 3),
             'url' => route('warehouse'),
             'at' => $products->max('updated_at'),
         ]];
@@ -133,13 +132,12 @@ class ClubNotifications
         }
 
         $names = $computers->take(5)->map(fn (ClubComputer $computer): string => "{$computer->displayName()} ({$computer->zone->name})")->implode(', ');
-        $more = $computers->count() > 5 ? __(' и ещё ').($computers->count() - 5) : '';
 
         return [[
             'id' => 'computers-offline',
             'icon' => 'fa-plug-circle-xmark',
-            'title' => __('Не на связи: ').$computers->count().__(' ПК'),
-            'body' => $names.$more,
+            'title' => __('Не на связи: :count ПК', ['count' => $computers->count()]),
+            'body' => $this->listWithMore($names, $computers->count() - 5),
             'url' => route('club-computers.index'),
             'at' => $computers->max('last_seen_at')->copy()->addSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS),
         ]];
@@ -197,15 +195,8 @@ class ClubNotifications
             ->all();
     }
 
-    private function plural(int $n, string $one, string $few, string $many): string
+    private function listWithMore(string $list, int $more): string
     {
-        $mod10 = $n % 10;
-        $mod100 = $n % 100;
-
-        return match (true) {
-            $mod10 === 1 && $mod100 !== 11 => $one,
-            $mod10 >= 2 && $mod10 <= 4 && ($mod100 < 12 || $mod100 > 14) => $few,
-            default => $many,
-        };
+        return $more > 0 ? __(':list и ещё :count', ['list' => $list, 'count' => $more]) : $list;
     }
 }

@@ -113,7 +113,7 @@ class ClubInvitationController extends Controller
             ]);
             MemberBalance::query()->create(['user_id' => $acceptingUser->getKey()]);
             $lockedInvitation->update(['accepted_at' => now()]);
-            $activity->record('invitation.accepted', __('Принято приглашение: :accepting_user, роль :role', ['accepting_user' => $acceptingUser->name, 'role' => $invitation->role]), $acceptingUser->getKey(), $invitation, [
+            $activity->record('invitation.accepted', __('Принято приглашение: :user, роль :role', ['user' => $acceptingUser->name, 'role' => $invitation->role]), $acceptingUser->getKey(), $invitation, [
                 'role' => $invitation->role,
                 'new_account' => $user === null,
             ]);

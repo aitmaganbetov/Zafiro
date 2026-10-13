@@ -43,12 +43,12 @@
                             <td class="whitespace-nowrap px-3 py-3 tabular-nums">#{{ $computer->id }} <span class="text-gray-500">/</span> {{ $computer->number }}</td>
                             <td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ $computer->displayName() }}</div><div class="mt-1 text-xs text-gray-500">{{ $computer->zone?->name ?? '—' }} (#{{ $computer->club_zone_id }})</div></td>
                             <td class="whitespace-nowrap px-3 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs {{ $computer->connectionStatus() === 'online' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">{{ $computer->connectionStatus() === 'online' ? 'Online' : 'Offline' }}</span></td>
-                            <td class="whitespace-nowrap px-3 py-3">{{ $computer->status }}{{ $computer->is_reserved ? __(' · Забронирован') : '' }}</td>
+                            <td class="whitespace-nowrap px-3 py-3">{{ $computer->status }}{{ $computer->is_reserved ? ' · '.__('Забронирован') : '' }}</td>
                             <td class="whitespace-nowrap px-3 py-3 tabular-nums">X {{ $computer->position_x }} · Y {{ $computer->position_y }}</td>
                             <td class="px-3 py-3">{{ $computer->agent_state ?? '—' }}</td>
                             <td class="whitespace-nowrap px-3 py-3 font-mono text-xs">{{ $computer->mac_address ?? '—' }}</td>
                             <td class="px-3 py-3 font-mono text-xs"><div>{{ $computer->local_ip ?? '—' }}</div><div class="mt-1 text-gray-500">{{ $computer->remote_ip ?? '—' }}</div></td>
-                            <td class="max-w-56 px-3 py-3"><div class="max-w-56 truncate" title="{{ $computer->cpu_model }}">{{ $computer->cpu_model ?? '—' }}</div><div class="mt-1 text-xs text-gray-500">{{ $computer->cpu_cores ? $computer->cpu_cores.__(' ядер') : '' }}</div></td>
+                            <td class="max-w-56 px-3 py-3"><div class="max-w-56 truncate" title="{{ $computer->cpu_model }}">{{ $computer->cpu_model ?? '—' }}</div><div class="mt-1 text-xs text-gray-500">{{ $computer->cpu_cores ? trans_choice(':count ядро|:count ядра|:count ядер', $computer->cpu_cores) : '' }}</div></td>
                             <td class="whitespace-nowrap px-3 py-3">{{ $computer->ram_total_mb ? number_format($computer->ram_total_mb / 1024, 1, ',', ' ').' GB' : '—' }}</td>
                             <td class="max-w-56 px-3 py-3"><div class="max-w-56 truncate" title="{{ $computer->gpu_model }}">{{ $computer->gpu_model ?? '—' }}</div></td>
                             <td class="max-w-48 px-3 py-3"><div class="max-w-48 truncate" title="{{ $computer->os_version }}">{{ $computer->os_version ?? '—' }}</div></td>

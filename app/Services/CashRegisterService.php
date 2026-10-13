@@ -53,7 +53,7 @@ class CashRegisterService
                 ->implode(', ');
             $this->activity->record(
                 'product.purchased',
-                __('Покупка товаров: ').$itemsSummary,
+                __('Покупка товаров: :items', ['items' => $itemsSummary]),
                 $userId,
                 $transaction,
                 ['amount' => $total, 'item_count' => count($receiptItems)],
@@ -125,7 +125,9 @@ class CashRegisterService
             $isIncome = $transaction->type === CashTransaction::TYPE_INCOME;
             $this->activity->record(
                 $isIncome ? 'cash.income' : 'cash.expense',
-                ($isIncome ? __('Пополнение кассы: ') : __('Расход из кассы: ')).$transaction->description,
+                $isIncome
+                    ? __('Пополнение кассы: :description', ['description' => $transaction->description])
+                    : __('Расход из кассы: :description', ['description' => $transaction->description]),
                 $userId,
                 $transaction,
                 ['amount' => (float) $transaction->amount],

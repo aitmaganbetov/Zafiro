@@ -37,7 +37,7 @@
                                 <img src="{{ asset('images/product-placeholder.svg') }}" alt="{{ $product->name }}">
                                 <h4>{{ $product->name }}</h4>
                                 <p class="pos-product-meta">{{ $product->category ?: __('Без категории') }}</p>
-                                <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: ').$product->quantity.__(' шт.') : __('Нет в наличии · 0 шт.') }}</span></div>
+                                <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: :count шт.', ['count' => $product->quantity]) : __('Нет в наличии · 0 шт.') }}</span></div>
                                 <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>{{ __('Добавить в заказ') }}</button>
                             </article>
                         @endforeach
