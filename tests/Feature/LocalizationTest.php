@@ -77,3 +77,31 @@ test('sync adds missing rows but keeps edited translations', function () {
 
     expect(Translation::query()->where('key', 'Пользовательский ключ')->value('value'))->toBe('Өңделген');
 });
+
+test('the interface is fully translated to kazakh and english', function (string $locale, string $welcome, string $menu) {
+    $user = User::factory()->create(['name' => 'Aigerim']);
+    Club::query()->whereKey(app(CurrentClub::class)->id())->update(['locale' => $locale]);
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertSuccessful()
+        ->assertSee($welcome)
+        ->assertSee($menu)
+        ->assertDontSee('Добро пожаловать');
+})->with([
+    'kazakh' => ['kk', 'Қош келдіңіз, Aigerim!', 'Қойма'],
+    'english' => ['en', 'Welcome, Aigerim!', 'Warehouse'],
+]);
+
+test('validation errors and plural forms follow the club language', function () {
+    $user = User::factory()->create();
+    Club::query()->whereKey(app(CurrentClub::class)->id())->update(['locale' => 'kk']);
+
+    $this->actingAs($user)->post(route('club-map.store'), [])
+        ->assertSessionHasErrors(['name' => '«аты» өрісі міндетті.']);
+
+    app()->setLocale('kk');
+    expect(trans_choice(':count товар|:count товара|:count товаров', 5))->toBe('5 тауар');
+    app()->setLocale('en');
+    expect(trans_choice(':count товар|:count товара|:count товаров', 5))->toBe('5 products')
+        ->and(trans_choice(':count товар|:count товара|:count товаров', 1))->toBe('1 product');
+});
