@@ -191,7 +191,14 @@ test('pruning removes only expired integration records', function () {
         (new WebhookDelivery)->forceFill(['club_id' => $club->id, 'webhook_endpoint_id' => $endpoint->id, 'event_id' => (string) Str::uuid(), 'event' => 'stock.changed', 'payload' => [], 'status' => $status, 'created_at' => now()->subDays($days)])->save();
     }
 
+    config(['cache.default' => 'database']);
+    DB::table('cache')->insert([
+        ['key' => 'old-bucket', 'value' => 'i:1;', 'expiration' => now()->subMinute()->getTimestamp()],
+        ['key' => 'live-bucket', 'value' => 'i:1;', 'expiration' => now()->addMinute()->getTimestamp()],
+    ]);
+
     $this->artisan('integrations:prune')->assertSuccessful();
+    expect(DB::table('cache')->pluck('key')->all())->toBe(['live-bucket']);
 
     expect(DB::table('api_request_logs')->count())->toBe(1)
         ->and(DB::table('api_idempotency_keys')->pluck('idempotency_key')->all())->toBe(['new'])

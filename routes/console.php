@@ -16,4 +16,4 @@ Schedule::command('queue:work --stop-when-empty --max-time=50 --sleep=1')
     ->everyMinute()
     ->withoutOverlapping(5);
 
-Schedule::command('integrations:prune')->dailyAt('04:30');
+Schedule::command('integrations:prune')->hourly()->withoutOverlapping();

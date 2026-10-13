@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 #[Signature('integrations:prune')]
-#[Description('Delete expired API request logs, idempotency keys and finished webhook deliveries')]
+#[Description('Delete expired API request logs, idempotency keys, finished webhook deliveries and expired cache rows')]
 class PruneIntegrationData extends Command
 {
     public function handle(): int
@@ -20,6 +20,14 @@ class PruneIntegrationData extends Command
                 ->whereIn('status', ['delivered', 'failed', 'skipped'])
                 ->where('created_at', '<', now()->subDays((int) config('integrations.webhook_delivery_retention_days', 30)))),
         ];
+
+        // With the database cache store, per-minute rate-limit buckets and similar
+        // entries are never read again once expired; Laravel removes such rows only on read.
+        if (config('cache.default') === 'database') {
+            $store = config('cache.stores.database');
+            $deleted['cache (expired)'] = DB::connection($store['connection'] ?? null)->table($store['table'] ?? 'cache')
+                ->where('expiration', '<', now()->getTimestamp())->limit(50000)->delete();
+        }
 
         foreach ($deleted as $table => $count) {
             $this->line("{$table}: {$count}");
