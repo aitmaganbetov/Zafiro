@@ -12,6 +12,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6">
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 h-fit animate-slide shadow-sm">
             <div class="space-y-2">
+                @if (in_array($currentMembership?->role, ['owner', 'admin', 'manager'], true))
                 <a href="{{ route('settings.club') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.club') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-building w-4"></i>{{ __('Настройка клуба') }}
                 </a>
@@ -24,6 +25,12 @@
                 <a href="{{ route('settings.api') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.api') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-code w-4"></i>API
                 </a>
+                @endif
+                @can('manage-integrations')
+                <a href="{{ route('settings.integrations') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.integrations*') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
+                    <i class="fas fa-plug w-4"></i>{{ __('API и интеграции') }}
+                </a>
+                @endcan
             </div>
         </div>
 
@@ -34,6 +41,7 @@
                 </div>
             @endif
 
+            @hasSection('settings-content')
             <form action="{{ route('settings.save') }}" method="POST" class="space-y-6">
                 @csrf
                 <input type="hidden" name="section" value="@yield('settings-section', 'club')">
@@ -45,6 +53,7 @@
                     </button>
                 </div>
             </form>
+            @endif
 
             @yield('settings-after')
         </div>

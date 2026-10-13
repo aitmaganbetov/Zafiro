@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductCategoryController;
@@ -25,6 +26,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Integration API v1 reference (public: it describes the API, it contains no club data).
+Route::view('/docs/api', 'api-docs')->name('api-docs');
+Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('api/openapi-v1.yaml'), ['Content-Type' => 'application/yaml; charset=utf-8']))
+    ->name('api-docs.spec');
 
 Route::get('/invitations/{token}', [ClubInvitationController::class, 'show'])->name('club-invitations.show');
 Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1')->name('club-invitations.accept');
@@ -71,6 +77,20 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
+    });
+
+    // Settings → API and integrations: the owner and members with the integrations permission.
+    Route::middleware(['subscription', 'can:manage-integrations'])->prefix('settings/integrations')->name('settings.integrations')->group(function () {
+        Route::get('/', [IntegrationController::class, 'index']);
+        Route::post('/keys', [IntegrationController::class, 'storeKey'])->name('.keys.store');
+        Route::post('/keys/{apiKey}/rotate', [IntegrationController::class, 'rotateKey'])->name('.keys.rotate');
+        Route::delete('/keys/{apiKey}', [IntegrationController::class, 'revokeKey'])->name('.keys.revoke');
+        Route::post('/webhooks', [IntegrationController::class, 'storeWebhook'])->name('.webhooks.store');
+        Route::patch('/webhooks/{webhook}', [IntegrationController::class, 'updateWebhook'])->name('.webhooks.update');
+        Route::post('/webhooks/{webhook}/secret', [IntegrationController::class, 'rotateWebhookSecret'])->name('.webhooks.secret');
+        Route::delete('/webhooks/{webhook}', [IntegrationController::class, 'destroyWebhook'])->name('.webhooks.destroy');
+        Route::post('/deliveries/{delivery}/retry', [IntegrationController::class, 'retryDelivery'])->name('.deliveries.retry');
+        Route::patch('/members/{membership}', [IntegrationController::class, 'updatePermission'])->name('.permissions.update');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {

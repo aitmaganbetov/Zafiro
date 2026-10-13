@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(ClubComputer::class, ClubComputerPolicy::class);
+        Gate::define('manage-integrations', fn (): bool => app(CurrentClub::class)->membership()?->canManageIntegrations() === true);
 
         // Integration API: one bucket per key and one per club, so several keys of a
         // club cannot multiply its share of the server.
