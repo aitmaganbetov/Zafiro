@@ -3343,6 +3343,11 @@ body {
     overflow-wrap: break-word
 }
 
+/* Preflight's "bolder" turns strong text inside 600-weight parents into 900 */
+:where(b, strong) {
+    font-weight: 700
+}
+
 /* Long words, e-mails and URLs in text blocks wrap at any point. Not applied to
    controls or table cells: it shrinks their min-content width and collapses
    shrink-to-fit elements (e.g. floating panels) to one letter per line. */
