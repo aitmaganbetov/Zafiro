@@ -19,7 +19,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Доход сегодня</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome, 0, ',', ' ') }} {{ $currency }}</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-shopping-cart text-purple-600 dark:text-purple-400 text-xl"></i>
@@ -36,7 +36,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Расходы сегодня</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-credit-card text-blue-600 dark:text-blue-400 text-xl"></i>
@@ -53,7 +53,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Чистый итог</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome - $todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome - $todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-boxes text-green-700 dark:text-green-400 text-xl"></i>
@@ -70,7 +70,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Пользователи</p>
-                                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($userCount, 0, ',', ' ') }}</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($userCount, 0, ',', ' ') }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-chart-line text-orange-600 dark:text-orange-400 text-xl"></i>
@@ -123,7 +123,7 @@
                             <tbody>
                                 @forelse($recentTransactions as $transaction)
                                     <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                        <td class="py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $transaction->type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' }}">{{ $transaction->type === 'income' ? 'Доход' : 'Расход' }}</span></td>
+                                        <td class="py-4"><span class="rounded-full px-2 py-1 text-xs font-semibold {{ $transaction->type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' }}">{{ $transaction->type === 'income' ? 'Доход' : 'Расход' }}</span></td>
                                         <td class="py-4 text-gray-700 dark:text-gray-300">{{ $transaction->description }}</td>
                                         <td class="py-4 text-gray-600 dark:text-gray-400">{{ $transaction->created_at->format('d.m.Y H:i') }}</td>
                                         <td class="py-4 text-right font-semibold {{ $transaction->type === 'income' ? 'text-green-700 dark:text-green-400' : 'text-rose-700 dark:text-rose-400' }}">{{ $transaction->type === 'expense' ? '−' : '+' }}{{ number_format((float) $transaction->amount, 0, ',', ' ') }} {{ $currency }}</td>

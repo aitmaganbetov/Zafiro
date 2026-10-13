@@ -14,22 +14,22 @@
 
     <form method="GET" action="{{ route('activity-logs.index') }}" class="mb-6 grid grid-cols-1 items-end gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 md:grid-cols-2 xl:grid-cols-5">
         <div>
-            <label for="log-from" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">С даты</label>
+            <label for="log-from" class="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">С даты</label>
             <input id="log-from" name="from" type="date" value="{{ $filters['from'] ?? '' }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
         </div>
         <div>
-            <label for="log-to" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">По дату</label>
+            <label for="log-to" class="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">По дату</label>
             <input id="log-to" name="to" type="date" value="{{ $filters['to'] ?? '' }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
         </div>
         <div>
-            <label for="log-event" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Тип события</label>
+            <label for="log-event" class="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">Тип события</label>
             <select id="log-event" name="event" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                 <option value="">Все события</option>
                 @foreach($eventLabels as $event => $label)<option value="{{ $event }}" @selected(($filters['event'] ?? '') === $event)>{{ $label }}</option>@endforeach
             </select>
         </div>
         <div>
-            <label for="log-user" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Пользователь</label>
+            <label for="log-user" class="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">Пользователь</label>
             <select id="log-user" name="user_id" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                 <option value="">Все пользователи</option>
                 @foreach($users as $user)<option value="{{ $user->id }}" @selected((string) ($filters['user_id'] ?? '') === (string) $user->id)>{{ $user->name }} · {{ $user->phone }}</option>@endforeach
@@ -54,7 +54,7 @@
                     <tr>
                         <td class="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">{{ $log->created_at->format('d.m.Y H:i:s') }}</td>
                         <td class="px-4 py-3 text-gray-800 dark:text-gray-200">{{ $log->user?->name ?? 'Система' }}</td>
-                        <td class="px-4 py-3"><span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $eventLabels[$log->event] ?? $log->event }}</span></td>
+                        <td class="px-4 py-3"><span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $eventLabels[$log->event] ?? $log->event }}</span></td>
                         <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $log->description }}
                             @if($log->details)<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">@foreach($log->details as $key => $value)<span>{{ $key }}: {{ is_array($value) ? implode(', ', $value) : $value }}</span>@endforeach</div>@endif
                         </td>

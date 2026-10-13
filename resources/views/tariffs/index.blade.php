@@ -154,9 +154,9 @@
                         <tr>
                             <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · Со скидкой@endif</span></td>
                             <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->zones->pluck('name')->join(', ') ?: 'Все зоны' }}</td>
-                            <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->duration_minutes }} мин.</td>
-                            <td class="px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>
-                            <td class="px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $tariff->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">{{ $tariff->is_active ? 'Активен' : 'Выключен' }}</span></td>
+                            <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->duration_minutes }} мин.</td>
+                            <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>
+                            <td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-medium {{ $tariff->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">{{ $tariff->is_active ? 'Активен' : 'Выключен' }}</span></td>
                         </tr>
                     @empty
                         <tr><td colspan="5" class="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Тарифов пока нет.</td></tr>

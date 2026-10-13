@@ -40,7 +40,7 @@
                 @yield('settings-content')
 
                 <div class="mt-6 flex justify-end">
-                    <button type="submit" class="brand-button rounded-xl px-5 py-2.5 text-sm transition">
+                    <button type="submit" class="brand-button rounded-xl px-5 py-2 text-sm transition">
                         Сохранить
                     </button>
                 </div>
