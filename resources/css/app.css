@@ -434,6 +434,7 @@ body {
 
 .pos-main,
 .pos-order {
+    min-width: 0;
     background: #fff;
     border: 1px solid #edf0ed;
     border-radius: 18px;
@@ -492,6 +493,8 @@ body {
 
 .pos-product {
     position: relative;
+    display: flex;
+    flex-direction: column;
     border: 1px solid #edf0ed;
     border-radius: 15px;
     padding: 7px;
@@ -527,11 +530,17 @@ body {
 
 .pos-product-price {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    margin: 0 3px 8px;
+    gap: 4px 8px;
+    margin: auto 3px 8px;
     font-size: 14px;
     font-weight: 700
+}
+
+.pos-product-price > span:first-child {
+    white-space: nowrap
 }
 
 .pos-stock {
@@ -777,7 +786,7 @@ body {
 
 @media(max-width:1100px) {
     .pos-layout {
-        grid-template-columns: 1fr
+        grid-template-columns: minmax(0, 1fr)
     }
 
     .pos-categories {
@@ -3288,7 +3297,14 @@ body {
 /* Layout baseline: readable body text, form controls that iOS does not zoom */
 body {
     font-size: 16px;
-    line-height: 1.5
+    line-height: 1.5;
+    overflow-wrap: anywhere
+}
+
+/* Table cells keep their min-content width so wide tables scroll inside their wrapper */
+th,
+td {
+    overflow-wrap: break-word
 }
 
 @media(max-width:767px) {
