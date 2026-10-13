@@ -12,15 +12,15 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class ClubComputerRegistrar
 {
-    public function __construct(private CurrentClub $currentClub) {}
+    public function __construct(private CurrentClub $currentClub, private ActivityLogger $activity) {}
 
     /** @param array{device_name:string, device_id?:?string, mac_address?:?string, zone_id?:?int} $data
      * @return array{computer:ClubComputer, created:bool}
      */
-    public function register(array $data): array
+    public function register(array $data, int $actorId): array
     {
         try {
-            return DB::transaction(function () use ($data): array {
+            return DB::transaction(function () use ($data, $actorId): array {
                 $club = Club::query()->with('subscription.plan')
                     ->lockForUpdate()
                     ->findOrFail($this->currentClub->id());
@@ -51,6 +51,12 @@ class ClubComputerRegistrar
                     'device_id' => $deviceId,
                     'mac_address' => $data['mac_address'] ?? null,
                     'status' => 'available',
+                ]);
+                $this->activity->record('computer.registered', "Агент зарегистрировал ПК {$computer->displayName()} в зоне {$zone->name}", $actorId, $computer, [
+                    'device_name' => $computer->device_name,
+                    'device_id' => $computer->device_id ?? '—',
+                    'mac_address' => $computer->mac_address ?? '—',
+                    'zone' => $zone->name,
                 ]);
 
                 return ['computer' => $computer->load('zone'), 'created' => true];

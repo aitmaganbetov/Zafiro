@@ -9,32 +9,61 @@ use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\UpdateClubComputerLayoutRequest;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
+use App\Services\ActivityLogger;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubZoneComputerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ClubComputerController extends Controller
 {
-    public function store(ClubZone $clubMap, ClubZoneComputerService $computers): RedirectResponse
+    public function store(Request $request, ClubZone $clubMap, ClubZoneComputerService $computers, ActivityLogger $activity): RedirectResponse
     {
         abort_unless($clubMap->icon === 'desktop', 404);
 
-        $computer = $computers->add($clubMap);
+        $computer = DB::transaction(function () use ($clubMap, $computers, $activity, $request): ?ClubComputer {
+            $computer = $computers->add($clubMap);
+
+            if ($computer !== null) {
+                $activity->record('computer.created', "Добавлен ПК {$computer->displayName()} в зону {$clubMap->name}", $request->user()->getKey(), $computer, [
+                    'zone' => $clubMap->name,
+                    'number' => $computer->number,
+                ]);
+            }
+
+            return $computer;
+        });
         $status = $computer === null ? 'Достигнута вместимость зоны.' : 'Компьютер добавлен в зону.';
 
         return back()->with('status', $status)->with('edit_mode', true);
     }
 
-    public function control(ControlClubComputersRequest $request): JsonResponse
+    public function control(ControlClubComputersRequest $request, ActivityLogger $activity): JsonResponse
     {
         $data = $request->validated();
+        $logControl = function (string $action, int $updated) use ($data, $request, $activity): void {
+            $names = ClubComputer::query()->whereKey($data['computer_ids'])->orderBy('number')->get()
+                ->map(fn (ClubComputer $computer): string => $computer->displayName())->implode(', ');
+            $activity->record('computer.controlled', "Управление ПК ({$action}): {$names}", $request->user()->getKey(), null, [
+                'action' => $action,
+                'computers' => $names,
+                'updated' => $updated,
+            ]);
+        };
+
         if ($data['action'] === 'reserve') {
             $computers = ClubComputer::query()->whereKey($data['computer_ids'])->get();
             $reserved = $computers->contains(fn (ClubComputer $computer): bool => ! $computer->is_reserved);
-            $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['is_reserved' => $reserved]);
+            $updated = DB::transaction(function () use ($data, $reserved, $logControl): int {
+                $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['is_reserved' => $reserved]);
+                $logControl($reserved ? 'reserve' : 'unreserve', $updated);
+
+                return $updated;
+            });
             $statuses = ClubComputer::query()->whereKey($data['computer_ids'])->get()
                 ->map(fn (ClubComputer $computer): array => ['id' => $computer->id, 'status' => $computer->currentStatus()])
                 ->values();
@@ -48,7 +77,12 @@ class ClubComputerController extends Controller
             'power_off' => 'offline',
         };
 
-        $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
+        $updated = DB::transaction(function () use ($data, $status, $logControl): int {
+            $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
+            $logControl($data['action'], $updated);
+
+            return $updated;
+        });
 
         return response()->json(['updated' => $updated, 'status' => $status]);
     }
@@ -73,7 +107,7 @@ class ClubComputerController extends Controller
     public function register(RegisterClubComputerRequest $request, ClubComputerRegistrar $computers): JsonResponse
     {
         Gate::authorize('register', ClubComputer::class);
-        $result = $computers->register($request->validated());
+        $result = $computers->register($request->validated(), $request->user()->getKey());
 
         return response()->json(
             $this->computerIdentity($result['computer']),

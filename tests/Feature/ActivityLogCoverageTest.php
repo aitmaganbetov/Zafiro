@@ -2,7 +2,9 @@
 
 use App\Models\ActivityLog;
 use App\Models\Club;
+use App\Models\ClubComputer;
 use App\Models\ClubInvitation;
+use App\Models\ClubZone;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -114,4 +116,49 @@ test('settings changes are logged with old and new values and render in the log'
         ->and(ActivityLog::query()->where('event', 'settings.updated')->count())->toBe(1);
 
     $this->get(route('activity-logs.index'))->assertSuccessful()->assertSee('show_qr_code_on_login: нет → да');
+});
+
+test('zone create, update and delete are logged', function () {
+    $user = User::factory()->create();
+
+    $zoneData = ['icon' => 'desktop', 'theme' => 'neutral', 'status' => 'available', 'is_featured' => false, 'sort_order' => 0];
+    $this->actingAs($user)->post(route('club-map.store'), ['name' => 'VIP', 'capacity' => 4, ...$zoneData])->assertRedirect();
+    $zone = ClubZone::query()->firstOrFail();
+    expect(latestLog('zone.created')->subject_id)->toBe($zone->id);
+
+    $this->put(route('club-map.update', $zone), ['name' => 'VIP Premium', 'capacity' => 6, ...$zoneData])->assertRedirect();
+    expect(latestLog('zone.updated')->details)->toMatchArray(['name' => 'VIP → VIP Premium', 'capacity' => '4 → 6']);
+
+    ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 1]);
+    $this->delete(route('club-map.destroy', $zone))->assertRedirect();
+    $deleted = latestLog('zone.deleted');
+    expect($deleted->user_id)->toBe($user->id)
+        ->and($deleted->details)->toBe(['computers_removed' => 1]);
+
+    $this->get(route('activity-logs.index'))->assertSuccessful()->assertSee('name: VIP → VIP Premium');
+});
+
+test('adding, registering and controlling PCs is logged', function () {
+    $user = User::factory()->create();
+    $zone = ClubZone::query()->create(['name' => 'Основной зал']);
+
+    $this->actingAs($user)->post(route('club-computers.store', $zone))->assertRedirect();
+    $computer = ClubComputer::query()->firstOrFail();
+    expect(latestLog('computer.created')->subject_id)->toBe($computer->id);
+
+    $this->postJson(route('club-computers.control'), ['computer_ids' => [$computer->id], 'action' => 'restart'])->assertSuccessful();
+    expect(latestLog('computer.controlled')->details)->toBe(['action' => 'restart', 'computers' => 'PC-01', 'updated' => 1]);
+    $this->postJson(route('club-computers.control'), ['computer_ids' => [$computer->id], 'action' => 'reserve'])->assertSuccessful();
+    expect(latestLog('computer.controlled')->details['action'])->toBe('reserve');
+
+    $token = $user->createToken('agent', ['club:'.$zone->club_id])->plainTextToken;
+    $this->withToken($token)->postJson(route('api.club-computers.register'), ['device_name' => 'DESKTOP-NEW', 'device_id' => 'machine-42'])
+        ->assertCreated();
+    $registered = latestLog('computer.registered');
+    expect($registered->user_id)->toBe($user->id)
+        ->and($registered->details)->toMatchArray(['device_name' => 'DESKTOP-NEW', 'device_id' => 'machine-42']);
+
+    $this->withToken($token)->postJson(route('api.club-computers.register'), ['device_name' => 'DESKTOP-NEW', 'device_id' => 'machine-42'])
+        ->assertSuccessful();
+    expect(ActivityLog::query()->where('event', 'computer.registered')->count())->toBe(1);
 });

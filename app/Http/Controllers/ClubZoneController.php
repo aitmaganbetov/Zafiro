@@ -7,15 +7,22 @@ use App\Http\Requests\UpdateClubZoneLayoutRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
 use App\Models\ClubZone;
 use App\Models\Tariff;
+use App\Services\ActivityLogger;
 use App\Services\ClubZoneLayoutService;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ClubZoneController extends Controller
 {
-    public function __construct(private ClubZoneLayoutService $layout, private CurrentClub $currentClub) {}
+    public function __construct(
+        private ClubZoneLayoutService $layout,
+        private CurrentClub $currentClub,
+        private ActivityLogger $activity,
+    ) {}
 
     public function index(): View
     {
@@ -31,11 +38,18 @@ class ClubZoneController extends Controller
         $data = $request->validated();
         $tariffIds = $data['tariff_ids'] ?? [];
         unset($data['tariff_ids']);
-        $zone = ClubZone::query()->create($data + [
-            'position_x' => 20 + ($offset % 240),
-            'position_y' => 20 + ($offset % 180),
-        ]);
-        $zone->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+        DB::transaction(function () use ($data, $offset, $tariffIds, $request): void {
+            $zone = ClubZone::query()->create($data + [
+                'position_x' => 20 + ($offset % 240),
+                'position_y' => 20 + ($offset % 180),
+            ]);
+            $zone->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+            $this->activity->record('zone.created', "Создана зона: {$zone->name}", $request->user()->getKey(), $zone, [
+                'capacity' => $zone->capacity ?? '—',
+                'icon' => $zone->icon,
+                'tariff_ids' => $tariffIds === [] ? '—' : implode(', ', $tariffIds),
+            ]);
+        });
 
         return back()->with('status', 'Зона добавлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
@@ -45,15 +59,36 @@ class ClubZoneController extends Controller
         $data = $request->validated();
         $tariffIds = $data['tariff_ids'] ?? [];
         unset($data['tariff_ids']);
-        $clubMap->update($data);
-        $clubMap->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+        DB::transaction(function () use ($data, $tariffIds, $clubMap, $request): void {
+            $original = $clubMap->getOriginal();
+            $clubMap->update($data);
+            $tariffChanges = $clubMap->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+            $changes = collect($clubMap->getChanges())
+                ->except('updated_at')
+                ->map(fn (mixed $value, string $field): string => ($original[$field] ?? '—').' → '.($value ?? '—'))
+                ->all();
+
+            if ($tariffChanges['attached'] !== [] || $tariffChanges['detached'] !== []) {
+                $changes['tariff_ids'] = implode(', ', $tariffIds) ?: '—';
+            }
+
+            if ($changes !== []) {
+                $this->activity->record('zone.updated', "Изменена зона: {$clubMap->name}", $request->user()->getKey(), $clubMap, $changes);
+            }
+        });
 
         return back()->with('status', 'Зона обновлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
-    public function destroy(ClubZone $clubMap): RedirectResponse
+    public function destroy(Request $request, ClubZone $clubMap): RedirectResponse
     {
-        $clubMap->delete();
+        DB::transaction(function () use ($request, $clubMap): void {
+            $computerCount = $clubMap->computers()->count();
+            $clubMap->delete();
+            $this->activity->record('zone.deleted', "Удалена зона: {$clubMap->name}", $request->user()->getKey(), $clubMap, [
+                'computers_removed' => $computerCount,
+            ]);
+        });
 
         return back()->with('status', 'Зона удалена.');
     }
