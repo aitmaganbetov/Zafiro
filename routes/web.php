@@ -8,6 +8,7 @@ use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\ClubComputerController;
+use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ProductController;
@@ -81,6 +82,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,operator'])->group(function () {
+        Route::get('/club-computers', ClubComputerListController::class)->name('club-computers.index');
         Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');
     });
 });

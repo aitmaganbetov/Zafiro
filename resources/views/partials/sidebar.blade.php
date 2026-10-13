@@ -7,6 +7,7 @@
         <a href="{{ route('users.index') }}" class="sidebar-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="fas fa-users"></i><span>Пользователи</span></a>
         <span class="sidebar-label">Учёт</span>
         <a href="{{ route('warehouse') }}" class="sidebar-link {{ request()->routeIs('warehouse*') ? 'active' : '' }}"><i class="fas fa-boxes-stacked"></i><span>Склад</span></a>
+        <a href="{{ route('club-computers.index') }}" class="sidebar-link {{ request()->routeIs('club-computers.index') ? 'active' : '' }}"><i class="fas fa-computer"></i><span>Список ПК</span></a>
         <a href="{{ route('activity-logs.index') }}" class="sidebar-link {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>Логи</span></a>
         <span class="sidebar-label">Система</span>
         <a href="{{ route('settings') }}" class="sidebar-link {{ request()->routeIs('settings*') ? 'active' : '' }}"><i class="fas fa-sliders"></i><span>Настройки</span></a>
