@@ -84,10 +84,17 @@
             const app=document.querySelector('.admin-app'),sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('overlay'),toggle=document.getElementById('sidebarToggle');
             if(!app||!sidebar||!toggle)return;
             const mobile=matchMedia('(max-width: 768px)'),key='zafiro.sidebarCollapsed';
+            const groups=[...sidebar.querySelectorAll('.sidebar-group')];
+            groups.forEach((group)=>{group.dataset.initialOpen=group.open?'1':'0';});
             const sync=()=>{
-                const open=mobile.matches?sidebar.classList.contains('active'):!app.classList.contains('sidebar-collapsed');
+                const rail=!mobile.matches&&app.classList.contains('sidebar-collapsed');
+                const open=mobile.matches?sidebar.classList.contains('active'):!rail;
                 toggle.setAttribute('aria-expanded',String(open));
-                toggle.setAttribute('aria-label',open?'Скрыть меню':'Показать меню');
+                toggle.setAttribute('aria-label',mobile.matches?(open?'Скрыть меню':'Показать меню'):(rail?'Развернуть меню':'Свернуть меню'));
+                groups.forEach((group)=>{group.open=rail||group.dataset.initialOpen==='1';});
+                sidebar.querySelectorAll('a.sidebar-link').forEach((link)=>{
+                    if(rail)link.title=link.textContent.trim();else link.removeAttribute('title');
+                });
             };
             const closeDrawer=()=>{sidebar.classList.remove('active');overlay?.classList.remove('active');sync();};
             toggle.addEventListener('click',()=>{

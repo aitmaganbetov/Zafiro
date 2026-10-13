@@ -3494,11 +3494,92 @@ select[multiple] option {
 }
 
 @media(min-width:769px) {
+    .overlay {
+        display: none !important
+    }
+
+    /* Collapsed: a 72px icon rail for quick navigation; labels stay readable for screen readers */
+    .sidebar {
+        transition: width .2s ease, flex-basis .2s ease
+    }
+
     .admin-app.sidebar-collapsed .sidebar {
+        width: 72px;
+        flex-basis: 72px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-brand {
+        justify-content: center;
+        padding: 12px 8px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-brand > div {
         display: none
     }
 
-    .overlay {
-        display: none !important
+    .admin-app.sidebar-collapsed .sidebar-brand .sidebar-brand-mark {
+        height: 40px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-nav {
+        padding: 8px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-label {
+        margin: 8px 4px;
+        border-top: 1px solid #263029;
+        padding: 0
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-label,
+    .admin-app.sidebar-collapsed .sidebar-link > span,
+    .admin-app.sidebar-collapsed .sidebar-user-mini > div {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-label {
+        position: static;
+        width: auto;
+        height: 0;
+        clip-path: none
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-link {
+        justify-content: center;
+        gap: 0;
+        padding: 8px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-link.active:before {
+        left: -8px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-group > summary {
+        display: none
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-subnav {
+        margin: 0;
+        border: 0;
+        padding: 0
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-subnav .sidebar-link {
+        padding: 8px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-subnav .sidebar-link i {
+        width: 25px;
+        height: 25px
+    }
+
+    .admin-app.sidebar-collapsed .sidebar-footer {
+        flex-direction: column;
+        padding: 12px 8px
     }
 }
