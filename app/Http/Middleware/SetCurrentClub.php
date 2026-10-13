@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\ClubMembership;
 use App\Services\CurrentClub;
+use App\Services\LocaleResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
@@ -11,6 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SetCurrentClub
 {
+    public function __construct(private LocaleResolver $locales) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $currentClub = app(CurrentClub::class);
@@ -43,6 +46,7 @@ class SetCurrentClub
         abort_if($membership === null, 403, 'Нет доступа к выбранному клубу.');
 
         $currentClub->set($membership->club, $membership);
+        $this->locales->apply($this->locales->forClub($membership->club));
 
         if (! $request->is('api/*')) {
             $request->session()->put('current_club_id', $membership->club_id);

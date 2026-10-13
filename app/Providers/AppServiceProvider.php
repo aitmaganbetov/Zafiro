@@ -5,7 +5,11 @@ namespace App\Providers;
 use App\Models\ClubComputer;
 use App\Policies\ClubComputerPolicy;
 use App\Services\CurrentClub;
+use App\Services\LocaleResolver;
+use App\Services\TranslationCatalog;
+use App\Translation\DatabaseTranslationLoader;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Translation\Loader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(CurrentClub::class);
+        $this->app->singleton(TranslationCatalog::class);
+        $this->app->scoped(LocaleResolver::class);
+        $this->app->extend('translation.loader', fn (Loader $files, $app): Loader => new DatabaseTranslationLoader($files, $app->make(TranslationCatalog::class)));
     }
 
     /**

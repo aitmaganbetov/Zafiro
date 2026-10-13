@@ -3,6 +3,7 @@
 use App\Http\Middleware\RequireActiveSubscription;
 use App\Http\Middleware\RequireClubRole;
 use App\Http\Middleware\SetCurrentClub;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscription' => RequireActiveSubscription::class,
         ]);
         $middleware->appendToPriorityList(AuthenticatesRequests::class, SetCurrentClub::class);
+        $middleware->web(append: [SetLocale::class]);
+        $middleware->api(append: [SetLocale::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
