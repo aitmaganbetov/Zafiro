@@ -24,9 +24,17 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
     });
 });
 
-Route::post('/club-computers/{clubComputer}/heartbeat', [ClubComputerController::class, 'heartbeat'])
-    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1'])
+Route::post('/club-computers/{computer}/heartbeat', [ClubComputerController::class, 'heartbeat'])
+    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computers'])
     ->name('api.club-computers.heartbeat');
+
+Route::post('/club-computers/resolve', [ClubComputerController::class, 'resolve'])
+    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computers'])
+    ->name('api.club-computers.resolve');
+
+Route::post('/club-computers/register', [ClubComputerController::class, 'register'])
+    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computer-registration'])
+    ->name('api.club-computers.register');
 
 Route::get('/products', ProductController::class)
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1'])

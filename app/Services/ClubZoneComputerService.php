@@ -32,6 +32,7 @@ class ClubZoneComputerService
 
             return $zone->computers()->create([
                 'number' => $number,
+                'device_name' => sprintf('PC-%02d', $number),
                 'status' => 'available',
                 'position_x' => $positionX,
                 'position_y' => $positionY,
