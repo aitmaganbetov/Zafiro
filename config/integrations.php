@@ -39,4 +39,9 @@ return [
     'webhook_retry_backoff_seconds' => [10, 60, 300, 1800, 7200],
     'webhook_timeout_seconds' => 5,
     'webhook_signature_tolerance_seconds' => 300,
+    'webhook_disable_after_failures' => 20, // consecutive failed deliveries
+    'webhook_delivery_retention_days' => 30,
+    // Receivers must be public HTTPS hosts; private networks are refused (SSRF).
+    'webhook_require_https' => env('WEBHOOK_REQUIRE_HTTPS', true),
+    'webhook_allow_private_hosts' => env('WEBHOOK_ALLOW_PRIVATE_HOSTS', false),
 ];

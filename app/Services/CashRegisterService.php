@@ -7,12 +7,13 @@ use App\Models\CashTransaction;
 use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CashRegisterService
 {
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
 
     public function sale(array $items, int $userId): CashTransaction
     {
@@ -40,6 +41,7 @@ class CashRegisterService
                 $balanceAfter = $product->refresh()->quantity;
                 StockMovement::create(['product_id' => $product->id, 'user_id' => $userId, 'type' => StockMovement::TYPE_WRITE_OFF, 'quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
                 $this->activity->record('stock.written_off', __('Списание при продаже: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity]), $userId, $product, ['quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
+                $this->webhooks->dispatch('stock.changed', ['product_id' => $product->id, 'sku' => $product->sku, 'change' => -$quantity, 'quantity' => $balanceAfter, 'reason' => 'sale']);
             }
             $transaction = $shift->transactions()->create([
                 'user_id' => $userId,
@@ -58,6 +60,7 @@ class CashRegisterService
                 $transaction,
                 ['amount' => $total, 'item_count' => count($receiptItems)],
             );
+            $this->webhooks->dispatch('sale.completed', ['sale_id' => $transaction->id, 'cash_shift_id' => $shift->id, 'amount' => number_format($total, 2, '.', ''), 'items' => $receiptItems]);
 
             return $transaction;
         });

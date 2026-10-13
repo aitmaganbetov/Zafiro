@@ -7,9 +7,11 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
+use App\Models\WebhookEndpoint;
 use App\Policies\ClubComputerPolicy;
 use App\Services\CurrentClub;
 use App\Services\Integrations\ApiKeyManager;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
 use App\Translation\DatabaseTranslationLoader;
@@ -77,6 +79,10 @@ class AppServiceProvider extends ServiceProvider
 
         ClubSubscription::saved(fn (ClubSubscription $subscription) => $keys()->forgetClub((int) $subscription->club_id));
         ClubSubscription::deleted(fn (ClubSubscription $subscription) => $keys()->forgetClub((int) $subscription->club_id));
+        $webhooks = fn (WebhookEndpoint $endpoint) => $this->app->make(WebhookDispatcher::class)->forgetClub((int) $endpoint->club_id);
+        WebhookEndpoint::saved($webhooks);
+        WebhookEndpoint::deleted($webhooks);
+
         Club::saved(function (Club $club) use ($keys): void {
             if ($club->wasChanged(['name', 'slug', 'locale', 'settings'])) {
                 $keys()->forgetClub((int) $club->getKey());

@@ -6,11 +6,12 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockMovement;
 use App\Services\ActivityLogger;
+use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
 
 class CreateProductAction
 {
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
 
     public function handle(array $data, int $userId): Product
     {
@@ -45,7 +46,10 @@ class CreateProductAction
                     $product,
                     ['quantity' => $quantity, 'balance_after' => $quantity, 'note' => __('Начальный остаток')],
                 );
+                $this->webhooks->dispatch('stock.changed', ['product_id' => $product->id, 'sku' => $product->sku, 'change' => $quantity, 'quantity' => $quantity, 'reason' => 'initial']);
             }
+
+            $this->webhooks->dispatch('product.created', ['product_id' => $product->id, 'sku' => $product->sku, 'name' => $product->name, 'price' => (string) $product->price, 'quantity' => $quantity]);
 
             return $product;
         });

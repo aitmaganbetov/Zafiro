@@ -5,12 +5,13 @@ namespace App\Actions;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\ActivityLogger;
+use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AdjustStockAction
 {
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
 
     public function handle(array $data, int $userId): StockMovement
     {
@@ -51,6 +52,14 @@ class AdjustStockAction
                 $product,
                 ['quantity' => $quantity, 'balance_after' => $product->quantity, 'note' => $movement->note ?: '—'],
             );
+
+            $this->webhooks->dispatch('stock.changed', [
+                'product_id' => $product->id,
+                'sku' => $product->sku,
+                'change' => $isReceipt ? $quantity : -$quantity,
+                'quantity' => $product->quantity,
+                'reason' => $data['type'],
+            ]);
 
             return $movement;
         });

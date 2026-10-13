@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubZoneComputerService;
+use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +43,7 @@ class ClubComputerController extends Controller
         return back()->with('status', $status)->with('edit_mode', true);
     }
 
-    public function control(ControlClubComputersRequest $request, ActivityLogger $activity): JsonResponse
+    public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
     {
         $data = $request->validated();
         $logControl = function (string $action, int $updated) use ($data, $request, $activity): void {
@@ -58,9 +59,10 @@ class ClubComputerController extends Controller
         if ($data['action'] === 'reserve') {
             $computers = ClubComputer::query()->whereKey($data['computer_ids'])->get();
             $reserved = $computers->contains(fn (ClubComputer $computer): bool => ! $computer->is_reserved);
-            $updated = DB::transaction(function () use ($data, $reserved, $logControl): int {
+            $updated = DB::transaction(function () use ($data, $reserved, $logControl, $webhooks): int {
                 $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['is_reserved' => $reserved]);
                 $logControl($reserved ? 'reserve' : 'unreserve', $updated);
+                $webhooks->dispatch('computer.reservation_changed', ['computer_ids' => array_values($data['computer_ids']), 'reserved' => $reserved]);
 
                 return $updated;
             });
@@ -77,9 +79,10 @@ class ClubComputerController extends Controller
             'power_off' => 'offline',
         };
 
-        $updated = DB::transaction(function () use ($data, $status, $logControl): int {
+        $updated = DB::transaction(function () use ($data, $status, $logControl, $webhooks): int {
             $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
             $logControl($data['action'], $updated);
+            $webhooks->dispatch('computer.controlled', ['computer_ids' => array_values($data['computer_ids']), 'action' => $data['action'], 'status' => $status]);
 
             return $updated;
         });

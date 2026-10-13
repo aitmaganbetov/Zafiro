@@ -6,6 +6,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,11 +34,11 @@ class ComputerController extends ApiV1Controller
     }
 
     /** Booking: reserve or release one PC. Setting the current state again is a no-op. */
-    public function reservation(Request $request, ClubComputer $computer, ActivityLogger $activity): JsonResponse
+    public function reservation(Request $request, ClubComputer $computer, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
     {
         $reserved = (bool) $request->validate(['reserved' => ['required', 'boolean']])['reserved'];
 
-        $computer = DB::transaction(function () use ($computer, $reserved, $activity, $request): ClubComputer {
+        $computer = DB::transaction(function () use ($computer, $reserved, $activity, $request, $webhooks): ClubComputer {
             $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computer->id);
 
             if ($computer->is_reserved === $reserved) {
@@ -55,6 +56,7 @@ class ComputerController extends ApiV1Controller
                 'computers' => $computer->displayName(),
                 'updated' => 1,
             ]);
+            $webhooks->dispatch('computer.reservation_changed', ['computer_ids' => [$computer->id], 'reserved' => $reserved]);
 
             return $computer;
         });
@@ -66,7 +68,7 @@ class ComputerController extends ApiV1Controller
      * Power commands for up to integrations.max_bulk_items PCs of the key's club.
      * PCs with an active customer session are refused as a whole batch.
      */
-    public function control(Request $request, ActivityLogger $activity): JsonResponse
+    public function control(Request $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
     {
         $data = $request->validate([
             'computer_ids' => ['required', 'array', 'min:1', 'max:'.(int) config('integrations.max_bulk_items', 50)],
@@ -75,7 +77,7 @@ class ComputerController extends ApiV1Controller
         ]);
         $status = ['power_on' => 'online', 'restart' => 'restarting', 'power_off' => 'offline'][$data['action']];
 
-        $computers = DB::transaction(function () use ($data, $status, $activity, $request) {
+        $computers = DB::transaction(function () use ($data, $status, $activity, $request, $webhooks) {
             $computers = ClubComputer::query()->whereKey($data['computer_ids'])->orderBy('number')->lockForUpdate()->get();
             $busy = $data['action'] === 'power_on' ? collect() : $computers->whereNotNull('current_session_id');
 
@@ -90,6 +92,7 @@ class ComputerController extends ApiV1Controller
                 'computers' => $names,
                 'updated' => $computers->count(),
             ]);
+            $webhooks->dispatch('computer.controlled', ['computer_ids' => $computers->modelKeys(), 'action' => $data['action'], 'status' => $status]);
 
             return ClubComputer::query()->whereKey($computers->modelKeys())->orderBy('number')->get();
         });
