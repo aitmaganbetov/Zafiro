@@ -23,7 +23,10 @@ class SetCurrentClub
             ->where('user_id', $request->user()->getKey())
             ->get();
 
-        abort_if($memberships->isEmpty(), 403, __('У аккаунта нет доступа ни к одному клубу.'));
+        // Messages are translated only when the request is actually rejected.
+        if ($memberships->isEmpty()) {
+            abort(403, __('У аккаунта нет доступа ни к одному клубу.'));
+        }
 
         if ($request->is('api/*')) {
             $clubHeader = $request->header('X-Club-Id');
@@ -32,7 +35,9 @@ class SetCurrentClub
                 ->first(fn (string $ability): bool => str_starts_with($ability, 'club:'));
             $tokenClubId = $clubAbility ? (int) substr($clubAbility, 5) : null;
             if ($clubHeader && $tokenClubId !== null) {
-                abort_unless((int) $clubHeader === $tokenClubId, 403, __('API-токен привязан к другому клубу.'));
+                if ((int) $clubHeader !== $tokenClubId) {
+                    abort(403, __('API-токен привязан к другому клубу.'));
+                }
             }
             $requestedClubId = $clubHeader ?: ($clubAbility ? substr($clubAbility, 5) : null);
         } else {
@@ -43,7 +48,9 @@ class SetCurrentClub
             ? $memberships->firstWhere('club_id', (int) $requestedClubId)
             : $memberships->first();
 
-        abort_if($membership === null, 403, __('Нет доступа к выбранному клубу.'));
+        if ($membership === null) {
+            abort(403, __('Нет доступа к выбранному клубу.'));
+        }
 
         $currentClub->set($membership->club, $membership);
         $this->locales->apply($this->locales->forClub($membership->club));

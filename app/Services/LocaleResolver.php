@@ -3,11 +3,8 @@
 namespace App\Services;
 
 use App\Models\Club;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Picks the interface language: the club's language for signed-in requests, the
@@ -19,21 +16,12 @@ class LocaleResolver
 
     public const DEFAULT_CLUB_LOCALE = 'ru';
 
-    /** @var array<int, list<string>> enabled codes per translations cache version */
-    private array $enabled = [];
+    public function __construct(private TranslationCatalog $catalog) {}
 
     /** @return list<string> */
     public function enabledCodes(): array
     {
-        $version = (int) Cache::get('translations.version', 1);
-
-        return $this->enabled[$version] ??= Cache::rememberForever("languages.enabled.{$version}", function (): array {
-            try {
-                return DB::table('languages')->where('is_enabled', true)->orderBy('sort_order')->orderBy('id')->pluck('code')->all();
-            } catch (QueryException) {
-                return [self::DEFAULT_CLUB_LOCALE, self::DEFAULT_GUEST_LOCALE];
-            }
-        });
+        return $this->catalog->enabledCodes();
     }
 
     public function forClub(Club $club): string

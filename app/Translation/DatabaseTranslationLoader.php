@@ -22,18 +22,18 @@ class DatabaseTranslationLoader implements Loader
             return $fileLines;
         }
 
+        // One cached pack per locale; groups that are not stored in the database (e.g.
+        // a missing phrase that Laravel retries as "group.item") never reach MySQL.
         $dbLines = $this->catalog->lines($locale, $group);
 
-        if ($group === '*') {
-            // Laravel does not fall back to another locale for JSON keys: put the
-            // fallback language underneath so untranslated phrases show in English.
-            $fallback = (string) config('app.fallback_locale');
-            $fallbackLines = $locale === $fallback ? [] : $this->catalog->lines($fallback, '*');
-
-            return array_merge($fileLines, $fallbackLines, $dbLines);
+        if ($dbLines === null) {
+            return $fileLines;
         }
 
-        return array_replace_recursive($fileLines, Arr::undot($dbLines));
+        // For JSON phrases the pack already contains the English fallback underneath.
+        return $group === '*'
+            ? array_merge($fileLines, $dbLines)
+            : array_replace_recursive($fileLines, Arr::undot($dbLines));
     }
 
     public function addNamespace($namespace, $hint)

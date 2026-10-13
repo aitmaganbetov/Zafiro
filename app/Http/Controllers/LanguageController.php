@@ -162,28 +162,39 @@ class LanguageController extends Controller
             ->flatMap(fn (array $lines, string $group) => collect($lines)->keys()->mapWithKeys(fn (string $key): array => [Translation::hashKey($group, $key) => [$group, $key]]));
 
         $changed = DB::transaction(function () use ($data, $source, $language, $request): int {
-            $changed = 0;
+            $submitted = collect($data['translations'])->only($source->keys()->all());
+            $existing = Translation::query()
+                ->where('language_id', $language->id)
+                ->whereIn('key_hash', $submitted->keys()->all())
+                ->get(['id', 'key_hash', 'value'])
+                ->keyBy('key_hash');
+            $deletes = [];
+            $upserts = [];
+            $now = now();
 
-            foreach ($data['translations'] as $hash => $value) {
-                if (! $source->has($hash)) {
-                    continue;
-                }
-
+            foreach ($submitted as $hash => $value) {
                 [$group, $key] = $source[$hash];
                 $value = trim((string) $value);
-                $existing = Translation::query()->where('language_id', $language->id)->where('group', $group)->where('key_hash', $hash)->first();
+                $row = $existing->get($hash);
 
-                if ($value === '' && $existing !== null) {
-                    $existing->delete();
-                    $changed++;
-                } elseif ($value !== '' && $existing?->value !== $value) {
-                    Translation::query()->updateOrCreate(
-                        ['language_id' => $language->id, 'group' => $group, 'key_hash' => $hash],
-                        ['key' => $key, 'value' => $value],
-                    );
-                    $changed++;
+                if ($value === '') {
+                    if ($row !== null) {
+                        $deletes[] = $row->id;
+                    }
+                } elseif ($row?->value !== $value) {
+                    $upserts[] = ['language_id' => $language->id, 'group' => $group, 'key' => $key, 'key_hash' => $hash, 'value' => $value, 'created_at' => $now, 'updated_at' => $now];
                 }
             }
+
+            if ($deletes !== []) {
+                Translation::query()->whereKey($deletes)->delete();
+            }
+
+            if ($upserts !== []) {
+                Translation::query()->upsert($upserts, ['language_id', 'group', 'key_hash'], ['value', 'updated_at']);
+            }
+
+            $changed = count($deletes) + count($upserts);
 
             if ($changed > 0) {
                 $this->activity->record('translations.updated', __('Изменены переводы: :name (:count)', ['name' => $language->name, 'count' => $changed]), $request->user()->getKey(), $language, ['changed' => $changed]);
@@ -191,7 +202,10 @@ class LanguageController extends Controller
 
             return $changed;
         });
-        $this->catalog->flush();
+
+        if ($changed > 0) {
+            $this->catalog->flush();
+        }
 
         return back()->with('status', trans_choice('Сохранён :count перевод.|Сохранено :count перевода.|Сохранено :count переводов.', $changed));
     }
