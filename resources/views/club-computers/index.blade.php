@@ -40,7 +40,7 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse($computers as $computer)
                         <tr class="align-top text-gray-700 dark:text-gray-300">
-                            <td class="whitespace-nowrap px-3 py-3 tabular-nums">#{{ $computer->id }} <span class="text-gray-400">/</span> {{ $computer->number }}</td>
+                            <td class="whitespace-nowrap px-3 py-3 tabular-nums">#{{ $computer->id }} <span class="text-gray-500">/</span> {{ $computer->number }}</td>
                             <td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ $computer->displayName() }}</div><div class="mt-1 text-xs text-gray-500">{{ $computer->zone?->name ?? '—' }} (#{{ $computer->club_zone_id }})</div></td>
                             <td class="whitespace-nowrap px-3 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs {{ $computer->connectionStatus() === 'online' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">{{ $computer->connectionStatus() === 'online' ? 'Online' : 'Offline' }}</span></td>
                             <td class="whitespace-nowrap px-3 py-3">{{ $computer->status }}{{ $computer->is_reserved ? ' · Забронирован' : '' }}</td>

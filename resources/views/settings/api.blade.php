@@ -22,7 +22,7 @@
         <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">
             {{ $productEndpoint['name'] }}
         </h5>
-        <p class="mb-2 font-mono text-xs text-gray-500 dark:text-gray-400">products.index</p>
+        <p class="mb-2 font-mono text-xs text-gray-600 dark:text-gray-400">products.index</p>
         <p class="mb-3 break-all rounded-lg bg-white px-3 py-2 font-mono text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
             GET {{ $productEndpoint['url'] }}
         </p>
@@ -34,7 +34,7 @@
             <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">
                 {{ $endpoint['name'] }}
             </h5>
-            <p class="mb-2 font-mono text-xs text-gray-500 dark:text-gray-400">
+            <p class="mb-2 font-mono text-xs text-gray-600 dark:text-gray-400">
                 {{ $endpoint['section'] }}.{{ $endpoint['key'] }}
             </p>
             <p class="mb-3 break-all rounded-lg bg-gray-100 px-3 py-2 font-mono text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">

@@ -118,7 +118,7 @@
                             <td class="px-3 py-4 font-medium text-gray-900 dark:text-gray-100">{{ $product->name }}</td>
                             <td class="px-3 py-4 text-gray-600 dark:text-gray-400">{{ $product->category }}</td>
                             <td class="px-3 py-4 text-right font-semibold text-gray-900 dark:text-gray-100">{{ number_format((float) $product->price, 0, ',', ' ') }} KZT</td>
-                            <td class="px-3 py-4 text-right font-semibold {{ $product->quantity <= 10 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">{{ $product->quantity }}</td>
+                            <td class="px-3 py-4 text-right font-semibold {{ $product->quantity <= 10 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400' }}">{{ $product->quantity }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -150,7 +150,7 @@
                             <td class="px-3 py-4 text-gray-500 dark:text-gray-400">{{ $movement->created_at->format('d.m.Y H:i') }}</td>
                             <td class="px-3 py-4 font-medium text-gray-900 dark:text-gray-100">{{ $movement->product->name }}</td>
                             @php($isSale = $movement->type === 'write_off' && $movement->note === 'Продажа POS')
-                            <td class="px-3 py-4 font-semibold {{ $movement->type === 'receipt' ? 'text-green-600 dark:text-green-400' : ($isSale ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400') }}">
+                            <td class="px-3 py-4 font-semibold {{ $movement->type === 'receipt' ? 'text-green-700 dark:text-green-400' : ($isSale ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400') }}">
                                 {{ $movement->type === 'receipt' ? 'Оприходование' : ($isSale ? 'Продажа' : 'Списание') }}
                             </td>
                             <td class="px-3 py-4 text-right font-semibold text-gray-900 dark:text-gray-100">{{ $movement->quantity }}</td>

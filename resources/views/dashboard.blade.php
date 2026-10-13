@@ -25,7 +25,7 @@
                                 <i class="fas fa-shopping-cart text-purple-600 dark:text-purple-400 text-xl"></i>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-green-600 text-sm">
+                        <div class="flex items-center gap-2 text-green-700 text-sm">
                             <i class="fas fa-arrow-up"></i>
                             <span>{{ $todayTransactionCount }} операций сегодня</span>
                         </div>
@@ -56,10 +56,10 @@
                                 <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ number_format($todayIncome - $todayExpenses, 0, ',', ' ') }} {{ $currency }}</p>
                             </div>
                             <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-boxes text-green-600 dark:text-green-400 text-xl"></i>
+                                <i class="fas fa-boxes text-green-700 dark:text-green-400 text-xl"></i>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-green-600 text-sm">
+                        <div class="flex items-center gap-2 text-green-700 text-sm">
                             <i class="fas fa-arrow-up"></i>
                             <span>Доходы минус расходы за сегодня</span>
                         </div>
@@ -76,7 +76,7 @@
                                 <i class="fas fa-chart-line text-orange-600 dark:text-orange-400 text-xl"></i>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-green-600 text-sm">
+                        <div class="flex items-center gap-2 text-green-700 text-sm">
                             <i class="fas fa-arrow-up"></i>
                             <span>Зарегистрировано в системе</span>
                         </div>
@@ -95,7 +95,7 @@
                     <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 animate-slide animation-delay-600">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Состояние клуба</h3>
                         <div class="space-y-5">
-                            <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-desktop mr-2 text-green-600"></i>ПК онлайн</span><strong class="text-gray-900 dark:text-white">{{ $onlineComputerCount }} / {{ $computerCount }}</strong></a>
+                            <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-desktop mr-2 text-green-700"></i>ПК онлайн</span><strong class="text-gray-900 dark:text-white">{{ $onlineComputerCount }} / {{ $computerCount }}</strong></a>
                             <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-bookmark mr-2 text-amber-500"></i>ПК забронировано</span><strong class="text-gray-900 dark:text-white">{{ $reservedComputerCount }}</strong></a>
                             <a href="{{ route('club-map.index') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-map-location-dot mr-2 text-blue-600"></i>Зоны</span><strong class="text-gray-900 dark:text-white">{{ $zoneCount }}</strong></a>
                             <a href="{{ route('warehouse') }}" class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-gray-300"><span><i class="fas fa-boxes-stacked mr-2 text-rose-500"></i>Товары с низким остатком</span><strong class="text-gray-900 dark:text-white">{{ $lowStockCount }}</strong></a>
@@ -123,7 +123,7 @@
                             <tbody>
                                 @forelse($recentTransactions as $transaction)
                                     <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                        <td class="py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $transaction->type === 'income' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' }}">{{ $transaction->type === 'income' ? 'Доход' : 'Расход' }}</span></td>
+                                        <td class="py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $transaction->type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' }}">{{ $transaction->type === 'income' ? 'Доход' : 'Расход' }}</span></td>
                                         <td class="py-4 text-gray-700 dark:text-gray-300">{{ $transaction->description }}</td>
                                         <td class="py-4 text-gray-600 dark:text-gray-400">{{ $transaction->created_at->format('d.m.Y H:i') }}</td>
                                         <td class="py-4 text-right font-semibold {{ $transaction->type === 'income' ? 'text-green-700 dark:text-green-400' : 'text-rose-700 dark:text-rose-400' }}">{{ $transaction->type === 'expense' ? '−' : '+' }}{{ number_format((float) $transaction->amount, 0, ',', ' ') }} {{ $currency }}</td>
