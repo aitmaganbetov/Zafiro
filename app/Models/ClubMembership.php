@@ -15,12 +15,17 @@ class ClubMembership extends Model
 
     protected function casts(): array
     {
-        return ['discount' => 'decimal:2', 'notifications_seen_at' => 'datetime'];
+        return ['discount' => 'decimal:2', 'notifications_seen_at' => 'datetime', 'can_manage_integrations' => 'boolean'];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function canManageIntegrations(): bool
+    {
+        return $this->role === 'owner' || $this->can_manage_integrations;
     }
 
     public function balance(): HasOne
