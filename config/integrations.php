@@ -28,9 +28,9 @@ return [
 
     'key_prefix' => 'zfk_',
     'key_cache_ttl_seconds' => 300,
-    'default_rate_limit_per_minute' => 120,
-    'max_rate_limit_per_minute' => 1000,
-    'club_rate_limit_per_minute' => 600,
+    'default_rate_limit_per_minute' => (int) env('API_KEY_RATE_LIMIT', 120),
+    'max_rate_limit_per_minute' => (int) env('API_KEY_RATE_LIMIT_MAX', 1000),
+    'club_rate_limit_per_minute' => (int) env('API_CLUB_RATE_LIMIT', 600),
     'failed_auth_per_minute_per_ip' => 20,
     'max_request_kb' => 256,
     'max_bulk_items' => 50,

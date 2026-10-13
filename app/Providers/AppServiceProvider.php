@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Http\Middleware\Api\AuthenticateApiKey;
 use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
@@ -42,19 +41,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(ClubComputer::class, ClubComputerPolicy::class);
         Gate::define('manage-integrations', fn (): bool => app(CurrentClub::class)->membership()?->canManageIntegrations() === true);
-
-        // Integration API: one bucket per key and one per club, so several keys of a
-        // club cannot multiply its share of the server.
-        RateLimiter::for('api-v1', function (Request $request): array {
-            $key = $request->attributes->get(AuthenticateApiKey::ATTRIBUTE);
-
-            return [
-                Limit::perMinute(min((int) ($key['rate_limit_per_minute'] ?? config('integrations.default_rate_limit_per_minute')), (int) config('integrations.max_rate_limit_per_minute')))
-                    ->by('api-v1-key:'.($key['id'] ?? $request->ip())),
-                Limit::perMinute((int) config('integrations.club_rate_limit_per_minute'))
-                    ->by('api-v1-club:'.($key['club_id'] ?? $request->ip())),
-            ];
-        });
 
         $this->invalidateApiKeyCache();
 

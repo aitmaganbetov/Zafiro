@@ -45,7 +45,12 @@ class AuthenticateApiKey
         $result = $token === null ? ['ok' => false, 'reason' => 'invalid_api_key'] : $this->keys->verify($token);
 
         if (! $result['ok']) {
-            RateLimiter::hit($limiterKey, 60);
+            // Only guesses count towards the IP block. A revoked or expired key is a real
+            // key with the right secret; blocking its IP would also lock out other keys
+            // behind the same address.
+            if ($result['reason'] === 'invalid_api_key') {
+                RateLimiter::hit($limiterKey, 60);
+            }
 
             return ApiError::response($result['reason'], $result['reason'] === 'subscription_inactive' ? 402 : 401, headers: ['WWW-Authenticate' => 'Bearer']);
         }

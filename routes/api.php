@@ -52,5 +52,5 @@ Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting
 // Separate prefix, so the routes above keep their contracts.
 Route::prefix('v1')
     ->name('api.v1.')
-    ->middleware(['api.log', 'api.size', 'api.key', 'throttle:api-v1'])
+    ->middleware(['api.log', 'api.size', 'api.key', 'api.limit'])
     ->group(base_path('routes/api_v1.php'));

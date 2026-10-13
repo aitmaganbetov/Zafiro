@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\Api\ApiIdempotency;
+use App\Http\Middleware\Api\ApiRateLimit;
 use App\Http\Middleware\Api\AuthenticateApiKey;
 use App\Http\Middleware\Api\LimitApiRequestSize;
 use App\Http\Middleware\Api\LogApiRequest;
@@ -35,13 +36,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.key' => AuthenticateApiKey::class,
             'api.scope' => RequireApiScope::class,
             'api.idempotent' => ApiIdempotency::class,
+            'api.limit' => ApiRateLimit::class,
         ]);
         $middleware->appendToPriorityList(AuthenticatesRequests::class, SetCurrentClub::class);
-        // /api/v1: log everything, check size and the key (which sets the club) before
-        // rate limiting and route model binding, so bindings are scoped to the key's club.
+        // /api/v1: log everything, check size and the key (which sets the club), then the
+        // rate limit, all before route model binding, so bindings are scoped to the key's club.
         $middleware->prependToPriorityList(ThrottleRequests::class, LogApiRequest::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, LimitApiRequestSize::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, AuthenticateApiKey::class);
+        $middleware->prependToPriorityList(ThrottleRequests::class, ApiRateLimit::class);
         $middleware->web(append: [SetLocale::class]);
         $middleware->api(append: [SetLocale::class]);
     })

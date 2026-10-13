@@ -15,7 +15,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     // Routes that exist only in these tests, behind the same middleware as /api/v1.
     Route::prefix('api/v1/test')
-        ->middleware(['api', 'api.log', 'api.size', 'api.key', 'throttle:api-v1'])
+        ->middleware(['api', 'api.log', 'api.size', 'api.key', 'api.limit'])
         ->group(function () {
             Route::get('/write', fn () => ['ok' => true])->middleware('api.scope:products:read,products:write');
             Route::get('/undeclared', fn () => ['ok' => true]);
@@ -191,6 +191,20 @@ test('repeated failed authentication from one IP is blocked', function () {
         ->assertJsonPath('error.code', 'too_many_failed_attempts')
         ->assertHeader('Retry-After');
     $this->withServerVariables(['REMOTE_ADDR' => '10.9.9.9'])->getJson('/api/v1/me', bearer($plain))->assertOk();
+});
+
+test('revoked keys do not block the IP for other keys', function () {
+    [$club, $owner] = integrationClub();
+    [$key, $revoked] = issueApiKey($club, $owner);
+    [, $plain] = issueApiKey($club, $owner);
+    app(ApiKeyManager::class)->revoke($key, $owner);
+    config(['integrations.failed_auth_per_minute_per_ip' => 3]);
+
+    foreach (range(1, 6) as $attempt) {
+        $this->getJson('/api/v1/me', bearer($revoked))->assertJsonPath('error.code', 'api_key_revoked');
+    }
+
+    $this->getJson('/api/v1/me', bearer($plain))->assertOk();
 });
 
 test('each key has its own rate limit', function () {
