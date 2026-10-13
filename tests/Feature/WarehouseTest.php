@@ -54,6 +54,21 @@ test('authenticated user can open warehouse page', function () {
         ->assertSee('Кабель HDMI 2 м');
 });
 
+test('warehouse stock table is paginated while the movement form lists every product', function () {
+    Product::factory()->count(60)->sequence(fn ($sequence) => ['name' => sprintf('Товар %02d', $sequence->index + 1)])->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/warehouse')
+        ->assertSuccessful()
+        ->assertSee('Товаров на складе: 60')
+        ->assertViewHas('stock', fn ($stock): bool => $stock->count() === 50 && $stock->total() === 60)
+        ->assertViewHas('products', fn ($products): bool => $products->count() === 60);
+
+    $this->actingAs($user)->get('/warehouse?page=2')
+        ->assertSuccessful()
+        ->assertViewHas('stock', fn ($stock): bool => $stock->pluck('name')->first() === 'Товар 51');
+});
+
 test('product can be received into stock', function () {
     $user = User::factory()->create();
     $product = Product::factory()->create(['quantity' => 10]);

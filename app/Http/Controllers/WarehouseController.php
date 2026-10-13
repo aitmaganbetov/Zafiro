@@ -12,9 +12,13 @@ class WarehouseController extends Controller
     public function __invoke(): View
     {
         $products = Product::query()
-            ->select(['id', 'sku', 'name', 'category', 'product_category_id', 'price', 'quantity'])
+            ->select(['id', 'name', 'quantity'])
             ->orderBy('name')
             ->get();
+        $stock = Product::query()
+            ->select(['id', 'sku', 'name', 'category', 'price', 'quantity'])
+            ->orderBy('name')
+            ->paginate(50);
 
         $movements = StockMovement::query()
             ->select(['id', 'product_id', 'type', 'quantity', 'balance_after', 'note', 'created_at'])
@@ -25,6 +29,7 @@ class WarehouseController extends Controller
 
         return view('warehouse', [
             'products' => $products,
+            'stock' => $stock,
             'categories' => ProductCategory::query()->withCount('products')->orderBy('name')->get(),
             'movements' => $movements,
         ]);

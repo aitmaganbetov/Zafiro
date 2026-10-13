@@ -88,7 +88,7 @@
 
     <div class="animate-slide rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <h3 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Склад</h3>
-        <p class="mb-6 text-gray-600 dark:text-gray-400">Товаров на складе: {{ $products->count() }}</p>
+        <p class="mb-6 text-gray-600 dark:text-gray-400">Товаров на складе: {{ $stock->total() }}</p>
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -103,7 +103,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($products as $product)
+                    @foreach ($stock as $product)
                         <tr class="border-b border-gray-100 transition last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
                             <td class="px-3 py-3">
                                 <img
@@ -124,6 +124,9 @@
                 </tbody>
             </table>
         </div>
+        @if ($stock->hasPages())
+            <div class="mt-4">{{ $stock->links() }}</div>
+        @endif
     </div>
 
     <div class="mt-6 animate-slide rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
