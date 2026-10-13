@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page-title', 'Касса POS')
+@section('page-title', __('Касса POS'))
 
 
 @section('content')
@@ -9,26 +9,26 @@
 
     @if(!$shift)
         <div class="pos-open">
-            <h3>Открыть смену</h3>
+            <h3>{{ __('Открыть смену') }}</h3>
             <form method="POST" action="{{ route('cash-register.shifts.open') }}">
                 @csrf
-                <div><label>Начальный остаток</label><input type="number" step="0.01" min="0" name="opening_balance" required></div>
-                <button>Открыть кассу</button>
+                <div><label>{{ __('Начальный остаток') }}</label><input type="number" step="0.01" min="0" name="opening_balance" required></div>
+                <button>{{ __('Открыть кассу') }}</button>
             </form>
         </div>
     @else
         @php($categories = $products->pluck('category')->filter()->unique()->values())
         <div class="pos-page">
             <div class="pos-top">
-                <div class="pos-status">Смена #{{ $shift->id }} · В кассе: <strong>{{ number_format($totals['balance'], 2, ',', ' ') }} KZT</strong></div>
-                <div class="pos-actions"><a href="{{ route('cash-register.x-report') }}">X-отчёт</a><a class="danger" href="{{ route('cash-register.z-report', $shift) }}">Закрыть смену · Z-отчёт</a></div>
+                <div class="pos-status">{{ __('Смена #:id', ['id' => $shift->id]) }} · {{ __('В кассе:') }} <strong>{{ number_format($totals['balance'], 2, ',', ' ') }} KZT</strong></div>
+                <div class="pos-actions"><a href="{{ route('cash-register.x-report') }}">{{ __('X-отчёт') }}</a><a class="danger" href="{{ route('cash-register.z-report', $shift) }}">{{ __('Закрыть смену · Z-отчёт') }}</a></div>
             </div>
             <div class="pos-layout">
                 <main class="pos-main">
                     <div class="pos-categories">
-                        <button class="pos-category active" data-category="all"><span class="pos-category-icon">⌘</span><strong>Все</strong><small>{{ $products->count() }} товаров</small></button>
+                        <button class="pos-category active" data-category="all"><span class="pos-category-icon">⌘</span><strong>{{ __('Все') }}</strong><small>{{ trans_choice(':count товар|:count товара|:count товаров', $products->count()) }}</small></button>
                         @foreach($categories->take(5) as $category)
-                            <button class="pos-category" data-category="{{ $category }}"><span class="pos-category-icon">♨</span><strong>{{ $category }}</strong><small>{{ $products->where('category', $category)->count() }} товаров</small></button>
+                            <button class="pos-category" data-category="{{ $category }}"><span class="pos-category-icon">♨</span><strong>{{ $category }}</strong><small>{{ trans_choice(':count товар|:count товара|:count товаров', $products->where('category', $category)->count()) }}</small></button>
                         @endforeach
                     </div>
                     <div class="pos-products">
@@ -36,64 +36,64 @@
                             <article class="pos-product" data-product-id="{{ $product->id }}" data-category="{{ $product->category }}">
                                 <img src="{{ asset('images/product-placeholder.svg') }}" alt="{{ $product->name }}">
                                 <h4>{{ $product->name }}</h4>
-                                <p class="pos-product-meta">{{ $product->category ?: 'Без категории' }}</p>
-                                <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? 'В наличии: '.$product->quantity.' шт.' : 'Нет в наличии · 0 шт.' }}</span></div>
-                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>Добавить в заказ</button>
+                                <p class="pos-product-meta">{{ $product->category ?: __('Без категории') }}</p>
+                                <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: ').$product->quantity.__(' шт.') : __('Нет в наличии · 0 шт.') }}</span></div>
+                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>{{ __('Добавить в заказ') }}</button>
                             </article>
                         @endforeach
                     </div>
                 </main>
                 <aside class="pos-order">
                     @php($showBalanceTopUp = session('cash_view') === 'balance' || old('cash_view') === 'balance')
-                    <div class="pos-view-tabs" role="tablist" aria-label="Раздел кассы">
-                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? '' : 'active' }}" data-pos-view="sale" role="tab" aria-selected="{{ $showBalanceTopUp ? 'false' : 'true' }}">Продажа товаров</button>
-                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? 'active' : '' }}" data-pos-view="balance" role="tab" aria-selected="{{ $showBalanceTopUp ? 'true' : 'false' }}">Пополнение баланса</button>
+                    <div class="pos-view-tabs" role="tablist" aria-label="{{ __('Раздел кассы') }}">
+                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? '' : 'active' }}" data-pos-view="sale" role="tab" aria-selected="{{ $showBalanceTopUp ? 'false' : 'true' }}">{{ __('Продажа товаров') }}</button>
+                        <button type="button" class="pos-view-tab {{ $showBalanceTopUp ? 'active' : '' }}" data-pos-view="balance" role="tab" aria-selected="{{ $showBalanceTopUp ? 'true' : 'false' }}">{{ __('Пополнение баланса') }}</button>
                     </div>
                     <div id="sale-view" @if($showBalanceTopUp) hidden @endif>
-                    <div class="pos-order-head"><h3>Новый заказ</h3><div class="pos-modes"><button type="button" class="pos-mode active">В зале</button><button type="button" class="pos-mode">С собой</button><button type="button" class="pos-mode">Доставка</button></div></div>
-                    <div id="cart" class="pos-cart"><div class="pos-empty">Добавьте товары в заказ</div></div>
+                    <div class="pos-order-head"><h3>{{ __('Новый заказ') }}</h3><div class="pos-modes"><button type="button" class="pos-mode active">{{ __('В зале') }}</button><button type="button" class="pos-mode">{{ __('С собой') }}</button><button type="button" class="pos-mode">{{ __('Доставка') }}</button></div></div>
+                    <div id="cart" class="pos-cart"><div class="pos-empty">{{ __('Добавьте товары в заказ') }}</div></div>
                     <div class="pos-summary">
-                        <div class="pos-summary-row"><span>Подытог</span><span id="subtotal">0 ₸</span></div>
-                        <div class="pos-summary-row"><span>НДС 5% (включён)</span><span id="tax">0 ₸</span></div>
-                        <div class="pos-summary-total"><span>Итого</span><span id="total">0 ₸</span></div>
+                        <div class="pos-summary-row"><span>{{ __('Подытог') }}</span><span id="subtotal">0 ₸</span></div>
+                        <div class="pos-summary-row"><span>{{ __('НДС 5% (включён)') }}</span><span id="tax">0 ₸</span></div>
+                        <div class="pos-summary-total"><span>{{ __('Итого') }}</span><span id="total">0 ₸</span></div>
                     </div>
-                    <div class="pos-payments"><button type="button" class="pos-payment active"><span>▣</span>Наличные</button><button type="button" class="pos-payment"><span>▤</span>Карта</button><button type="button" class="pos-payment"><span>▦</span>QR-код</button></div>
-                    <form id="sale-form" method="POST" action="{{ route('cash-register.sales.store') }}">@csrf<div id="sale-items"></div><button id="checkout" disabled class="pos-checkout">Оформить заказ · Оплатить</button></form>
+                    <div class="pos-payments"><button type="button" class="pos-payment active"><span>▣</span>{{ __('Наличные') }}</button><button type="button" class="pos-payment"><span>▤</span>{{ __('Карта') }}</button><button type="button" class="pos-payment"><span>▦</span>{{ __('QR-код') }}</button></div>
+                    <form id="sale-form" method="POST" action="{{ route('cash-register.sales.store') }}">@csrf<div id="sale-items"></div><button id="checkout" disabled class="pos-checkout">{{ __('Оформить заказ · Оплатить') }}</button></form>
                     </div>
                     <section id="balance-view" class="pos-balance-view" @if(!$showBalanceTopUp) hidden @endif>
-                        <div class="pos-order-head"><h3>Пополнение баланса</h3></div>
+                        <div class="pos-order-head"><h3>{{ __('Пополнение баланса') }}</h3></div>
                         @php($selectedTopUpUser = $users->firstWhere('id', (int) old('user_id')))
                         <form method="POST" action="{{ route('cash-register.balance-top-ups.store') }}" class="pos-balance-form">
                             @csrf
                             <input type="hidden" name="cash_view" value="balance">
                             <div class="pos-user-picker" data-user-picker>
-                                <label for="top-up-user-search">Пользователь</label>
+                                <label for="top-up-user-search">{{ __('Пользователь') }}</label>
                                 <input id="top-up-user-id" type="hidden" name="user_id" value="{{ old('user_id') }}" data-user-id>
-                                <input id="top-up-user-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="top-up-user-options" aria-expanded="false" autocomplete="off" required value="{{ $selectedTopUpUser ? $selectedTopUpUser->name.' · '.$selectedTopUpUser->phone : '' }}" placeholder="Поиск по имени или телефону" class="pos-balance-input" data-user-search>
+                                <input id="top-up-user-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="top-up-user-options" aria-expanded="false" autocomplete="off" required value="{{ $selectedTopUpUser ? $selectedTopUpUser->name.' · '.$selectedTopUpUser->phone : '' }}" placeholder="{{ __('Поиск по имени или телефону') }}" class="pos-balance-input" data-user-search>
                                 <div id="top-up-user-options" class="pos-user-options" role="listbox" hidden data-user-options>
                                     @foreach($users as $user)
                                         <button type="button" class="pos-user-option" role="option" aria-selected="{{ (string) old('user_id') === (string) $user->id ? 'true' : 'false' }}" data-user-option data-user-id="{{ $user->id }}" data-label="{{ $user->name }} · {{ $user->phone }}" data-search="{{ mb_strtolower($user->name.' '.$user->phone) }}">
-                                            <span><strong>{{ $user->name }}</strong><small>{{ $user->phone }} · Основной {{ number_format((float) $user->balance, 0, ',', ' ') }} ₸ · Бонусный {{ number_format((float) $user->bonus_balance, 0, ',', ' ') }} ₸</small></span>
+                                            <span><strong>{{ $user->name }}</strong><small>{{ $user->phone }} · {{ __('Основной') }} {{ number_format((float) $user->balance, 0, ',', ' ') }} ₸ · {{ __('Бонусный') }} {{ number_format((float) $user->bonus_balance, 0, ',', ' ') }} ₸</small></span>
                                         </button>
                                     @endforeach
-                                    <p class="pos-user-no-results" data-user-no-results hidden>Пользователь не найден</p>
+                                    <p class="pos-user-no-results" data-user-no-results hidden>{{ __('Пользователь не найден') }}</p>
                                 </div>
                             </div>
-                            <label>Сумма, ₸<input name="amount" type="number" min="1" max="9999999999.99" step="0.01" value="{{ old('amount') }}" required class="pos-balance-input" placeholder="Введите сумму"></label>
-                            <label>Зачислить на
+                            <label>{{ __('Сумма, ₸') }}<input name="amount" type="number" min="1" max="9999999999.99" step="0.01" value="{{ old('amount') }}" required class="pos-balance-input" placeholder="{{ __('Введите сумму') }}"></label>
+                            <label>{{ __('Зачислить на') }}
                                 <select name="balance_type" required class="pos-balance-input">
-                                    <option value="balance" @selected(old('balance_type', 'balance') === 'balance')>Основной баланс</option>
-                                    <option value="bonus_balance" @selected(old('balance_type') === 'bonus_balance')>Бонусный баланс</option>
+                                    <option value="balance" @selected(old('balance_type', 'balance') === 'balance')>{{ __('Основной баланс') }}</option>
+                                    <option value="bonus_balance" @selected(old('balance_type') === 'bonus_balance')>{{ __('Бонусный баланс') }}</option>
                                 </select>
                             </label>
-                            <label>Способ оплаты
+                            <label>{{ __('Способ оплаты') }}
                                 <select name="payment_method" required class="pos-balance-input">
-                                    <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Наличные</option>
-                                    <option value="card" @selected(old('payment_method') === 'card')>Карта</option>
-                                    <option value="qr" @selected(old('payment_method') === 'qr')>QR-код</option>
+                                    <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>{{ __('Наличные') }}</option>
+                                    <option value="card" @selected(old('payment_method') === 'card')>{{ __('Карта') }}</option>
+                                    <option value="qr" @selected(old('payment_method') === 'qr')>{{ __('QR-код') }}</option>
                                 </select>
                             </label>
-                            <button type="submit" class="pos-checkout">Пополнить баланс</button>
+                            <button type="submit" class="pos-checkout">{{ __('Пополнить баланс') }}</button>
                         </form>
                     </section>
                 </aside>
@@ -155,7 +155,7 @@
         userPicker.closest('form').addEventListener('submit', event => {
             if (!userId.value) {
                 event.preventDefault();
-                search.setCustomValidity('Выберите пользователя из списка.');
+                search.setCustomValidity(@json(__('Выберите пользователя из списка.')));
                 search.reportValidity();
             }
         });
@@ -183,9 +183,9 @@
         let total = 0;
         cart.forEach((item, id) => {
             total += item.price * item.qty;
-            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${placeholder}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">Без модификаторов</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-id="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-id="${id}">+</button></div></div></div></div>`);
+            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${placeholder}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">${escapeHtml(@json(__('Без модификаторов')))}</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-id="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-id="${id}">+</button></div></div></div></div>`);
         });
-        if (!cart.size) box.innerHTML = '<div class="pos-empty">Добавьте товары в заказ</div>';
+        if (!cart.size) box.innerHTML = '<div class="pos-empty">' + escapeHtml(@json(__('Добавьте товары в заказ'))) + '</div>';
         document.getElementById('subtotal').textContent = money(total);
         document.getElementById('tax').textContent = money(Math.round(total * 5 / 105));
         document.getElementById('total').textContent = money(total);

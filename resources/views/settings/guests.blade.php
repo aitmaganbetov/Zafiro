@@ -5,11 +5,11 @@
 @section('settings-content')
 
 
-<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">Гости</h4>
+<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Гости') }}</h4>
 <div class="flex flex-col items-start gap-3">
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="show_qr_code_on_login" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Отображать QR-код на странице авторизации
+            {{ __('Отображать QR-код на странице авторизации') }}
         </label>
         <input type="hidden" name="show_qr_code_on_login" value="0">
         <input
@@ -25,7 +25,7 @@
 
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="allow_guest_self_transfer" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Разрешить самостоятельную пересадку гостя
+            {{ __('Разрешить самостоятельную пересадку гостя') }}
         </label>
         <input type="hidden" name="allow_guest_self_transfer" value="0">
         <input
@@ -41,7 +41,7 @@
 
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="allow_adding_friends" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Возможность добавления в друзья
+            {{ __('Возможность добавления в друзья') }}
         </label>
         <input type="hidden" name="allow_adding_friends" value="0">
         <input
@@ -57,7 +57,7 @@
 
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="allow_balance_transfer_to_friends" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Разрешить перевод баланса друзьям
+            {{ __('Разрешить перевод баланса друзьям') }}
         </label>
         <input type="hidden" name="allow_balance_transfer_to_friends" value="0">
         <input

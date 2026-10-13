@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('page-title', 'Панель управления') · {{ config('app.name') }}</title>
+    <title>@yield('page-title', __('Панель управления')) · {{ config('app.name') }}</title>
     @include('partials.fonts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -17,24 +17,24 @@
         <main class="admin-main">
             <header class="admin-topbar">
                 <div class="admin-topbar-inner">
-                    <div class="admin-title-wrap"><button type="button" id="sidebarToggle" class="admin-mobile-toggle" aria-label="Показать меню" aria-controls="adminSidebar" aria-expanded="false"><i class="fas fa-bars"></i></button><h2 class="admin-title">@yield('page-title', 'Панель управления')</h2></div>
+                    <div class="admin-title-wrap"><button type="button" id="sidebarToggle" class="admin-mobile-toggle" aria-label="{{ __('Показать меню') }}" aria-controls="adminSidebar" aria-expanded="false"><i class="fas fa-bars"></i></button><h2 class="admin-title">@yield('page-title', __('Панель управления'))</h2></div>
                     <div class="admin-topbar-actions">
                         @if(($availableClubs ?? collect())->count() > 1)
                             <form method="POST" action="{{ route('clubs.switch') }}">@csrf
-                                <select name="club_id" aria-label="Активный клуб" onchange="this.form.submit()" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+                                <select name="club_id" aria-label="{{ __('Активный клуб') }}" onchange="this.form.submit()" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
                                     @foreach($availableClubs as $membership)
                                         <option value="{{ $membership->club_id }}" @selected($currentClub?->id === $membership->club_id)>{{ $membership->club->name }}</option>
                                     @endforeach
                                 </select>
                             </form>
                         @endif
-                        <label class="admin-search"><i class="fas fa-search"></i><input type="search" placeholder="Поиск..."></label>
+                        <label class="admin-search"><i class="fas fa-search"></i><input type="search" placeholder="{{ __('Поиск...') }}"></label>
                         <div class="admin-notifications" data-notifications data-url="{{ route('notifications.index') }}" data-seen-url="{{ route('notifications.seen') }}" data-csrf="{{ csrf_token() }}">
-                            <button type="button" id="notifications-button" class="admin-icon-button" aria-label="Уведомления" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
-                            <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="Уведомления" hidden>
-                                <div class="admin-notifications-head"><strong>Уведомления</strong></div>
+                            <button type="button" id="notifications-button" class="admin-icon-button" aria-label="{{ __('Уведомления') }}" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
+                            <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="{{ __('Уведомления') }}" hidden>
+                                <div class="admin-notifications-head"><strong>{{ __('Уведомления') }}</strong></div>
                                 <ul class="admin-notifications-list" data-notifications-list></ul>
-                                <p class="admin-notifications-empty" data-notifications-empty hidden>Уведомлений нет</p>
+                                <p class="admin-notifications-empty" data-notifications-empty hidden>{{ __('Уведомлений нет') }}</p>
                             </div>
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                 const rail=!mobile.matches&&app.classList.contains('sidebar-collapsed');
                 const open=mobile.matches?sidebar.classList.contains('active'):!rail;
                 toggle.setAttribute('aria-expanded',String(open));
-                toggle.setAttribute('aria-label',mobile.matches?(open?'Скрыть меню':'Показать меню'):(rail?'Развернуть меню':'Свернуть меню'));
+                toggle.setAttribute('aria-label',mobile.matches?(open?@json(__('Скрыть меню')):@json(__('Показать меню'))):(rail?@json(__('Развернуть меню')):@json(__('Свернуть меню'))));
                 groups.forEach((group)=>{group.open=rail||group.dataset.initialOpen==='1';});
                 sidebar.querySelectorAll('a.sidebar-link').forEach((link)=>{
                     if(rail)link.title=link.textContent.trim();else link.removeAttribute('title');

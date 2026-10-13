@@ -1,14 +1,14 @@
 @extends('settings.layout')
 
 @section('settings-content')
-<h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Настройки клуба</h4>
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">{{ __('Настройки клуба') }}</h4>
 @if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     @foreach([
-        'session_idle_timeout' => ['Время завершения сессии при бездействии (в минутах)', 15],
-        'pc_restart_after_session_end' => ['Время перезагрузки ПК после завершения сессии (в минутах)', 0.5],
-        'session_auto_terminate_when_pc_unavailable' => ['Время до автоматического завершения сессии при недоступности ПК (в минутах)', 5],
-        'booking_interval' => ['Интервал между бронированиями (в минутах)', 30],
+        'session_idle_timeout' => [__('Время завершения сессии при бездействии (в минутах)'), 15],
+        'pc_restart_after_session_end' => [__('Время перезагрузки ПК после завершения сессии (в минутах)'), 0.5],
+        'session_auto_terminate_when_pc_unavailable' => [__('Время до автоматического завершения сессии при недоступности ПК (в минутах)'), 5],
+        'booking_interval' => [__('Интервал между бронированиями (в минутах)'), 30],
     ] as $field => [$label, $default])
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ $label }}</label>
@@ -18,15 +18,15 @@
 </div>
 
 <section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-    <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">Ключ установки клуба</h5>
-    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">Укажите этот ключ в установленном ПО. По нему система определит клуб.</p>
+    <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Ключ установки клуба') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Укажите этот ключ в установленном ПО. По нему система определит клуб.') }}</p>
     @if(in_array($currentMembership->role, ['owner', 'admin'], true))
-        <label for="installation-key" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Постоянный ключ клуба</label>
-        <div class="flex gap-2"><input id="installation-key" readonly value="{{ $currentClub->installation_key }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"><button type="button" data-copy-installation-key class="rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700">Копировать</button></div>
+        <label for="installation-key" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Постоянный ключ клуба') }}</label>
+        <div class="flex gap-2"><input id="installation-key" readonly value="{{ $currentClub->installation_key }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"><button type="button" data-copy-installation-key class="rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700">{{ __('Копировать') }}</button></div>
     @else
-        <p class="font-mono text-sm text-gray-700 dark:text-gray-300">Активен · {{ $currentClub->installation_key_prefix }}••••••••</p>
+        <p class="font-mono text-sm text-gray-700 dark:text-gray-300">{{ __('Активен') }} · {{ $currentClub->installation_key_prefix }}••••••••</p>
     @endif
-    <p class="mt-2 text-xs text-gray-500">Ключ постоянный: изменить или отозвать его нельзя. Он перестанет действовать только после удаления клуба.</p>
+    <p class="mt-2 text-xs text-gray-500">{{ __('Ключ постоянный: изменить или отозвать его нельзя. Он перестанет действовать только после удаления клуба.') }}</p>
 </section>
 @endsection
 
