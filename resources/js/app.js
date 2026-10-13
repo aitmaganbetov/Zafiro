@@ -55,3 +55,39 @@ document.querySelectorAll('.auth-form').forEach((form) => {
 		phoneInput.value = phoneInput.value.replace(/\D/g, '');
 	});
 });
+
+// Remember the club language for the offline page (it is shown when no page can be loaded).
+if (document.body.classList.contains('admin-body')) {
+	try { localStorage.setItem('zafiro.locale', document.documentElement.lang); } catch (e) {}
+}
+
+// Installable app: register the service worker and offer installation where the browser allows it.
+if ('serviceWorker' in navigator && window.isSecureContext) {
+	window.addEventListener('load', () => {
+		navigator.serviceWorker.register('/sw.js').catch(() => {});
+	});
+}
+
+let installPrompt = null;
+const installButtons = () => document.querySelectorAll('[data-pwa-install]');
+
+window.addEventListener('beforeinstallprompt', (event) => {
+	event.preventDefault();
+	installPrompt = event;
+	installButtons().forEach((button) => { button.hidden = false; });
+});
+
+window.addEventListener('appinstalled', () => {
+	installPrompt = null;
+	installButtons().forEach((button) => { button.hidden = true; });
+});
+
+installButtons().forEach((button) => {
+	button.addEventListener('click', async () => {
+		if (!installPrompt) return;
+		installPrompt.prompt();
+		await installPrompt.userChoice;
+		installPrompt = null;
+		button.hidden = true;
+	});
+});
