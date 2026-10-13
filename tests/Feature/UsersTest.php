@@ -1,7 +1,8 @@
 <?php
 
-use App\Models\User;
 use App\Models\ActivityLog;
+use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -15,7 +16,7 @@ test('authenticated users can view the user list and account details', function 
     ])->currentMembership()->firstOrFail()->update(['role' => 'Гость', 'discount' => 12.5]);
     $guest = User::query()->where('phone', '+79991234567')->firstOrFail();
     $guest->currentMembership()->firstOrFail()->balance()->updateOrCreate(
-        ['club_id' => app(\App\Services\CurrentClub::class)->id(), 'user_id' => $guest->id],
+        ['club_id' => app(CurrentClub::class)->id(), 'user_id' => $guest->id],
         ['balance' => 1250.5, 'bonus_balance' => 75],
     );
 

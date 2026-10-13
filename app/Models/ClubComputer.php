@@ -13,6 +13,7 @@ class ClubComputer extends Model
     use BelongsToClub;
 
     public const HEARTBEAT_TIMEOUT_SECONDS = 90;
+
     public const AGENT_STATES = ['idle', 'in_session', 'locked', 'shutting_down'];
 
     protected $attributes = ['status' => 'available', 'is_reserved' => false, 'position_x' => 5, 'position_y' => 5];

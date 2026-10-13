@@ -26,7 +26,7 @@ class StorePosSaleRequest extends FormRequest
     {
         return [
             'items' => ['required', 'array', 'min:1'],
-'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('club_id', app(CurrentClub::class)->id())],
+            'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('club_id', app(CurrentClub::class)->id())],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ];
     }

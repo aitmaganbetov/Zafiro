@@ -1,13 +1,13 @@
 <?php
 
+use App\Http\Middleware\RequireActiveSubscription;
+use App\Http\Middleware\RequireClubRole;
+use App\Http\Middleware\SetCurrentClub;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
-use App\Http\Middleware\SetCurrentClub;
-use App\Http\Middleware\RequireClubRole;
-use App\Http\Middleware\RequireActiveSubscription;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

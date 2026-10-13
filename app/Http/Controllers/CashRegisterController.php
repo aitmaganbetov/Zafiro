@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\OpenCashShiftRequest;
+use App\Http\Requests\StoreBalanceTopUpRequest;
 use App\Http\Requests\StoreCashTransactionRequest;
 use App\Http\Requests\StorePosSaleRequest;
-use App\Http\Requests\StoreBalanceTopUpRequest;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
 use App\Models\Product;
@@ -24,25 +24,27 @@ class CashRegisterController extends Controller
     public function index(): View
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->with(['transactions' => fn ($q) => $q->latest()])->first();
-        $products = Product::query()->select(['id','name','category','price','quantity'])->where('quantity','>',0)->orderBy('name')->get();
+        $products = Product::query()->select(['id', 'name', 'category', 'price', 'quantity'])->where('quantity', '>', 0)->orderBy('name')->get();
         $users = User::query()
             ->whereHas('currentMembership')
             ->with('currentMembership.balance')
             ->orderBy('name')
             ->get(['id', 'name', 'phone']);
 
-        return view('cash-register.index', ['shift'=>$shift, 'totals'=>$shift ? $this->cash->totals($shift) : null, 'products'=>$products, 'users'=>$users]);
+        return view('cash-register.index', ['shift' => $shift, 'totals' => $shift ? $this->cash->totals($shift) : null, 'products' => $products, 'users' => $users]);
     }
 
     public function open(OpenCashShiftRequest $request): RedirectResponse
     {
         $this->cash->open((float) $request->validated('opening_balance'), $request->user()?->getKey());
+
         return back()->with('status', 'Смена открыта');
     }
 
     public function transaction(StoreCashTransactionRequest $request): RedirectResponse
     {
         $this->cash->transact($request->validated(), $request->user()?->getKey());
+
         return back()->with('status', 'Операция проведена');
     }
 
@@ -80,6 +82,7 @@ class CashRegisterController extends Controller
     public function xReport(): View
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->firstOrFail();
+
         return view('cash-register.report', ['shift' => $shift, 'totals' => $this->cash->totals($shift), 'reportType' => 'X']);
     }
 
@@ -91,6 +94,7 @@ class CashRegisterController extends Controller
         }
 
         $shift = $this->cash->close($cashShift, request()->user()?->getKey());
+
         return redirect()->route('cash-register.z-report', $shift);
     }
 

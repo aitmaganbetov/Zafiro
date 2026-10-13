@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\ClubZone;
 use App\Models\ClubComputer;
+use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;

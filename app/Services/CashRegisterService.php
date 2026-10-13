@@ -7,7 +7,6 @@ use App\Models\CashTransaction;
 use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
-use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,13 +18,17 @@ class CashRegisterService
     {
         return DB::transaction(function () use ($items, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
-            if (! $shift) throw ValidationException::withMessages(['items' => 'Сначала откройте смену.']);
+            if (! $shift) {
+                throw ValidationException::withMessages(['items' => 'Сначала откройте смену.']);
+            }
             $total = 0.0;
             $receiptItems = [];
             foreach ($items as $item) {
                 $product = Product::query()->lockForUpdate()->findOrFail($item['product_id']);
                 $quantity = (int) $item['quantity'];
-                if ($quantity > $product->quantity) throw ValidationException::withMessages(['items' => "Недостаточно товара: {$product->name}."]);
+                if ($quantity > $product->quantity) {
+                    throw ValidationException::withMessages(['items' => "Недостаточно товара: {$product->name}."]);
+                }
                 $total += (float) $product->price * $quantity;
                 $receiptItems[] = [
                     'name' => $product->name,
@@ -35,7 +38,7 @@ class CashRegisterService
                 ];
                 $product->decrement('quantity', $quantity);
                 $balanceAfter = $product->refresh()->quantity;
-                StockMovement::create(['product_id'=>$product->id,'user_id'=>$userId,'type'=>StockMovement::TYPE_WRITE_OFF,'quantity'=>$quantity,'balance_after'=>$balanceAfter,'note'=>'Продажа POS']);
+                StockMovement::create(['product_id' => $product->id, 'user_id' => $userId, 'type' => StockMovement::TYPE_WRITE_OFF, 'quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
                 $this->activity->record('stock.written_off', "Списание при продаже: {$product->name}, {$quantity} шт.", $userId, $product, ['quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Продажа POS']);
             }
             $transaction = $shift->transactions()->create([
@@ -112,8 +115,12 @@ class CashRegisterService
     {
         return DB::transaction(function () use ($data, $userId) {
             $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
-            if (! $shift) throw ValidationException::withMessages(['amount' => 'Сначала откройте смену.']);
-            if ($data['type'] === CashTransaction::TYPE_EXPENSE && (float) $data['amount'] > $this->balance($shift)) throw ValidationException::withMessages(['amount' => 'В кассе недостаточно средств.']);
+            if (! $shift) {
+                throw ValidationException::withMessages(['amount' => 'Сначала откройте смену.']);
+            }
+            if ($data['type'] === CashTransaction::TYPE_EXPENSE && (float) $data['amount'] > $this->balance($shift)) {
+                throw ValidationException::withMessages(['amount' => 'В кассе недостаточно средств.']);
+            }
             $transaction = $shift->transactions()->create($data + ['user_id' => $userId]);
             $isIncome = $transaction->type === CashTransaction::TYPE_INCOME;
             $this->activity->record(
@@ -132,7 +139,9 @@ class CashRegisterService
     {
         return DB::transaction(function () use ($shift, $userId) {
             $shift = CashShift::query()->lockForUpdate()->findOrFail($shift->id);
-            if ($shift->status !== CashShift::STATUS_OPEN) throw ValidationException::withMessages(['shift' => 'Смена уже закрыта.']);
+            if ($shift->status !== CashShift::STATUS_OPEN) {
+                throw ValidationException::withMessages(['shift' => 'Смена уже закрыта.']);
+            }
             $shift->update(['closed_by' => $userId, 'status' => CashShift::STATUS_CLOSED, 'open_marker' => null, 'closing_balance' => $this->balance($shift), 'closed_at' => now()]);
             $this->activity->record('cash.shift_closed', 'Закрыта кассовая смена', $userId, $shift, ['closing_balance' => (float) $shift->closing_balance]);
 
@@ -144,8 +153,12 @@ class CashRegisterService
     {
         $income = (float) $shift->transactions()->where('type', CashTransaction::TYPE_INCOME)->sum('amount');
         $expense = (float) $shift->transactions()->where('type', CashTransaction::TYPE_EXPENSE)->sum('amount');
+
         return ['income' => $income, 'expense' => $expense, 'balance' => (float) $shift->opening_balance + $income - $expense];
     }
 
-    private function balance(CashShift $shift): float { return $this->totals($shift)['balance']; }
+    private function balance(CashShift $shift): float
+    {
+        return $this->totals($shift)['balance'];
+    }
 }

@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\CashRegisterController;
-use App\Http\Controllers\ClubController;
-use App\Http\Controllers\ClubInvitationController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingController;
-use App\Http\Controllers\ClubZoneController;
+use App\Http\Controllers\CashRegisterController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\ClubComputerListController;
+use App\Http\Controllers\ClubController;
+use App\Http\Controllers\ClubInvitationController;
+use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductCategoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\TariffController;
 use App\Http\Controllers\UserController;

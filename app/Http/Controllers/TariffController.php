@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTariffRequest;
-use App\Models\Tariff;
 use App\Models\ClubZone;
+use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Services\CurrentClub;
 use App\Models\Concerns\BelongsToClub;
+use App\Services\CurrentClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;

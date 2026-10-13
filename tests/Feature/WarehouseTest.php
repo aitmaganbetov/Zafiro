@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\User;
-use App\Services\CurrentClub;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockMovement;
+use App\Models\User;
+use App\Services\CurrentClub;
 use Database\Seeders\ProductSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 

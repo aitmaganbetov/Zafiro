@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\CurrentClub;
 use App\Http\Requests\StoreClubZoneRequest;
-use App\Http\Requests\UpdateClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
+use App\Http\Requests\UpdateClubZoneRequest;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Services\ClubZoneLayoutService;
-use Illuminate\Http\RedirectResponse;
+use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ClubZoneController extends Controller
@@ -36,6 +36,7 @@ class ClubZoneController extends Controller
             'position_y' => 20 + ($offset % 180),
         ]);
         $zone->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+
         return back()->with('status', 'Зона добавлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
@@ -46,6 +47,7 @@ class ClubZoneController extends Controller
         unset($data['tariff_ids']);
         $clubMap->update($data);
         $clubMap->tariffs()->syncWithPivotValues($tariffIds, ['club_id' => $this->currentClub->id()]);
+
         return back()->with('status', 'Зона обновлена.')->with('edit_mode', $request->boolean('edit_mode'));
     }
 
@@ -64,9 +66,9 @@ class ClubZoneController extends Controller
             ->whereKeyNot($clubMap->getKey())
             ->get(['position_x', 'position_y', 'width', 'height'])
             ->contains(fn (ClubZone $zone): bool => $layout['position_x'] < $zone->position_x + $zone->width + $gap
-                && $layout['position_x'] + $layout['width'] + $gap > $zone->position_x
+                && $zone->position_x < $layout['position_x'] + $layout['width'] + $gap
                 && $layout['position_y'] < $zone->position_y + $zone->height + $gap
-                && $layout['position_y'] + $layout['height'] + $gap > $zone->position_y);
+                && $zone->position_y < $layout['position_y'] + $layout['height'] + $gap);
 
         if ($overlaps) {
             return response()->json(['message' => 'Карточки залов не могут пересекаться.'], 409);

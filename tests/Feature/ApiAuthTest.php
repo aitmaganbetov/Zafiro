@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\User;
 use App\Models\MemberBalance;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 

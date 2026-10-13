@@ -1,12 +1,12 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
-use App\Models\ActivityLog;
+use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Models\MemberBalance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -20,17 +20,17 @@ test('cash shift can be opened and only one can remain open', function () {
 
 test('cash operations are included in X report', function () {
     $user = User::factory()->create();
-    CashShift::create(['opened_by'=>$user->id,'status'=>'open','open_marker'=>true,'opening_balance'=>10000,'opened_at'=>now()]);
-    $this->actingAs($user)->post('/cash-register/transactions', ['type'=>'income','amount'=>3000,'description'=>'Продажа'])->assertRedirect();
-    $this->actingAs($user)->post('/cash-register/transactions', ['type'=>'expense','amount'=>1000,'description'=>'Расход'])->assertRedirect();
+    CashShift::create(['opened_by' => $user->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 10000, 'opened_at' => now()]);
+    $this->actingAs($user)->post('/cash-register/transactions', ['type' => 'income', 'amount' => 3000, 'description' => 'Продажа'])->assertRedirect();
+    $this->actingAs($user)->post('/cash-register/transactions', ['type' => 'expense', 'amount' => 1000, 'description' => 'Расход'])->assertRedirect();
     expect(CashTransaction::count())->toBe(2);
     $this->actingAs($user)->get('/cash-register/reports/x')->assertSuccessful()->assertSee('12 000,00 KZT');
 });
 
 test('Z report must be printed before the shift can be closed', function () {
     $user = User::factory()->create();
-    $shift = CashShift::create(['opened_by'=>$user->id,'status'=>'open','open_marker'=>true,'opening_balance'=>5000,'opened_at'=>now()]);
-    $shift->transactions()->create(['user_id'=>$user->id,'type'=>'income','amount'=>2000,'description'=>'Продажа']);
+    $shift = CashShift::create(['opened_by' => $user->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 5000, 'opened_at' => now()]);
+    $shift->transactions()->create(['user_id' => $user->id, 'type' => 'income', 'amount' => 2000, 'description' => 'Продажа']);
 
     $this->actingAs($user)->post("/cash-register/shifts/{$shift->id}/close")
         ->assertRedirect(route('cash-register.z-report', $shift))
@@ -49,11 +49,11 @@ test('Z report must be printed before the shift can be closed', function () {
 
 test('POS sale writes off products and records cash income', function () {
     $user = User::factory()->create();
-    CashShift::create(['opened_by'=>$user->id,'status'=>'open','open_marker'=>true,'opening_balance'=>0,'opened_at'=>now()]);
-    $product = Product::factory()->create(['price'=>750,'quantity'=>5]);
+    CashShift::create(['opened_by' => $user->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
+    $product = Product::factory()->create(['price' => 750, 'quantity' => 5]);
 
-    $response = $this->actingAs($user)->post('/cash-register/sales', ['items'=>[
-        ['product_id'=>$product->id,'quantity'=>2],
+    $response = $this->actingAs($user)->post('/cash-register/sales', ['items' => [
+        ['product_id' => $product->id, 'quantity' => 2],
     ]]);
 
     $transaction = CashTransaction::query()->first();
@@ -71,8 +71,8 @@ test('POS sale writes off products and records cash income', function () {
 
 test('POS page displays products when shift is open', function () {
     $user = User::factory()->create();
-    CashShift::create(['opened_by'=>$user->id,'status'=>'open','open_marker'=>true,'opening_balance'=>0,'opened_at'=>now()]);
-    Product::factory()->create(['name'=>'POS Test Product','quantity'=>2]);
+    CashShift::create(['opened_by' => $user->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
+    Product::factory()->create(['name' => 'POS Test Product', 'quantity' => 2]);
     $this->actingAs($user)->get('/cash-register')
         ->assertSuccessful()
         ->assertSee('POS Test Product')

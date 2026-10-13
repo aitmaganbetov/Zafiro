@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ClubInstallationController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 

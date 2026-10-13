@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Club;
 use App\Models\MemberBalance;
 use App\Models\SaasPlan;
-use App\Models\ClubSubscription;
-use App\Services\CurrentClub;
+use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\CurrentClub;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 

@@ -3,7 +3,6 @@
 use App\Models\Club;
 use App\Models\SaasPlan;
 use App\Models\User;
-use App\Services\ClubInstallationKey;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 

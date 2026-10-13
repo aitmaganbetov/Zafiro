@@ -2,9 +2,8 @@
 
 use App\Models\Club;
 use App\Models\ClubMembership;
-use App\Models\SaasPlan;
-use App\Models\MemberBalance;
 use App\Models\Product;
+use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;

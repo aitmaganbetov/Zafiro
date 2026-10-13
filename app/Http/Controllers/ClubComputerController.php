@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ControlClubComputersRequest;
 use App\Http\Requests\HeartbeatClubComputerRequest;
-use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\RegisterClubComputerRequest;
+use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\UpdateClubComputerLayoutRequest;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
-use App\Services\ClubZoneComputerService;
-use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerRegistrar;
-use Illuminate\Support\Facades\Gate;
+use App\Services\ClubComputerResolver;
+use App\Services\ClubZoneComputerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 
 class ClubComputerController extends Controller
 {

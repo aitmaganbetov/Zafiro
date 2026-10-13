@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use App\Services\CurrentClub;
 use App\Models\Concerns\BelongsToClub;
+use App\Services\CurrentClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'description', 'capacity', 'icon', 'theme', 'status', 'is_featured', 'sort_order', 'position_x', 'position_y', 'width', 'height', 'rotation'])]
 class ClubZone extends Model

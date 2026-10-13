@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['product_id', 'user_id', 'type', 'quantity', 'balance_after', 'note'])]
 class StockMovement extends Model

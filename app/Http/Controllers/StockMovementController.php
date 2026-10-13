@@ -11,8 +11,7 @@ class StockMovementController extends Controller
     public function __invoke(
         StoreStockMovementRequest $request,
         AdjustStockAction $adjustStock,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $adjustStock->handle($request->validated(), $request->user()?->getKey());
 
         return back()->with('status', 'Складская операция выполнена');

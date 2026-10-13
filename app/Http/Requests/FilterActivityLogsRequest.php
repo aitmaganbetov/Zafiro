@@ -3,10 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Models\ActivityLog;
+use App\Models\ClubMembership;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Models\ClubMembership;
 
 class FilterActivityLogsRequest extends FormRequest
 {

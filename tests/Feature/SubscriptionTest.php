@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Club;
-use App\Models\ClubSubscription;
+use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +31,7 @@ test('expired clubs are sent to billing and cannot issue api tokens', function (
     $club = Club::query()->create(['name' => 'Expired Club', 'slug' => 'expired-club']);
     app(CurrentClub::class)->set($club);
     $user = User::factory()->create(['phone' => '+77001234567']);
-    $plan = App\Models\SaasPlan::query()->firstOrCreate(
+    $plan = SaasPlan::query()->firstOrCreate(
         ['slug' => 'trial'],
         ['name' => 'Пробный период', 'trial_days' => 14, 'is_active' => true],
     );

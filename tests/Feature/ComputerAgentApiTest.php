@@ -2,6 +2,7 @@
 
 use App\Models\Club;
 use App\Models\ClubComputer;
+use App\Models\ClubSubscription;
 use App\Models\ClubZone;
 use App\Models\SaasPlan;
 use App\Models\User;
@@ -53,7 +54,7 @@ test('computer resolution requires a token and an active club subscription', fun
 
     $user = User::factory()->create();
     $clubId = app(CurrentClub::class)->id();
-    \App\Models\ClubSubscription::query()->where('club_id', $clubId)->update([
+    ClubSubscription::query()->where('club_id', $clubId)->update([
         'status' => 'trialing',
         'trial_ends_at' => now()->subSecond(),
     ]);
@@ -256,7 +257,7 @@ test('registration respects inactive subscriptions and plan computer limits', fu
     $user = User::factory()->create();
     $clubId = $user->currentMembership()->value('club_id');
     $token = $user->createToken('agent', ['club:'.$clubId])->plainTextToken;
-    $subscription = \App\Models\ClubSubscription::query()->where('club_id', $clubId)->firstOrFail();
+    $subscription = ClubSubscription::query()->where('club_id', $clubId)->firstOrFail();
     app(CurrentClub::class)->clear();
 
     $subscription->update(['status' => 'trialing', 'trial_ends_at' => now()->subSecond()]);

@@ -71,11 +71,11 @@ return new class extends Migration
             $table->foreign(['club_id', 'tariff_id'], 'club_zone_tariff_tariff_fk')
                 ->references(['club_id', 'id'])->on('tariffs')->cascadeOnDelete();
         });
-            Schema::table('activity_logs', function (Blueprint $table): void {
-                $table->dropForeign('activity_logs_user_id_foreign');
-                $table->foreign(['club_id', 'user_id'], 'activity_logs_club_user_fk')
+        Schema::table('activity_logs', function (Blueprint $table): void {
+            $table->dropForeign('activity_logs_user_id_foreign');
+            $table->foreign(['club_id', 'user_id'], 'activity_logs_club_user_fk')
                 ->references(['club_id', 'user_id'])->on('club_memberships');
-            });
+        });
     }
 
     /**

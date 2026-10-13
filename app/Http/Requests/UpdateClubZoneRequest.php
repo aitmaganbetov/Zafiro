@@ -2,6 +2,4 @@
 
 namespace App\Http\Requests;
 
-class UpdateClubZoneRequest extends StoreClubZoneRequest
-{
-}
+class UpdateClubZoneRequest extends StoreClubZoneRequest {}

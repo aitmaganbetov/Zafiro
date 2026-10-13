@@ -15,7 +15,7 @@ class ClubComputerRegistrar
     public function __construct(private CurrentClub $currentClub) {}
 
     /** @param array{device_name:string, device_id?:?string, mac_address?:?string, zone_id?:?int} $data
-     *  @return array{computer:ClubComputer, created:bool}
+     * @return array{computer:ClubComputer, created:bool}
      */
     public function register(array $data): array
     {

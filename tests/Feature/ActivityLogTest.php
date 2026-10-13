@@ -1,8 +1,6 @@
 <?php
 
 use App\Models\ActivityLog;
-use App\Models\CashShift;
-use App\Models\ClubZone;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;

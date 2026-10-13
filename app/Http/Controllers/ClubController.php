@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClubMembership;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class ClubController extends Controller
 {

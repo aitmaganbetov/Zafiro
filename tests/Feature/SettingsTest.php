@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,7 +28,7 @@ test('club settings can be saved and reused on the next request', function () {
     $response->assertRedirect();
     $response->assertSessionHas('status', 'Настройки сохранены');
 
-    $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+    $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
     expect($settings['club']['session_idle_timeout'])->toBe(20);
     expect($settings['club']['pc_restart_after_session_end'])->toBe(0.75);
@@ -51,7 +52,7 @@ test('finance currency setting can be selected', function () {
             'currency' => $currency,
         ])->assertRedirect();
 
-        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+        $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['finances']['currency'])->toBe($currency);
     }
@@ -73,7 +74,7 @@ test('guest login QR code setting is saved as a boolean', function () {
             'show_qr_code_on_login' => $value,
         ])->assertRedirect();
 
-        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+        $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['show_qr_code_on_login'])->toBe($expected);
     }
@@ -95,7 +96,7 @@ test('guest self transfer setting is saved as a boolean', function () {
             'allow_guest_self_transfer' => $value,
         ])->assertRedirect();
 
-        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+        $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_guest_self_transfer'])->toBe($expected);
     }
@@ -117,7 +118,7 @@ test('adding friends setting is saved as a boolean', function () {
             'allow_adding_friends' => $value,
         ])->assertRedirect();
 
-        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+        $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_adding_friends'])->toBe($expected);
     }
@@ -139,7 +140,7 @@ test('balance transfer to friends setting is saved as a boolean', function () {
             'allow_balance_transfer_to_friends' => $value,
         ])->assertRedirect();
 
-        $settings = app(\App\Services\CurrentClub::class)->get()->fresh()->settings;
+        $settings = app(CurrentClub::class)->get()->fresh()->settings;
 
         expect($settings['guests']['allow_balance_transfer_to_friends'])->toBe($expected);
     }

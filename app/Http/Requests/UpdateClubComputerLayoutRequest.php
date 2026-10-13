@@ -20,5 +20,4 @@ class UpdateClubComputerLayoutRequest extends FormRequest
             'position_y' => ['required', 'integer', 'min:0', 'max:5000'],
         ];
     }
-
 }
