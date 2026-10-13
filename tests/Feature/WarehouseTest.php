@@ -131,6 +131,6 @@ test('mobile API returns paginated products with image and stock data', function
         ->assertJsonPath('data.0.currency', 'KZT')
         ->assertJsonPath('data.0.quantity', 5)
         ->assertJsonPath('data.0.in_stock', true)
-        ->assertJsonPath('data.0.image_url', 'http://localhost:8000/images/product-placeholder.svg')
+        ->assertJsonPath('data.0.image_url', config('app.url').'/images/product-placeholder.svg')
         ->assertJsonPath('meta.total', 1);
 });
