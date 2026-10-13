@@ -34,7 +34,7 @@ test('a manager switches the club language and the interface follows', function 
     expect(currentClub()->locale)->toBe('kk')
         ->and(ActivityLog::query()->where('event', 'club.language_changed')->value('details'))->toBe(['from' => 'ru', 'to' => 'kk']);
 
-    $this->get(route('settings.club'))->assertSee('Интерфейс тілі')->assertSee('<html lang="kk">', false);
+    $this->get(route('settings.languages'))->assertSee('Интерфейс тілі')->assertSee('<html lang="kk">', false);
 });
 
 test('a disabled or unknown language cannot be selected', function () {
@@ -87,7 +87,7 @@ test('deleting a custom language moves its clubs back to the default language', 
     $uz = Language::query()->create(['code' => 'uz', 'name' => 'Oʻzbekcha', 'is_enabled' => true]);
     currentClub()->forceFill(['locale' => 'uz'])->save();
 
-    $this->actingAs($owner)->delete(route('languages.destroy', $uz))->assertRedirect(route('settings.club'));
+    $this->actingAs($owner)->delete(route('languages.destroy', $uz))->assertRedirect(route('settings.languages'));
 
     expect(Language::query()->where('code', 'uz')->exists())->toBeFalse()
         ->and(currentClub()->locale)->toBeNull();
@@ -101,3 +101,16 @@ test('only owners and admins manage languages', function (string $role) {
     $this->get(route('languages.translations', $kk))->assertForbidden();
     $this->patch(route('languages.update', $kk), ['is_enabled' => 0])->assertForbidden();
 })->with(['manager', 'cashier']);
+
+test('languages have their own settings tab', function () {
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->get(route('settings.languages'))
+        ->assertOk()
+        ->assertSee(__('Язык интерфейса'))
+        ->assertSee(__('Добавить язык'));
+    $this->get(route('settings.club'))
+        ->assertOk()
+        ->assertSee(route('settings.languages'))
+        ->assertDontSee(__('Добавить язык'));
+});

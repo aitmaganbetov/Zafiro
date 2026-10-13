@@ -70,6 +70,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/warehouse/categories', ProductCategoryController::class)->name('warehouse.categories.store');
         Route::get('/settings', fn () => redirect()->route('settings.club'))->name('settings');
         Route::get('/settings/club', [SettingsController::class, 'club'])->name('settings.club');
+        Route::get('/settings/languages', [SettingsController::class, 'languages'])->name('settings.languages');
         Route::get('/settings/finances', [SettingsController::class, 'finances'])->name('settings.finances');
         Route::get('/settings/guests', [SettingsController::class, 'guests'])->name('settings.guests');
         Route::get('/settings/api', [SettingsController::class, 'api'])->name('settings.api');

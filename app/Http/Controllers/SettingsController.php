@@ -16,12 +16,16 @@ class SettingsController extends Controller
 {
     public function __construct(private CurrentClub $currentClub) {}
 
-    public function club(TranslationCatalog $catalog, LocaleResolver $locales)
+    public function club()
+    {
+        return view('settings.club', ['settings' => $this->loadSettings()]);
+    }
+
+    public function languages(TranslationCatalog $catalog, LocaleResolver $locales)
     {
         $translated = Translation::query()->selectRaw('language_id, count(*) as aggregate')->groupBy('language_id')->pluck('aggregate', 'language_id');
 
-        return view('settings.club', [
-            'settings' => $this->loadSettings(),
+        return view('settings.languages', [
             'languages' => Language::query()->orderBy('sort_order')->orderBy('id')->get()
                 ->each(fn (Language $language) => $language->setAttribute('translated_count', (int) ($translated[$language->id] ?? 0))),
             'clubLocale' => $locales->forClub($this->currentClub->get()),

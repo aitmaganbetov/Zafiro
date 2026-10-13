@@ -2749,6 +2749,8 @@ body {
     display: flex;
     width: 248px;
     height: 100vh;
+    /* the visible height on phones, so the footer with "log out" is not hidden behind browser bars */
+    height: 100dvh;
     flex: 0 0 248px;
     flex-direction: column;
     background: #101713;
@@ -2855,7 +2857,8 @@ body {
     justify-content: space-between;
     gap: 8px;
     border-top: 1px solid #263029;
-    padding: 12px
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom))
 }
 
 .sidebar-user-mini {

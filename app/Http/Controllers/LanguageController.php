@@ -114,7 +114,7 @@ class LanguageController extends Controller
         });
         $this->catalog->flush();
 
-        return redirect()->route('settings.club')->with('status', __('Язык удалён.'));
+        return redirect()->route('settings.languages')->with('status', __('Язык удалён.'));
     }
 
     public function translations(Request $request, Language $language): View

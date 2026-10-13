@@ -6,7 +6,7 @@
 <div class="p-6 lg:p-8">
     <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-            <a href="{{ route('settings.club') }}" class="text-sm text-gray-600 hover:underline">{{ __('← Настройки клуба') }}</a>
+            <a href="{{ route('settings.languages') }}" class="text-sm text-gray-600 hover:underline">{{ __('← Языки') }}</a>
             <h3 class="mt-2 text-2xl font-bold text-gray-900">{{ __('Переводы: :name', ['name' => $language->name]) }} <span class="font-mono text-base text-gray-500">({{ $language->code }})</span></h3>
             <p class="mt-1 text-sm text-gray-600">{{ __('Переведено :translated из :total. Пустое поле — используется английский текст, а если его нет — русский.', ['translated' => $translated, 'total' => $total]) }}</p>
         </div>
