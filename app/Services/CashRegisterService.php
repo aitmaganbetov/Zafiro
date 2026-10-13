@@ -151,8 +151,15 @@ class CashRegisterService
 
     public function totals(CashShift $shift): array
     {
-        $income = (float) $shift->transactions()->where('type', CashTransaction::TYPE_INCOME)->sum('amount');
-        $expense = (float) $shift->transactions()->where('type', CashTransaction::TYPE_EXPENSE)->sum('amount');
+        $sums = $shift->transactions()
+            ->selectRaw(
+                'SUM(CASE WHEN type = ? THEN amount ELSE 0 END) as income, SUM(CASE WHEN type = ? THEN amount ELSE 0 END) as expense',
+                [CashTransaction::TYPE_INCOME, CashTransaction::TYPE_EXPENSE],
+            )
+            ->toBase()
+            ->first();
+        $income = (float) $sums->income;
+        $expense = (float) $sums->expense;
 
         return ['income' => $income, 'expense' => $expense, 'balance' => (float) $shift->opening_balance + $income - $expense];
     }
