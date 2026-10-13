@@ -23,7 +23,7 @@ class CashRegisterController extends Controller
 
     public function index(): View
     {
-        $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->with(['transactions' => fn ($q) => $q->latest()])->first();
+        $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->first();
         $products = Product::query()->select(['id', 'name', 'category', 'price', 'quantity'])->where('quantity', '>', 0)->orderBy('name')->get();
         $users = User::query()
             ->whereHas('currentMembership')
