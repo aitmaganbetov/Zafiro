@@ -1,5 +1,5 @@
 <aside id="adminSidebar" class="sidebar">
-    <div class="sidebar-brand"><img class="sidebar-brand-mark" src="{{ asset('images/logo.svg') }}" alt=""><div><strong>Zafiro</strong><small>Управление клубом</small></div></div>
+    <div class="sidebar-brand"><img class="sidebar-brand-mark" src="{{ asset('images/logo.svg') }}" alt=""><div><strong>Zafiro</strong><small>Управление клубом</small></div><button type="button" class="sidebar-close" data-sidebar-close aria-label="Закрыть меню"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
     <nav class="sidebar-nav">
         <span class="sidebar-label">Рабочее пространство</span>
         <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="fas fa-chart-pie"></i><span>Админпанель</span></a>

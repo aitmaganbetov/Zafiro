@@ -12,11 +12,12 @@
 <body class="admin-body dark:bg-gray-950">
     <div class="overlay" id="overlay"></div>
     <div class="admin-app">
+        <script>try{if(localStorage.getItem('zafiro.sidebarCollapsed')==='1'&&!matchMedia('(max-width: 768px)').matches)document.currentScript.parentElement.classList.add('sidebar-collapsed')}catch(e){}</script>
         @include('partials.sidebar')
         <main class="admin-main">
             <header class="admin-topbar">
                 <div class="admin-topbar-inner">
-                    <div class="admin-title-wrap"><button id="sidebarToggle" class="admin-mobile-toggle" aria-label="Открыть меню"><i class="fas fa-bars"></i></button><h2 class="admin-title">@yield('page-title', 'Панель управления')</h2></div>
+                    <div class="admin-title-wrap"><button type="button" id="sidebarToggle" class="admin-mobile-toggle" aria-label="Показать меню" aria-controls="adminSidebar" aria-expanded="false"><i class="fas fa-bars"></i></button><h2 class="admin-title">@yield('page-title', 'Панель управления')</h2></div>
                     <div class="admin-topbar-actions">
                         @if(($availableClubs ?? collect())->count() > 1)
                             <form method="POST" action="{{ route('clubs.switch') }}">@csrf
@@ -79,7 +80,36 @@
         })();
     </script>
     <script>
-        (()=>{const sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('overlay'),toggle=document.getElementById('sidebarToggle'),userButton=document.getElementById('userMenuBtn'),userMenu=document.getElementById('userMenu');const closeSidebar=()=>{sidebar?.classList.remove('active');overlay?.classList.remove('active')};toggle?.addEventListener('click',()=>{sidebar?.classList.toggle('active');overlay?.classList.toggle('active')});overlay?.addEventListener('click',closeSidebar);userButton?.addEventListener('click',event=>{event.stopPropagation();userMenu?.classList.toggle('active')});document.addEventListener('click',event=>{if(!event.target.closest('.admin-user'))userMenu?.classList.remove('active')});document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeSidebar();userMenu?.classList.remove('active')}})})();
+        (()=>{
+            const app=document.querySelector('.admin-app'),sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('overlay'),toggle=document.getElementById('sidebarToggle');
+            if(!app||!sidebar||!toggle)return;
+            const mobile=matchMedia('(max-width: 768px)'),key='zafiro.sidebarCollapsed';
+            const sync=()=>{
+                const open=mobile.matches?sidebar.classList.contains('active'):!app.classList.contains('sidebar-collapsed');
+                toggle.setAttribute('aria-expanded',String(open));
+                toggle.setAttribute('aria-label',open?'Скрыть меню':'Показать меню');
+            };
+            const closeDrawer=()=>{sidebar.classList.remove('active');overlay?.classList.remove('active');sync();};
+            toggle.addEventListener('click',()=>{
+                if(mobile.matches){
+                    const open=!sidebar.classList.contains('active');
+                    sidebar.classList.toggle('active',open);overlay?.classList.toggle('active',open);
+                }else{
+                    const collapsed=app.classList.toggle('sidebar-collapsed');
+                    try{localStorage.setItem(key,collapsed?'1':'0');}catch(e){}
+                }
+                sync();
+            });
+            overlay?.addEventListener('click',closeDrawer);
+            sidebar.querySelector('[data-sidebar-close]')?.addEventListener('click',()=>{closeDrawer();toggle.focus();});
+            document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&sidebar.classList.contains('active')){closeDrawer();toggle.focus();}});
+            mobile.addEventListener('change',()=>{
+                closeDrawer();
+                let collapsed=false;try{collapsed=localStorage.getItem(key)==='1';}catch(e){}
+                app.classList.toggle('sidebar-collapsed',collapsed&&!mobile.matches);sync();
+            });
+            sync();
+        })();
     </script>
 </body>
 </html>
