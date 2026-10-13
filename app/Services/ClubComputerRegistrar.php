@@ -26,11 +26,7 @@ class ClubComputerRegistrar
                     ->findOrFail($this->currentClub->id());
                 $deviceId = $data['device_id'] ?? null;
 
-                $existing = $deviceId !== null && $deviceId !== ''
-                    ? ClubComputer::query()->where('device_id', $deviceId)->first()
-                    : ClubComputer::query()
-                        ->whereRaw('LOWER(device_name) = ?', [mb_strtolower($data['device_name'])])
-                        ->first();
+                $existing = $this->findExisting($data);
 
                 if ($existing !== null) {
                     return ['computer' => $existing->load('zone'), 'created' => false];
@@ -64,11 +60,7 @@ class ClubComputerRegistrar
                 throw $exception;
             }
 
-            $existing = isset($data['device_id']) && $data['device_id'] !== ''
-                ? ClubComputer::query()->where('device_id', $data['device_id'])->first()
-                : ClubComputer::query()
-                    ->whereRaw('LOWER(device_name) = ?', [mb_strtolower($data['device_name'])])
-                    ->first();
+            $existing = $this->findExisting($data);
 
             if ($existing !== null) {
                 return ['computer' => $existing->load('zone'), 'created' => false];
@@ -76,6 +68,18 @@ class ClubComputerRegistrar
 
             throw new ConflictHttpException('Этот device_id уже зарегистрирован.', $exception);
         }
+    }
+
+    /** @param array{device_name:string, device_id?:?string} $data */
+    private function findExisting(array $data): ?ClubComputer
+    {
+        $deviceId = $data['device_id'] ?? null;
+
+        return $deviceId !== null && $deviceId !== ''
+            ? ClubComputer::query()->where('device_id', $deviceId)->first()
+            : ClubComputer::query()
+                ->whereRaw('LOWER(device_name) = ?', [mb_strtolower($data['device_name'])])
+                ->first();
     }
 
     private function defaultZone(): ClubZone
