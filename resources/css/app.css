@@ -1895,7 +1895,7 @@ body {
 
 /* Keep the bottom of the map reachable while the floating control panel is shown */
 .admin-content:has(.cm-control-panel.show) {
-    padding-bottom: 96px
+    padding-bottom: 128px
 }
 
 @media(max-width:767px) {
@@ -3582,4 +3582,10 @@ select[multiple] option {
         flex-direction: column;
         padding: 12px 8px
     }
+}
+
+/* Report amounts stay on one line in every language */
+.report-metric strong,
+.report-total strong {
+    white-space: nowrap
 }
