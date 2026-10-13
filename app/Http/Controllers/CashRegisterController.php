@@ -11,6 +11,7 @@ use App\Models\CashTransaction;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CashRegisterService;
+use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,15 +22,18 @@ class CashRegisterController extends Controller
 {
     public function __construct(private CashRegisterService $cash) {}
 
-    public function index(): View
+    public function index(CurrentClub $currentClub): View
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->first();
         $products = Product::query()->select(['id', 'name', 'category', 'price', 'quantity'])->where('quantity', '>', 0)->orderBy('name')->get();
+        $clubId = $currentClub->id();
         $users = User::query()
-            ->whereHas('currentMembership')
-            ->with('currentMembership.balance')
-            ->orderBy('name')
-            ->get(['id', 'name', 'phone']);
+            ->join('club_memberships', fn ($join) => $join->on('club_memberships.user_id', '=', 'users.id')
+                ->where('club_memberships.club_id', $clubId))
+            ->leftJoin('member_balances', fn ($join) => $join->on('member_balances.user_id', '=', 'users.id')
+                ->where('member_balances.club_id', $clubId))
+            ->orderBy('users.name')
+            ->get(['users.id', 'users.name', 'users.phone', 'member_balances.balance', 'member_balances.bonus_balance']);
 
         return view('cash-register.index', ['shift' => $shift, 'totals' => $shift ? $this->cash->totals($shift) : null, 'products' => $products, 'users' => $users]);
     }

@@ -3,11 +3,13 @@
 use App\Models\ActivityLog;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\Club;
 use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -136,4 +138,30 @@ test('balance top-up validates user, amount, account, and payment method', funct
     ])->assertSessionHasErrors(['user_id', 'amount', 'balance_type', 'payment_method']);
 
     expect(CashTransaction::query()->count())->toBe(0);
+});
+
+test('balance top-up picker lists only current club members with their balances', function () {
+    $cashier = User::factory()->create(['name' => 'Касса']);
+    $customer = User::factory()->create(['name' => 'Алия']);
+    MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 1500, 'bonus_balance' => 40]);
+    $otherClub = Club::query()->create(['name' => 'Чужой клуб', 'slug' => 'other-club']);
+    $outsider = User::query()->create(['name' => 'Посторонний', 'phone' => '+77000000999', 'password' => 'secret123']);
+    foreach ([$outsider->id => 9999, $customer->id => 7777] as $userId => $balance) {
+        DB::table('club_memberships')->insert(['club_id' => $otherClub->id, 'user_id' => $userId, 'role' => 'owner', 'discount' => 0]);
+        DB::table('member_balances')->insert(['club_id' => $otherClub->id, 'user_id' => $userId, 'balance' => $balance, 'bonus_balance' => 0]);
+    }
+    CashShift::query()->create([
+        'opened_by' => $cashier->id,
+        'status' => 'open',
+        'open_marker' => true,
+        'opening_balance' => 0,
+        'opened_at' => now(),
+    ]);
+
+    $this->actingAs($cashier)->get(route('cash-register.index'))
+        ->assertSuccessful()
+        ->assertViewHas('users', fn ($users): bool => $users->pluck('name')->all() === ['Алия', 'Касса'])
+        ->assertSee('Основной 1 500 ₸ · Бонусный 40 ₸')
+        ->assertDontSee('Посторонний')
+        ->assertDontSee('7 777');
 });
