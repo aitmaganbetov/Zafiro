@@ -6,6 +6,7 @@ use App\Http\Requests\FilterActivityLogsRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class ActivityLogController extends Controller
@@ -16,11 +17,11 @@ class ActivityLogController extends Controller
         $query = ActivityLog::query()->with('user:id,name,phone')->latest();
 
         if (! empty($filters['from'])) {
-            $query->whereDate('created_at', '>=', $filters['from']);
+            $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay());
         }
 
         if (! empty($filters['to'])) {
-            $query->whereDate('created_at', '<=', $filters['to']);
+            $query->where('created_at', '<', Carbon::parse($filters['to'])->addDay()->startOfDay());
         }
 
         if (! empty($filters['event'])) {
@@ -41,13 +42,13 @@ class ActivityLogController extends Controller
             });
         }
 
-        $userIds = ActivityLog::query()->whereNotNull('user_id')->distinct()->pluck('user_id');
-
         return view('activity-logs.index', [
             'logs' => $query->paginate(50)->withQueryString(),
             'filters' => $filters,
             'eventLabels' => ActivityLog::EVENT_LABELS,
-            'users' => User::query()->whereKey($userIds)->orderBy('name')->get(['id', 'name', 'phone']),
+            'users' => User::query()
+                ->whereIn('id', ActivityLog::query()->select('user_id')->whereNotNull('user_id'))
+                ->orderBy('name')->get(['id', 'name', 'phone']),
         ]);
     }
 }
