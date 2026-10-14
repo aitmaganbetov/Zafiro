@@ -1,0 +1,177 @@
+using System;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
+using ZafiroAgent.Configuration;
+using ZafiroAgent.Models;
+using ZafiroAgent.Security;
+
+namespace ZafiroAgent.Services
+{
+    /// <summary>
+    /// Установка агента для клуба: resolve по ключу, вход и защищённое хранение настроек.
+    /// Каждый вызов делает не более одной попытки и не переключает клуб автоматически.
+    /// </summary>
+    public sealed class ClubSetupService
+    {
+        private readonly ZafiroApiClient _api;
+        private readonly ConfigurationService _config;
+        private readonly SecureStorageService _secure;
+        private readonly Func<DateTime> _utcNow;
+        private readonly string _deviceName;
+        private readonly SemaphoreSlim _gate = new(1, 1);
+
+        public ClubSetupService(ZafiroApiClient api, ConfigurationService config, SecureStorageService secure, string? deviceName = null, Func<DateTime>? utcNow = null)
+        {
+            _api = api;
+            _config = config;
+            _secure = secure;
+            _deviceName = string.IsNullOrWhiteSpace(deviceName) ? Environment.MachineName : deviceName;
+            _utcNow = utcNow ?? (() => DateTime.UtcNow);
+        }
+
+        public bool IsClubConfigured => IsConfigured(_config.Load());
+
+        public string ClubName => _config.Load().ClubName;
+
+        public string ComputerId => _config.Load().ComputerId;
+
+        public string ComputerNumber => _config.Load().ComputerNumber;
+
+        public string Zone => _config.Load().Zone;
+
+        public async Task<ApiResult<ClubSession>> SetupAsync(string clubKey, string phone, string password, CancellationToken cancellationToken)
+        {
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (IsClubConfigured)
+                    return ApiResult<ClubSession>.Fail(ApiFailure.ClubAlreadyConfigured, "Клуб уже настроен. Сбросьте настройку клуба, чтобы подключить другой.");
+
+                var key = clubKey?.Trim() ?? string.Empty;
+                SafeLog.Register(key);
+                var resolved = await _api.ResolveClubAsync(key, cancellationToken).ConfigureAwait(false);
+                if (!resolved.Success) return ApiResult<ClubSession>.Fail(resolved.Failure, resolved.Message);
+
+                var club = resolved.Value!;
+                var login = await _api.LoginAsync(club, key, phone, password, _deviceName, cancellationToken).ConfigureAwait(false);
+                if (!login.Success) return ApiResult<ClubSession>.Fail(login.Failure, login.Message);
+
+                var cfg = _config.Load();
+                cfg.ClubId = club.ClubId.ToString(CultureInfo.InvariantCulture);
+                cfg.ClubName = login.Value!.ClubName;
+                cfg.ApiBaseUrl = club.ApiBaseUrl.AbsoluteUri;
+                cfg.LoginEndpoint = club.LoginEndpoint.AbsoluteUri;
+                cfg.ProtectedClubKey = _secure.Protect(key);
+                ApplyToken(cfg, login.Value);
+                _config.Save(cfg);
+
+                return ApiResult<ClubSession>.Ok(new ClubSession(club.ClubId, cfg.ClubName, club.ApiBaseUrl, login.Value.Token, login.Value.ExpiresAtUtc));
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        /// <summary>Повторный вход для уже сохранённого клуба (например, после истечения токена).</summary>
+        public async Task<ApiResult<ClubSession>> ReloginAsync(string phone, string password, CancellationToken cancellationToken)
+        {
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var cfg = _config.Load();
+                if (!IsConfigured(cfg))
+                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Клуб не настроен. Введите ключ установки.");
+
+                var key = _secure.Unprotect(cfg.ProtectedClubKey);
+                SafeLog.Register(key);
+                if (string.IsNullOrEmpty(key))
+                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Сохранённый ключ установки недоступен. Настройте клуб заново.");
+
+                if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var savedClubId) ||
+                    !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase) ||
+                    !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.LoginEndpoint, out var loginEndpoint))
+                    return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, "Сохранённые настройки клуба повреждены. Настройте клуб заново.");
+
+                // Сначала проверяем, что ключ не отозван и по-прежнему принадлежит тому же клубу.
+                var resolved = await _api.ResolveClubAsync(key, cancellationToken).ConfigureAwait(false);
+                if (!resolved.Success)
+                {
+                    return resolved.Failure == ApiFailure.InvalidKey
+                        ? ApiResult<ClubSession>.Fail(ApiFailure.KeyRevoked, "Ключ установки недействителен или отозван. Обратитесь к администратору клуба.")
+                        : ApiResult<ClubSession>.Fail(resolved.Failure, resolved.Message);
+                }
+
+                if (resolved.Value!.ClubId != savedClubId)
+                    return ApiResult<ClubSession>.Fail(ApiFailure.ClubMismatch, "Ключ установки теперь относится к другому клубу. Автоматическое переключение запрещено.");
+
+                var club = new ClubInfo(savedClubId, cfg.ClubName, apiBase, loginEndpoint);
+                var login = await _api.LoginAsync(club, key, phone, password, _deviceName, cancellationToken).ConfigureAwait(false);
+                if (!login.Success) return ApiResult<ClubSession>.Fail(login.Failure, login.Message);
+
+                ApplyToken(cfg, login.Value!);
+                _config.Save(cfg);
+
+                return ApiResult<ClubSession>.Ok(new ClubSession(savedClubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        /// <summary>Возвращает сохранённую сессию либо TokenExpired, если нужен повторный вход.</summary>
+        public ApiResult<ClubSession> LoadSession()
+        {
+            var cfg = _config.Load();
+            if (!IsConfigured(cfg))
+                return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Клуб не настроен. Введите ключ установки.");
+
+            if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var clubId) ||
+                !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase))
+                return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, "Сохранённые настройки клуба повреждены. Настройте клуб заново.");
+
+            var token = _secure.Unprotect(cfg.ProtectedApiToken);
+            SafeLog.Register(token);
+            if (string.IsNullOrEmpty(token) || cfg.TokenExpiresAtUtc is not { } expires || expires <= _utcNow())
+                return ApiResult<ClubSession>.Fail(ApiFailure.TokenExpired, "Срок действия входа истёк. Выполните вход повторно.");
+
+            return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, token, expires));
+        }
+
+        /// <summary>Выход пользователя: удаляет токен, клуб и ключ установки остаются.</summary>
+        public void Logout()
+        {
+            _config.Update(cfg =>
+            {
+                cfg.ProtectedApiToken = string.Empty;
+                cfg.TokenExpiresAtUtc = null;
+            });
+        }
+
+        /// <summary>Сброс настройки клуба — только по явному решению пользователя.</summary>
+        public void ResetClub()
+        {
+            var cfg = _config.Load();
+            cfg.ClubId = string.Empty;
+            cfg.ClubName = string.Empty;
+            cfg.ApiBaseUrl = string.Empty;
+            cfg.LoginEndpoint = string.Empty;
+            cfg.ProtectedClubKey = string.Empty;
+            cfg.ProtectedApiToken = string.Empty;
+            cfg.TokenExpiresAtUtc = null;
+            _config.Save(cfg);
+        }
+
+        private void ApplyToken(AgentConfig cfg, ClubLogin login)
+        {
+            SafeLog.Register(login.Token);
+            cfg.ProtectedApiToken = _secure.Protect(login.Token);
+            cfg.TokenExpiresAtUtc = login.ExpiresAtUtc;
+        }
+
+        private static bool IsConfigured(AgentConfig cfg) =>
+            !string.IsNullOrWhiteSpace(cfg.ClubId) && !string.IsNullOrEmpty(cfg.ProtectedClubKey);
+    }
+}

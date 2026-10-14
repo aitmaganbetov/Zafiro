@@ -9,3 +9,6 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Windows agent: Visual Studio expects CRLF in the working copy
+/WindowsAgent/** text eol=crlf

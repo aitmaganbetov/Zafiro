@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\MemberBalance;
+use App\Services\CurrentClub;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,14 +15,14 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         $membership = $this->currentMembership()->first();
-        $clubId = $membership?->club_id ?? app(\App\Services\CurrentClub::class)->id();
+        $clubId = $membership?->club_id ?? app(CurrentClub::class)->id();
         $balance = $clubId !== null
-            ? \App\Models\MemberBalance::query()->withoutGlobalScope('club')
+            ? MemberBalance::query()->withoutGlobalScope('club')
                 ->where('user_id', $this->id)
                 ->where('club_id', $clubId)
                 ->first()
             : null;
-        $currency = data_get(app(\App\Services\CurrentClub::class)->settings(), 'finances.currency', 'KZT');
+        $currency = data_get(app(CurrentClub::class)->settings(), 'finances.currency', 'KZT');
 
         return [
             'id' => $this->id,

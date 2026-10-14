@@ -1,0 +1,118 @@
+# Builds the Windows PC agent (WindowsAgent/, WPF + WebView2, .NET 10).
+# - every push to main and every pull request that touches the agent: build + downloadable artifact
+# - tag agent-vX.Y.Z (e.g. `git tag agent-v1.0.0 && git push origin agent-v1.0.0`): GitHub Release with the zip
+# - manual run from the Actions tab
+name: Windows agent
+
+on:
+  push:
+    branches: [main]
+    tags: ['agent-v*']
+    paths:
+      - 'WindowsAgent/**'
+      - 'Frontend/**'
+      - '.github/workflows/windows-agent.yml'
+  pull_request:
+    paths:
+      - 'WindowsAgent/**'
+      - 'Frontend/**'
+      - '.github/workflows/windows-agent.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  PROJECT: WindowsAgent/ZafiroAgent.csproj
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/agent-v*') {
+            $version = $env:GITHUB_REF_NAME.Substring('agent-v'.Length)
+          } else {
+            $version = "0.0.$env:GITHUB_RUN_NUMBER"
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Tag must look like agent-v1.2.3, got $env:GITHUB_REF_NAME" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Agent version $version"
+
+      - name: Check UI files
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'Frontend/index.html')) {
+            Write-Host "::warning title=Frontend missing::Frontend/index.html is not in the repository. The agent window shows 'UI не найден' until the Frontend folder is committed next to WindowsAgent/."
+          }
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT }} -r win-x64
+
+      - name: Build
+        run: dotnet build ${{ env.PROJECT }} -c Release --no-restore -r win-x64 -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Publish (single exe, .NET included)
+        run: >
+          dotnet publish ${{ env.PROJECT }} -c Release -r win-x64 --self-contained true --no-restore
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "ZafiroAgent-win-x64-${{ steps.version.outputs.version }}"
+          Compress-Archive -Path publish/* -DestinationPath "$name.zip"
+          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
+          Get-ChildItem publish, "$name.zip" | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZafiroAgent-win-x64-${{ steps.version.outputs.version }}
+          path: |
+            ZafiroAgent-win-x64-*.zip
+            ZafiroAgent-win-x64-*.zip.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/agent-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ZafiroAgent-win-x64-${{ needs.build.outputs.version }}
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Zafiro Agent ${{ needs.build.outputs.version }}
+          files: |
+            ZafiroAgent-win-x64-*.zip
+            ZafiroAgent-win-x64-*.zip.sha256
+          generate_release_notes: true
