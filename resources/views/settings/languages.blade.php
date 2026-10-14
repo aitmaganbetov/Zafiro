@@ -2,7 +2,7 @@
 
 @section('settings-after')
 <h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Языки') }}</h4>
-@php($canManageLanguages = in_array($currentMembership->role, ['owner', 'admin'], true))
+@php($canManageLanguages = auth()->user()?->can('manage-translations') === true)
 @if($errors->has('language') || $errors->has('locale') || $errors->has('code') || $errors->has('name'))
     <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first('language') ?: $errors->first('locale') ?: $errors->first('code') ?: $errors->first('name') }}</div>
 @endif

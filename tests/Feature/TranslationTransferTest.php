@@ -39,7 +39,7 @@ function exportFor(string $code, bool $missing = false): array
 }
 
 test('a language exports as CSV with source, English hint and its translations', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
 
     $response = $this->get(route('languages.export', ['language' => 'kk']))
         ->assertOk()
@@ -55,7 +55,7 @@ test('a language exports as CSV with source, English hint and its translations',
 });
 
 test('only untranslated texts can be exported', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
     $this->post(route('languages.store'), ['code' => 'uz', 'name' => 'Oʻzbekcha']);
     $uz = Language::query()->where('code', 'uz')->sole();
     Translation::query()->create(['language_id' => $uz->id, 'group' => '*', 'key' => 'Склад', 'key_hash' => Translation::hashKey('*', 'Склад'), 'value' => 'Ombor']);
@@ -67,7 +67,7 @@ test('only untranslated texts can be exported', function () {
 });
 
 test('an edited export imports back: filled cells update, empty cells keep translations', function () {
-    $owner = User::factory()->create();
+    $owner = User::factory()->superadmin()->create();
     $this->actingAs($owner);
     $kk = Language::query()->where('code', 'kk')->sole();
     $rows = exportFor('kk');
@@ -94,7 +94,7 @@ test('an edited export imports back: filled cells update, empty cells keep trans
 });
 
 test('a new language is translated entirely through a file', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
     $this->post(route('languages.store'), ['code' => 'uz', 'name' => 'Oʻzbekcha']);
     $rows = exportFor('uz');
     $rows = array_map(fn (array $row) => $row[2] === 'Склад' ? [...array_slice($row, 0, 4), 'Ombor'] : $row, $rows);
@@ -106,7 +106,7 @@ test('a new language is translated entirely through a file', function () {
 });
 
 test('rows with broken placeholders are skipped and listed', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
     $source = 'Создан товар: :product';
     $row = [Translation::hashKey('*', $source), '*', $source, '', 'Тауар жасалды: :тауар'];
 
@@ -119,7 +119,7 @@ test('rows with broken placeholders are skipped and listed', function () {
 });
 
 test('a file for another language or without the header is refused', function (array $header, string $message) {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
 
     $this->from(route('settings.languages'))
         ->post(route('languages.import'), ['language' => 'kk', 'file' => csvFile([$header, ['x', '*', 'Склад', '', 'Ombor']])])
@@ -131,7 +131,7 @@ test('a file for another language or without the header is refused', function (a
 ]);
 
 test('cells that spreadsheets would run as formulas are neutralised and restored', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->superadmin()->create());
     $kk = Language::query()->where('code', 'kk')->sole();
     $key = 'Склад';
     Translation::query()->where('language_id', $kk->id)->where('key', $key)->update(['value' => '=HYPERLINK("http://evil")']);
@@ -143,10 +143,10 @@ test('cells that spreadsheets would run as formulas are neutralised and restored
     expect(Translation::query()->where('language_id', $kk->id)->where('key', $key)->value('value'))->toBe('-Қойма');
 });
 
-test('only owners and admins export and import', function (string $role) {
+test('club roles cannot export or import translations', function (string $role) {
     $user = User::factory()->create();
     ClubMembership::query()->where('user_id', $user->id)->update(['role' => $role]);
 
     $this->actingAs($user)->get(route('languages.export', ['language' => 'kk']))->assertForbidden();
     $this->actingAs($user)->post(route('languages.import'), ['language' => 'kk', 'file' => csvFile([['id', 'group', 'ru', 'en', 'kk']])])->assertForbidden();
-})->with(['manager', 'cashier']);
+})->with(['owner', 'admin', 'manager', 'cashier']);
