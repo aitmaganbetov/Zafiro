@@ -314,16 +314,18 @@ namespace ZafiroAgent.Services
             if (!result.Success) throw new ZafiroApiException(result.Failure, result.Message);
 
             var info = result.Value!;
+            string? keep = null;
             if (!string.IsNullOrEmpty(info.AgentToken))
             {
-                _deviceToken = info.AgentToken;
                 SafeLog.Register(info.AgentToken);
+                keep = await DeviceTokens.KeepAsync(info.AgentToken, cancellationToken).ConfigureAwait(false);
+                _deviceToken = keep;
             }
 
             _cfgService.Update(cfg =>
             {
-                if (!string.IsNullOrEmpty(info.AgentToken))
-                    cfg.ProtectedDeviceToken = _secure.Protect(info.AgentToken);
+                if (keep is not null)
+                    cfg.ProtectedDeviceToken = _secure.Protect(keep);
 
                 cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
                 cfg.ComputerNumber = info.Number;
@@ -337,8 +339,7 @@ namespace ZafiroAgent.Services
 
         private void LoadDeviceToken()
         {
-            var token = _secure.Unprotect(_cfgService.Load().ProtectedDeviceToken);
-            _deviceToken = string.IsNullOrEmpty(token) ? null : token;
+            _deviceToken = DeviceTokens.Resolve(_secure.Unprotect(_cfgService.Load().ProtectedDeviceToken));
             SafeLog.Register(_deviceToken);
         }
 

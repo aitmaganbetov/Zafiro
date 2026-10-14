@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -42,6 +43,13 @@ namespace ZafiroAgent
             _singleInstance = new Mutex(true, @"Local\ZafiroAgent", out var isFirst);
             if (!isFirst)
             {
+                // Служба перезапускает агент сама (--watchdog): сообщение показывается только при ручном запуске.
+                if (e.Args.Contains("--watchdog"))
+                {
+                    Shutdown();
+                    return;
+                }
+
                 MessageBox.Show("Zafiro Agent уже запущен на этом компьютере.", "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
@@ -50,6 +58,7 @@ namespace ZafiroAgent
             _config = new ConfigurationService();
             _api = new ZafiroApiClient(ZafiroApiClient.CreateHttpClient());
             var clubSetup = new ClubSetupService(_api, _config, _secure);
+            AttachToService();
 
             Keyboard.StaffShortcut += () => Dispatcher.BeginInvoke(RequestStaffExit);
             Keyboard.Install();
@@ -76,13 +85,35 @@ namespace ZafiroAgent
         }
 
         /// <summary>
+        /// Если установлена служба: она снова следит за этим сеансом, а токен ПК, сохранённый
+        /// агентом до установки службы, переносится в службу и удаляется из профиля клиента.
+        /// </summary>
+        private void AttachToService()
+        {
+            var vault = DeviceTokens.Vault;
+            if (vault is null) return;
+            vault.Resume();
+
+            var stored = _secure.Unprotect(_config.Load().ProtectedDeviceToken);
+            if (string.IsNullOrEmpty(stored) || stored == DeviceTokens.VaultMarker) return;
+            SafeLog.Register(stored);
+            var keep = Task.Run(() => DeviceTokens.KeepAsync(stored, CancellationToken.None)).GetAwaiter().GetResult();
+            if (keep == DeviceTokens.VaultMarker)
+            {
+                _config.Update(cfg => cfg.ProtectedDeviceToken = _secure.Protect(keep));
+                SafeLog.Write("[Vault] device token moved to the service");
+            }
+        }
+
+        /// <summary>
         /// Киоск включается, когда ПК привязан к клубу (или получил токен устройства). Удаление
         /// токена устройства из настроек его не выключает — только выход сотрудника по PIN.
         /// </summary>
         internal void RefreshKiosk()
         {
             var cfg = _config.Load();
-            if (KioskEnabled || (string.IsNullOrEmpty(cfg.ProtectedDeviceToken) && string.IsNullOrEmpty(cfg.ClubId))) return;
+            if (KioskEnabled) return;
+            if (string.IsNullOrEmpty(cfg.ProtectedDeviceToken) && string.IsNullOrEmpty(cfg.ClubId) && DeviceTokens.Vault?.HasToken() != true) return;
             Keyboard.Enabled = true;
             KioskPolicy.DisableTaskManager();
             SafeLog.Write("[Kiosk] enabled");
@@ -133,7 +164,7 @@ namespace ZafiroAgent
         private Task<ApiResult<bool>> VerifyPinAsync(string pin)
         {
             var cfg = _config.Load();
-            return _api.VerifyExitPinAsync(_secure.Unprotect(cfg.ProtectedDeviceToken), pin, CancellationToken.None, _secure.Unprotect(cfg.ProtectedApiToken));
+            return _api.VerifyExitPinAsync(DeviceTokens.Resolve(_secure.Unprotect(cfg.ProtectedDeviceToken)), pin, CancellationToken.None, _secure.Unprotect(cfg.ProtectedApiToken));
         }
 
         protected override void OnExit(ExitEventArgs e)

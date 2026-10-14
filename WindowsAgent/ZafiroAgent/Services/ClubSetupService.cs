@@ -154,6 +154,8 @@ namespace ZafiroAgent.Services
 
             var info = result.Value!;
             SafeLog.Register(info.AgentToken);
+            // Если установлена служба, токен уходит к ней, а у агента остаётся только метка.
+            var keep = string.IsNullOrEmpty(info.AgentToken) ? null : await DeviceTokens.KeepAsync(info.AgentToken, cancellationToken).ConfigureAwait(false);
             _config.Update(cfg =>
             {
                 cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
@@ -161,8 +163,8 @@ namespace ZafiroAgent.Services
                 cfg.Zone = info.ZoneName ?? string.Empty;
                 cfg.DeviceName = _deviceName;
                 cfg.DeviceId = deviceId ?? string.Empty;
-                if (!string.IsNullOrEmpty(info.AgentToken))
-                    cfg.ProtectedDeviceToken = _secure.Protect(info.AgentToken);
+                if (keep is not null)
+                    cfg.ProtectedDeviceToken = _secure.Protect(keep);
             });
 
             return result;

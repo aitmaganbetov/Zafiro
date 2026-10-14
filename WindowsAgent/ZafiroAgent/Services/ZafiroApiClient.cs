@@ -42,7 +42,12 @@ namespace ZafiroAgent.Services
         }
 
         // Редиректы выключены, чтобы ключ и пароль не ушли на другой хост; проверка TLS стандартная.
+        // Запросы с меткой токена ПК уходят через службу (DeviceVaultHandler).
         public static HttpClient CreateHttpClient() =>
+            new(new DeviceVaultHandler(new SocketsHttpHandler { AllowAutoRedirect = false })) { Timeout = TimeSpan.FromSeconds(30) };
+
+        /// <summary>Клиент без службы — для самой службы.</summary>
+        public static HttpClient CreateDirectHttpClient() =>
             new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
 
         public static bool TryValidateHttpsEndpoint(string? value, out Uri uri)

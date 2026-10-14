@@ -114,12 +114,30 @@ jobs:
             Write-Host ("{0}: exe {1:N1} MB, zip {2:N1} MB" -f $kind, $exe, ((Get-Item "$name.zip").Length / 1MB))
           }
 
+      # Установщик для клубов: агент в Program Files + служба Windows (хранит токен ПК, перезапускает агент).
+      - name: Installer
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --version=6.4.3 -y --no-progress | Out-Null }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup was not installed' }
+          & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$PWD\publish\full" WindowsAgent/installer/ZafiroAgent.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+          $name = "ZafiroAgentSetup-$version.exe"
+          Move-Item "WindowsAgent/installer/$name" .
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -Encoding ascii "$name.sha256"
+          Write-Host ("installer: {0:N1} MB" -f ((Get-Item $name).Length / 1MB))
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ZafiroAgent-win-x64-${{ steps.version.outputs.version }}
           path: |
             ZafiroAgent-win-x64-*.zip
             ZafiroAgent-win-x64-*.zip.sha256
+            ZafiroAgentSetup-*.exe
+            ZafiroAgentSetup-*.exe.sha256
           retention-days: 30
           compression-level: 0 # zip уже сжат
           if-no-files-found: error
@@ -141,4 +159,6 @@ jobs:
           files: |
             ZafiroAgent-win-x64-*.zip
             ZafiroAgent-win-x64-*.zip.sha256
+            ZafiroAgentSetup-*.exe
+            ZafiroAgentSetup-*.exe.sha256
           generate_release_notes: true

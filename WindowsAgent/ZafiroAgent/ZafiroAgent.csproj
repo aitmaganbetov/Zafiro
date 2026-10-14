@@ -9,6 +9,8 @@
     <Version>1.0.0</Version>
     <Product>Zafiro Agent</Product>
     <Company>Zafiro</Company>
+    <!-- Program.Main выбирает режим: агент или служба Windows (ключ service). -->
+    <StartupObject>ZafiroAgent.Program</StartupObject>
   </PropertyGroup>
 
   <!-- Размер сборки: без Windows Forms (значок в трее — через Win32), системные сообщения .NET
@@ -26,6 +28,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
     <PackageReference Include="System.Management" Version="10.0.12" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

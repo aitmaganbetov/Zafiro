@@ -1,0 +1,222 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using ZafiroAgent.Services;
+
+namespace ZafiroAgent.Service
+{
+    /// <summary>
+    /// Следит, чтобы в сеансе клиента у консоли всегда работал агент: закрытый или убитый
+    /// агент запускается снова через несколько секунд. Учётные записи администраторов не
+    /// трогает (обслуживание ПК), а после выхода сотрудника по PIN-коду ждёт до выхода из Windows.
+    /// </summary>
+    public sealed class Watchdog
+    {
+        private const uint NoSession = 0xFFFFFFFF;
+        private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(3);
+
+        private readonly string _agentExe;
+        private readonly object _gate = new();
+        private readonly HashSet<uint> _paused = new();
+        private readonly Dictionary<uint, (int Failures, DateTime NextAttemptUtc)> _launches = new();
+
+        public Watchdog(string agentExe)
+        {
+            _agentExe = agentExe;
+        }
+
+        /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент больше не запускается.</summary>
+        public void Pause(uint session)
+        {
+            lock (_gate) _paused.Add(session);
+        }
+
+        /// <summary>Вход или выход из Windows, либо агент запущен вручную: наблюдение снова включено.</summary>
+        public void Resume(uint session)
+        {
+            lock (_gate)
+            {
+                _paused.Remove(session);
+                _launches.Remove(session);
+            }
+        }
+
+        /// <summary>Задержка перед следующим запуском, если агент сразу закрывается: 3 с, 6 с, 12 с … до 1 мин.</summary>
+        public static TimeSpan RetryDelay(int failures) =>
+            TimeSpan.FromSeconds(Math.Min(60, 3 * Math.Pow(2, Math.Clamp(failures - 1, 0, 5))));
+
+        public async Task RunAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    Check();
+                }
+                catch (Exception ex)
+                {
+                    SafeLog.Write("[Watchdog] check failed: " + ex.Message);
+                }
+
+                try
+                {
+                    await Task.Delay(CheckInterval, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+        }
+
+        private void Check()
+        {
+            var session = WTSGetActiveConsoleSessionId();
+            if (session == NoSession || session == 0) return;
+
+            var now = DateTime.UtcNow;
+            lock (_gate)
+            {
+                if (_paused.Contains(session)) return;
+                if (IsAgentRunning(session))
+                {
+                    _launches.Remove(session);
+                    return;
+                }
+
+                if (_launches.TryGetValue(session, out var last) && now < last.NextAttemptUtc) return;
+            }
+
+            if (!WTSQueryUserToken(session, out var userToken)) return; // никто не вошёл
+            try
+            {
+                if (IsAdministrator(userToken)) return;
+                Launch(userToken);
+                SafeLog.Write("[Watchdog] agent started in session " + session);
+            }
+            catch (Win32Exception ex)
+            {
+                SafeLog.Write("[Watchdog] could not start the agent: " + ex.Message);
+            }
+            finally
+            {
+                CloseHandle(userToken);
+                lock (_gate)
+                {
+                    var failures = _launches.TryGetValue(session, out var last) ? last.Failures + 1 : 1;
+                    _launches[session] = (failures, now + RetryDelay(failures));
+                }
+            }
+        }
+
+        private bool IsAgentRunning(uint session)
+        {
+            var name = Path.GetFileNameWithoutExtension(_agentExe);
+            var processes = Process.GetProcessesByName(name);
+            try
+            {
+                return processes.Any(p => (uint)p.SessionId == session);
+            }
+            finally
+            {
+                foreach (var process in processes) process.Dispose();
+            }
+        }
+
+        // С UAC токен администратора разделён (Limited/Full); без UAC — обычный токен в группе Администраторы.
+        private static bool IsAdministrator(IntPtr token)
+        {
+            if (GetTokenInformation(token, TokenElevationType, out var type, sizeof(int), out _) && type != ElevationTypeDefault)
+                return true;
+
+            using var identity = new WindowsIdentity(token);
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        private void Launch(IntPtr userToken)
+        {
+            if (!DuplicateTokenEx(userToken, MaximumAllowed, IntPtr.Zero, SecurityImpersonation, TokenPrimary, out var primary))
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+
+            var environment = IntPtr.Zero;
+            try
+            {
+                if (!CreateEnvironmentBlock(out environment, primary, false))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+
+                var startup = new StartupInfo { cb = Marshal.SizeOf<StartupInfo>(), lpDesktop = @"winsta0\default" };
+                var commandLine = new StringBuilder($"\"{_agentExe}\" --watchdog");
+                if (!CreateProcessAsUser(primary, _agentExe, commandLine, IntPtr.Zero, IntPtr.Zero, false, CreateUnicodeEnvironment,
+                        environment, Path.GetDirectoryName(_agentExe), ref startup, out var process))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+
+                CloseHandle(process.hThread);
+                CloseHandle(process.hProcess);
+            }
+            finally
+            {
+                if (environment != IntPtr.Zero) DestroyEnvironmentBlock(environment);
+                CloseHandle(primary);
+            }
+        }
+
+        private const int TokenElevationType = 18;
+        private const int ElevationTypeDefault = 1;
+        private const uint MaximumAllowed = 0x02000000;
+        private const int SecurityImpersonation = 2;
+        private const int TokenPrimary = 1;
+        private const uint CreateUnicodeEnvironment = 0x00000400;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct StartupInfo
+        {
+            public int cb;
+            public string? lpReserved;
+            public string? lpDesktop;
+            public string? lpTitle;
+            public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
+            public short wShowWindow, cbReserved2;
+            public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ProcessInformation
+        {
+            public IntPtr hProcess, hThread;
+            public int dwProcessId, dwThreadId;
+        }
+
+        [DllImport("kernel32.dll")]
+        private static extern uint WTSGetActiveConsoleSessionId();
+
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        private static extern bool WTSQueryUserToken(uint sessionId, out IntPtr token);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        private static extern bool GetTokenInformation(IntPtr token, int infoClass, out int info, int length, out int returnLength);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        private static extern bool DuplicateTokenEx(IntPtr token, uint access, IntPtr attributes, int level, int type, out IntPtr newToken);
+
+        [DllImport("userenv.dll", SetLastError = true)]
+        private static extern bool CreateEnvironmentBlock(out IntPtr environment, IntPtr token, bool inherit);
+
+        [DllImport("userenv.dll")]
+        private static extern bool DestroyEnvironmentBlock(IntPtr environment);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool CreateProcessAsUser(IntPtr token, string? application, StringBuilder commandLine, IntPtr processAttributes,
+            IntPtr threadAttributes, bool inheritHandles, uint flags, IntPtr environment, string? directory, ref StartupInfo startup, out ProcessInformation process);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr handle);
+    }
+}

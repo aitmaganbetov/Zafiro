@@ -6,7 +6,8 @@ namespace ZafiroAgent.Kiosk
 {
     /// <summary>
     /// Настройки Windows для режима киоска (только для текущего пользователя, без прав администратора):
-    /// диспетчер задач отключён, пока работает агент, и агент запускается при входе в Windows.
+    /// диспетчер задач отключён, пока работает агент, и агент запускается при входе в Windows
+    /// (без службы «Zafiro Agent»; со службой агент запускает она).
     /// </summary>
     public static class KioskPolicy
     {
@@ -27,12 +28,16 @@ namespace ZafiroAgent.Kiosk
             key?.DeleteValue("DisableTaskMgr", throwOnMissingValue: false);
         });
 
+        // Если установлена служба, агент запускает она: своя запись автозапуска дала бы второй запуск.
         public static void EnsureAutostart() => Try("register autostart", () =>
         {
             var exe = Environment.ProcessPath;
             if (string.IsNullOrEmpty(exe)) return;
             using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-            key.SetValue(RunValue, $"\"{exe}\"");
+            if (DeviceVaultClient.IsServiceInstalled())
+                key.DeleteValue(RunValue, throwOnMissingValue: false);
+            else
+                key.SetValue(RunValue, $"\"{exe}\"");
         });
 
         private static void Try(string action, Action change)
