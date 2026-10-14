@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use LogicException;
 
 #[Fillable(['name', 'slug', 'settings'])]
-#[Hidden(['installation_key', 'installation_key_hash', 'agent_exit_pin_hash'])]
+#[Hidden(['installation_key', 'installation_key_hash', 'agent_exit_pin_hash', 'logo_path'])]
 class Club extends Model
 {
     use UsesClubTimezone;
@@ -52,5 +52,11 @@ class Club extends Model
     public function subscription(): HasOne
     {
         return $this->hasOne(ClubSubscription::class);
+    }
+
+    /** Public logo URL; a new upload changes it, so the agent refetches only then. */
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path === null ? null : route('club-logos.show', [$this, basename($this->logo_path)]);
     }
 }
