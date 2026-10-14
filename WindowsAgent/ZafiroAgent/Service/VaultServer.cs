@@ -26,6 +26,8 @@ namespace ZafiroAgent.Service
         private const int MaxCreateFailures = 30;
         private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
         public static readonly Uri RotateEndpoint = new("https://zafiro.kz/api/agent/token/rotate");
+        private static readonly TimeSpan EnrollRetry = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan EnrollRetryAfterError = TimeSpan.FromMinutes(1);
 
         private readonly string _pipeName;
         private readonly DeviceVaultStore _store;
@@ -36,6 +38,7 @@ namespace ZafiroAgent.Service
         private readonly SemaphoreSlim _storeGate = new(1, 1);
         private readonly Dictionary<uint, int> _connections = new();
         private string? _rotatedFrom;
+        private DateTime _enrollAfterUtc;
 
         public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
         {
@@ -175,11 +178,34 @@ namespace ZafiroAgent.Service
                     return new VaultMessage { Ok = true };
                 case "store":
                     return await StoreAsync(request.Token, cancellationToken).ConfigureAwait(false);
+                case "club-key":
+                    return SetClubKey(request.ClubKey);
                 case "relay":
                     return await RelayAsync(request, clientSession, cancellationToken).ConfigureAwait(false);
                 default:
                     return Fail("bad_request");
             }
+        }
+
+        /// <summary>
+        /// Ключ установки клуба запоминается один раз: программа клиента не может подменить его
+        /// ключом другого клуба. Подключить ПК к другому клубу — переустановить агент.
+        /// </summary>
+        private VaultMessage SetClubKey(string? key)
+        {
+            if (!VaultProtocol.IsClubKey(key)) return Fail("bad_key");
+            SafeLog.Register(key);
+
+            var current = _store.LoadClubKey();
+            if (current is null)
+            {
+                _store.SaveClubKey(key!);
+                _enrollAfterUtc = DateTime.MinValue;
+                SafeLog.Write("[Service] club key stored");
+                return new VaultMessage { Ok = true };
+            }
+
+            return current == key ? new VaultMessage { Ok = true } : Fail("club_key_locked");
         }
 
         private async Task<VaultMessage> StoreAsync(string? token, CancellationToken cancellationToken)
@@ -238,7 +264,7 @@ namespace ZafiroAgent.Service
         private async Task TryRotateAsync(string token, CancellationToken cancellationToken)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, RotateEndpoint) { Content = new StringContent("{}", Encoding.UTF8, "application/json") };
-            request.Headers.Add("X-Agent-Token", token);
+            Sign(request, token);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -257,18 +283,15 @@ namespace ZafiroAgent.Service
             }
         }
 
-        /// <summary>Пустой heartbeat от службы: ПК отмечается в сети, даже когда в агенте никто не вошёл.</summary>
+        /// <summary>
+        /// Пустой heartbeat от службы: ПК отмечается в сети, даже когда в агенте никто не вошёл.
+        /// Токен, отвергнутый сервером, удаляется; без токена служба получает его по ключу клуба.
+        /// </summary>
         public async Task KeepOnlineAsync(TimeSpan interval, CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                try
-                {
-                    if (_store.Load() is { } token) await ProbeAsync(token, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
-                {
-                }
+                await KeepOnlineOnceAsync(cancellationToken).ConfigureAwait(false);
 
                 try
                 {
@@ -281,6 +304,97 @@ namespace ZafiroAgent.Service
             }
         }
 
+        public async Task KeepOnlineOnceAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (_store.Load() is { } token)
+                {
+                    if (await ProbeAsync(token, cancellationToken).ConfigureAwait(false) == HttpStatusCode.Unauthorized)
+                        await ForgetAsync(token, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await EnrollAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or IOException or UnauthorizedAccessException
+                                       || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                SafeLog.Write("[Service] keep-online failed: " + ex.GetType().Name);
+            }
+        }
+
+        // Токен отозван или скопирован с другого ПК (образ бездисковой системы). Удаляется, только
+        // если за время проверки сотрудник не сохранил новый.
+        private async Task ForgetAsync(string token, CancellationToken cancellationToken)
+        {
+            await _storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_store.Load() != token) return;
+                _store.Clear();
+                _enrollAfterUtc = DateTime.MinValue;
+                SafeLog.Write("[Service] device token rejected by the server and removed");
+            }
+            finally
+            {
+                _storeGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Бездисковый ПК после перезагрузки (и ПК, загруженный с чужого образа) получает токен
+        /// своего ПК по ключу клуба и UUID. Сервер выдаёт его, только если ПК уже зарегистрирован
+        /// в клубе; иначе — повтор через 10 минут (сотрудник регистрирует ПК, войдя на нём в агенте).
+        /// </summary>
+        private async Task EnrollAsync(CancellationToken cancellationToken)
+        {
+            if (DateTime.UtcNow < _enrollAfterUtc) return;
+            var key = _store.LoadClubKey();
+            var deviceId = _store.DeviceId;
+            if (key is null || string.IsNullOrEmpty(deviceId)) return;
+            SafeLog.Register(key);
+
+            _enrollAfterUtc = DateTime.UtcNow + EnrollRetry;
+            var body = System.Text.Json.JsonSerializer.Serialize(new { club_key = key, device_id = deviceId, device_name = Environment.MachineName });
+            using var request = new HttpRequestMessage(HttpMethod.Post, VaultProtocol.EnrollEndpoint) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                SafeLog.Write("[Service] club key enrollment refused: " + (int)response.StatusCode);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests || (int)response.StatusCode >= 500)
+                    _enrollAfterUtc = DateTime.UtcNow + EnrollRetryAfterError;
+                return;
+            }
+
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+            if (!json.RootElement.TryGetProperty("agent_token", out var value) || value.GetString() is not { } token || !VaultProtocol.IsDeviceToken(token))
+                return;
+
+            SafeLog.Register(token);
+            await _storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_store.Load() is null) _store.Save(token);
+            }
+            finally
+            {
+                _storeGate.Release();
+            }
+
+            _enrollAfterUtc = DateTime.MinValue;
+            SafeLog.Write("[Service] device token received with the club key");
+        }
+
+        // Токен ПК и UUID этого ПК: сервер не принимает токен с другого «железа».
+        private void Sign(HttpRequestMessage request, string token)
+        {
+            request.Headers.Add("X-Agent-Token", token);
+            if (_store.DeviceId is { Length: > 0 } deviceId) request.Headers.Add(VaultProtocol.DeviceHeader, deviceId);
+        }
+
         // Пустой heartbeat: сервер только отмечает ПК в сети и отвечает, действителен ли токен.
         private async Task<HttpStatusCode> ProbeAsync(string token, CancellationToken cancellationToken)
         {
@@ -288,7 +402,7 @@ namespace ZafiroAgent.Service
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json")
             };
-            request.Headers.Add("X-Agent-Token", token);
+            Sign(request, token);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             return response.StatusCode;
@@ -307,7 +421,7 @@ namespace ZafiroAgent.Service
             {
                 Content = new StringContent(request.Body ?? string.Empty, Encoding.UTF8, "application/json")
             };
-            message.Headers.Add("X-Agent-Token", token);
+            Sign(message, token);
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (request.Authorization is { } authorization)
             {

@@ -45,6 +45,12 @@ namespace ZafiroAgent.Services
 
         public bool HasToken() => Call(new VaultMessage { Op = "status" })?.HasToken == true;
 
+        /// <summary>
+        /// Передаёт службе ключ установки клуба: на бездисковом ПК она сама получит по нему токен
+        /// этого ПК после перезагрузки. Служба запоминает ключ один раз и другой не принимает.
+        /// </summary>
+        public bool SetClubKey(string key) => Call(new VaultMessage { Op = "club-key", ClubKey = key })?.Ok == true;
+
         /// <summary>Сообщает службе, что агент запущен: наблюдение за этим сеансом снова включено.</summary>
         public void Resume() => Call(new VaultMessage { Op = "resume" });
 

@@ -12,7 +12,7 @@ namespace ZafiroAgent.Service
 {
     /// <summary>
     /// Сообщение между агентом и службой (одна строка JSON в каждую сторону).
-    /// Запрос: Op = status | store | relay | resume | alive. Ответ: Ok и поля результата.
+    /// Запрос: Op = status | store | club-key | relay | resume | alive. Ответ: Ok и поля результата.
     /// </summary>
     public sealed class VaultMessage
     {
@@ -22,6 +22,7 @@ namespace ZafiroAgent.Service
 
         public string? Token { get; set; }
         public bool HasToken { get; set; }
+        public string? ClubKey { get; set; }
 
         public string? Method { get; set; }
         public string? Url { get; set; }
@@ -40,12 +41,19 @@ namespace ZafiroAgent.Service
         public const int MaxMessageBytes = 256 * 1024;
 
         public static readonly Uri HeartbeatEndpoint = new("https://zafiro.kz/api/agent/heartbeat");
+        public static readonly Uri EnrollEndpoint = new("https://zafiro.kz/api/agent/enroll");
+
+        /// <summary>Заголовок с UUID ПК: сервер не принимает токен ПК, присланный с другого «железа».</summary>
+        public const string DeviceHeader = "X-Agent-Device";
 
         // Служба подставляет токен ПК только в эти запросы и только к zafiro.kz.
         private static readonly Regex RelayPath = new(@"^/api/(agent/heartbeat|agent/exit-pin|tariffs/[0-9]{1,18}/purchase)$", RegexOptions.CultureInvariant);
         private static readonly Regex TokenFormat = new("^zag_[A-Za-z0-9]{48}$", RegexOptions.CultureInvariant);
+        private static readonly Regex ClubKeyFormat = new("^[A-Za-z0-9]{64}$", RegexOptions.CultureInvariant);
 
         public static bool IsDeviceToken(string? token) => token is not null && TokenFormat.IsMatch(token);
+
+        public static bool IsClubKey(string? key) => key is not null && ClubKeyFormat.IsMatch(key);
 
         public static bool IsAllowedRelayTarget(string? url, out Uri target)
         {

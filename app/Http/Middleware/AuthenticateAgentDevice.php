@@ -25,6 +25,14 @@ class AuthenticateAgentDevice
             return response()->json(['message' => __('Токен устройства недействителен.'), 'code' => 'invalid_agent_token'], 401);
         }
 
+        // A PC cloned from a boot image carries the token of the PC the image was made on.
+        // The token is kept: it still belongs to that PC; the clone asks for its own (agent/enroll).
+        $device = $request->header('X-Agent-Device');
+        if (is_string($device) && trim($device) !== '' && $computer->device_id !== null
+            && mb_strtolower(trim($device)) !== mb_strtolower($computer->device_id)) {
+            return response()->json(['message' => __('Токен устройства принадлежит другому ПК.'), 'code' => 'device_mismatch'], 401);
+        }
+
         $club = Club::query()->with('subscription')->findOrFail($computer->club_id);
 
         if ($club->subscription?->isActive() !== true) {

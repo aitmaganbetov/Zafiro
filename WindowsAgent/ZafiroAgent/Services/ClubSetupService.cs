@@ -65,6 +65,8 @@ namespace ZafiroAgent.Services
                 cfg.ProtectedClubKey = _secure.Protect(key);
                 ApplyToken(cfg, login.Value);
                 _config.Save(cfg);
+                if (DeviceTokens.Vault is { } vault && !vault.SetClubKey(key))
+                    SafeLog.Write("[Vault] club key was not accepted by the service");
 
                 return ApiResult<ClubSession>.Ok(new ClubSession(club.ClubId, cfg.ClubName, club.ApiBaseUrl, login.Value.Token, login.Value.ExpiresAtUtc));
             }

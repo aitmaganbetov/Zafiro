@@ -791,6 +791,8 @@ return [
         'Сохраните образ и перезагрузите ПК клуба: после перезагрузки на всех будет новая версия.' => 'Save the image and restart the club PCs: after the restart they all run the new version.',
         'ПК с обычным диском обновляются установщиком на каждом ПК.' => 'PCs with a regular disk are updated by running the installer on each PC.',
         'устарела' => 'outdated',
+        'ПК не зарегистрирован в клубе: сотрудник должен один раз войти на нём в агенте.' => 'The PC is not registered in the club: a staff member must sign in to the agent on it once.',
+        'Токен устройства принадлежит другому ПК.' => 'The device token belongs to another PC.',
         'PIN-код выхода из агента изменён' => 'Agent exit PIN changed',
         'PIN-код удалён.' => 'PIN removed.',
         'PIN-код сохранён.' => 'PIN saved.',

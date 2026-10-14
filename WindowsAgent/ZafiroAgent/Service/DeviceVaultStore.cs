@@ -21,41 +21,47 @@ namespace ZafiroAgent.Service
         private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("ZafiroAgent.Vault");
         private readonly object _gate = new();
         private readonly string _path;
+        private readonly Func<string?> _deviceId;
 
         public DeviceVaultStore()
-            : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ZafiroAgent"), restrictAccess: true)
+            : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ZafiroAgent"), restrictAccess: true, () => DeviceInfo.StableId)
         {
         }
 
-        public DeviceVaultStore(string directory, bool restrictAccess)
+        /// <param name="deviceId">UUID этого ПК; null — неизвестен (тогда токен к ПК не привязывается).</param>
+        public DeviceVaultStore(string directory, bool restrictAccess, Func<string?>? deviceId = null)
         {
             var dir = new DirectoryInfo(directory);
             if (restrictAccess) CreateTrusted(dir);
             else dir.Create();
             _path = Path.Combine(dir.FullName, "device.json");
+            _deviceId = deviceId ?? (() => null);
         }
 
+        /// <summary>UUID этого ПК (SMBIOS): служба отправляет его серверу вместе с токеном.</summary>
+        public string? DeviceId => _deviceId();
+
+        /// <summary>
+        /// Токен этого ПК. Токен, сохранённый на другом ПК (бездисковая система: образ снят
+        /// с одного ПК и загружается на всех), этому ПК не принадлежит — возвращается null.
+        /// </summary>
         public string? Load()
         {
             lock (_gate)
             {
-                try
-                {
-                    if (!File.Exists(_path)) return null;
-                    var stored = JsonSerializer.Deserialize<Stored>(File.ReadAllText(_path));
-                    if (string.IsNullOrEmpty(stored?.Token)) return null;
-                    var plain = ProtectedData.Unprotect(Convert.FromBase64String(stored.Token), Entropy, DataProtectionScope.CurrentUser);
-                    var token = Encoding.UTF8.GetString(plain);
-                    if (!VaultProtocol.IsDeviceToken(token)) return null;
+                var stored = Read();
+                if (stored is null || !SameDevice(stored.DeviceId)) return null;
+                var token = Unseal(stored.Token);
+                if (!VaultProtocol.IsDeviceToken(token)) return null;
 
-                    // Версии 0.0.16–0.0.17 шифровали ключом компьютера: перешифровываем ключом службы.
-                    if (stored.Scope != ServiceScope) SaveUnlocked(token);
-                    return token;
-                }
-                catch (Exception ex) when (ex is IOException or JsonException or FormatException or CryptographicException or UnauthorizedAccessException)
+                // Версии 0.0.16–0.0.17 шифровали ключом компьютера: перешифровываем ключом службы.
+                if (stored.Scope != ServiceScope)
                 {
-                    return null;
+                    try { SaveUnlocked(token!); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
                 }
+
+                return token;
             }
         }
 
@@ -64,12 +70,89 @@ namespace ZafiroAgent.Service
             lock (_gate) SaveUnlocked(token);
         }
 
+        /// <summary>Сервер отверг токен (отозван или с другого ПК): он удаляется, ключ клуба остаётся.</summary>
+        public void Clear()
+        {
+            lock (_gate)
+            {
+                var stored = Read();
+                if (stored is null) return;
+                stored.Token = null;
+                stored.DeviceId = null;
+                Write(stored);
+            }
+        }
+
+        /// <summary>Ключ установки клуба: по нему служба сама получает токен своего ПК.</summary>
+        public string? LoadClubKey()
+        {
+            lock (_gate)
+            {
+                var key = Unseal(Read()?.ClubKey);
+                return VaultProtocol.IsClubKey(key) ? key : null;
+            }
+        }
+
+        public void SaveClubKey(string key)
+        {
+            lock (_gate)
+            {
+                var stored = Read() ?? new Stored();
+                stored.ClubKey = Seal(key);
+                Write(stored);
+            }
+        }
+
         private void SaveUnlocked(string token)
         {
-            var sealedToken = ProtectedData.Protect(Encoding.UTF8.GetBytes(token), Entropy, DataProtectionScope.CurrentUser);
+            var stored = Read() ?? new Stored();
+            stored.Token = Seal(token);
+            stored.Scope = ServiceScope;
+            stored.DeviceId = DeviceId;
+            stored.SavedAtUtc = DateTime.UtcNow;
+            Write(stored);
+        }
+
+        // Старый файл без UUID принимается: если он скопирован с другого ПК, его отвергнет сервер.
+        private bool SameDevice(string? storedDeviceId)
+        {
+            var current = DeviceId;
+            return storedDeviceId is null || current is null || string.Equals(storedDeviceId, current, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private Stored? Read()
+        {
+            try
+            {
+                return File.Exists(_path) ? JsonSerializer.Deserialize<Stored>(File.ReadAllText(_path)) : null;
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        private void Write(Stored stored)
+        {
             var temp = _path + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(new Stored { Token = Convert.ToBase64String(sealedToken), Scope = ServiceScope, SavedAtUtc = DateTime.UtcNow }));
+            File.WriteAllText(temp, JsonSerializer.Serialize(stored));
             File.Move(temp, _path, overwrite: true);
+        }
+
+        private static string Seal(string plain) =>
+            Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(plain), Entropy, DataProtectionScope.CurrentUser));
+
+        private static string? Unseal(string? sealedValue)
+        {
+            if (string.IsNullOrEmpty(sealedValue)) return null;
+            try
+            {
+                return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(sealedValue), Entropy, DataProtectionScope.CurrentUser));
+            }
+            catch (Exception ex) when (ex is FormatException or CryptographicException)
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -126,6 +209,10 @@ namespace ZafiroAgent.Service
             public string? Token { get; set; }
             public string? Scope { get; set; }
             public DateTime SavedAtUtc { get; set; }
+
+            // UUID ПК, на котором сохранён токен, и ключ установки клуба (зашифрован так же, как токен).
+            public string? DeviceId { get; set; }
+            public string? ClubKey { get; set; }
         }
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AgentEnrollController;
 use App\Http\Controllers\Api\AgentExitPinController;
 use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AuthController;
@@ -47,6 +48,11 @@ Route::post('/agent/heartbeat', [ClubComputerController::class, 'agentHeartbeat'
 Route::post('/agent/token/rotate', [ClubComputerController::class, 'rotateAgentToken'])
     ->middleware(['agent.device', 'throttle:10,1'])
     ->name('api.agent.token.rotate');
+
+// Agent service of a diskless or cloned PC gets a token for its own PC (club key + hardware UUID).
+Route::post('/agent/enroll', AgentEnrollController::class)
+    ->middleware('throttle:agent-enroll')
+    ->name('api.agent.enroll');
 
 Route::post('/agent/exit-pin', AgentExitPinController::class)
     ->middleware(['agent.device', 'throttle:agent-exit-pin'])

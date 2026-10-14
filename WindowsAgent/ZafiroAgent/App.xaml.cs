@@ -116,6 +116,12 @@ namespace ZafiroAgent
             var vault = DeviceTokens.Vault;
             if (vault is null) return;
             vault.Resume();
+
+            // Ключ клуба нужен службе, чтобы на бездисковом ПК после перезагрузки получить токен этого ПК.
+            var clubKey = _secure.Unprotect(_config.Load().ProtectedClubKey);
+            SafeLog.Register(clubKey);
+            if (ZafiroAgent.Service.VaultProtocol.IsClubKey(clubKey) && !vault.SetClubKey(clubKey!))
+                SafeLog.Write("[Vault] club key was not accepted by the service");
             // Сигнал «агент работает» из фонового потока: служба перезапустит зависший или приостановленный агент.
             _alive = new Timer(_ => vault.Alive(), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
 

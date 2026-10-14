@@ -51,6 +51,12 @@ class AppServiceProvider extends ServiceProvider
             ->by('club-computer-agent:'.$this->agentRateLimitKey($request)));
 
         // Staff PIN on a PC: a handful of tries per PC, so a short PIN cannot be guessed.
+        // A diskless club restarts all its PCs at once behind one IP: limit each PC, and the IP loosely.
+        RateLimiter::for('agent-enroll', fn (Request $request): array => [
+            Limit::perMinute(5)->by('agent-enroll:'.$request->ip().'|'.hash('sha256', mb_strtolower((string) $request->input('device_id')))),
+            Limit::perMinute(300)->by('agent-enroll-ip:'.$request->ip()),
+        ]);
+
         RateLimiter::for('agent-exit-pin', fn (Request $request): array => [
             Limit::perMinutes(5, 5)->by('agent-exit-pin:'.$this->agentRateLimitKey($request)),
             // Общий лимит на клуб: подбор с нескольких ПК сразу не ускоряется. Он выше лимита

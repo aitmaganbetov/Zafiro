@@ -170,7 +170,13 @@ namespace ZafiroAgent.Services
             if (deviceToken is null)
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
             else
+            {
                 request.Headers.Add("X-Agent-Token", deviceToken);
+                // Без службы токен ПК отправляет сам агент — вместе с UUID этого ПК. Через службу
+                // UUID подставляет она: агенту в сеансе клиента здесь не доверяют.
+                if (deviceToken != DeviceTokens.VaultMarker && DeviceInfo.StableId is { Length: > 0 } deviceId)
+                    request.Headers.Add(ZafiroAgent.Service.VaultProtocol.DeviceHeader, deviceId);
+            }
 
             HttpResponseMessage response;
             try
