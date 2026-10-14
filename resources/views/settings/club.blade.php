@@ -54,6 +54,26 @@
     </form>
     <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Сейчас в клубе: :time', ['time' => now($clubTimezone)->translatedFormat('d.m.Y H:i')]) }}</p>
 </section>
+
+<section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="agent-pin-title">
+    <h5 id="agent-pin-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('PIN-код для выхода из агента') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('На ПК клуба сотрудник нажимает Ctrl+Alt+P и вводит этот PIN, чтобы закрыть агент. PIN проверяется на сервере, поэтому ПК должен быть в сети.') }}</p>
+    <p class="mb-3 text-sm font-medium {{ $agentPinSetAt ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400' }}">
+        {{ $agentPinSetAt ? __('PIN задан :date', ['date' => $agentPinSetAt->format('d.m.Y H:i')]) : __('PIN не задан: закрыть агент на ПК сейчас нельзя.') }}
+    </p>
+    @if($canManageAgentPin)
+        @error('pin')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+        <form method="POST" action="{{ route('settings.agent-pin') }}" class="flex flex-wrap items-end gap-3" autocomplete="off">
+            @csrf
+            <label class="w-40"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Новый PIN') }}</span>
+                <input type="password" name="pin" inputmode="numeric" pattern="\d{4,8}" maxlength="8" autocomplete="new-password" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"></label>
+            <label class="w-40"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Повторите PIN') }}</span>
+                <input type="password" name="pin_confirmation" inputmode="numeric" pattern="\d{4,8}" maxlength="8" autocomplete="new-password" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"></label>
+            <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Сохранить PIN') }}</button>
+        </form>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Оставьте поля пустыми и сохраните, чтобы удалить PIN.') }}</p>
+    @endif
+</section>
 @endsection
 
 @push('scripts')

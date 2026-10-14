@@ -63,6 +63,7 @@ class ActivityLog extends Model
         'translations.imported' => 'Импорт переводов',
         'club.timezone_changed' => 'Изменение часового пояса клуба',
         'computer.session_ended' => 'Досрочное завершение сессии ПК',
+        'club.agent_pin_changed' => 'Изменение PIN-кода агента',
     ];
 
     protected function casts(): array

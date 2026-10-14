@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -11,13 +12,14 @@ use Illuminate\Support\Str;
 use LogicException;
 
 #[Fillable(['name', 'slug', 'settings'])]
+#[Hidden(['installation_key', 'installation_key_hash', 'agent_exit_pin_hash'])]
 class Club extends Model
 {
     use UsesClubTimezone;
 
     protected function casts(): array
     {
-        return ['settings' => 'array', 'installation_key' => 'encrypted'];
+        return ['settings' => 'array', 'installation_key' => 'encrypted', 'agent_exit_pin_changed_at' => 'datetime'];
     }
 
     protected static function booted(): void

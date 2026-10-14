@@ -12,6 +12,7 @@ use App\Services\TranslationCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class SettingsController extends Controller
 {
@@ -22,6 +23,8 @@ class SettingsController extends Controller
         return view('settings.club', [
             'settings' => $this->loadSettings(),
             'clubTimezone' => $this->currentClub->get()->timezone,
+            'agentPinSetAt' => $this->currentClub->get()->agent_exit_pin_hash === null ? null : $this->currentClub->get()->agent_exit_pin_changed_at,
+            'canManageAgentPin' => in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin'], true),
             'timezones' => $this->timezoneOptions(),
         ]);
     }
@@ -43,6 +46,33 @@ class SettingsController extends Controller
         }
 
         return back()->with('status', __('Часовой пояс сохранён.'));
+    }
+
+    /** Staff PIN for closing the PC agent; stored as a hash, empty value removes it. */
+    public function agentPin(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $data = $request->validate([
+            'pin' => ['nullable', 'string', 'regex:/^\d{4,8}$/', 'confirmed'],
+        ], [
+            'pin.regex' => __('PIN-код — от 4 до 8 цифр.'),
+        ]);
+        $club = $this->currentClub->get();
+        $pin = $data['pin'] ?? null;
+
+        DB::transaction(function () use ($club, $pin, $request, $activity): void {
+            $club->forceFill([
+                'agent_exit_pin_hash' => $pin === null ? null : Hash::make($pin),
+                'agent_exit_pin_changed_at' => now(),
+            ])->save();
+            $activity->record(
+                'club.agent_pin_changed',
+                $pin === null ? __('PIN-код выхода из агента удалён') : __('PIN-код выхода из агента изменён'),
+                $request->user()->getKey(),
+                $club,
+            );
+        });
+
+        return back()->with('status', $pin === null ? __('PIN-код удалён.') : __('PIN-код сохранён.'));
     }
 
     /**

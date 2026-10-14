@@ -47,6 +47,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('club-computers', fn (Request $request): Limit => Limit::perMinute(60)
             ->by('club-computer-agent:'.$this->agentRateLimitKey($request)));
 
+        // Staff PIN on a PC: a handful of tries per PC, so a short PIN cannot be guessed.
+        RateLimiter::for('agent-exit-pin', fn (Request $request): Limit => Limit::perMinutes(5, 5)
+            ->by('agent-exit-pin:'.$this->agentRateLimitKey($request)));
+
         RateLimiter::for('club-computer-registration', fn (Request $request): Limit => Limit::perMinute(10)
             ->by('club-computer-registration:'.$this->agentRateLimitKey($request)));
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AgentExitPinController;
 use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubInstallationController;
@@ -41,6 +42,10 @@ Route::post('/club-computers/{computer}/heartbeat', [ClubComputerController::cla
 Route::post('/agent/heartbeat', [ClubComputerController::class, 'agentHeartbeat'])
     ->middleware(['agent.device', 'throttle:club-computers'])
     ->name('api.agent.heartbeat');
+
+Route::post('/agent/exit-pin', AgentExitPinController::class)
+    ->middleware(['agent.device', 'throttle:agent-exit-pin'])
+    ->name('api.agent.exit-pin');
 
 Route::post('/club-computers/{computer}/session/end', [ClubComputerController::class, 'endSession'])
     ->whereNumber('computer')
