@@ -121,22 +121,14 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          # Версия Inno Setup закреплена: образ runner может принести другую. Если поставить её
-          # не вышло, сборка идёт на установленной Inno Setup 6, а причина видна в предупреждении.
-          $innoVersion = '6.4.3'
+          # Inno Setup 6 из образа runner; точная версия пишется в журнал сборки (в ISCC.exe её нет,
+          # она есть в записи об установке).
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          $version = { if (Test-Path $iscc) { "$((Get-Item $iscc).VersionInfo.FileVersion)".Trim() } else { '' } }
-          $installed = & $version
-          if (-not $installed.StartsWith($innoVersion)) {
-            $log = choco install innosetup --version=$innoVersion -y --no-progress --force --allow-downgrade 2>&1 | Select-Object -Last 3
-            $chocoExit = $LASTEXITCODE
-            $installed = & $version
-            if (-not $installed.StartsWith($innoVersion)) {
-              Write-Host "::warning title=Inno Setup::Wanted $innoVersion, using '$installed' (choco exit $chocoExit): $(($log -join ' ') -replace '[\r\n]', ' ')"
-            }
-          }
-          if (-not $installed.StartsWith('6.')) { throw "Inno Setup 6 is required, found '$installed'" }
-          Write-Host "Inno Setup $installed"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 was not found' }
+          $setupKey = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1'
+          $innoVersion = (Get-ItemProperty $setupKey -ErrorAction SilentlyContinue).DisplayVersion
+          Write-Host "Inno Setup $innoVersion"
           & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$PWD\publish\full" WindowsAgent/installer/ZafiroAgent.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
           $name = "ZafiroAgentSetup-$version.exe"
