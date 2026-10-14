@@ -111,6 +111,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
 
     Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
         Route::post('/settings/agent-pin', [SettingsController::class, 'agentPin'])->name('settings.agent-pin');
+        Route::post('/settings/agent-staff-time', [SettingsController::class, 'agentStaffTime'])->name('settings.agent-staff-time');
         Route::post('/settings/languages', [LanguageController::class, 'store'])->name('languages.store');
         Route::patch('/settings/languages/{language}', [LanguageController::class, 'update'])->name('languages.update');
         Route::delete('/settings/languages/{language}', [LanguageController::class, 'destroy'])->name('languages.destroy');

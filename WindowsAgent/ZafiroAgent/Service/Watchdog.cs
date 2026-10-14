@@ -19,7 +19,8 @@ namespace ZafiroAgent.Service
     /// папки установки, который каждые несколько секунд сообщает службе, что жив: программа
     /// с тем же именем или приостановленный агент не подходят — такой агент перезапускается.
     /// Учётные записи администраторов не трогает (обслуживание ПК), а после выхода сотрудника
-    /// по PIN-коду ждёт до выхода из Windows, но не дольше 15 минут: сотрудник мог уйти, не выйдя.
+    /// по PIN-коду ждёт до выхода из Windows, но не дольше времени обслуживания из настроек клуба
+    /// (на сервере): сотрудник мог уйти, не выйдя.
     /// </summary>
     public sealed class Watchdog
     {
@@ -32,8 +33,8 @@ namespace ZafiroAgent.Service
         /// <summary>Время на запуск агента до первого сообщения.</summary>
         public static readonly TimeSpan StartupGrace = TimeSpan.FromSeconds(20);
 
-        /// <summary>Сколько агент не запускается после выхода сотрудника по PIN-коду.</summary>
-        public static readonly TimeSpan StaffPause = TimeSpan.FromMinutes(15);
+        /// <summary>Время обслуживания, если сервер его не прислал.</summary>
+        public static readonly TimeSpan DefaultStaffPause = TimeSpan.FromMinutes(15);
 
         private readonly string _agentExe;
         private readonly object _gate = new();
@@ -46,10 +47,10 @@ namespace ZafiroAgent.Service
             _agentExe = agentExe;
         }
 
-        /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент не запускается StaffPause.</summary>
-        public void Pause(uint session)
+        /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент не запускается duration.</summary>
+        public void Pause(uint session, TimeSpan duration)
         {
-            lock (_gate) _paused[session] = DateTime.UtcNow + StaffPause;
+            lock (_gate) _paused[session] = DateTime.UtcNow + duration;
         }
 
         /// <summary>Агент (процесс pid) сообщил, что работает. Учитывается, только если это exe из папки установки.</summary>

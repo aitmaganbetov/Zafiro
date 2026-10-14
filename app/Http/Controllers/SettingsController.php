@@ -6,6 +6,7 @@ use App\Http\Requests\SaveSettingsRequest;
 use App\Models\Language;
 use App\Models\Translation;
 use App\Services\ActivityLogger;
+use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
@@ -24,6 +25,7 @@ class SettingsController extends Controller
             'settings' => $this->loadSettings(),
             'clubTimezone' => $this->currentClub->get()->timezone,
             'agentPinSetAt' => $this->currentClub->get()->agent_exit_pin_hash === null ? null : $this->currentClub->get()->agent_exit_pin_changed_at,
+            'agentStaffMinutes' => $this->currentClub->get()->agent_staff_minutes ?? ClubComputerSessions::DEFAULT_STAFF_MINUTES,
             'canManageAgentPin' => in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin'], true),
             'timezones' => $this->timezoneOptions(),
         ]);
@@ -73,6 +75,26 @@ class SettingsController extends Controller
         });
 
         return back()->with('status', $pin === null ? __('PIN-код удалён.') : __('PIN-код сохранён.'));
+    }
+
+    /** How long staff may work on a PC before the agent comes back (agent service and panel). */
+    public function agentStaffTime(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $minutes = (int) $request->validate(['minutes' => ['required', 'integer', 'min:1', 'max:240']])['minutes'];
+        $club = $this->currentClub->get();
+        $from = (int) $club->agent_staff_minutes;
+
+        if ($from !== $minutes) {
+            DB::transaction(function () use ($club, $minutes, $from, $request, $activity): void {
+                $club->forceFill(['agent_staff_minutes' => $minutes])->save();
+                $activity->record('club.agent_staff_time_changed', __('Время обслуживания ПК изменено: :from → :to мин', ['from' => $from, 'to' => $minutes]), $request->user()->getKey(), $club, [
+                    'from' => $from,
+                    'to' => $minutes,
+                ]);
+            });
+        }
+
+        return back()->with('status', __('Время обслуживания сохранено.'));
     }
 
     /**

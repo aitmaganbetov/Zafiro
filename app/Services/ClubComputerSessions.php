@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,17 @@ use Illuminate\Validation\ValidationException;
  */
 class ClubComputerSessions
 {
+    public const DEFAULT_STAFF_MINUTES = 15;
+
+    /** Club roles that may set up PCs and count as staff on them. */
+    public const STAFF_ROLES = ['owner', 'admin', 'manager', 'operator'];
+
     private const SESSION_FIELDS = ['current_session_id' => null, 'current_session_user_id' => null, 'session_ends_at' => null];
+
+    private const STAFF_FIELDS = ['staff_user_id' => null, 'staff_kind' => null, 'staff_until' => null];
+
+    /** Agent states that mean the PC is back in customer hands. */
+    private const CUSTOMER_STATES = ['idle', 'locked', 'in_session'];
 
     public function __construct(private ActivityLogger $activity) {}
 
@@ -38,6 +49,9 @@ class ClubComputerSessions
                 $state = $expired && $data['state'] === 'in_session' ? 'idle' : $data['state'];
                 $updates['agent_state'] = $state;
                 $updates += $this->sessionUpdates($computer, $state, $data['session_id'] ?? null);
+                if (in_array($state, self::CUSTOMER_STATES, true)) {
+                    $updates += self::STAFF_FIELDS;
+                }
             }
 
             foreach (['agent_version', 'mac_address', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'] as $field) {
@@ -54,7 +68,8 @@ class ClubComputerSessions
                 $updates['hardware_reported_at'] = now();
             }
 
-            $computer->update($updates);
+            // forceFill: the staff fields are server-only and deliberately not mass assignable.
+            $computer->forceFill($updates)->save();
 
             return ['computer' => $computer, 'session' => $this->sessionPayload($computer), 'session_expired' => $expired];
         });
@@ -124,6 +139,19 @@ class ClubComputerSessions
                 'planned_end' => $endsAt?->utc()->toIso8601String() ?? '—',
             ]);
         });
+    }
+
+    /**
+     * Staff started working on the PC: kind "pin" (agent closed with the staff PIN) or
+     * "signin" (a staff member signed in on it). Lasts the club's agent_staff_minutes or
+     * until the agent reports a customer state again. Returns the minutes.
+     */
+    public function startStaffVisit(ClubComputer $computer, ?User $staff, string $kind): int
+    {
+        $minutes = (int) (Club::query()->whereKey($computer->club_id)->value('agent_staff_minutes') ?? self::DEFAULT_STAFF_MINUTES);
+        $computer->forceFill(['staff_user_id' => $staff?->getKey(), 'staff_kind' => $kind, 'staff_until' => now()->addMinutes($minutes)])->save();
+
+        return $minutes;
     }
 
     /** New device token for the agent of this PC; the previous one stops working. */

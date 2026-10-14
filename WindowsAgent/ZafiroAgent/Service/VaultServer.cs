@@ -30,20 +30,20 @@ namespace ZafiroAgent.Service
         private readonly string _pipeName;
         private readonly DeviceVaultStore _store;
         private readonly HttpClient _http;
-        private readonly Action<uint> _staffExit;
+        private readonly Action<uint, TimeSpan> _staffExit;
         private readonly Action<uint> _resume;
         private readonly Action<uint, uint> _alive;
         private readonly SemaphoreSlim _storeGate = new(1, 1);
         private readonly Dictionary<uint, int> _connections = new();
         private string? _rotatedFrom;
 
-        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
+        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
         {
             _alive = alive ?? ((_, _) => { });
             _pipeName = pipeName;
             _store = store;
             _http = http;
-            _staffExit = staffExit ?? (_ => { });
+            _staffExit = staffExit ?? ((_, _) => { });
             _resume = resume ?? (_ => { });
         }
 
@@ -325,7 +325,7 @@ namespace ZafiroAgent.Service
                 if (VaultProtocol.IsExitPin(target) && response.StatusCode == HttpStatusCode.OK)
                 {
                     SafeLog.Write("[Service] staff exit confirmed, restart paused for session " + clientSession);
-                    _staffExit(clientSession);
+                    _staffExit(clientSession, StaffTime(body));
                 }
 
                 return new VaultMessage { Ok = true, Status = (int)response.StatusCode, Body = body, ContentType = response.Content.Headers.ContentType?.MediaType };
@@ -338,6 +338,24 @@ namespace ZafiroAgent.Service
             {
                 return Fail("network");
             }
+        }
+
+        /// <summary>Время обслуживания из ответа сервера (настройка клуба); старый сервер его не присылает — 15 минут.</summary>
+        public static TimeSpan StaffTime(string body)
+        {
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                if (json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && json.RootElement.TryGetProperty("staff_minutes", out var value)
+                    && value.TryGetInt32(out var minutes) && minutes is >= 1 and <= 240)
+                    return TimeSpan.FromMinutes(minutes);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+
+            return Watchdog.DefaultStaffPause;
         }
 
         private static VaultMessage Fail(string error) => new() { Ok = false, Error = error };

@@ -10,7 +10,8 @@
     3. Для этой учётной записи запрещает: диспетчер задач, редактор реестра, командную строку и
        скрипты, PowerShell, окно «Выполнить», панель управления, MMC, msconfig, mshta, wscript/cscript,
        а также лазейки мимо агента: Game Bar (кнопка Xbox), окна залипания и фильтрации клавиш
-       (Shift ×5 и т. п.), «Ножницы» по PrtScn. На всём ПК выключает свайпы от края сенсорного экрана.
+       (Shift ×5 и т. п.), «Ножницы» по PrtScn, а также смену сетевых настроек: свойства подключения,
+       IP-адрес, включение и отключение сетевого адаптера. На всём ПК выключает свайпы от края экрана.
     4. Регистрирует службу Windows «Zafiro Agent» (SYSTEM): она хранит токен ПК в папке, недоступной
        клиенту, и запускает агент снова, если клиент его закрыл. Учётные записи администраторов служба
        не трогает.
@@ -39,8 +40,19 @@ $AgentExe = Join-Path $InstallDir 'ZafiroAgent.exe'
 $ServiceName = 'ZafiroAgent'
 $BlockedPrograms = @(
     'cmd.exe', 'powershell.exe', 'powershell_ise.exe', 'pwsh.exe', 'regedit.exe', 'regedt32.exe',
-    'taskmgr.exe', 'mmc.exe', 'msconfig.exe', 'mshta.exe', 'wscript.exe', 'cscript.exe', 'control.exe'
+    'taskmgr.exe', 'mmc.exe', 'msconfig.exe', 'mshta.exe', 'wscript.exe', 'cscript.exe', 'control.exe',
+    'netsh.exe', 'ipconfig.exe'
 )
+
+# Политики «Сетевые подключения»: 0 — запрещено, NC_EnableAdminProhibits = 1 — запреты действуют
+# и на членов группы «Операторы настройки сети». Клиент не может открыть свойства подключения,
+# сменить IP-адрес, отключить или переименовать адаптер.
+$NetworkPolicies = [ordered]@{
+    'NC_LanProperties' = 0; 'NC_LanChangeProperties' = 0; 'NC_AllowAdvancedTCPIPConfig' = 0; 'NC_LanConnect' = 0
+    'NC_RenameConnection' = 0; 'NC_RenameLanConnection' = 0; 'NC_DeleteConnection' = 0; 'NC_NewConnectionWizard' = 0
+    'NC_AdvancedSettings' = 0; 'NC_ShowSharedAccessUI' = 0; 'NC_EnableAdminProhibits' = 1
+}
+$NetworkPolicyKey = 'Software\Policies\Microsoft\Windows\Network Connections'
 
 function Assert-Administrator {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -181,6 +193,7 @@ function Protect-Client($root) {
     Set-Value $root 'Control Panel\Accessibility\Keyboard Response' 'Flags' '122' 'String'
     Set-Value $root 'Control Panel\Accessibility\ToggleKeys' 'Flags' '58' 'String'
     Set-Value $root 'Control Panel\Keyboard' 'PrintScreenKeyForSnippingEnabled' 0
+    foreach ($policy in $NetworkPolicies.GetEnumerator()) { Set-Value $root $NetworkPolicyKey $policy.Key $policy.Value }
 
     # Агент запускает служба; своя запись автозапуска дала бы второй запуск.
     Remove-Value $root 'Software\Microsoft\Windows\CurrentVersion\Run' 'ZafiroAgent'
@@ -215,6 +228,7 @@ function Unprotect-Client($root) {
     Set-Value $root 'Control Panel\Accessibility\Keyboard Response' 'Flags' '126' 'String'
     Set-Value $root 'Control Panel\Accessibility\ToggleKeys' 'Flags' '62' 'String'
     Remove-Value $root 'Control Panel\Keyboard' 'PrintScreenKeyForSnippingEnabled'
+    foreach ($policy in $NetworkPolicies.Keys) { Remove-Value $root $NetworkPolicyKey $policy }
 }
 
 Assert-Administrator

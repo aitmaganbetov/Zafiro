@@ -69,7 +69,7 @@ public sealed class DeviceVaultTests : IDisposable
     {
         var server = new StubHandler((request, _) => StubHandler.Json(HttpStatusCode.OK, "{}"));
         uint? pausedSession = null;
-        var vault = StartVault(server, staffExit: session => pausedSession = session);
+        var vault = StartVault(server, staffExit: (session, _) => pausedSession = session);
 
         Assert.False(vault.HasToken());
         Assert.True(await vault.StoreAsync(Token, CancellationToken.None));
@@ -255,7 +255,18 @@ public sealed class DeviceVaultTests : IDisposable
         Assert.Equal((uint)Environment.ProcessId, reported?.Pid);
     }
 
-    private DeviceVaultClient StartVault(StubHandler server, Action<uint>? staffExit = null)
+    [Theory]
+    [InlineData("""{"valid":true,"staff_minutes":40}""", 40)]
+    [InlineData("""{"valid":true}""", 15)]          // сервер старой версии
+    [InlineData("""{"valid":true,"staff_minutes":0}""", 15)]
+    [InlineData("""{"valid":true,"staff_minutes":9999}""", 15)]
+    [InlineData("not json", 15)]
+    public void StaffTime_ComesFromTheClubSettingsOnTheServer(string body, int minutes)
+    {
+        Assert.Equal(TimeSpan.FromMinutes(minutes), VaultServer.StaffTime(body));
+    }
+
+    private DeviceVaultClient StartVault(StubHandler server, Action<uint, TimeSpan>? staffExit = null)
     {
         var vault = new VaultServer(_pipe, new DeviceVaultStore(_dir, restrictAccess: false), new HttpClient(server), staffExit);
         _ = vault.RunAsync(_stop.Token);

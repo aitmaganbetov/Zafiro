@@ -35,7 +35,20 @@ class ClubComputer extends Model
             'ram_total_mb' => 'integer',
             'hardware_reported_at' => 'datetime',
             'agent_token_issued_at' => 'datetime',
+            'staff_user_id' => 'integer',
+            'staff_until' => 'datetime',
         ];
+    }
+
+    /** A staff member is working on this PC (agent closed with the PIN or staff signed in). */
+    public function hasStaffVisit(): bool
+    {
+        return $this->staff_until?->isFuture() === true;
+    }
+
+    public function staffUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'staff_user_id');
     }
 
     public function currentStatus(): string
