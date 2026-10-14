@@ -90,11 +90,13 @@ jobs:
 
       # Две сборки: полная (.NET внутри, работает на любом ПК) и маленькая (~2 МБ,
       # нужен установленный .NET Desktop Runtime 10; без него Windows сама предложит его скачать).
+      # Нативные DLL лежат рядом с exe, а не распаковываются во временную папку: служба работает
+      # от SYSTEM, и подложенная клиентом в TEMP библиотека загрузилась бы с её правами.
       - name: Publish
         shell: pwsh
         run: |
           $common = @('${{ env.PROJECT }}', '-c', 'Release', '-r', 'win-x64',
-                      '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true',
+                      '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=false',
                       '-p:Version=${{ steps.version.outputs.version }}')
           dotnet publish @common --self-contained true -p:EnableCompressionInSingleFile=true -o publish/full
           dotnet publish @common --self-contained false -o publish/small

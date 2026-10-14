@@ -25,8 +25,12 @@ namespace ZafiroAgent
         private ZafiroApiClient _api = null!;
         private readonly SecureStorageService _secure = new();
         private bool _pinOpen;
+        private Timer? _alive;
 
         internal KioskKeyboard Keyboard { get; } = new();
+
+        /// <summary>Чёрные окна на мониторах без окна агента, пока ПК заблокирован.</summary>
+        internal ScreenCover Covers { get; } = new();
 
         /// <summary>Сотрудник подтвердил выход PIN-кодом: агент может закрыться.</summary>
         internal bool ExitAuthorized { get; private set; }
@@ -40,16 +44,11 @@ namespace ZafiroAgent
             base.OnStartup(e);
 
             // Одна копия на сеанс пользователя (Local): чужой сеанс Windows не может помешать запуску.
+            // Служба (--watchdog) запускает агент, только когда настоящий агент не работает или
+            // не отвечает, поэтому занятое имя (его может занять программа клиента) не мешает ей.
             _singleInstance = new Mutex(true, @"Local\ZafiroAgent", out var isFirst);
-            if (!isFirst)
+            if (!isFirst && !e.Args.Contains("--watchdog"))
             {
-                // Служба перезапускает агент сама (--watchdog): сообщение показывается только при ручном запуске.
-                if (e.Args.Contains("--watchdog"))
-                {
-                    Shutdown();
-                    return;
-                }
-
                 MessageBox.Show("Zafiro Agent уже запущен на этом компьютере.", "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
@@ -93,6 +92,8 @@ namespace ZafiroAgent
             var vault = DeviceTokens.Vault;
             if (vault is null) return;
             vault.Resume();
+            // Сигнал «агент работает» из фонового потока: служба перезапустит зависший или приостановленный агент.
+            _alive = new Timer(_ => vault.Alive(), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
 
             var stored = _secure.Unprotect(_config.Load().ProtectedDeviceToken);
             if (string.IsNullOrEmpty(stored) || stored == DeviceTokens.VaultMarker) return;
@@ -106,14 +107,19 @@ namespace ZafiroAgent
         }
 
         /// <summary>
-        /// Киоск включается, когда ПК привязан к клубу (или получил токен устройства). Удаление
-        /// токена устройства из настроек его не выключает — только выход сотрудника по PIN.
+        /// Киоск включается, когда ПК привязан к клубу (или получил токен устройства), а при
+        /// установленной службе — всегда: настройки в профиле клиент может удалить. Выключает
+        /// киоск только выход сотрудника по PIN.
         /// </summary>
         internal void RefreshKiosk()
         {
-            var cfg = _config.Load();
-            if (KioskEnabled) return;
-            if (string.IsNullOrEmpty(cfg.ProtectedDeviceToken) && string.IsNullOrEmpty(cfg.ClubId) && DeviceTokens.Vault?.HasToken() != true) return;
+            if (KioskEnabled || ExitAuthorized) return;
+            if (DeviceTokens.Vault is null)
+            {
+                var cfg = _config.Load();
+                if (string.IsNullOrEmpty(cfg.ProtectedDeviceToken) && string.IsNullOrEmpty(cfg.ClubId)) return;
+            }
+
             Keyboard.Enabled = true;
             KioskPolicy.DisableTaskManager();
             SafeLog.Write("[Kiosk] enabled");
@@ -126,6 +132,7 @@ namespace ZafiroAgent
 
             var notice = stored.Failure is ApiFailure.NotConfigured or ApiFailure.TokenExpired ? null : stored.Message;
             var window = new ClubSetupWindow(clubSetup, notice) { Topmost = KioskEnabled };
+            window.Loaded += (_, _) => Covers.Update(window, KioskEnabled);
             return window.ShowDialog() == true && window.Session is not null;
         }
 
@@ -142,6 +149,7 @@ namespace ZafiroAgent
 
                 ExitAuthorized = true;
                 Keyboard.Enabled = false;
+                Covers.Update(null, false);
                 KioskPolicy.EnableTaskManager();
                 SafeLog.Write("[Kiosk] staff exit confirmed");
 
@@ -170,6 +178,8 @@ namespace ZafiroAgent
         protected override void OnExit(ExitEventArgs e)
         {
             Keyboard.Dispose();
+            Covers.Dispose();
+            _alive?.Dispose();
             _singleInstance?.Dispose();
             base.OnExit(e);
         }

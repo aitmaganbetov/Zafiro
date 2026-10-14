@@ -25,10 +25,12 @@ namespace ZafiroAgent.Service
         private readonly HttpClient _http;
         private readonly Action<uint> _staffExit;
         private readonly Action<uint> _resume;
+        private readonly Action<uint, uint> _alive;
         private readonly SemaphoreSlim _storeGate = new(1, 1);
 
-        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint>? staffExit = null, Action<uint>? resume = null)
+        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
         {
+            _alive = alive ?? ((_, _) => { });
             _pipeName = pipeName;
             _store = store;
             _http = http;
@@ -77,7 +79,7 @@ namespace ZafiroAgent.Service
                     timeout.CancelAfter(TimeSpan.FromSeconds(60));
                     var request = await VaultProtocol.ReadAsync(pipe, timeout.Token).ConfigureAwait(false);
                     var session = VaultProtocol.ClientSessionId(pipe);
-                    var reply = request is null ? Fail("bad_request") : await HandleAsync(request, session, timeout.Token).ConfigureAwait(false);
+                    var reply = request is null ? Fail("bad_request") : await HandleAsync(request, session, timeout.Token, VaultProtocol.ClientProcessId(pipe)).ConfigureAwait(false);
                     await VaultProtocol.WriteAsync(pipe, reply, timeout.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -87,10 +89,13 @@ namespace ZafiroAgent.Service
             }
         }
 
-        public async Task<VaultMessage> HandleAsync(VaultMessage request, uint clientSession, CancellationToken cancellationToken)
+        public async Task<VaultMessage> HandleAsync(VaultMessage request, uint clientSession, CancellationToken cancellationToken, uint clientProcess = 0)
         {
             switch (request.Op)
             {
+                case "alive":
+                    _alive(clientSession, clientProcess);
+                    return new VaultMessage { Ok = true };
                 case "status":
                     return new VaultMessage { Ok = true, HasToken = _store.Load() is not null };
                 case "resume":

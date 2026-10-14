@@ -15,18 +15,28 @@ namespace ZafiroAgent.Service
 {
     /// <summary>
     /// Следит, чтобы в сеансе клиента у консоли всегда работал агент: закрытый или убитый
-    /// агент запускается снова через несколько секунд. Учётные записи администраторов не
-    /// трогает (обслуживание ПК), а после выхода сотрудника по PIN-коду ждёт до выхода из Windows.
+    /// агент запускается снова через несколько секунд. Агентом считается только процесс из
+    /// папки установки, который каждые несколько секунд сообщает службе, что жив: программа
+    /// с тем же именем или приостановленный агент не подходят — такой агент перезапускается.
+    /// Учётные записи администраторов не трогает (обслуживание ПК), а после выхода сотрудника
+    /// по PIN-коду ждёт до выхода из Windows.
     /// </summary>
     public sealed class Watchdog
     {
         private const uint NoSession = 0xFFFFFFFF;
         private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(3);
 
+        /// <summary>Агент сообщает о себе каждые 5 с; молчание дольше этого — агент завис или приостановлен.</summary>
+        public static readonly TimeSpan AliveTimeout = TimeSpan.FromSeconds(15);
+
+        /// <summary>Время на запуск агента до первого сообщения.</summary>
+        public static readonly TimeSpan StartupGrace = TimeSpan.FromSeconds(20);
+
         private readonly string _agentExe;
         private readonly object _gate = new();
         private readonly HashSet<uint> _paused = new();
         private readonly Dictionary<uint, (int Failures, DateTime NextAttemptUtc)> _launches = new();
+        private readonly Dictionary<uint, DateTime> _alive = new();
 
         public Watchdog(string agentExe)
         {
@@ -39,6 +49,20 @@ namespace ZafiroAgent.Service
             lock (_gate) _paused.Add(session);
         }
 
+        /// <summary>Агент (процесс pid) сообщил, что работает. Учитывается, только если это exe из папки установки.</summary>
+        public void Alive(uint session, uint pid)
+        {
+            if (!IsAgentImage(pid)) return;
+            lock (_gate) _alive[session] = DateTime.UtcNow;
+        }
+
+        /// <summary>Агент молчит слишком долго: завис, приостановлен или это не агент.</summary>
+        public static bool IsUnresponsive(DateTime? lastAliveUtc, DateTime newestStartUtc, DateTime nowUtc)
+        {
+            if (nowUtc - newestStartUtc < StartupGrace) return false;
+            return lastAliveUtc is not { } last || nowUtc - last > AliveTimeout;
+        }
+
         /// <summary>Вход или выход из Windows, либо агент запущен вручную: наблюдение снова включено.</summary>
         public void Resume(uint session)
         {
@@ -46,6 +70,7 @@ namespace ZafiroAgent.Service
             {
                 _paused.Remove(session);
                 _launches.Remove(session);
+                _alive.Remove(session);
             }
         }
 
@@ -83,16 +108,35 @@ namespace ZafiroAgent.Service
             if (session == NoSession || session == 0) return;
 
             var now = DateTime.UtcNow;
-            lock (_gate)
+            var agents = AgentProcesses(session);
+            try
             {
-                if (_paused.Contains(session)) return;
-                if (IsAgentRunning(session))
+                lock (_gate)
                 {
-                    _launches.Remove(session);
-                    return;
-                }
+                    if (_paused.Contains(session)) return;
+                    if (agents.Count > 0)
+                    {
+                        var newestStart = agents.Max(p => p.StartTime.ToUniversalTime());
+                        DateTime? lastAlive = _alive.TryGetValue(session, out var at) ? at : null;
+                        if (!IsUnresponsive(lastAlive, newestStart, now))
+                        {
+                            _launches.Remove(session);
+                            return;
+                        }
 
-                if (_launches.TryGetValue(session, out var last) && now < last.NextAttemptUtc) return;
+                        SafeLog.Write("[Watchdog] agent is not responding in session " + session + ", restarting it");
+                        foreach (var agent in agents) Kill(agent);
+                        _alive.Remove(session);
+                    }
+                    else if (_launches.TryGetValue(session, out var last) && now < last.NextAttemptUtc)
+                    {
+                        return;
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var agent in agents) agent.Dispose();
             }
 
             if (!WTSQueryUserToken(session, out var userToken)) return; // никто не вошёл
@@ -117,17 +161,45 @@ namespace ZafiroAgent.Service
             }
         }
 
-        private bool IsAgentRunning(uint session)
+        // Процессы агента в сеансе: имя может взять любая программа, поэтому сверяется путь к exe.
+        private List<Process> AgentProcesses(uint session)
         {
-            var name = Path.GetFileNameWithoutExtension(_agentExe);
-            var processes = Process.GetProcessesByName(name);
+            var result = new List<Process>();
+            foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_agentExe)))
+            {
+                if ((uint)process.SessionId == session && IsAgentImage((uint)process.Id)) result.Add(process);
+                else process.Dispose();
+            }
+
+            return result;
+        }
+
+        private bool IsAgentImage(uint pid)
+        {
+            var handle = OpenProcess(ProcessQueryLimitedInformation, false, pid);
+            if (handle == IntPtr.Zero) return false;
             try
             {
-                return processes.Any(p => (uint)p.SessionId == session);
+                var path = new StringBuilder(1024);
+                var length = path.Capacity;
+                return QueryFullProcessImageName(handle, 0, path, ref length)
+                    && string.Equals(Path.GetFullPath(path.ToString()), Path.GetFullPath(_agentExe), StringComparison.OrdinalIgnoreCase);
             }
             finally
             {
-                foreach (var process in processes) process.Dispose();
+                CloseHandle(handle);
+            }
+        }
+
+        private static void Kill(Process process)
+        {
+            try
+            {
+                process.Kill();
+            }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+            {
+                SafeLog.Write("[Watchdog] could not stop the agent: " + ex.Message);
             }
         }
 
@@ -174,6 +246,7 @@ namespace ZafiroAgent.Service
         private const int SecurityImpersonation = 2;
         private const int TokenPrimary = 1;
         private const uint CreateUnicodeEnvironment = 0x00000400;
+        private const uint ProcessQueryLimitedInformation = 0x1000;
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct StartupInfo
@@ -218,5 +291,11 @@ namespace ZafiroAgent.Service
 
         [DllImport("kernel32.dll")]
         private static extern bool CloseHandle(IntPtr handle);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(uint access, bool inheritHandle, uint processId);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder path, ref int size);
     }
 }

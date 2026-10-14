@@ -420,10 +420,16 @@
       actionStatus.textContent = sessionEndMessages[event.data.reason] ?? sessionEndMessages.ended;
     }
 
+    // Клиент вышел: на экране не остаётся его баланса и корзины.
     if (event.data?.type === 'loggedOut') {
       setSessionActive(false);
       clearSessionDetails();
       updateProfileName('Гость');
+      ['balanceBig', 'bonusSmall', 'historyBalance', 'historyBonus', 'profileBalance', 'profileBonus'].forEach((id) => {
+        document.getElementById(id).textContent = '—';
+      });
+      cart.clear();
+      renderCart();
       actionStatus.textContent = '';
     }
 

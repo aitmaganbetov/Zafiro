@@ -21,9 +21,11 @@ namespace ZafiroAgent.Kiosk
             key.SetValue("DisableTaskMgr", 1, RegistryValueKind.DWord);
         });
 
-        // Возвращает диспетчер задач: при выходе сотрудника по PIN-коду.
+        // Возвращает диспетчер задач: при выходе сотрудника по PIN-коду. Со службой запрет
+        // ставит Protect-ClubPc.ps1 для учётной записи клиента, и агент его не снимает.
         public static void EnableTaskManager() => Try("enable task manager", () =>
         {
+            if (DeviceVaultClient.IsServiceInstalled()) return;
             using var key = Registry.CurrentUser.OpenSubKey(PolicyKey, writable: true);
             key?.DeleteValue("DisableTaskMgr", throwOnMissingValue: false);
         });

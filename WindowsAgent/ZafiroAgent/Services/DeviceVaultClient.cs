@@ -48,6 +48,9 @@ namespace ZafiroAgent.Services
         /// <summary>Сообщает службе, что агент запущен: наблюдение за этим сеансом снова включено.</summary>
         public void Resume() => Call(new VaultMessage { Op = "resume" });
 
+        /// <summary>Сигнал «агент работает»: без него служба считает агент зависшим и перезапускает его.</summary>
+        public void Alive() => Call(new VaultMessage { Op = "alive" });
+
         /// <summary>Передаёт токен службе. true — токен хранится в службе и агенту его держать не нужно.</summary>
         public async Task<bool> StoreAsync(string token, CancellationToken cancellationToken)
         {

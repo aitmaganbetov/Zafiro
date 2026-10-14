@@ -188,6 +188,32 @@ public sealed class DeviceVaultTests : IDisposable
         Assert.Equal(TimeSpan.FromSeconds(seconds), Watchdog.RetryDelay(failures));
     }
 
+    [Fact]
+    public void Watchdog_RestartsAnAgentThatStoppedReporting()
+    {
+        var now = new DateTime(2026, 10, 14, 12, 0, 0, DateTimeKind.Utc);
+        var started = now.AddMinutes(-5);
+
+        Assert.False(Watchdog.IsUnresponsive(now.AddSeconds(-4), started, now));
+        Assert.True(Watchdog.IsUnresponsive(now.AddSeconds(-16), started, now)); // приостановлен или завис
+        Assert.True(Watchdog.IsUnresponsive(null, started, now)); // программа с именем агента, которая не отвечает
+        Assert.False(Watchdog.IsUnresponsive(null, now.AddSeconds(-10), now)); // только что запущен
+    }
+
+    [Fact]
+    public async Task Alive_ReportsTheCallingProcessToTheWatchdog()
+    {
+        (uint Session, uint Pid)? reported = null;
+        var vault = new VaultServer(_pipe, new DeviceVaultStore(_dir, restrictAccess: false), new HttpClient(new StubHandler((_, _) => throw new InvalidOperationException())),
+            alive: (session, pid) => reported = (session, pid));
+        _ = vault.RunAsync(_stop.Token);
+
+        new DeviceVaultClient(_pipe, requireService: false).Alive();
+        await Task.Delay(100);
+
+        Assert.Equal((uint)Environment.ProcessId, reported?.Pid);
+    }
+
     private DeviceVaultClient StartVault(StubHandler server, Action<uint>? staffExit = null)
     {
         var vault = new VaultServer(_pipe, new DeviceVaultStore(_dir, restrictAccess: false), new HttpClient(server), staffExit);

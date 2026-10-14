@@ -11,7 +11,7 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
 - **Релиз**: `git tag agent-v1.0.0 && git push origin agent-v1.0.0` — создаётся GitHub Release с установщиком,
   zip и файлами `.sha256`.
 - **Локально** (Windows, .NET 10 SDK):
-  `dotnet publish WindowsAgent/ZafiroAgent/ZafiroAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish` (для маленькой сборки — `--self-contained false` без сжатия)
+  `dotnet publish WindowsAgent/ZafiroAgent/ZafiroAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:EnableCompressionInSingleFile=true -o publish` (для маленькой сборки — `--self-contained false` без сжатия)
 
 Каждая сборка даёт установщик и два архива:
 
@@ -22,7 +22,8 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
 | `ZafiroAgent-win-x64-<версия>-small.zip` | ~2 МБ | [.NET Desktop Runtime 10](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) — один раз на ПК; без него Windows сама предложит его скачать |
 
 В обоих случаях на ПК нужен WebView2 Runtime (в Windows 10/11 обычно уже установлен). Рядом с exe
-лежит папка `Frontend` — интерфейс агента.
+лежат папка `Frontend` (интерфейс агента) и несколько DLL Windows-графики и WebView2 — копируйте
+папку целиком.
 
 ## Установка на ПК клуба
 
@@ -33,12 +34,17 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
   - хранит токен ПК в `C:\ProgramData\ZafiroAgent`, куда у клиента нет доступа; агент знает только
     метку, а запросы с токеном (heartbeat, PIN-код, покупка тарифа) отправляет служба и только на zafiro.kz;
   - запускает агент при входе клиента и снова через несколько секунд, если агент закрыли или убили;
+    агент каждые 5 с сообщает службе, что работает, — зависший или приостановленный агент служба
+    перезапускает, а программу с тем же именем не принимает за агент (сверяет путь к exe);
   - не запускает агент в учётных записях администраторов (обслуживание ПК), а после выхода
     сотрудника по PIN-коду (Ctrl+Alt+P) — до выхода из Windows;
 - запускает `Protect-ClubPc.ps1`: создаёт ограниченную учётную запись `Client` и запрещает ей диспетчер
   задач, редактор реестра, командную строку и скрипты, PowerShell, окно «Выполнить», панель управления,
   MMC, msconfig, mshta, wscript/cscript. Если учётная запись новая, войдите в неё один раз и запустите
   скрипт снова: `powershell -ExecutionPolicy Bypass -File "C:\Program Files\Zafiro Agent\Protect-ClubPc.ps1"`.
+
+При установленной службе агент всегда работает в режиме киоска: без оплаченной сессии закрыты все
+мониторы, а когда сессия заканчивается, клиент выходит из своего аккаунта.
 
 Подключите ПК к клубу **в учётной записи клиента**: служба запустит агент, сотрудник вводит ключ
 установки и свой вход, после чего агент сам выходит из аккаунта сотрудника и ждёт клиента.

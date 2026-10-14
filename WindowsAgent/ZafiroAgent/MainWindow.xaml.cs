@@ -111,6 +111,7 @@ namespace ZafiroAgent
             var paid = _activeSessionId is not null;
             App.Instance.Keyboard.Strict = !paid;
             Topmost = App.Instance.KioskEnabled && !paid;
+            App.Instance.Covers.Update(this, Topmost && IsVisible);
         }
 
         // Финальный статус отправляется асинхронно: закрытие не блокирует UI-поток.
@@ -185,10 +186,14 @@ namespace ZafiroAgent
         }
 
         // Повторный вход поверх агента: отдельной кнопки на панели задач у окна нет.
-        private bool ShowSignIn()
+        private bool ShowSignIn(string? notice = null)
         {
-            var window = new Views.ClubSetupWindow(_clubSetup) { Owner = this, ShowInTaskbar = false, Topmost = App.Instance.KioskEnabled };
-            return window.ShowDialog() == true && window.Session is not null;
+            var window = new Views.ClubSetupWindow(_clubSetup, notice) { Owner = this, ShowInTaskbar = false, Topmost = App.Instance.KioskEnabled };
+            if (window.ShowDialog() != true || window.Session is null) return false;
+
+            // Новый клиент: интерфейс загружается заново, без данных прежнего.
+            WebView.CoreWebView2?.Navigate(AppOrigin + "index.html");
+            return true;
         }
 
         private void StartHeartbeat()
@@ -286,6 +291,9 @@ namespace ZafiroAgent
                 try { SHMinimizeAll(); } catch (Exception ex) { Debug.WriteLine("[Desktop] could not minimize windows: " + ex.Message); }
             }
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
+
+            // Следующий клиент не должен оказаться в чужом аккаунте и тратить чужой баланс.
+            Dispatcher.InvokeAsync(() => HandleLogoutAsync("Сессия завершена. Войдите, чтобы продолжить."));
         }
 
         private void CheckSessionTime()
@@ -494,7 +502,7 @@ namespace ZafiroAgent
                     return;
                 }
 
-                // Пользователь остаётся в системе: токен и клуб не трогаем.
+                // Клиент выходит из аккаунта (EndSessionLocally), клуб и токен ПК остаются.
                 EndSessionLocally("ended");
             }
             catch (Exception ex)
@@ -504,7 +512,7 @@ namespace ZafiroAgent
             }
         }
 
-        private async Task HandleLogoutAsync()
+        private async Task HandleLogoutAsync(string? notice = null)
         {
             if (_authPromptOpen) return;
             _authPromptOpen = true;
@@ -523,7 +531,7 @@ namespace ZafiroAgent
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
 
                 // Клуб и ключ установки сохраняются: нужен только повторный вход пользователя.
-                if (ShowSignIn())
+                if (ShowSignIn(notice))
                 {
                     StartHeartbeat();
                 }
@@ -637,7 +645,7 @@ namespace ZafiroAgent
                 else if (type == "logout")
                 {
                     // Окно авторизации открываем вне обработчика сообщения WebView.
-                    _ = Dispatcher.InvokeAsync(HandleLogoutAsync);
+                    _ = Dispatcher.InvokeAsync(() => HandleLogoutAsync());
                 }
                 else if (type == "returnToDesktop")
                 {

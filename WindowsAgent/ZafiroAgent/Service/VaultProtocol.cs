@@ -12,7 +12,7 @@ namespace ZafiroAgent.Service
 {
     /// <summary>
     /// Сообщение между агентом и службой (одна строка JSON в каждую сторону).
-    /// Запрос: Op = status | store | relay | resume. Ответ: Ok и поля результата.
+    /// Запрос: Op = status | store | relay | resume | alive. Ответ: Ok и поля результата.
     /// </summary>
     public sealed class VaultMessage
     {
@@ -97,6 +97,9 @@ namespace ZafiroAgent.Service
         public static uint ClientSessionId(NamedPipeServerStream pipe) =>
             GetNamedPipeClientSessionId(pipe.SafePipeHandle.DangerousGetHandle(), out var id) ? id : uint.MaxValue;
 
+        public static uint ClientProcessId(NamedPipeServerStream pipe) =>
+            GetNamedPipeClientProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var id) ? id : 0;
+
         /// <summary>Канал создан процессом в сеансе 0 (службой), а не программой пользователя, занявшей имя канала.</summary>
         public static bool IsServedFromSession0(NamedPipeClientStream pipe)
         {
@@ -106,6 +109,9 @@ namespace ZafiroAgent.Service
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetNamedPipeClientSessionId(IntPtr pipe, out uint sessionId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetNamedPipeClientProcessId(IntPtr pipe, out uint processId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetNamedPipeServerProcessId(IntPtr pipe, out uint processId);
