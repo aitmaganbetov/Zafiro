@@ -11,7 +11,7 @@ using System.Windows.Threading;
 using ZafiroAgent.Models;
 using ZafiroAgent.Security;
 using ZafiroAgent.Services;
-using ZafiroAgent.ViewModels;
+using ZafiroAgent.Infrastructure;
 
 namespace ZafiroAgent
 {
@@ -34,10 +34,9 @@ namespace ZafiroAgent
         private readonly ZafiroApiClient _zafiroApi;
         private readonly ConfigurationService _cfgService;
         private readonly ClubSetupService _clubSetup;
-        private readonly SessionViewModel _sessionViewModel = new();
         private readonly DispatcherTimer _sessionTimer = new() { Interval = TimeSpan.FromSeconds(5) };
         private HeartbeatService? _heartbeatService;
-        private System.Windows.Forms.NotifyIcon? _trayIcon;
+        private TrayIcon? _trayIcon;
         private bool _authPromptOpen;
         private bool _closeFlushed;
         private bool _reloginTried;
@@ -67,19 +66,9 @@ namespace ZafiroAgent
 
         private void InitializeTrayIcon()
         {
-            var menu = new System.Windows.Forms.ContextMenuStrip();
-            menu.Items.Add("Открыть Zafiro", null, (_, _) => RestoreFromTray());
             // Выход — только по PIN-коду сотрудника (в режиме киоска).
-            menu.Items.Add("Выход", null, (_, _) => RequestExit());
-
-            _trayIcon = new System.Windows.Forms.NotifyIcon
-            {
-                Icon = System.Drawing.SystemIcons.Application,
-                Text = "Zafiro Agent",
-                ContextMenuStrip = menu,
-                Visible = true
-            };
-            _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+            _trayIcon = new TrayIcon("Zafiro Agent", ("Открыть Zafiro", RestoreFromTray), ("Выход", RequestExit));
+            _trayIcon.Open += RestoreFromTray;
         }
 
         private void MinimizeToTray()
@@ -169,7 +158,6 @@ namespace ZafiroAgent
 
             try
             {
-                _sessionViewModel.EndSession();
                 _clubSetup.Logout();
             }
             catch (Exception ex)
@@ -179,11 +167,7 @@ namespace ZafiroAgent
 
             StopHeartbeat();
 
-            if (_trayIcon is not null)
-            {
-                _trayIcon.Visible = false;
-                _trayIcon.Dispose();
-            }
+            _trayIcon?.Dispose();
 
             base.OnClosed(e);
         }
@@ -276,7 +260,6 @@ namespace ZafiroAgent
             if (_activeSessionId != sessionId) _sessionAdoptedAtUtc = DateTime.UtcNow;
             _activeSessionId = sessionId;
             _activeSessionEndsAt = endsAtUtc;
-            _sessionViewModel.StartGameSession(sessionId, endsAtUtc ?? DateTimeOffset.UtcNow);
             _heartbeatService?.SetState(ComputerState.InSession, sessionId);
             _heartbeatService?.SetSessionEnd(endsAtUtc);
             ApplyKioskMode();
@@ -293,7 +276,6 @@ namespace ZafiroAgent
         {
             _activeSessionId = null;
             _activeSessionEndsAt = null;
-            _sessionViewModel.EndActiveSession();
             _heartbeatService?.SetState(ComputerState.Idle);
             SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionEnded", reason }));
             if (reason != "ended")
@@ -476,7 +458,6 @@ namespace ZafiroAgent
                     });
                 }
 
-                _sessionViewModel.StartSession(result);
                 // Вход не отменяет оплаченную сессию: её состояние определяет сервер.
                 if (_activeSessionId is null) _heartbeatService?.SetState(ComputerState.Idle);
                 if (!string.IsNullOrWhiteSpace(result.Token) || !string.IsNullOrWhiteSpace(result.SessionId))
@@ -536,7 +517,6 @@ namespace ZafiroAgent
                     _heartbeatService = null;
                 }
 
-                _sessionViewModel.EndSession();
                 _clubSetup.Logout();
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
 
@@ -571,7 +551,7 @@ namespace ZafiroAgent
                 try
                 {
                     json = e.WebMessageAsJson;
-                    Debug.WriteLine("[WebMsg Received] " + json);
+                    Debug.WriteLine("[WebMsg Received] " + MessageType(json));
                 }
                 catch (Exception exGet)
                 {
@@ -601,7 +581,7 @@ namespace ZafiroAgent
                 }
                 else if (type == "requestSession")
                 {
-                    await SendSessionDataAsync(_sessionViewModel.SessionId);
+                    await SendSessionDataAsync(_activeSessionId ?? string.Empty);
                 }
                 else if (type == "requestTariffs")
                 {
@@ -681,6 +661,9 @@ namespace ZafiroAgent
             }
         }
 
+        private static string MessageType(string? json) =>
+            json is not null && System.Text.RegularExpressions.Regex.Match(json, "\"type\"\\s*:\\s*\"([a-zA-Z]+)\"") is { Success: true } m ? m.Groups[1].Value : "?";
+
         private void SendMessageToWeb(string message)
         {
             // PostWebMessageAsJson допустим только из UI-потока, а heartbeat работает в фоновом.
@@ -692,7 +675,9 @@ namespace ZafiroAgent
 
             try
             {
-                Debug.WriteLine("[PostToWebView] " + message);
+                // В журнал — только тип сообщения: heartbeat каждые 30 с и списки товаров раздували бы лог.
+                if (!message.Contains("\"type\":\"heartbeat\"", StringComparison.Ordinal))
+                    Debug.WriteLine("[PostToWebView] " + MessageType(message));
                 WebView.CoreWebView2?.PostWebMessageAsJson(message);
             }
             catch (Exception ex)

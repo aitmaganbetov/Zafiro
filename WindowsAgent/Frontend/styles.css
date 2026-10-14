@@ -49,7 +49,6 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .club,#userName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-label{margin-left:8px;padding:2px 8px;border:1px solid rgba(94,183,255,0.25);border-radius:999px;color:var(--accent-2);font-size:0.8125rem;font-weight:600;white-space:nowrap}
 .club{font-weight:700}
-.status{color:var(--muted);font-size:0.8125rem}
 .shop-shortcut{display:inline-flex;align-items:center;gap:9px;padding:10px 13px;border:1px solid rgba(255,255,255,0.09);border-radius:8px;background:rgba(255,255,255,0.035);color:var(--text);font:inherit;font-size:0.8125rem;cursor:pointer}
 .shop-shortcut svg{width:18px;height:18px}
 .shop-shortcut:hover,.shop-shortcut:focus-visible{border-color:var(--accent-2);outline:2px solid var(--accent-2);outline-offset:2px}
@@ -73,7 +72,6 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 }
 .game-card{padding:0;overflow:hidden}
 .game-art{display:block;width:100%;height:100%;object-fit:cover}
-.actions-card{grid-column:1 / span 3;position:absolute;left:22px;right:22px;bottom:0;z-index:2}
 
 .shop-page{min-height:0;overflow:auto;padding:0 8px 28px}
 .shop-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:28px 0 22px;border-bottom:1px solid rgba(255,255,255,0.08)}
@@ -194,7 +192,6 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .large{font-size:2rem;font-weight:700}
 .balance{font-size:2.125rem;font-weight:800;color:var(--text);letter-spacing:0.5px}
 
-.banner{width:100%;height:100%;background:linear-gradient(90deg,#2b0b0b,#3d0b0b);border-radius:12px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.06);box-shadow:inset 0 6px 40px rgba(0,0,0,0.6)}
 
 .actions-row {
   display:flex;
@@ -212,26 +209,14 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 
 .rightpanel{width:clamp(260px, 19vw, 330px);flex:none;display:flex;flex-direction:column;padding:20px 12px;background:linear-gradient(180deg, rgba(0,0,0,0.25), transparent);border-left:1px solid rgba(255,255,255,0.02)}
 .right-card{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px}
-.right-header{display:flex;gap:8px;justify-content:flex-end}
-.pill{padding:8px 14px;border-radius:24px;border:none;background:rgba(255,255,255,0.02);color:var(--muted);cursor:pointer}
-.pill.red{background:linear-gradient(90deg,#ff6b6b,#d64545);color:white}
 .tariffs{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto}
 .tariff-status:empty{display:none}
 .tariff-status{margin:0;color:var(--muted);font-size:0.8125rem;line-height:1.45}
-.tariff-row{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:rgba(255,255,255,0.025)}
-.tariff-name{margin:0;font-size:0.875rem;line-height:1.35}
-.tariff-description{margin:0;color:var(--muted);font-size:0.8125rem;line-height:1.4}
-.tariff-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
-.tariff-price{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
-.tariff-buy{padding:7px 10px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:inherit;font-size:0.8125rem;cursor:pointer}
-.tariff-buy:hover:not(:disabled),.tariff-buy:focus-visible{background:var(--accent-2);outline:2px solid var(--text);outline-offset:2px}
-.tariff-buy:disabled{opacity:.55;cursor:wait}
 
 /* Utilities */
 .muted{color:var(--muted)}
 .small{font-size:0.8125rem}
 .primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(139,92,246,0.12)}
-.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
 
 /* Responsive: меню и панель действий не скрываются ни на одном мониторе клуба. */
 @media (max-width:1280px){

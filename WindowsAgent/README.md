@@ -11,10 +11,17 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
 - **Релиз**: `git tag agent-v1.0.0 && git push origin agent-v1.0.0` — создаётся GitHub Release с zip
   и файлом `.sha256`.
 - **Локально** (Windows, .NET 10 SDK):
-  `dotnet publish WindowsAgent/ZafiroAgent/ZafiroAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish`
+  `dotnet publish WindowsAgent/ZafiroAgent/ZafiroAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish` (для маленькой сборки — `--self-contained false` без сжатия)
 
-Результат — один `ZafiroAgent.exe` (около 75 МБ, .NET встроен). На ПК нужен WebView2 Runtime
-(в Windows 10/11 обычно уже установлен).
+Каждая сборка даёт два архива:
+
+| Архив | exe | Что нужно на ПК |
+|---|---|---|
+| `ZafiroAgent-win-x64-<версия>.zip` | ~60 МБ, .NET внутри | ничего, кроме Windows 10/11 |
+| `ZafiroAgent-win-x64-<версия>-small.zip` | ~2 МБ | [.NET Desktop Runtime 10](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) — один раз на ПК; без него Windows сама предложит его скачать |
+
+В обоих случаях на ПК нужен WebView2 Runtime (в Windows 10/11 обычно уже установлен). Рядом с exe
+лежит папка `Frontend` — интерфейс агента.
 
 ## Структура
 

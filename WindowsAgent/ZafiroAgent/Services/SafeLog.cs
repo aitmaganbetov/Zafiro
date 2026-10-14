@@ -73,6 +73,7 @@ namespace ZafiroAgent.Services
         private static readonly string LogDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZafiroAgent", "logs");
         private static readonly object FileGate = new();
         private static DateTime _cleanedOn;
+        private static bool _directoryReady;
 
         private static void WriteToFile(string safe)
         {
@@ -80,7 +81,12 @@ namespace ZafiroAgent.Services
             {
                 lock (FileGate)
                 {
-                    Directory.CreateDirectory(LogDirectory);
+                    if (!_directoryReady)
+                    {
+                        Directory.CreateDirectory(LogDirectory);
+                        _directoryReady = true;
+                    }
+
                     var now = DateTime.Now;
                     File.AppendAllText(Path.Combine(LogDirectory, $"agent-{now:yyyyMMdd}.log"), $"{now:HH:mm:ss.fff} {safe}{Environment.NewLine}");
 

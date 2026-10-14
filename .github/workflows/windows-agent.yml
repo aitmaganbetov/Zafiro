@@ -87,25 +87,30 @@ jobs:
             }
           }
 
-      - name: Publish (single exe, .NET included)
-        run: >
-          dotnet publish ${{ env.PROJECT }} -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -p:DebugType=none
-          -p:Version=${{ steps.version.outputs.version }}
-          -o publish
+      # Две сборки: полная (.NET внутри, работает на любом ПК) и маленькая (~2 МБ,
+      # нужен установленный .NET Desktop Runtime 10; без него Windows сама предложит его скачать).
+      - name: Publish
+        shell: pwsh
+        run: |
+          $common = @('${{ env.PROJECT }}', '-c', 'Release', '-r', 'win-x64',
+                      '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true',
+                      '-p:Version=${{ steps.version.outputs.version }}')
+          dotnet publish @common --self-contained true -p:EnableCompressionInSingleFile=true -o publish/full
+          dotnet publish @common --self-contained false -o publish/small
 
       - name: Package
         shell: pwsh
         run: |
-          $name = "ZafiroAgent-win-x64-${{ steps.version.outputs.version }}"
-          if (-not (Test-Path 'publish/Frontend/index.html')) { throw 'Frontend was not copied into the build' }
-          Compress-Archive -Path publish/* -DestinationPath "$name.zip"
-          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
-          Get-ChildItem publish, "$name.zip" | Format-Table Name, Length
+          $version = '${{ steps.version.outputs.version }}'
+          foreach ($kind in 'full', 'small') {
+            if (-not (Test-Path "publish/$kind/Frontend/index.html")) { throw "Frontend was not copied into the $kind build" }
+            $name = if ($kind -eq 'full') { "ZafiroAgent-win-x64-$version" } else { "ZafiroAgent-win-x64-$version-small" }
+            Compress-Archive -Path "publish/$kind/*" -DestinationPath "$name.zip"
+            $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
+            "$hash  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
+            $exe = (Get-Item "publish/$kind/ZafiroAgent.exe").Length / 1MB
+            Write-Host ("{0}: exe {1:N1} MB, zip {2:N1} MB" -f $kind, $exe, ((Get-Item "$name.zip").Length / 1MB))
+          }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -114,6 +119,7 @@ jobs:
             ZafiroAgent-win-x64-*.zip
             ZafiroAgent-win-x64-*.zip.sha256
           retention-days: 30
+          compression-level: 0 # zip уже сжат
           if-no-files-found: error
 
   release:

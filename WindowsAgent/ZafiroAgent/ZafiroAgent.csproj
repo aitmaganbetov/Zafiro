@@ -6,13 +6,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
+    <Version>1.0.0</Version>
+    <Product>Zafiro Agent</Product>
+    <Company>Zafiro</Company>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- WinForms нужен только для NotifyIcon; глобальный импорт конфликтует с WPF (Application, MessageBox). -->
-    <Using Remove="System.Windows.Forms" />
-  </ItemGroup>
+  <!-- Размер сборки: без Windows Forms (значок в трее — через Win32), системные сообщения .NET
+       только на русском, без XML-документации пакетов и без отладочных символов в Release. -->
+  <PropertyGroup>
+    <SatelliteResourceLanguages>ru</SatelliteResourceLanguages>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
