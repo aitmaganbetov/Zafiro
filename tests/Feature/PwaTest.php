@@ -39,8 +39,8 @@ test('every page links the manifest and the install button', function () {
     $this->actingAs($user)->get(route('dashboard'))
         ->assertSee(route('pwa.manifest'))
         ->assertSee('apple-touch-icon', false)
-        ->assertSee('data-pwa-install', false)
-        ->assertSee('data-pwa-dialog', false);
+        ->assertSee('data-pwa-banner', false)
+        ->assertDontSee('data-pwa-install', false);
     $this->flushSession();
     auth()->logout();
     app(CurrentClub::class)->clear();

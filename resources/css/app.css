@@ -2291,40 +2291,69 @@ body {
     cursor: pointer
 }
 
-.admin-icon-button[hidden] {
+.pwa-banner {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: var(--z-toast);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    max-width: 520px;
+    margin: 0 auto;
+    border-radius: 16px;
+    padding: 12px 16px;
+    background: #101713;
+    color: #e5ece7;
+    box-shadow: 0 16px 40px rgba(14, 28, 18, .3)
+}
+
+.pwa-banner[hidden] {
     display: none
 }
 
-.pwa-install-dialog {
-    margin: auto; /* centred: the CSS reset removes the browser default */
-    width: min(360px, calc(100vw - 32px));
-    border: 0;
-    border-radius: 16px;
-    padding: 24px;
-    color: #17201a;
-    box-shadow: 0 20px 50px rgba(14, 28, 18, .25)
+.pwa-banner img {
+    flex: 0 0 44px;
+    border-radius: 10px
 }
 
-.pwa-install-dialog::backdrop {
-    background: rgba(16, 23, 19, .55)
+.pwa-banner-text {
+    flex: 1 1 180px;
+    min-width: 0
 }
 
-.pwa-install-dialog h2 {
-    margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 700
+.pwa-banner-text strong {
+    display: block;
+    font-size: 16px
 }
 
-.pwa-install-dialog p {
-    margin: 0 0 16px;
-    font-size: 16px;
-    line-height: 1.5;
-    color: #4b5650
+.pwa-banner-text p {
+    margin: 2px 0 0;
+    color: #a7b5ab;
+    font-size: 14px;
+    line-height: 1.4
 }
 
-.pwa-install-dialog form {
+.pwa-banner-actions {
     display: flex;
-    justify-content: flex-end
+    gap: 8px;
+    margin-left: auto
+}
+
+.pwa-banner-actions button {
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer
+}
+
+.pwa-banner-dismiss {
+    border: 1px solid #3a463e;
+    background: transparent;
+    color: #e5ece7
 }
 
 .admin-icon-button .dot {
