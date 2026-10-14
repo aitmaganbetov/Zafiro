@@ -948,6 +948,9 @@ return [
         'Выдача прав суперадмина' => 'Superadmin rights given',
         'Снятие прав суперадмина' => 'Superadmin rights taken away',
         'Вход суперадмина' => 'Superadmin sign-in',
+        'Оплаченная подписка клуба :club закончилась :date' => 'The paid subscription of club :club ended on :date',
+        'Истекла' => 'Expired',
+        'Окончание оплаченной подписки' => 'Paid subscription ended',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

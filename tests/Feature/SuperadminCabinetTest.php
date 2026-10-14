@@ -178,3 +178,40 @@ test('a superadmin views a club read-only and the club log shows it', function (
     expect(session()->has(SetCurrentClub::VIEWING_KEY))->toBeFalse();
     $this->get(route('dashboard'))->assertRedirect(route('superadmin.dashboard'));
 });
+
+test('a paid subscription ends at its paid date and the scheduler marks it expired', function () {
+    $admin = cabinetAdmin();
+    $club = cabinetClub();
+    $subscription = ClubSubscription::query()->where('club_id', $club->id)->sole();
+    $subscription->forceFill(['status' => 'active', 'current_period_ends_at' => now()->addDay()])->save();
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->get(route('dashboard'))->assertOk();
+
+    // Access ends at the paid date, before the scheduler runs.
+    $this->travel(2)->days();
+    expect($subscription->fresh()->isActive())->toBeFalse();
+    $this->get(route('dashboard'))->assertRedirect(route('billing.show'));
+
+    $this->artisan('subscriptions:expire')->expectsOutput('expired: 1')->assertSuccessful();
+    expect($subscription->fresh()->status)->toBe('expired')
+        ->and(PlatformLog::query()->where('event', 'subscription.expired')->where('club_id', $club->id)->whereNull('user_id')->exists())->toBeTrue();
+    $this->get(route('billing.show'))->assertOk()->assertSee(__('Истекла'));
+    $this->artisan('subscriptions:expire')->expectsOutput('expired: 0');
+
+    // Extending an expired subscription counts from today and opens the club again.
+    $this->actingAs($admin)->post(route('superadmin.clubs.extend', $club), ['days' => 30]);
+    expect($subscription->fresh())->status->toBe('active')
+        ->and($subscription->fresh()->current_period_ends_at->utc()->toDateString())->toBe(now()->utc()->addDays(30)->toDateString());
+    $this->actingAs($owner)->get(route('dashboard'))->assertOk();
+});
+
+test('a subscription without a paid date does not expire', function () {
+    $subscription = ClubSubscription::query()->where('club_id', cabinetClub()->id)->sole();
+    $subscription->forceFill(['status' => 'active', 'current_period_ends_at' => null])->save();
+    $this->travel(400)->days();
+
+    $this->artisan('subscriptions:expire')->expectsOutput('expired: 0');
+    expect($subscription->fresh()->isActive())->toBeTrue()
+        ->and(ClubSubscription::query()->active()->whereKey($subscription->id)->exists())->toBeTrue();
+});

@@ -23,3 +23,6 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily();
 Schedule::command('club-computers:expire-sessions')->everyMinute();
 
 Schedule::command('integrations:prune')->hourly()->withoutOverlapping();
+
+// Paid club subscriptions: access ends at the paid date at once, the status follows here.
+Schedule::command('subscriptions:expire')->everyFiveMinutes()->withoutOverlapping();

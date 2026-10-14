@@ -17,10 +17,6 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
-        $subscriptions = ClubSubscription::query()
-            ->selectRaw("SUM(CASE WHEN status = 'active' OR (status = 'trialing' AND trial_ends_at > ?) THEN 1 ELSE 0 END) AS active_count", [now()])
-            ->selectRaw("SUM(CASE WHEN status = 'trialing' AND trial_ends_at > ? THEN 1 ELSE 0 END) AS trial_count", [now()])
-            ->first();
         $users = User::query()
             ->selectRaw('COUNT(*) AS total')
             ->selectRaw('SUM(CASE WHEN blocked_at IS NOT NULL THEN 1 ELSE 0 END) AS blocked')
@@ -33,8 +29,8 @@ class DashboardController extends Controller
 
         return view('superadmin.dashboard', [
             'clubCount' => Club::query()->count(),
-            'activeClubs' => (int) $subscriptions->active_count,
-            'trialClubs' => (int) $subscriptions->trial_count,
+            'activeClubs' => ClubSubscription::query()->active()->count(),
+            'trialClubs' => ClubSubscription::query()->where('status', 'trialing')->where('trial_ends_at', '>', now())->count(),
             'users' => $users,
             'computers' => $computers,
             'agentVersions' => ClubComputer::query()->withoutGlobalScope('club')

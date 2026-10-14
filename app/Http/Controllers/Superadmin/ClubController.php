@@ -32,8 +32,7 @@ class ClubController extends Controller
             'subscription' => ['nullable', 'in:active,inactive'],
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
-        $activeSubscription = fn (Builder $query) => $query->where('status', 'active')
-            ->orWhere(fn (Builder $trial) => $trial->where('status', 'trialing')->where('trial_ends_at', '>', now()));
+        $activeSubscription = fn (Builder $query) => $query->active();
 
         $clubs = Club::query()
             ->select(['id', 'name', 'slug', 'created_at'])

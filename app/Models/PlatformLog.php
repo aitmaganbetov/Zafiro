@@ -22,6 +22,7 @@ class PlatformLog extends Model
         'superadmin.granted' => 'Выдача прав суперадмина',
         'superadmin.revoked' => 'Снятие прав суперадмина',
         'superadmin.login' => 'Вход суперадмина',
+        'subscription.expired' => 'Окончание оплаченной подписки',
         'language.created' => 'Добавление языка',
         'language.updated' => 'Изменение языка',
         'language.deleted' => 'Удаление языка',

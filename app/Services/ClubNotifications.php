@@ -170,7 +170,7 @@ class ClubNotifications
         $subscription = ClubSubscription::query()->where('club_id', $clubId)->first();
         $endsAt = match ($subscription?->status) {
             'trialing' => $subscription->trial_ends_at,
-            'active' => $subscription->current_period_ends_at,
+            'active', 'expired' => $subscription->current_period_ends_at,
             default => null,
         };
 

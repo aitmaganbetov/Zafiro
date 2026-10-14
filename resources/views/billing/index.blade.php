@@ -8,7 +8,7 @@
     @if($subscription)
         <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div><dt class="text-sm text-gray-500">{{ __('План') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ __($subscription->plan->name) }}</dd></div>
-            <div><dt class="text-sm text-gray-500">{{ __('Статус') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ $subscription->status === 'trialing' ? __('Пробный период') : ($subscription->status === 'active' ? __('Активна') : __('Не активна')) }}</dd></div>
+            <div><dt class="text-sm text-gray-500">{{ __('Статус') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ ! $subscription->isActive() ? ($subscription->isPastPaidPeriod() ? __('Истекла') : __('Не активна')) : ($subscription->status === 'trialing' ? __('Пробный период') : __('Активна')) }}</dd></div>
             @if($subscription->status === 'trialing' && $subscription->trial_ends_at)
                 <div><dt class="text-sm text-gray-500">{{ __('Пробный период до') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ $subscription->trial_ends_at->format('d.m.Y H:i') }}</dd></div>
             @endif
