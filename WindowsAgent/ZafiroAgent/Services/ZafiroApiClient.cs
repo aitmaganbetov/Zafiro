@@ -453,6 +453,9 @@ namespace ZafiroAgent.Services
             }
 
             heartbeat.SessionExpired = root.TryGetProperty("session_expired", out var expired) && expired.ValueKind == JsonValueKind.True;
+            if (TryGetString(root, "server_time", out var serverTime) &&
+                DateTimeOffset.TryParse(serverTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var serverNow))
+                heartbeat.ServerTimeUtc = serverNow.ToUniversalTime();
             return heartbeat;
         }
 

@@ -3,8 +3,8 @@
   <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<!-- Только свои скрипты и стили; картинки товаров — с сервера по https. -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'" />
+	<!-- Только свои скрипты и стили; картинки товаров — только с zafiro.kz. -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://zafiro.kz data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'" />
 	<title>Zafiro Agent — Сессия</title>
 	<link rel="stylesheet" href="styles.css" />
   </head>
@@ -18,7 +18,7 @@
 		  <button class="nav-item" id="homeNavigation" type="button" aria-label="Главная" title="Главная">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-6h6v6"/></svg>
 		  </button>
-		  <button class="nav-item" type="button" aria-label="Магазин" title="Магазин">
+		  <button class="nav-item" id="shopNavigation" type="button" aria-label="Магазин" title="Магазин">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h18l-1.5 12h-15L3 9Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg>
 		  </button>
 		  <button class="nav-item" id="tariffNavigation" type="button" aria-label="Тарифы" title="Тарифы">
@@ -31,8 +31,6 @@
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
 		  </button>
 		</nav>
-		<div class="sidebar-bottom">
-		</div>
 	  </aside>
 
 	  <main class="main">
@@ -48,14 +46,14 @@
 		</header>
 
 		<section class="grid" id="sessionPage" aria-label="Текущая сессия">
-		  <div class="card info-card">
+		  <div class="card">
 			<h3>Информация о текущей сессии</h3>
 			<div class="small muted">Осталось времени</div>
 			<div id="remainingBig" class="large">—</div>
 			<div class="muted small">Сессия истекает: <span id="sessionExpires">—</span></div>
 		  </div>
 
-		  <div class="card balance-card">
+		  <div class="card">
 			<h3>Основной счёт</h3>
 			<div class="balance"><span id="balanceBig">0</span> <span class="muted">KZT</span></div>
 			<div class="small muted">Бонус: <span id="bonusSmall">0</span> KZT</div>
@@ -207,7 +205,7 @@
 
 	  <aside class="rightpanel">
 		<div class="card right-card">
-		  <div class="tariffs" id="tariffsList">
+		  <div class="tariffs">
 			
 			<p class="tariff-status" id="actionStatus" role="status" aria-live="polite"></p>
 			<div class="actions-row">

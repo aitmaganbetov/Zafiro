@@ -121,9 +121,15 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
+          # Версия Inno Setup закреплена: образ runner может принести другую.
+          $innoVersion = '6.4.3'
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { choco install innosetup --version=6.4.3 -y --no-progress | Out-Null }
-          if (-not (Test-Path $iscc)) { throw 'Inno Setup was not installed' }
+          $installed = if (Test-Path $iscc) { (Get-Item $iscc).VersionInfo.ProductVersion } else { '' }
+          if (-not $installed.StartsWith($innoVersion)) {
+            choco install innosetup --version=$innoVersion -y --no-progress --force --allow-downgrade | Out-Null
+          }
+          $installed = if (Test-Path $iscc) { (Get-Item $iscc).VersionInfo.ProductVersion } else { '' }
+          if (-not $installed.StartsWith($innoVersion)) { throw "Inno Setup $innoVersion is required, found '$installed'" }
           & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$PWD\publish\full" WindowsAgent/installer/ZafiroAgent.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
           $name = "ZafiroAgentSetup-$version.exe"

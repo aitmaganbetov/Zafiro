@@ -25,7 +25,8 @@ public sealed class HeartbeatTests : IDisposable
         MaxInterval = TimeSpan.FromMilliseconds(100),
         DefaultInterval = TimeSpan.FromMilliseconds(50),
         RetryDelay = TimeSpan.FromMilliseconds(20),
-        MaxRetryDelay = TimeSpan.FromMilliseconds(80)
+        MaxRetryDelay = TimeSpan.FromMilliseconds(80),
+        ClientErrorDelay = TimeSpan.FromMilliseconds(50)
     };
 
     // Длинный интервал: повторная отправка возможна только по сигналу о смене состояния.
@@ -216,25 +217,61 @@ public sealed class HeartbeatTests : IDisposable
         await Finish(service);
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized, ApiFailure.TokenExpired)]
-    [InlineData(HttpStatusCode.PaymentRequired, ApiFailure.SubscriptionInactive)]
-    [InlineData(HttpStatusCode.Forbidden, ApiFailure.Forbidden)]
-    [InlineData(HttpStatusCode.UnprocessableEntity, ApiFailure.InvalidRequest)]
-    public async Task Heartbeat_ClientErrors_StopWithoutRetry(HttpStatusCode status, ApiFailure expected)
+    [Fact]
+    public async Task Heartbeat_ExpiredSignIn_StopsTheLoopUntilTheNextSignIn()
     {
         var (service, handler, _) = Create((r, _) => IsResolve(r)
             ? StubHandler.Json(HttpStatusCode.OK, ResolveJson)
-            : StubHandler.Json(status, "{}"));
+            : StubHandler.Json(HttpStatusCode.Unauthorized, "{}"));
 
         service.Start();
         await WaitUntil(() => !_errors.IsEmpty);
         await Task.Delay(300);
 
         var error = Assert.IsType<ZafiroApiException>(Assert.Single(_errors));
-        Assert.Equal(expected, error.Failure);
+        Assert.Equal(ApiFailure.TokenExpired, error.Failure);
         Assert.DoesNotContain(Token, error.Message);
         Assert.Equal(2, handler.Snapshot().Length);
+        await Finish(service);
+    }
+
+    // Иначе ПК пропадает из панели и не узнаёт о сессиях, купленных в панели.
+    [Theory]
+    [InlineData(HttpStatusCode.PaymentRequired, ApiFailure.SubscriptionInactive)]
+    [InlineData(HttpStatusCode.Forbidden, ApiFailure.Forbidden)]
+    [InlineData(HttpStatusCode.UnprocessableEntity, ApiFailure.InvalidRequest)]
+    public async Task Heartbeat_OtherClientErrors_AreReported_AndTheLoopKeepsGoing(HttpStatusCode status, ApiFailure expected)
+    {
+        var (service, handler, _) = Create((r, _) => IsResolve(r)
+            ? StubHandler.Json(HttpStatusCode.OK, ResolveJson)
+            : StubHandler.Json(status, "{}"));
+
+        service.Start();
+        await WaitUntil(() => handler.Snapshot().Length >= 4);
+
+        var error = Assert.IsType<ZafiroApiException>(_errors.First());
+        Assert.Equal(expected, error.Failure);
+        await Finish(service);
+    }
+
+    [Fact]
+    public async Task Heartbeat_SessionMismatch_DropsTheLocalSession_AndReportsIdle()
+    {
+        var beats = 0;
+        var (service, handler, _) = Create((r, _) =>
+        {
+            if (IsResolve(r)) return StubHandler.Json(HttpStatusCode.OK, ResolveJson);
+            return Interlocked.Increment(ref beats) == 1
+                ? StubHandler.Json(HttpStatusCode.UnprocessableEntity, "{}")
+                : StubHandler.Json(HttpStatusCode.OK, HeartbeatJson());
+        });
+
+        service.SetState(ComputerState.InSession, "old-session");
+        service.Start();
+        await WaitUntil(() => handler.Snapshot().Length >= 3);
+
+        var retry = handler.Snapshot()[2];
+        Assert.Contains("\"state\":\"idle\"", retry.Body);
         await Finish(service);
     }
 
@@ -670,8 +707,9 @@ public sealed class HeartbeatTests : IDisposable
             await WaitUntil(() => !_errors.IsEmpty);
             await Task.Delay(150);
 
-            Assert.Equal(expected, Assert.IsType<ZafiroApiException>(Assert.Single(_errors)).Failure);
-            Assert.Equal(2, handler.Snapshot().Length);
+            // Heartbeat продолжается: ПК не найден — агент определяет его заново.
+            Assert.Equal(expected, Assert.IsType<ZafiroApiException>(_errors.First()).Failure);
+            Assert.True(handler.Snapshot().Length >= 2);
             await Finish(service);
             while (_errors.TryDequeue(out _)) { }
         }
@@ -827,6 +865,19 @@ public sealed class HeartbeatTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Equal(new ComputerInfo(45, "7", "PC-07", null), result.Value);
+    }
+
+    [Fact]
+    public async Task Heartbeat_ReadsTheServerClock()
+    {
+        var json = HeartbeatJson()[..^1] + ""","server_time":"2026-10-14T12:30:15.000+00:00"}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        Assert.Equal(new DateTimeOffset(2026, 10, 14, 12, 30, 15, TimeSpan.Zero), _beats.First().ServerTimeUtc);
     }
 
     [Fact]

@@ -17,5 +17,8 @@ namespace ZafiroAgent.Models
         public string? SessionId { get; set; }
         public DateTimeOffset? SessionEndsAtUtc { get; set; }
         public bool SessionExpired { get; set; }
+
+        // Время сервера в момент ответа: по нему агент поправляет часы ПК при подсчёте конца сессии.
+        public DateTimeOffset? ServerTimeUtc { get; set; }
     }
 }

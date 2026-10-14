@@ -47,6 +47,14 @@ namespace ZafiroAgent
         private DateTimeOffset? _activeSessionEndsAt;
         private DateTime _sessionAdoptedAtUtc;
 
+        // Часы сервера минус часы ПК: если часы ПК спешат или отстают, сессия всё равно
+        // заканчивается вовремя, а не раньше (и игра не сворачивается каждые 5 секунд).
+        private TimeSpan _clockOffset;
+        private bool _purchaseInFlight;
+        private DateTime _webViewRecreatedAtUtc;
+
+        private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + _clockOffset;
+
         [DllImport("shell32.dll")]
         private static extern void SHMinimizeAll();
 
@@ -224,11 +232,16 @@ namespace ZafiroAgent
                         connectionStatus = hb.ConnectionStatus,
                         lastSeenAt = hb.LastSeenAt?.ToString("o"),
                         recommendedInterval = hb.RecommendedIntervalSeconds,
+                        serverTime = hb.ServerTimeUtc?.ToString("O"),
                         number = hb.Number,
                         zone = hb.Zone
                     };
                     SendMessageToWeb(JsonSerializer.Serialize(payload));
-                    Dispatcher.BeginInvoke(() => SyncSessionWithServer(hb));
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
+                        SyncSessionWithServer(hb);
+                    });
                 };
                 service.OnError += ex =>
                 {
@@ -284,6 +297,7 @@ namespace ZafiroAgent
             {
                 type = "sessionSync",
                 sessionId,
+                clockOffsetMs = (long)_clockOffset.TotalMilliseconds,
                 sessionEndsAt = endsAtUtc?.ToUniversalTime().ToString("O")
             }));
         }
@@ -309,7 +323,7 @@ namespace ZafiroAgent
         private void CheckSessionTime()
         {
             App.Instance.RefreshKiosk(); // киоск включается, как только ПК получил токен устройства
-            if (_activeSessionId is not null && _activeSessionEndsAt is { } endsAt && endsAt <= DateTimeOffset.UtcNow)
+            if (_activeSessionId is not null && _activeSessionEndsAt is { } endsAt && endsAt <= ServerNow)
                 EndSessionLocally("expired");
         }
 
@@ -357,6 +371,31 @@ namespace ZafiroAgent
         }
 #endif
 
+        /// <summary>Браузер WebView2 завершился: элемент создаётся заново (не чаще раза в 10 с).</summary>
+        private async Task RecreateWebViewAsync()
+        {
+            if (DateTime.UtcNow - _webViewRecreatedAtUtc < TimeSpan.FromSeconds(10) || WebView.Parent is not System.Windows.Controls.Panel panel) return;
+            _webViewRecreatedAtUtc = DateTime.UtcNow;
+
+            var index = panel.Children.IndexOf(WebView);
+            panel.Children.Remove(WebView);
+            try { WebView.Dispose(); }
+            catch (Exception ex) { SafeLog.Write("[WebView] dispose failed: " + ex.Message); }
+
+            WebView = new Microsoft.Web.WebView2.Wpf.WebView2();
+            panel.Children.Insert(index, WebView);
+            try
+            {
+                await InitializeWebViewAsync();
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[WebView] could not restart: " + ex.Message);
+                WebView.Visibility = Visibility.Collapsed;
+                UiError.Visibility = Visibility.Visible;
+            }
+        }
+
         /// <summary>
         /// Данные WebView2 — в профиле пользователя: рядом с exe (Program Files) писать нельзя.
         /// Клиент может подменить папку файлом или ссылкой — тогда она пересоздаётся, а если
@@ -388,6 +427,10 @@ namespace ZafiroAgent
             var core = WebView.CoreWebView2;
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.IsStatusBarEnabled = false;
+            // Ctrl+колесо, жест щипка и свайп назад ломали бы вёрстку экрана блокировки.
+            core.Settings.IsZoomControlEnabled = false;
+            core.Settings.IsPinchZoomEnabled = false;
+            core.Settings.IsSwipeNavigationEnabled = false;
 #if DEBUG
             core.Settings.AreDevToolsEnabled = true;
 #else
@@ -401,6 +444,19 @@ namespace ZafiroAgent
                     args.Cancel = true;
             };
             core.NewWindowRequested += (_, args) => args.Handled = true;
+            core.ProcessFailed += (_, args) =>
+            {
+                // Клиент может завершить процессы msedgewebview2.exe: без этого остался бы пустой экран.
+                SafeLog.Write("[WebView] process failed: " + args.ProcessFailedKind);
+                if (args.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited)
+                    Dispatcher.BeginInvoke(() => _ = RecreateWebViewAsync());
+                else
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        try { WebView.CoreWebView2?.Reload(); }
+                        catch (Exception ex) { SafeLog.Write("[WebView] reload failed: " + ex.Message); }
+                    });
+            };
             core.WebMessageReceived += CoreWebView2_WebMessageReceived;
 
             var frontendFolder = Path.Combine(AppContext.BaseDirectory, "Frontend");
@@ -416,7 +472,6 @@ namespace ZafiroAgent
             core.SetVirtualHostNameToFolderMapping(AppHost, frontendFolder, CoreWebView2HostResourceAccessKind.Allow);
             core.NavigationCompleted += (_, _) =>
             {
-                SendMessageToWeb("{\"type\":\"pong\"}");
                 var cfg = _cfgService.Load();
                 SendMessageToWeb(JsonSerializer.Serialize(new
                 {
@@ -476,43 +531,6 @@ namespace ZafiroAgent
             catch
             {
                 SendMessageToWeb("{\"type\":\"tariffs\",\"list\":[],\"error\":true,\"message\":\"Не удалось загрузить тарифы. Проверьте подключение.\"}");
-            }
-        }
-
-        private async Task HandleUserLoginAsync(string login, string password)
-        {
-            try
-            {
-                var result = await _apiService.AuthenticateAsync(login, password, CancellationToken.None);
-                if (!result.Success)
-                {
-                    SendMessageToWeb(JsonSerializer.Serialize(new { type = "authFailed", message = result.Message ?? "Не удалось выполнить вход." }));
-                    return;
-                }
-
-                if (!string.IsNullOrWhiteSpace(result.Token))
-                {
-                    _cfgService.Update(cfg =>
-                    {
-                        cfg.ProtectedApiToken = new SecureStorageService().Protect(result.Token);
-                        cfg.TokenExpiresAtUtc = result.ExpiresAt ?? DateTime.UtcNow.AddHours(2);
-                    });
-                }
-
-                // Вход не отменяет оплаченную сессию: её состояние определяет сервер.
-                if (_activeSessionId is null) _heartbeatService?.SetState(ComputerState.Idle);
-                if (!string.IsNullOrWhiteSpace(result.Token) || !string.IsNullOrWhiteSpace(result.SessionId))
-                {
-                    await SendSessionDataAsync(result.SessionId ?? string.Empty);
-                    await SendTariffsAsync();
-                }
-
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "authSuccess", userName = result.UserName ?? login }));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("[UserLogin] failed: " + ex.Message);
-                SendMessageToWeb("{\"type\":\"authFailed\",\"message\":\"Не удалось выполнить вход.\"}");
             }
         }
 
@@ -608,19 +626,8 @@ namespace ZafiroAgent
                 using var doc = JsonDocument.Parse(json);
                 if (!doc.RootElement.TryGetProperty("type", out var t)) return;
                 var type = t.GetString();
-                if (type == "userLogin")
-                {
-                    var login = doc.RootElement.TryGetProperty("phone", out var phone) ? phone.GetString() ?? string.Empty : string.Empty;
-                    var password = doc.RootElement.TryGetProperty("password", out var pass) ? pass.GetString() ?? string.Empty : string.Empty;
-                    if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
-                    {
-                        SendMessageToWeb("{\"type\":\"authFailed\",\"message\":\"Введите телефон и пароль.\"}");
-                        return;
-                    }
-
-                    await HandleUserLoginAsync(login, password);
-                }
-                else if (type == "requestSession")
+                // Вход — только в окне агента (ClubSetupWindow): страница не принимает пароль и не меняет аккаунт.
+                if (type == "requestSession")
                 {
                     await SendSessionDataAsync(_activeSessionId ?? string.Empty);
                 }
@@ -643,6 +650,9 @@ namespace ZafiroAgent
                 }
                 else if (type == "purchaseTariff")
                 {
+                    // Второе нажатие, пока первая покупка не завершилась, не списывает деньги ещё раз.
+                    if (_purchaseInFlight) return;
+                    _purchaseInFlight = true;
                     try
                     {
                         var tariffId = doc.RootElement.GetProperty("tariffId").GetString() ?? string.Empty;
@@ -668,6 +678,10 @@ namespace ZafiroAgent
                         Debug.WriteLine("[Error] purchase failed");
                         SendMessageToWeb("{\"type\":\"purchaseResult\",\"success\":false,\"message\":\"Ошибка покупки\"}");
                     }
+                    finally
+                    {
+                        _purchaseInFlight = false;
+                    }
                 }
                 else if (type == "endSession")
                 {
@@ -689,10 +703,6 @@ namespace ZafiroAgent
 
                     Dispatcher.Invoke(MinimizeToTray);
                     SendMessageToWeb("{\"type\":\"returned\"}");
-                }
-                else if (type == "ping")
-                {
-                    SendMessageToWeb("{\"type\":\"pong\"}");
                 }
             }
             catch (Exception ex)

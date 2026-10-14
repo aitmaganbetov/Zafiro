@@ -788,6 +788,7 @@ return [
         'Тариф можно купить только на самом компьютере.' => 'The tariff can only be bought on the computer itself.',
         'Выход из агента по PIN-коду' => 'Agent exit with PIN',
         'Неверный PIN-код агента' => 'Wrong agent PIN',
+        'Этот ПК отправляет статус токеном устройства.' => 'This PC reports its status with its device token.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

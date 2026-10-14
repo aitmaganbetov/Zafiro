@@ -51,7 +51,8 @@ Filename: "{sys}\sc.exe"; Parameters: "start ZafiroAgent"; Flags: runhidden; Sta
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\Protect-ClubPc.ps1"""; Tasks: protect; Flags: waituntilterminated; StatusMsg: "Защита учётной записи клиента..."
 
 [UninstallRun]
-Filename: "{sys}\sc.exe"; Parameters: "stop ZafiroAgent"; Flags: runhidden; RunOnceId: "StopService"
+; net stop ждёт, пока служба остановится (sc stop возвращается сразу).
+Filename: "{sys}\net.exe"; Parameters: "stop ZafiroAgent"; Flags: runhidden; RunOnceId: "StopService"
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM ZafiroAgent.exe"; Flags: runhidden; RunOnceId: "StopAgent"
 Filename: "{sys}\sc.exe"; Parameters: "delete ZafiroAgent"; Flags: runhidden; RunOnceId: "DeleteService"
 
@@ -65,8 +66,8 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Code: Integer;
 begin
-  Exec(ExpandConstant('{sys}\sc.exe'), 'stop ZafiroAgent', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Sleep(1500);
+  // net stop ждёт остановки службы: иначе taskkill ниже мог бы оборвать её на полпути.
+  Exec(ExpandConstant('{sys}\net.exe'), 'stop ZafiroAgent', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM ZafiroAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Sleep(500);
   Result := '';

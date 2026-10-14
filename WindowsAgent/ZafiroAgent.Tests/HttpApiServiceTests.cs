@@ -27,49 +27,6 @@ public sealed class HttpApiServiceTests
     }
 
     [Fact]
-    public async Task AuthenticateAsync_PostsToAgentLoginEndpoint_AndParsesUserData()
-    {
-        var handler = new StubHandler((request, body) =>
-        {
-            Assert.Equal(HttpMethod.Post, request.Method);
-            Assert.Equal("https://zafiro.kz/api/agent/user/login", request.RequestUri!.AbsoluteUri);
-            using var json = JsonDocument.Parse(body!);
-            Assert.Equal("+77001234567", json.RootElement.GetProperty("phone").GetString());
-            Assert.Equal("p@ssw0rd", json.RootElement.GetProperty("password").GetString());
-            return StubHandler.Json(HttpStatusCode.OK, """
-                {
-                  "success": true,
-                  "session_id": "session-42",
-                  "user": { "name": "Иван Иванов" },
-                  "expires_at": "2026-10-13T18:30:00Z"
-                }
-                """);
-        });
-
-        var service = new HttpApiService(new HttpClient(handler));
-
-        var result = await service.AuthenticateAsync("+77001234567", "p@ssw0rd", CancellationToken.None);
-
-        Assert.True(result.Success);
-        Assert.Equal("session-42", result.SessionId);
-        Assert.Equal("Иван Иванов", result.UserName);
-        Assert.Equal(new DateTime(2026, 10, 13, 18, 30, 0, DateTimeKind.Utc), result.ExpiresAt);
-    }
-
-    [Fact]
-    public async Task AuthenticateAsync_MapsUnauthorizedErrorWithoutLeakingSecrets()
-    {
-        var handler = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.Unauthorized, "{\"message\":\"Неверный логин или пароль\"}"));
-        var service = new HttpApiService(new HttpClient(handler));
-
-        var result = await service.AuthenticateAsync("+77001234567", "secret-password", CancellationToken.None);
-
-        Assert.False(result.Success);
-        Assert.Equal("Неверный логин или пароль", result.Message);
-        Assert.DoesNotContain("secret-password", result.Message);
-    }
-
-    [Fact]
     public async Task GetSessionInfoAsync_UsesBearerTokenAndParsesProfileBalance()
     {
         var token = "jwt-token-123";
@@ -96,7 +53,7 @@ public sealed class HttpApiServiceTests
         var secure = new SecureStorageService();
         config.Save(new AgentConfig { ProtectedApiToken = secure.Protect(token), ApiBaseUrl = "https://zafiro.kz/api" });
 
-        var service = new HttpApiService(new HttpClient(handler), "https://zafiro.kz", config, secure);
+        var service = new HttpApiService(new HttpClient(handler), config, secure);
         var session = await service.GetSessionInfoAsync("ignored", CancellationToken.None);
 
         Assert.Equal("Имя пользователя", session.UserName);

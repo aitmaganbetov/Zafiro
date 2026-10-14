@@ -182,6 +182,12 @@ class ClubComputerController extends Controller
     {
         $computer = ClubComputer::query()->withoutGlobalScope('club')->findOrFail($computer);
         Gate::authorize('heartbeat', $computer);
+
+        // A PC with a device token reports only through it: a customer's token must not mark
+        // this (or any other) PC of the club online or busy.
+        if ($computer->agent_token_hash !== null) {
+            return response()->json(['message' => __('Этот ПК отправляет статус токеном устройства.'), 'code' => 'use_device_token'], 403);
+        }
         $data = $request->validated();
 
         // A customer's token may report the agent's state, but not rename the PC or its hardware.
@@ -241,6 +247,8 @@ class ClubComputerController extends Controller
             'session' => $result['session'],
             'session_expired' => $result['session_expired'],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
+            // The agent counts the session end against the server clock, not the PC's.
+            'server_time' => now()->utc()->format('Y-m-d\TH:i:s.vP'),
             'recommended_interval_seconds' => $recommendedInterval,
             'heartbeat_interval_seconds' => $recommendedInterval,
         ]);

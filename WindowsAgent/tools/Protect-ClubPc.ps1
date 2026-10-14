@@ -8,7 +8,9 @@
     1. Копирует агент в "C:\Program Files\Zafiro Agent": обычный пользователь не может подменить exe.
     2. Создаёт ограниченную учётную запись клиента (или проверяет существующую): без прав администратора.
     3. Для этой учётной записи запрещает: диспетчер задач, редактор реестра, командную строку и
-       скрипты, PowerShell, окно «Выполнить», панель управления, MMC, msconfig, mshta, wscript/cscript.
+       скрипты, PowerShell, окно «Выполнить», панель управления, MMC, msconfig, mshta, wscript/cscript,
+       а также лазейки мимо агента: Game Bar (кнопка Xbox), окна залипания и фильтрации клавиш
+       (Shift ×5 и т. п.), «Ножницы» по PrtScn. На всём ПК выключает свайпы от края сенсорного экрана.
     4. Регистрирует службу Windows «Zafiro Agent» (SYSTEM): она хранит токен ПК в папке, недоступной
        клиенту, и запускает агент снова, если клиент его закрыл. Учётные записи администраторов служба
        не трогает.
@@ -74,7 +76,13 @@ function Install-AgentService {
         Write-Host 'Служба Zafiro Agent установлена.'
     }
 
-    Start-Service $ServiceName
+    # Запреты ниже нужны и без службы: её сбой не должен оставить учётную запись открытой.
+    try {
+        Start-Service $ServiceName
+    }
+    catch {
+        Write-Warning "Служба Zafiro Agent не запустилась: $($_.Exception.Message). Проверьте журнал событий Windows."
+    }
 }
 
 function Remove-AgentService {
@@ -122,7 +130,16 @@ function Close-ClientHive($hive) {
     if (-not $hive.Loaded) { return }
     [GC]::Collect()
     [GC]::WaitForPendingFinalizers()
-    & reg.exe unload 'HKU\ZafiroClient' | Out-Null
+    # Невыгруженный реестр — и клиент войдёт во временный профиль, где запретов нет.
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        & reg.exe unload 'HKU\ZafiroClient' 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { return }
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
+        Start-Sleep -Seconds 1
+    }
+
+    Write-Warning "Реестр учётной записи $ClientUser не выгружен. Перезагрузите ПК, прежде чем клиент войдёт в Windows."
 }
 
 function Set-Value($root, $path, $name, $value, $type = 'DWord') {
@@ -155,8 +172,26 @@ function Protect-Client($root) {
         $index++
     }
 
+    # Game Bar (кнопка Xbox), окна специальных возможностей по Shift ×5 и т. п., «Ножницы» по PrtScn:
+    # они открываются поверх агента и ведут к параметрам Windows.
+    Set-Value $root 'Software\Microsoft\Windows\CurrentVersion\GameDVR' 'AppCaptureEnabled' 0
+    Set-Value $root 'System\GameConfigStore' 'GameDVR_Enabled' 0
+    Set-Value $root 'Software\Microsoft\GameBar' 'UseNexusForGameBarEnabled' 0
+    Set-Value $root 'Control Panel\Accessibility\StickyKeys' 'Flags' '506' 'String'
+    Set-Value $root 'Control Panel\Accessibility\Keyboard Response' 'Flags' '122' 'String'
+    Set-Value $root 'Control Panel\Accessibility\ToggleKeys' 'Flags' '58' 'String'
+    Set-Value $root 'Control Panel\Keyboard' 'PrintScreenKeyForSnippingEnabled' 0
+
     # Агент запускает служба; своя запись автозапуска дала бы второй запуск.
     Remove-Value $root 'Software\Microsoft\Windows\CurrentVersion\Run' 'ZafiroAgent'
+}
+
+# Свайпы от края сенсорного экрана (центр уведомлений, переключение окон) — для всего ПК.
+function Set-EdgeSwipe([bool] $allowed) {
+    $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
+    if ($allowed) { Remove-Value 'HKLM:\' 'SOFTWARE\Policies\Microsoft\Windows\EdgeUI' 'AllowEdgeSwipe'; return }
+    New-Item -Path $key -Force | Out-Null
+    New-ItemProperty -Path $key -Name 'AllowEdgeSwipe' -Value 0 -PropertyType DWord -Force | Out-Null
 }
 
 function Unprotect-Client($root) {
@@ -172,15 +207,29 @@ function Unprotect-Client($root) {
     $list = Join-Path $root "$explorer\DisallowRun"
     if (Test-Path $list) { Remove-Item $list -Recurse -Force }
     Remove-Value $root 'Software\Microsoft\Windows\CurrentVersion\Run' 'ZafiroAgent'
+    Remove-Value $root 'Software\Microsoft\Windows\CurrentVersion\GameDVR' 'AppCaptureEnabled'
+    Remove-Value $root 'System\GameConfigStore' 'GameDVR_Enabled'
+    Remove-Value $root 'Software\Microsoft\GameBar' 'UseNexusForGameBarEnabled'
+    # Значения Windows по умолчанию.
+    Set-Value $root 'Control Panel\Accessibility\StickyKeys' 'Flags' '510' 'String'
+    Set-Value $root 'Control Panel\Accessibility\Keyboard Response' 'Flags' '126' 'String'
+    Set-Value $root 'Control Panel\Accessibility\ToggleKeys' 'Flags' '62' 'String'
+    Remove-Value $root 'Control Panel\Keyboard' 'PrintScreenKeyForSnippingEnabled'
 }
 
 Assert-Administrator
 if ($Undo) {
     Remove-AgentService
+    Set-EdgeSwipe $true
+    if (-not (Get-LocalUser -Name $ClientUser -ErrorAction SilentlyContinue)) {
+        Write-Host "Учётной записи $ClientUser нет: снимать с неё запреты не нужно." -ForegroundColor Green
+        return
+    }
 }
 else {
     Install-Agent
     Install-AgentService
+    Set-EdgeSwipe $false
     if (-not (Ensure-ClientUser)) { return }
 }
 

@@ -19,6 +19,9 @@ namespace ZafiroAgent.Services
         public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(10);
 
         public TimeSpan MaxRetryDelay { get; init; } = TimeSpan.FromMinutes(2);
+
+        // Ошибка, которую исправляет человек (подписка, права, ПК не найден): повтор не чаще этого.
+        public TimeSpan ClientErrorDelay { get; init; } = TimeSpan.FromMinutes(2);
     }
 
     public class HeartbeatService : IDisposable
@@ -50,9 +53,7 @@ namespace ZafiroAgent.Services
 
         public event Action<HeartbeatResponse>? OnHeartbeat;
         public event Action<Exception>? OnError;
-        public event Action<ComputerInfo>? OnComputerResolved;
 
-        public long CurrentComputerId => Interlocked.Read(ref _computerId);
 
         public HeartbeatService(
             ConfigurationService cfgService,
@@ -231,6 +232,7 @@ namespace ZafiroAgent.Services
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                var resolving = computerId <= 0;
                 try
                 {
                     if (session.ExpiresAtUtc <= _utcNow())
@@ -273,11 +275,38 @@ namespace ZafiroAgent.Services
                     await WaitAsync(ClampInterval(heartbeat.RecommendedIntervalSeconds, _options), cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { break; }
-                catch (ZafiroApiException ex) when (ex.Failure is not (ApiFailure.Network or ApiFailure.InvalidResponse))
+                catch (ZafiroApiException ex) when (ex.Failure == ApiFailure.TokenExpired
+                                                    || (resolving && ex.Failure is not (ApiFailure.Network or ApiFailure.InvalidResponse)))
                 {
-                    // 401/402/403/404/422 не повторяем: нужен вход или решение пользователя.
+                    // 401 — нужен повторный вход (цикл запустится после него); ошибки определения
+                    // ПК при запуске (не найден, нет прав) исправляет человек — их видно в агенте.
                     Report(ex);
                     return;
+                }
+                catch (ZafiroApiException ex) when (ex.Failure is not (ApiFailure.Network or ApiFailure.InvalidResponse))
+                {
+                    // 402/403/404/422: цикл не останавливается, иначе ПК «пропадёт» из панели и
+                    // не узнает о новых сессиях. 422 — сессия на сервере уже другая: агент
+                    // сбрасывает свою и берёт сессию из следующего ответа сервера.
+                    Report(ex);
+                    if (ex.Failure == ApiFailure.InvalidRequest)
+                    {
+                        lock (_stateLock)
+                        {
+                            _state = ComputerState.Idle;
+                            _sessionId = null;
+                            _sessionEndsAtUtc = null;
+                        }
+                    }
+
+                    if (ex.Failure == ApiFailure.ComputerNotFound)
+                    {
+                        computerId = 0;
+                        Interlocked.Exchange(ref _computerId, 0);
+                    }
+
+                    try { await WaitAsync(ex.Failure == ApiFailure.InvalidRequest ? _options.RetryDelay : _options.ClientErrorDelay, cancellationToken).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { break; }
                 }
                 catch (Exception ex)
                 {
@@ -333,7 +362,6 @@ namespace ZafiroAgent.Services
                 cfg.DeviceName = _deviceName;
                 cfg.DeviceId = deviceId ?? string.Empty;
             });
-            OnComputerResolved?.Invoke(info);
             return info.ComputerId;
         }
 

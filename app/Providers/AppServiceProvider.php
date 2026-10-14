@@ -50,8 +50,9 @@ class AppServiceProvider extends ServiceProvider
         // Staff PIN on a PC: a handful of tries per PC, so a short PIN cannot be guessed.
         RateLimiter::for('agent-exit-pin', fn (Request $request): array => [
             Limit::perMinutes(5, 5)->by('agent-exit-pin:'.$this->agentRateLimitKey($request)),
-            // Общий лимит на клуб: подбор с нескольких ПК сразу не ускоряется.
-            Limit::perHour(30)->by('agent-exit-pin-club:'.($request->attributes->get('agent_computer')?->club_id ?? $request->ip())),
+            // Общий лимит на клуб: подбор с нескольких ПК сразу не ускоряется. Он выше лимита
+            // одного ПК (60 в час), чтобы клиент одного ПК не мог заблокировать выход сотрудникам клуба.
+            Limit::perHour(100)->by('agent-exit-pin-club:'.($request->attributes->get('agent_computer')?->club_id ?? $request->ip())),
         ]);
 
         RateLimiter::for('club-computer-registration', fn (Request $request): Limit => Limit::perMinute(10)

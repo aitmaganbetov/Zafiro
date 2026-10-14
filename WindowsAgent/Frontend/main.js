@@ -6,11 +6,13 @@
     if (category.includes('нап')) return 'drinks';
     if (category.includes('пер') || category.includes('ед') || category.includes('пищ')) return 'food';
     if (category.includes('акс') || category.includes('тех') || category.includes('игр')) return 'gear';
-    return 'food';
+    return 'other'; // видно в «Все», а не среди закусок
   };
 
+  // Локальная заглушка: без сети картинка не превращается в «битую».
+  const placeholderImage = 'product-placeholder.svg';
   const normalizeProduct = (product) => ({
-    id: product.id ?? product.sku ?? product.name,
+    id: product.id ?? product.sku,
     name: product.name ?? 'Товар',
     description: product.description ?? product.category ?? product.sku ?? 'Товар',
     category: normalizeCategory(product.category),
@@ -18,7 +20,7 @@
     currency: product.currency ?? 'KZT',
     quantity: Number(product.quantity ?? 0),
     inStock: Boolean(product.in_stock ?? product.inStock),
-    image: product.image_url ?? product.image ?? 'https://zafiro.kz/images/product-placeholder.svg'
+    image: product.image_url ?? product.image ?? placeholderImage
   });
 
   const fetchProducts = () => {
@@ -37,7 +39,7 @@
   const tariffPageStatus = document.getElementById('tariffPageStatus');
   const pageToggle = document.getElementById('pageToggle');
   const homeNavigation = document.getElementById('homeNavigation');
-  const shopNavigation = document.querySelector('.nav-item[aria-label="Магазин"]');
+  const shopNavigation = document.getElementById('shopNavigation');
   const historyNavigation = document.getElementById('historyNavigation');
   const tariffNavigation = document.getElementById('tariffNavigation');
   const profileNavigation = document.getElementById('profileNavigation');
@@ -49,6 +51,20 @@
   if (!shopCatalog) return;
 
   const formatPrice = (value, currency = 'KZT') => `${new Intl.NumberFormat('ru-RU').format(value)} ${currency}`;
+  const pluralRules = new Intl.PluralRules('ru-RU');
+  const productWord = { one: 'товар', few: 'товара', many: 'товаров', other: 'товара' };
+
+  // Часы сервера минус часы ПК: оставшееся время не зависит от неверных часов ПК.
+  let clockOffset = 0;
+  const serverNow = () => Date.now() + clockOffset;
+
+  const formatBalance = (value) => Number(value ?? 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+  const applyBalances = (balance, bonus) => {
+    const text = { balanceBig: balance, historyBalance: balance, profileBalance: balance, bonusSmall: bonus, historyBonus: bonus, profileBonus: bonus };
+    Object.entries(text).forEach(([id, value]) => {
+      document.getElementById(id).textContent = value;
+    });
+  };
 
   const setView = (view) => {
     currentView = view;
@@ -56,10 +72,6 @@
     const showHistory = view === 'history';
     const showTariffs = view === 'tariffs';
     const showProfile = view === 'profile';
-    document.body.classList.toggle('shop-open', showShop);
-    document.body.classList.toggle('history-open', showHistory);
-    document.body.classList.toggle('tariffs-open', showTariffs);
-    document.body.classList.toggle('profile-open', showProfile);
     sessionPage.hidden = showShop || showHistory || showTariffs || showProfile;
     shopPage.hidden = !showShop;
     historyPage.hidden = !showHistory;
@@ -91,7 +103,7 @@
 
     shopCatalog.replaceChildren();
     document.getElementById('shopCount').textContent = visibleProducts.length
-      ? `${visibleProducts.length} ${visibleProducts.length === 1 ? 'товар' : visibleProducts.length < 5 ? 'товара' : 'товаров'}`
+      ? `${visibleProducts.length} ${productWord[pluralRules.select(visibleProducts.length)]}`
       : 'Товары не загружены';
 
     visibleProducts.forEach((product) => {
@@ -105,6 +117,9 @@
       image.src = product.image;
       image.alt = product.name;
       image.loading = 'lazy';
+      image.addEventListener('error', () => {
+        if (!image.src.endsWith(placeholderImage)) image.src = placeholderImage;
+      }, { once: true });
 
       const details = document.createElement('div');
       details.className = 'shop-product-details';
@@ -119,7 +134,7 @@
       footer.className = 'shop-product-footer';
 
       const price = document.createElement('strong');
-      price.textContent = `${new Intl.NumberFormat('ru-RU').format(product.price)} ${product.currency}`;
+      price.textContent = formatPrice(product.price, product.currency);
 
       const quantity = cart.get(product.id) || 0;
       const addButton = createActionButton(
@@ -320,7 +335,7 @@
   // Оставшееся время по данным сервера: обновляется на экране, пока сессия идёт.
   const showSessionTime = () => {
     if (!sessionEndsAt) return;
-    const remainingMinutes = Math.max(0, Math.ceil((sessionEndsAt - Date.now()) / 60000));
+    const remainingMinutes = Math.max(0, Math.ceil((sessionEndsAt - serverNow()) / 60000));
     document.getElementById('remainingBig').textContent = formatMinutes(remainingMinutes);
     document.getElementById('profileRemaining').textContent = formatMinutes(remainingMinutes);
     document.getElementById('sessionExpires').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sessionEndsAt));
@@ -330,7 +345,7 @@
   const sessionEndMessages = {
     expired: 'Время сессии закончилось. Выберите тариф, чтобы продолжить.',
     server: 'Сессия завершена в клубе.',
-    ended: 'Сессия завершена. Вы остались в системе.',
+    ended: 'Сессия завершена.',
     none: ''
   };
 
@@ -373,7 +388,8 @@
 
   webview?.addEventListener('message', (event) => {
     if (event.data?.type === 'products') {
-      products = Array.isArray(event.data.list) ? event.data.list.map(normalizeProduct) : [];
+      // Без id два товара с одинаковым названием попали бы в одну строку корзины.
+      products = Array.isArray(event.data.list) ? event.data.list.map(normalizeProduct).filter((product) => product.id != null) : [];
       renderCart();
       if (event.data.error) document.getElementById('shopCount').textContent = 'Не удалось загрузить товары. Проверьте подключение.';
     }
@@ -388,25 +404,13 @@
         item.disabled = false;
       });
       tariffPageStatus.textContent = event.data.message || (event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.');
-      if (event.data.success) {
-        const formattedBalance = Number(event.data.newBalance ?? 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
-        const formattedBonus = Number(event.data.newBonus ?? 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
-        document.getElementById('balanceBig').textContent = formattedBalance;
-        document.getElementById('bonusSmall').textContent = formattedBonus;
-        document.getElementById('historyBalance').textContent = formattedBalance;
-        document.getElementById('historyBonus').textContent = formattedBonus;
-        const sessionEnd = Date.parse(event.data.sessionEndsAt || '');
-        if (!Number.isNaN(sessionEnd)) {
-          sessionEndsAt = sessionEnd;
-          showSessionTime();
-          document.getElementById('profileStatus').textContent = 'Активная сессия';
-          setSessionActive(sessionEnd > Date.now());
-        }
-      }
+      // Сессию после покупки присылает агент (sessionSync); здесь — только баланс.
+      if (event.data.success) applyBalances(formatBalance(event.data.newBalance), formatBalance(event.data.newBonus));
     }
 
     // Сессия по данным сервера: после покупки, после перезапуска агента, при продлении.
     if (event.data?.type === 'sessionSync') {
+      if (Number.isFinite(event.data.clockOffsetMs)) clockOffset = event.data.clockOffsetMs;
       const sessionEnd = Date.parse(event.data.sessionEndsAt || '');
       sessionEndsAt = Number.isNaN(sessionEnd) ? null : sessionEnd;
       showSessionTime();
@@ -425,17 +429,15 @@
       setSessionActive(false);
       clearSessionDetails();
       updateProfileName('Гость');
-      ['balanceBig', 'bonusSmall', 'historyBalance', 'historyBonus', 'profileBalance', 'profileBonus'].forEach((id) => {
-        document.getElementById(id).textContent = '—';
-      });
+      applyBalances('—', '—');
       cart.clear();
       renderCart();
       actionStatus.textContent = '';
     }
 
-    if (event.data?.type === 'actionFailed') {
+    if (event.data?.type === 'actionFailed' || event.data?.type === 'error') {
       endButton.disabled = false;
-      actionStatus.textContent = event.data.message || 'Не удалось выполнить действие.';
+      actionStatus.textContent = event.data.type === 'actionFailed' && event.data.message ? event.data.message : 'Не удалось выполнить действие.';
     }
 
     // Ошибки связи с сервером (401, 402, 403, 404) показываются пользователю без повторных запросов.
@@ -444,6 +446,11 @@
     }
 
     // Название клуба и номер ПК: от агента при запуске и с каждым heartbeat.
+    if (event.data?.type === 'heartbeat' && event.data.serverTime) {
+      const serverTime = Date.parse(event.data.serverTime);
+      if (!Number.isNaN(serverTime)) clockOffset = serverTime - Date.now();
+    }
+
     if (event.data?.type === 'clubInfo' || event.data?.type === 'heartbeat') {
       if (event.data.clubName) document.getElementById('clubName').textContent = event.data.clubName;
       const pc = event.data.number ? `ПК ${event.data.number}${event.data.zone ? ' · ' + event.data.zone : ''}` : '';
@@ -454,15 +461,9 @@
       }
     }
 
-    if (event.data?.type === 'authSuccess' && event.data.userName) {
-      updateProfileName(event.data.userName);
-      document.getElementById('profileStatus').textContent = 'Авторизован';
-    }
 
     if (event.data?.type === 'sessionData' && event.data.error) {
-      ['balanceBig', 'historyBalance', 'profileBalance'].forEach((id) => {
-        document.getElementById(id).textContent = '—';
-      });
+      applyBalances('—', '—');
       actionStatus.textContent = event.data.message || 'Не удалось загрузить баланс.';
       return;
     }
@@ -470,17 +471,10 @@
     if (event.data?.type !== 'sessionData' || !event.data.session) return;
 
     const { balance, bonus, userName, tariff, startedAt, remainingMinutes } = event.data.session;
-    const formattedBalance = Number(balance ?? 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
-    const formattedBonus = Number(bonus ?? 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
-    document.getElementById('balanceBig').textContent = formattedBalance;
-    document.getElementById('bonusSmall').textContent = formattedBonus;
-    document.getElementById('historyBalance').textContent = formattedBalance;
-    document.getElementById('historyBonus').textContent = formattedBonus;
-    document.getElementById('profileBalance').textContent = formattedBalance;
-    document.getElementById('profileBonus').textContent = formattedBonus;
+    applyBalances(formatBalance(balance), formatBalance(bonus));
     document.getElementById('profileTariff').textContent = tariff || '—';
     // Сессию ПК присылает сервер (sessionSync); профиль её не отменяет.
-    const sessionActive = Number(remainingMinutes) > 0 || (sessionEndsAt !== null && sessionEndsAt > Date.now());
+    const sessionActive = Number(remainingMinutes) > 0 || (sessionEndsAt !== null && sessionEndsAt > serverNow());
     setSessionActive(sessionActive);
     document.getElementById('profileStatus').textContent = sessionActive ? 'Активная сессия' : 'Нет активной сессии';
     document.getElementById('profileStartedAt').textContent = startedAt && !Number.isNaN(Date.parse(startedAt))

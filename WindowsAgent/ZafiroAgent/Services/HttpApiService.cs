@@ -19,75 +19,23 @@ namespace ZafiroAgent.Services
         private const string DefaultBaseUrl = "https://zafiro.kz";
 
         private readonly HttpClient _http;
-        private readonly Uri _loginEndpoint;
         private readonly ConfigurationService _config;
         private readonly SecureStorageService _secure;
 
-        public HttpApiService(HttpClient? http = null, string? baseUrl = null, ConfigurationService? config = null, SecureStorageService? secure = null)
+        public HttpApiService(HttpClient? http = null, ConfigurationService? config = null, SecureStorageService? secure = null)
         {
             // Без редиректов: токен и пароль не уходят на другой хост.
             _http = http ?? ZafiroApiClient.CreateHttpClient();
-            var root = string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl : baseUrl.TrimEnd('/');
-            _loginEndpoint = new Uri($"{root}/api/agent/user/login");
             _config = config ?? new ConfigurationService();
             _secure = secure ?? new SecureStorageService();
-        }
-
-        public async Task<AuthResult> AuthenticateAsync(string login, string password, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
-            {
-                return new AuthResult { Success = false, Message = "Введите телефон и пароль." };
-            }
-
-            var body = new Dictionary<string, object?>
-            {
-                ["phone"] = login.Trim(),
-                ["login"] = login.Trim(),
-                ["password"] = password
-            };
-
-            try
-            {
-                using var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-                using var response = await _http.PostAsync(_loginEndpoint, content, cancellationToken).ConfigureAwait(false);
-                var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
-                    return new AuthResult { Success = false, Message = ExtractErrorMessage(payload) ?? "Не удалось выполнить вход." };
-
-                return ParseAuthResponse(payload);
-            }
-            catch (JsonException)
-            {
-                return new AuthResult { Success = false, Message = "Сервер Zafiro вернул неожиданную ошибку." };
-            }
-            catch (HttpRequestException)
-            {
-                return new AuthResult { Success = false, Message = "Не удалось подключиться к серверу Zafiro." };
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                return new AuthResult { Success = false, Message = "Превышено время ожидания сервера Zafiro." };
-            }
         }
 
         public async Task<SessionInfo> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken)
         {
             var token = _secure.Unprotect(_config.Load().ProtectedApiToken);
+            // Без входа баланса нет: выдуманный нулевой профиль выглядел бы как настоящий.
             if (string.IsNullOrWhiteSpace(token))
-            {
-                return new SessionInfo
-                {
-                    SessionId = sessionId,
-                    UserName = "Пользователь",
-                    Balance = 0m,
-                    BonusBalance = 0m,
-                    TariffName = null,
-                    StartedAt = DateTime.UtcNow,
-                    Remaining = TimeSpan.Zero
-                };
-            }
+                throw new InvalidOperationException("Not signed in.");
 
             var uri = new Uri($"{ApiRoot(_config.Load())}/me");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
@@ -220,42 +168,6 @@ namespace ZafiroAgent.Services
             return root.EndsWith("/api", StringComparison.OrdinalIgnoreCase) ? root : root + "/api";
         }
 
-        private static AuthResult ParseAuthResponse(string payload)
-        {
-            using var document = JsonDocument.Parse(payload);
-            var root = document.RootElement;
-
-            if (root.ValueKind != JsonValueKind.Object)
-                return new AuthResult { Success = false, Message = "Сервер Zafiro вернул неожиданный ответ." };
-
-            var success = TryGetBoolean(root, "success");
-            if (success is false)
-                return new AuthResult { Success = false, Message = ExtractErrorMessage(payload) ?? "Не удалось выполнить вход." };
-
-            var userName = ExtractString(root, "user_name", "userName", "name", "full_name", "display_name")
-                ?? ExtractNestedString(root, "user", "name", "full_name", "display_name")
-                ?? "Пользователь";
-
-            var token = ExtractString(root, "token", "access_token", "accessToken")
-                ?? ExtractNestedString(root, "data", "token", "access_token", "accessToken");
-
-            var sessionId = ExtractString(root, "session_id", "sessionId", "session", "id", "user_id")
-                ?? ExtractNestedString(root, "data", "session_id", "sessionId", "id", "user_id")
-                ?? token;
-
-            var expiresAt = ExtractDate(root, "expires_at", "expiresAt", "expires_at_utc", "token_expires_at")
-                ?? ExtractDate(root, "expires_in", "token_ttl");
-
-            return new AuthResult
-            {
-                Success = true,
-                UserName = userName,
-                SessionId = sessionId,
-                Token = token,
-                ExpiresAt = expiresAt
-            };
-        }
-
         private static string? ExtractErrorMessage(string payload)
         {
             if (string.IsNullOrWhiteSpace(payload)) return null;
@@ -352,41 +264,5 @@ namespace ZafiroAgent.Services
             return null;
         }
 
-        private static string? ExtractNestedString(JsonElement root, string parentName, params string[] names)
-        {
-            if (!root.TryGetProperty(parentName, out var parent) || parent.ValueKind != JsonValueKind.Object)
-                return null;
-
-            return ExtractString(parent, names);
-        }
-
-        private static bool? TryGetBoolean(JsonElement root, string name)
-        {
-            if (root.TryGetProperty(name, out var value))
-            {
-                if (value.ValueKind == JsonValueKind.True) return true;
-                if (value.ValueKind == JsonValueKind.False) return false;
-                if (value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var parsed))
-                    return parsed;
-            }
-            return null;
-        }
-
-        private static DateTime? ExtractDate(JsonElement root, params string[] names)
-        {
-            foreach (var name in names)
-            {
-                if (root.TryGetProperty(name, out var value))
-                {
-                    if (value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
-                        return parsed.UtcDateTime;
-
-                    if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var seconds) && seconds > 0)
-                        return DateTime.UtcNow.AddSeconds(seconds);
-                }
-            }
-
-            return null;
-        }
     }
 }

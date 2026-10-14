@@ -44,8 +44,12 @@ namespace ZafiroAgent.Services
         {
             lock (Gate)
             {
+                // Сначала во временный файл, затем замена: при отключении питания старые настройки
+                // остаются целыми, а не превращаются в пустой файл.
                 var json = JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_path, json);
+                var temp = _path + ".tmp";
+                File.WriteAllText(temp, json);
+                File.Move(temp, _path, overwrite: true);
             }
         }
 

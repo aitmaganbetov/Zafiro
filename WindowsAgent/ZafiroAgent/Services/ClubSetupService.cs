@@ -110,8 +110,8 @@ namespace ZafiroAgent.Services
                 var login = await _api.LoginAsync(club, key, phone, password, _deviceName, cancellationToken).ConfigureAwait(false);
                 if (!login.Success) return ApiResult<ClubSession>.Fail(login.Failure, login.Message);
 
-                ApplyToken(cfg, login.Value!);
-                _config.Save(cfg);
+                // Настройки читаются заново: за время входа heartbeat мог их изменить.
+                _config.Update(current => ApplyToken(current, login.Value!));
 
                 return ApiResult<ClubSession>.Ok(new ClubSession(savedClubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
             }
@@ -209,15 +209,16 @@ namespace ZafiroAgent.Services
         /// <summary>Сброс настройки клуба — только по явному решению пользователя.</summary>
         public void ResetClub()
         {
-            var cfg = _config.Load();
-            cfg.ClubId = string.Empty;
-            cfg.ClubName = string.Empty;
-            cfg.ApiBaseUrl = string.Empty;
-            cfg.LoginEndpoint = string.Empty;
-            cfg.ProtectedClubKey = string.Empty;
-            cfg.ProtectedApiToken = string.Empty;
-            cfg.TokenExpiresAtUtc = null;
-            _config.Save(cfg);
+            _config.Update(cfg =>
+            {
+                cfg.ClubId = string.Empty;
+                cfg.ClubName = string.Empty;
+                cfg.ApiBaseUrl = string.Empty;
+                cfg.LoginEndpoint = string.Empty;
+                cfg.ProtectedClubKey = string.Empty;
+                cfg.ProtectedApiToken = string.Empty;
+                cfg.TokenExpiresAtUtc = null;
+            });
         }
 
         private void ApplyToken(AgentConfig cfg, ClubLogin login)

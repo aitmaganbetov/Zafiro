@@ -106,7 +106,7 @@ test('exits and wrong PINs are logged under the user signed in on the PC', funct
 
 test('PIN guessing is limited per club, not only per PC', function () {
     Club::query()->findOrFail(app(CurrentClub::class)->id())->forceFill(['agent_exit_pin_hash' => bcrypt('4821')])->save();
-    $tokens = collect(range(1, 7))->map(fn (int $n) => app(ClubComputerSessions::class)->issueAgentToken(securityPc($n)));
+    $tokens = collect(range(1, 21))->map(fn (int $n) => app(ClubComputerSessions::class)->issueAgentToken(securityPc($n)));
     app(CurrentClub::class)->clear();
 
     $attempts = 0;
@@ -120,7 +120,7 @@ test('PIN guessing is limited per club, not only per PC', function () {
         }
     }
 
-    expect($attempts)->toBe(30);
+    expect($attempts)->toBe(100);
 });
 
 test('the agent service swaps its device token for a new one and the old one stops working', function () {
@@ -135,4 +135,26 @@ test('the agent service swaps its device token for a new one and the old one sto
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $old])->assertUnauthorized();
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $new])->assertSuccessful();
     $this->postJson(route('api.agent.token.rotate'), [], ['X-Agent-Token' => $old])->assertUnauthorized();
+});
+
+test('a PC with a device token does not accept heartbeats signed with a user token', function () {
+    $computer = securityPc();
+    app(ClubComputerSessions::class)->issueAgentToken($computer);
+    $customer = securityMember('cashier', '+77001112240');
+    $token = $customer->createToken('PC-1', ['club:'.$computer->club_id])->plainTextToken;
+    app(CurrentClub::class)->clear();
+
+    $this->withToken($token)->postJson(route('api.club-computers.heartbeat', $computer), ['state' => 'in_session', 'session_id' => 'fake'])
+        ->assertForbidden()->assertJsonPath('code', 'use_device_token');
+    expect($computer->fresh())->agent_state->toBeNull()->current_session_id->toBeNull();
+});
+
+test('the heartbeat reports the server clock so the agent does not trust the PC clock', function () {
+    $computer = securityPc();
+    $token = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    app(CurrentClub::class)->clear();
+    $this->travelTo(now()->setTime(12, 30, 15));
+
+    $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $token])
+        ->assertSuccessful()->assertJsonPath('server_time', now()->utc()->format('Y-m-d\TH:i:s.vP'));
 });
