@@ -78,6 +78,7 @@ namespace ZafiroAgent
             }
 
             _config = new ConfigurationService();
+            Covers.SetBranding(_config.Load().ClubName, null); // логотип придёт с первым heartbeat
             _api = new ZafiroApiClient(ZafiroApiClient.CreateHttpClient());
             var clubSetup = new ClubSetupService(_api, _config, _secure);
             AttachToService();

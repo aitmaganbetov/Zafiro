@@ -456,6 +456,14 @@ namespace ZafiroAgent.Services
             if (TryGetString(root, "server_time", out var serverTime) &&
                 DateTimeOffset.TryParse(serverTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var serverNow))
                 heartbeat.ServerTimeUtc = serverNow.ToUniversalTime();
+
+            if (root.TryGetProperty("club", out var club) && club.ValueKind == JsonValueKind.Object)
+            {
+                heartbeat.ClubReported = true;
+                if (TryGetString(club, "name", out var clubName)) heartbeat.ClubName = clubName;
+                if (TryGetString(club, "logo_url", out var logoUrl)) heartbeat.ClubLogoUrl = logoUrl;
+            }
+
             return heartbeat;
         }
 

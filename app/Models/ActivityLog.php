@@ -65,6 +65,7 @@ class ActivityLog extends Model
         'computer.session_ended' => 'Досрочное завершение сессии ПК',
         'club.agent_pin_changed' => 'Изменение PIN-кода агента',
         'club.agent_staff_time_changed' => 'Изменение времени обслуживания ПК',
+        'club.logo_changed' => 'Изменение логотипа клуба',
         'agent.staff_exit' => 'Выход из агента по PIN-коду',
         'agent.staff_signin' => 'Вход сотрудника на ПК',
         'agent.exit_pin_failed' => 'Неверный PIN-код агента',

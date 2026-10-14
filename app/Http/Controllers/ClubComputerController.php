@@ -15,6 +15,7 @@ use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
+use App\Services\CurrentClub;
 use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -246,6 +247,11 @@ class ClubComputerController extends Controller
             ],
             'session' => $result['session'],
             'session_expired' => $result['session_expired'],
+            // Shown by the agent on the locked monitors.
+            'club' => [
+                'name' => app(CurrentClub::class)->get()?->name,
+                'logo_url' => app(CurrentClub::class)->get()?->logoUrl(),
+            ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.
             'server_time' => now()->utc()->format('Y-m-d\TH:i:s.vP'),

@@ -241,6 +241,7 @@ namespace ZafiroAgent
                     {
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
+                        if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
                     });
                 };
                 service.OnError += ex =>

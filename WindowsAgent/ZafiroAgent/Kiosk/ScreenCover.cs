@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using ZafiroAgent.Services;
 
@@ -11,13 +16,25 @@ namespace ZafiroAgent.Kiosk
 {
     /// <summary>
     /// Без оплаченной сессии агент закрывает все мониторы: на мониторе окна агента — само окно,
-    /// на остальных — чёрные окна поверх всех. Подключённый позже монитор закрывается сразу.
+    /// на остальных — чёрные окна поверх всех с названием и логотипом клуба. Подключённый позже
+    /// монитор закрывается сразу. Логотип не загрузился — окно всё равно чёрное и закрывает монитор.
     /// </summary>
     public sealed class ScreenCover : IDisposable
     {
+        private const long MaxLogoBytes = 2 * 1024 * 1024;
+        private const int MaxLogoPixels = 1024;
+        private static readonly TimeSpan LogoRetryDelay = TimeSpan.FromMinutes(10);
+        private static readonly Brush NameBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xE6, 0xE8, 0xEE)));
+
         private readonly List<Window> _covers = new();
         private Window? _keep;
         private bool _shown;
+        private string _clubName = string.Empty;
+        private ImageSource? _logo;
+        private string? _logoUrl;
+        private string? _failedLogoUrl;
+        private DateTime _logoRetryAtUtc;
+        private HttpClient? _logoHttp;
 
         public ScreenCover()
         {
@@ -30,6 +47,137 @@ namespace ZafiroAgent.Kiosk
             _keep = keep;
             _shown = show;
             Rebuild();
+        }
+
+        /// <summary>
+        /// Название и логотип клуба на закрытых мониторах (вызывать из UI-потока).
+        /// Логотип скачивается только при смене ссылки; null — логотипа нет.
+        /// </summary>
+        public void SetBranding(string? clubName, string? logoUrl)
+        {
+            var name = clubName?.Trim() ?? string.Empty;
+            if (name.Length > 0 && name != _clubName)
+            {
+                _clubName = name;
+                Refresh();
+            }
+
+            if (logoUrl == _logoUrl) return;
+            if (logoUrl is not null && logoUrl == _failedLogoUrl && DateTime.UtcNow < _logoRetryAtUtc) return;
+
+            _logoUrl = logoUrl;
+            if (logoUrl is null)
+            {
+                _logo = null;
+                Refresh();
+                return;
+            }
+
+            _ = LoadLogoAsync(logoUrl);
+        }
+
+        private async Task LoadLogoAsync(string url)
+        {
+            ImageSource? logo = null;
+            try
+            {
+                logo = await Task.Run(() => DownloadLogoAsync(url));
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Kiosk] could not load the club logo: " + ex.Message);
+            }
+
+            // Пока логотип грузился, ссылка могла смениться: устаревший результат не показываем.
+            if (url != _logoUrl) return;
+            if (logo is null)
+            {
+                // Повтор не раньше чем через 10 минут, а не на каждый heartbeat.
+                _logoUrl = null;
+                _failedLogoUrl = url;
+                _logoRetryAtUtc = DateTime.UtcNow + LogoRetryDelay;
+                return;
+            }
+
+            _logo = logo;
+            Refresh();
+        }
+
+        /// <summary>Только HTTPS на хост Zafiro, без редиректов, не больше 2 МБ; картинка уменьшается до 1024 px.</summary>
+        private async Task<ImageSource?> DownloadLogoAsync(string url)
+        {
+            if (!ZafiroApiClient.TryValidateHttpsEndpoint(url, out var uri)) return null;
+
+            _logoHttp ??= ZafiroApiClient.CreateDirectHttpClient();
+            using var response = await _logoHttp.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxLogoBytes) return null;
+
+            var buffer = new MemoryStream();
+            await using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            {
+                var chunk = new byte[81920];
+                int read;
+                while ((read = await source.ReadAsync(chunk).ConfigureAwait(false)) > 0)
+                {
+                    if (buffer.Length + read > MaxLogoBytes) return null;
+                    buffer.Write(chunk, 0, read);
+                }
+            }
+
+            // Размер читается до декодирования: огромная картинка не займёт всю память ПК.
+            buffer.Position = 0;
+            var frame = BitmapDecoder.Create(buffer, BitmapCreateOptions.DelayCreation | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.None).Frames[0];
+            var (width, height) = (frame.PixelWidth, frame.PixelHeight);
+            if (width <= 0 || height <= 0) return null;
+
+            buffer.Position = 0;
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            if (width >= height && width > MaxLogoPixels) image.DecodePixelWidth = MaxLogoPixels;
+            else if (height > width && height > MaxLogoPixels) image.DecodePixelHeight = MaxLogoPixels;
+            image.StreamSource = buffer;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+
+        private void Refresh()
+        {
+            foreach (var cover in _covers) cover.Content = Branding();
+        }
+
+        private UIElement Branding()
+        {
+            var panel = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(48),
+                IsHitTestVisible = false
+            };
+            if (_logo is not null)
+                panel.Children.Add(new Image { Source = _logo, Stretch = Stretch.Uniform, MaxWidth = 480, MaxHeight = 320, Margin = new Thickness(0, 0, 0, 24) });
+            if (_clubName.Length > 0)
+                panel.Children.Add(new TextBlock
+                {
+                    Text = _clubName,
+                    Foreground = NameBrush,
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize = 40,
+                    FontWeight = FontWeights.SemiBold,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 900
+                });
+            return panel;
+        }
+
+        private static Brush Freeze(Brush brush)
+        {
+            brush.Freeze();
+            return brush;
         }
 
         private void OnDisplaysChanged(object? sender, EventArgs e) =>
@@ -66,7 +214,8 @@ namespace ZafiroAgent.Kiosk
                 Topmost = true,
                 Background = Brushes.Black,
                 Width = 1,
-                Height = 1
+                Height = 1,
+                Content = Branding()
             };
             window.Closing += (_, e) => e.Cancel = _covers.Contains(window); // Alt+F4 по чёрному окну
             window.MouseDown += (_, _) => _keep?.Activate();
@@ -89,6 +238,7 @@ namespace ZafiroAgent.Kiosk
             SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
             _shown = false;
             Close();
+            _logoHttp?.Dispose();
         }
 
         private static List<(IntPtr Monitor, Rect Bounds)> Monitors()

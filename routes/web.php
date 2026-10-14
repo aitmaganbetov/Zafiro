@@ -8,6 +8,7 @@ use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
+use App\Http\Controllers\ClubLogoController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationController;
@@ -36,6 +37,11 @@ Route::get('/offline', [PwaController::class, 'offline'])->name('pwa.offline');
 Route::view('/docs/api', 'api-docs')->name('api-docs');
 Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('api/openapi-v1.yaml'), ['Content-Type' => 'application/yaml; charset=utf-8']))
     ->name('api-docs.spec');
+
+// Club logo for the locked PC monitors: public by its random file name.
+Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
+    ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
+    ->name('club-logos.show');
 
 Route::get('/invitations/{token}', [ClubInvitationController::class, 'show'])->name('club-invitations.show');
 Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1')->name('club-invitations.accept');
@@ -83,6 +89,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/save', [SettingsController::class, 'save'])->name('settings.save');
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
+        Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
+        Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
     });

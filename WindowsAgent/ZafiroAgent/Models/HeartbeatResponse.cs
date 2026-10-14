@@ -20,5 +20,10 @@ namespace ZafiroAgent.Models
 
         // Время сервера в момент ответа: по нему агент поправляет часы ПК при подсчёте конца сессии.
         public DateTimeOffset? ServerTimeUtc { get; set; }
+
+        // Название и логотип клуба для закрытых мониторов; ClubReported=false — сервер старой версии.
+        public bool ClubReported { get; set; }
+        public string? ClubName { get; set; }
+        public string? ClubLogoUrl { get; set; }
     }
 }

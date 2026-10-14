@@ -881,6 +881,39 @@ public sealed class HeartbeatTests : IDisposable
     }
 
     [Fact]
+    public async Task Heartbeat_ReadsTheClubNameAndLogo()
+    {
+        var json = HeartbeatJson()[..^1] + ""","club":{"name":"Arena","logo_url":"https://zafiro.kz/club-logos/1/logo.png"}}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        var beat = _beats.First();
+        Assert.True(beat.ClubReported);
+        Assert.Equal("Arena", beat.ClubName);
+        Assert.Equal("https://zafiro.kz/club-logos/1/logo.png", beat.ClubLogoUrl);
+    }
+
+    [Theory]
+    [InlineData(""","club":{"name":"Arena","logo_url":null}}""", true)]
+    [InlineData("}", false)]
+    public async Task Heartbeat_WithoutLogo_ReportsOnlyWhatTheServerSent(string tail, bool reported)
+    {
+        var json = HeartbeatJson()[..^1] + tail;
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        var beat = _beats.First();
+        Assert.Equal(reported, beat.ClubReported);
+        Assert.Null(beat.ClubLogoUrl);
+    }
+
+    [Fact]
     public async Task ResolveComputer_WithMalformedBody_ReturnsInvalidResponse()
     {
         var handler = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK, """{"number":"7"}"""));

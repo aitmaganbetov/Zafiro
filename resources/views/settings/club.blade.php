@@ -32,6 +32,35 @@
 
 
 @section('settings-after')
+<section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="club-logo-title">
+    <h5 id="club-logo-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Логотип клуба') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Логотип и название клуба показываются на свободных мониторах ПК, пока сессия не оплачена. PNG или JPG, до 1 МБ.') }}</p>
+    @error('logo')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+    <div class="flex flex-wrap items-center gap-4">
+        <div class="flex h-24 w-40 items-center justify-center rounded-lg bg-black p-3">
+            @if($currentClub->logoUrl())
+                <img src="{{ $currentClub->logoUrl() }}" alt="{{ __('Логотип клуба') }}" class="max-h-full max-w-full object-contain">
+            @else
+                <span class="truncate text-sm font-semibold text-white">{{ $currentClub->name }}</span>
+            @endif
+        </div>
+        <div class="min-w-0 flex-1 basis-64">
+            @unless($currentClub->logoUrl())<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Логотип не загружен: на мониторах показывается только название клуба.') }}</p>@endunless
+            <form method="POST" action="{{ route('settings.logo') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
+                @csrf
+                <input type="file" name="logo" accept="image/png,image/jpeg" required class="min-w-0 text-sm text-gray-700 dark:text-gray-300">
+                <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Загрузить логотип') }}</button>
+            </form>
+            @if($currentClub->logoUrl())
+                <form method="POST" action="{{ route('settings.logo.destroy') }}" class="mt-2">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Удалить логотип') }}</button>
+                </form>
+            @endif
+        </div>
+    </div>
+</section>
+
 <section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="timezone-title">
     <h5 id="timezone-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Часовой пояс') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Все время в системе, отчёты «за сегодня» и часы в верхней панели показываются в этом поясе.') }}</p>
