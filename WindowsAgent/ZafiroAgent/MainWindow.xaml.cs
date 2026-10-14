@@ -69,7 +69,8 @@ namespace ZafiroAgent
         {
             var menu = new System.Windows.Forms.ContextMenuStrip();
             menu.Items.Add("Открыть Zafiro", null, (_, _) => RestoreFromTray());
-            menu.Items.Add("Выход", null, (_, _) => Close());
+            // Выход — только по PIN-коду сотрудника (в режиме киоска).
+            menu.Items.Add("Выход", null, (_, _) => RequestExit());
 
             _trayIcon = new System.Windows.Forms.NotifyIcon
             {
@@ -101,12 +102,39 @@ namespace ZafiroAgent
             ShowInTaskbar = true;
             WindowState = WindowState.Maximized;
             Show();
+            ApplyKioskMode();
             Activate();
+        }
+
+        private void RequestExit()
+        {
+            if (App.Instance.KioskEnabled) App.Instance.RequestStaffExit();
+            else Close();
+        }
+
+        /// <summary>
+        /// Без оплаченной сессии агент поверх всех окон и клавиши выхода заблокированы;
+        /// во время сессии клиент пользуется ПК, но закрыть агент без PIN по-прежнему нельзя.
+        /// </summary>
+        private void ApplyKioskMode()
+        {
+            App.Instance.RefreshKiosk();
+            var paid = _activeSessionId is not null;
+            App.Instance.Keyboard.Strict = !paid;
+            Topmost = App.Instance.KioskEnabled && !paid;
         }
 
         // Финальный статус отправляется асинхронно: закрытие не блокирует UI-поток.
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            // Режим киоска: закрыть агент (Alt+F4, «Выход») можно только после PIN-кода сотрудника.
+            if (App.Instance.KioskEnabled && !App.Instance.ExitAuthorized)
+            {
+                e.Cancel = true;
+                Dispatcher.BeginInvoke(App.Instance.RequestStaffExit);
+                return;
+            }
+
             if (!_closeFlushed && _heartbeatService is not null)
             {
                 _closeFlushed = true;
@@ -165,6 +193,7 @@ namespace ZafiroAgent
             // Вход в клуб уже проверен в App до открытия этого окна.
             StartHeartbeat();
             _sessionTimer.Start();
+            ApplyKioskMode();
 
             await InitializeWebViewAsync();
         }
@@ -172,7 +201,7 @@ namespace ZafiroAgent
         // Повторный вход поверх агента: отдельной кнопки на панели задач у окна нет.
         private bool ShowSignIn()
         {
-            var window = new Views.ClubSetupWindow(_clubSetup) { Owner = this, ShowInTaskbar = false };
+            var window = new Views.ClubSetupWindow(_clubSetup) { Owner = this, ShowInTaskbar = false, Topmost = App.Instance.KioskEnabled };
             return window.ShowDialog() == true && window.Session is not null;
         }
 
@@ -250,6 +279,7 @@ namespace ZafiroAgent
             _sessionViewModel.StartGameSession(sessionId, endsAtUtc ?? DateTimeOffset.UtcNow);
             _heartbeatService?.SetState(ComputerState.InSession, sessionId);
             _heartbeatService?.SetSessionEnd(endsAtUtc);
+            ApplyKioskMode();
             SendMessageToWeb(JsonSerializer.Serialize(new
             {
                 type = "sessionSync",
@@ -266,11 +296,17 @@ namespace ZafiroAgent
             _sessionViewModel.EndActiveSession();
             _heartbeatService?.SetState(ComputerState.Idle);
             SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionEnded", reason }));
-            RestoreFromTray();
+            if (reason != "ended")
+            {
+                // Время вышло: сворачиваем игры и приложения, агент — поверх всех окон.
+                try { SHMinimizeAll(); } catch (Exception ex) { Debug.WriteLine("[Desktop] could not minimize windows: " + ex.Message); }
+            }
+            RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
         }
 
         private void CheckSessionTime()
         {
+            App.Instance.RefreshKiosk(); // киоск включается, как только ПК получил токен устройства
             if (_activeSessionId is not null && _activeSessionEndsAt is { } endsAt && endsAt <= DateTimeOffset.UtcNow)
                 EndSessionLocally("expired");
         }

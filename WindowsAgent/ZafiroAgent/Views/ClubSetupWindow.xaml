@@ -81,6 +81,7 @@
 
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
+                    <TextBlock Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#77728A" FontSize="12" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
         </Grid>

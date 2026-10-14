@@ -27,6 +27,7 @@ namespace ZafiroAgent.Services
         public const string RegisterForbidden = "Недостаточно прав, чтобы добавить этот ПК в клуб. Попросите администратора добавить его в зоне клуба.";
         public static readonly Uri ResolveEndpoint = new("https://zafiro.kz/api/clubs/resolve");
         public static readonly Uri AgentLoginEndpoint = new("https://zafiro.kz/api/agent/user/login");
+        public static readonly Uri ExitPinEndpoint = new("https://zafiro.kz/api/agent/exit-pin");
 
         private static readonly TimeSpan DefaultTokenLifetime = TimeSpan.FromDays(30);
         private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -112,6 +113,36 @@ namespace ZafiroAgent.Services
                 : TryGetString(root, "club_name", out name) ? name : club.ClubName;
 
             return ApiResult<ClubLogin>.Ok(new ClubLogin(token, responseClubId ?? club.ClubId, confirmedName, ReadExpiry(data)));
+        }
+
+        /// <summary>Проверяет PIN-код сотрудника на сервере (по токену устройства этого ПК).</summary>
+        public async Task<ApiResult<bool>> VerifyExitPinAsync(string? deviceToken, string pin, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(deviceToken))
+                return ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, "ПК ещё не настроен сотрудником клуба: PIN проверить нельзя.");
+            if (string.IsNullOrWhiteSpace(pin))
+                return ApiResult<bool>.Fail(ApiFailure.InvalidInput, "Введите PIN-код.");
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, ExitPinEndpoint) { Content = JsonBody(new Dictionary<string, object?> { ["pin"] = pin }) };
+                request.Headers.Add("X-Agent-Token", deviceToken);
+                using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+                return response.StatusCode switch
+                {
+                    HttpStatusCode.OK => ApiResult<bool>.Ok(true),
+                    HttpStatusCode.UnprocessableEntity => ApiResult<bool>.Fail(ApiFailure.InvalidCredentials, "Неверный PIN-код."),
+                    HttpStatusCode.Conflict => ApiResult<bool>.Fail(ApiFailure.NotConfigured, "PIN-код не задан. Задайте его в настройках клуба в панели Zafiro."),
+                    HttpStatusCode.TooManyRequests => ApiResult<bool>.Fail(ApiFailure.Forbidden, "Слишком много попыток. Подождите 5 минут."),
+                    HttpStatusCode.Unauthorized => ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, "Токен устройства недействителен: сотрудник должен заново войти на этом ПК."),
+                    _ => ApiResult<bool>.Fail(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)response.StatusCode}).")
+                };
+            }
+            catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                return ApiResult<bool>.Fail(ApiFailure.Network, "Нет связи с сервером Zafiro: PIN проверить нельзя.");
+            }
         }
 
         /// <summary>Запрос относительно api_base_url с Bearer-токеном. 401/402/403 приводят к ZafiroApiException.</summary>

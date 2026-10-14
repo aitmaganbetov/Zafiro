@@ -1,0 +1,27 @@
+<Window x:Class="ZafiroAgent.Views.StaffPinWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Выход сотрудника" Width="420" SizeToContent="Height"
+        WindowStyle="None" ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen" Background="#211F2D" BorderBrush="#4A465A" BorderThickness="1">
+    <StackPanel Margin="32,28">
+        <TextBlock Text="Выход сотрудника" FontSize="24" FontWeight="SemiBold" Foreground="#F5F3FA"/>
+        <TextBlock Text="Введите PIN-код из настроек клуба, чтобы закрыть Zafiro Agent." Margin="0,8,0,20"
+                   Foreground="#AAA5B8" FontSize="14" TextWrapping="Wrap"/>
+        <PasswordBox x:Name="PinBox" Height="44" FontSize="20" MaxLength="8" Padding="12,6"
+                     Background="#302D3D" Foreground="#F5F3FA" BorderBrush="#4A465A" CaretBrush="#F5F3FA"
+                     AutomationProperties.Name="PIN-код"/>
+        <TextBlock x:Name="ErrorText" Foreground="#FF7B83" TextWrapping="Wrap" MinHeight="40" Margin="0,8,0,8" FontSize="13"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="CancelButton" Grid.Column="0" Content="Отмена" Height="44" IsCancel="True"
+                    Background="#302D3D" Foreground="#F5F3FA" BorderBrush="#4A465A"/>
+            <Button x:Name="SubmitButton" Grid.Column="2" Content="Закрыть агент" Height="44" IsDefault="True"
+                    Background="#D90058" Foreground="White" BorderBrush="#D90058" FontWeight="SemiBold"/>
+        </Grid>
+    </StackPanel>
+</Window>
