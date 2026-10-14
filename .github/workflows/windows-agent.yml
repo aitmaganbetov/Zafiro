@@ -105,6 +105,7 @@ jobs:
           $version = '${{ steps.version.outputs.version }}'
           foreach ($kind in 'full', 'small') {
             if (-not (Test-Path "publish/$kind/Frontend/index.html")) { throw "Frontend was not copied into the $kind build" }
+            Copy-Item WindowsAgent/tools/Protect-ClubPc.ps1 "publish/$kind/"
             $name = if ($kind -eq 'full') { "ZafiroAgent-win-x64-$version" } else { "ZafiroAgent-win-x64-$version-small" }
             Compress-Archive -Path "publish/$kind/*" -DestinationPath "$name.zip"
             $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
