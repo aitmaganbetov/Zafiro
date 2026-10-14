@@ -232,7 +232,7 @@ namespace ZafiroAgent.Services
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                var resolving = computerId <= 0;
+                var resolving = false; // ошибка случилась при определении ПК, а не при отправке heartbeat
                 try
                 {
                     if (session.ExpiresAtUtc <= _utcNow())
@@ -243,7 +243,9 @@ namespace ZafiroAgent.Services
 
                     if (computerId <= 0)
                     {
+                        resolving = true;
                         computerId = await ResolveComputerAsync(session, cancellationToken).ConfigureAwait(false);
+                        resolving = false;
                         Interlocked.Exchange(ref _computerId, computerId);
                     }
 
