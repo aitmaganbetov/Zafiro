@@ -40,7 +40,11 @@ test('authenticated user can manage club map zones', function () {
         ->assertSee('class="cm-status available">Свободно', false)
         ->assertSee('class="cm-zone-info"', false)
         ->assertSee('12 мест')
-        ->assertSee('class="cm-computer offline"', false);
+        ->assertSee('class="cm-computer offline"', false)
+        ->assertSee('class="cm-computer-edit"', false)
+        ->assertSee('id="computer-info-panel"', false)
+        ->assertSee('id="computer-session-info"', false)
+        ->assertSee('data-has-session="false"', false);
 
     $this->actingAs($user)->put(route('club-map.update', $zone), [...$data, 'name' => 'Главный зал', 'status' => 'busy'])
         ->assertRedirect()
@@ -133,6 +137,77 @@ test('authenticated user can manage club map zones', function () {
         ->assertSessionHas('status');
     $this->assertModelMissing($zone);
     $this->assertModelExists($otherZone);
+});
+
+test('computer details can be edited from the club map', function () {
+    $user = User::factory()->create();
+    $sourceZone = ClubZone::query()->create(['name' => 'Исходная зона', 'icon' => 'desktop']);
+    $targetZone = ClubZone::query()->create(['name' => 'Новая зона', 'icon' => 'desktop', 'capacity' => 1]);
+    $computer = ClubComputer::query()->create([
+        'club_zone_id' => $sourceZone->id,
+        'number' => 1,
+        'device_name' => 'Agent PC 01',
+        'position_x' => 5,
+        'position_y' => 5,
+    ]);
+    $targetZone->computers()->create([
+        'number' => 2,
+        'position_x' => 5,
+        'position_y' => 5,
+    ]);
+
+    $this->actingAs($user)->patch(route('club-computers.update', $computer), [
+        'number' => 2,
+        'display_name' => 'Главный игровой ПК',
+        'club_zone_id' => $targetZone->id,
+        'edit_mode' => 1,
+    ])->assertSessionHasErrors('number');
+
+    expect($computer->refresh()->club_zone_id)->toBe($sourceZone->id);
+
+    $this->patch(route('club-computers.update', $computer), [
+        'number' => 3,
+        'display_name' => 'Главный игровой ПК',
+        'club_zone_id' => $targetZone->id,
+        'edit_mode' => 1,
+    ])->assertSessionHasErrors('club_zone_id');
+
+    $targetZone->update(['capacity' => 2]);
+
+    $this->patch(route('club-computers.update', $computer), [
+        'number' => 3,
+        'display_name' => 'Главный игровой ПК',
+        'club_zone_id' => $targetZone->id,
+        'edit_mode' => 1,
+    ])->assertRedirect()->assertSessionHas('status', 'Данные компьютера обновлены.');
+
+    expect($computer->refresh()->number)->toBe(3)
+        ->and($computer->display_name)->toBe('Главный игровой ПК')
+        ->and($computer->displayName())->toBe('Главный игровой ПК')
+        ->and($computer->club_zone_id)->toBe($targetZone->id)
+        ->and($computer->position_x)->toBe(52)
+        ->and($computer->position_y)->toBe(5);
+
+    $computer->update(['device_name' => 'Agent renamed this device']);
+
+    expect($computer->displayName())->toBe('Главный игровой ПК');
+
+    $targetZone->computers()->create([
+        'number' => 4,
+        'display_name' => 'Занятое имя',
+        'position_x' => 99,
+        'position_y' => 47,
+    ]);
+
+    $this->from(route('club-map.index'))->followingRedirects()->patch(route('club-computers.update', $computer), [
+        'number' => 3,
+        'display_name' => 'Занятое имя',
+        'club_zone_id' => $targetZone->id,
+        'edit_mode' => 1,
+    ])->assertSuccessful()
+        ->assertSee('id="computer-form-errors"', false)
+        ->assertSee('Это имя уже используется в клубе.')
+        ->assertSee("document.getElementById('zone-modal').classList.remove('open')", false);
 });
 
 test('club zone input is validated', function () {

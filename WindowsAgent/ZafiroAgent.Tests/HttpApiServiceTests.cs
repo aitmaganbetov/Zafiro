@@ -169,4 +169,63 @@ public sealed class HttpApiServiceTests
                 Assert.True(product.InStock);
                 Assert.Equal("https://zafiro.kz/images/product-placeholder.svg", product.ImageUrl);
         }
+
+    [Fact]
+    public async Task GetTariffsAsync_LoadsAvailableTariffsWithCurrency()
+    {
+        const string token = "tariff-token";
+        var handler = new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("https://zafiro.kz/api/tariffs", request.RequestUri!.AbsoluteUri);
+            Assert.Equal("Bearer " + token, request.Headers.Authorization?.ToString());
+            return StubHandler.Json(HttpStatusCode.OK, """
+                {"data":[{"id":"7","name":"Ночной","description":"Игры","minutes":480,"price":"3150.00","currency":"KZT"}]}
+                """);
+        });
+        var path = Path.Combine(Path.GetTempPath(), "zafiro-tariffs-tests-" + Guid.NewGuid().ToString("N"), "agent.config.json");
+        var config = new ConfigurationService(path);
+        var secure = new SecureStorageService();
+        config.Save(new AgentConfig { ProtectedApiToken = secure.Protect(token), ApiBaseUrl = "https://zafiro.kz/api" });
+        var service = new HttpApiService(new HttpClient(handler), config: config, secure: secure);
+
+        var tariff = Assert.Single(await service.GetTariffsAsync(CancellationToken.None));
+
+        Assert.Equal("7", tariff.Id);
+        Assert.Equal("Ночной", tariff.Name);
+        Assert.Equal(480, tariff.Minutes);
+        Assert.Equal(3150m, tariff.Price);
+        Assert.Equal("KZT", tariff.Currency);
+    }
+
+    [Fact]
+    public async Task PurchaseTariffAsync_SendsComputerAndSession_AndParsesExtendedSession()
+    {
+        const string token = "purchase-token";
+        var handler = new StubHandler((request, body) =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("https://zafiro.kz/api/tariffs/7/purchase", request.RequestUri!.AbsoluteUri);
+            Assert.Equal("Bearer " + token, request.Headers.Authorization?.ToString());
+            using var json = JsonDocument.Parse(body!);
+            Assert.Equal(45, json.RootElement.GetProperty("computer_id").GetInt64());
+            Assert.Equal(token, json.RootElement.GetProperty("session_id").GetString());
+            return StubHandler.Json(HttpStatusCode.OK, """
+                {"success":true,"message":"Тариф подключён.","new_balance":"0.00","new_bonus":"100.00","minutes_added":30,"session_ends_at":"2026-10-14T12:40:00+00:00"}
+                """);
+        });
+        var path = Path.Combine(Path.GetTempPath(), "zafiro-purchase-tests-" + Guid.NewGuid().ToString("N"), "agent.config.json");
+        var config = new ConfigurationService(path);
+        var secure = new SecureStorageService();
+        config.Save(new AgentConfig { ComputerId = "45", ProtectedApiToken = secure.Protect(token), ApiBaseUrl = "https://zafiro.kz/api" });
+        var service = new HttpApiService(new HttpClient(handler), config: config, secure: secure);
+
+        var result = await service.PurchaseTariffAsync(token, "7", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(0m, result.NewBalance);
+        Assert.Equal(100m, result.NewBonus);
+        Assert.Equal(30, result.MinutesAdded);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-14T12:40:00+00:00"), result.SessionEndsAt);
+    }
 }

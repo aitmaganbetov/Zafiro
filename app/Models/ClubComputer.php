@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['club_zone_id', 'number', 'device_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
+#[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
 class ClubComputer extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -27,6 +27,7 @@ class ClubComputer extends Model
             'position_x' => 'integer',
             'position_y' => 'integer',
             'last_seen_at' => 'datetime',
+            'session_ends_at' => 'datetime',
             'cpu_cores' => 'integer',
             'ram_total_mb' => 'integer',
             'hardware_reported_at' => 'datetime',
@@ -62,7 +63,7 @@ class ClubComputer extends Model
 
     public function displayName(): string
     {
-        return $this->device_name ?: sprintf('PC-%02d', $this->number);
+        return $this->display_name ?: $this->device_name ?: sprintf('PC-%02d', $this->number);
     }
 
     public function zone(): BelongsTo

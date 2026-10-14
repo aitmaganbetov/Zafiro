@@ -7,6 +7,7 @@ use App\Http\Requests\HeartbeatClubComputerRequest;
 use App\Http\Requests\RegisterClubComputerRequest;
 use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\UpdateClubComputerLayoutRequest;
+use App\Http\Requests\UpdateClubComputerRequest;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Services\ActivityLogger;
@@ -19,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ClubComputerController extends Controller
 {
@@ -41,6 +43,62 @@ class ClubComputerController extends Controller
         $status = $computer === null ? __('Достигнута вместимость зоны.') : __('Компьютер добавлен в зону.');
 
         return back()->with('status', $status)->with('edit_mode', true);
+    }
+
+    public function update(UpdateClubComputerRequest $request, ClubComputer $clubComputer, ActivityLogger $activity): RedirectResponse
+    {
+        $data = $request->validated();
+        $zoneChanged = (int) $data['club_zone_id'] !== $clubComputer->club_zone_id;
+
+        DB::transaction(function () use ($data, $zoneChanged, $clubComputer, $activity, $request): void {
+            $original = $clubComputer->getOriginal();
+
+            if ($zoneChanged) {
+                $zone = ClubZone::query()->whereKey($data['club_zone_id'])->lockForUpdate()->firstOrFail();
+                if ($zone->capacity !== null && $zone->computers()->count() >= $zone->capacity) {
+                    throw ValidationException::withMessages([
+                        'club_zone_id' => __('Достигнута вместимость зоны.'),
+                    ]);
+                }
+
+                $occupied = $zone->computers()
+                    ->whereKeyNot($clubComputer->getKey())
+                    ->get(['position_x', 'position_y'])
+                    ->mapWithKeys(fn (ClubComputer $computer): array => ["{$computer->position_x}:{$computer->position_y}" => true]);
+                $position = null;
+                $maxX = max(0, $zone->width - 66);
+                $maxY = max(0, $zone->height - 166);
+
+                for ($y = 5; $y <= $maxY && $position === null; $y += 42) {
+                    for ($x = 5; $x <= $maxX; $x += 47) {
+                        if (! $occupied->has("{$x}:{$y}")) {
+                            $position = ['position_x' => $x, 'position_y' => $y];
+                            break;
+                        }
+                    }
+                }
+
+                if ($position === null) {
+                    throw ValidationException::withMessages([
+                        'club_zone_id' => __('В выбранной зоне нет свободного места.'),
+                    ]);
+                }
+
+                $data = [...$data, ...$position];
+            }
+
+            $clubComputer->update($data);
+            $changes = collect($clubComputer->getChanges())
+                ->except('updated_at')
+                ->map(fn (mixed $value, string $field): string => ($original[$field] ?? '—').' → '.($value ?? '—'))
+                ->all();
+
+            if ($changes !== []) {
+                $activity->record('computer.updated', __('Изменён компьютер: :computer', ['computer' => $clubComputer->displayName()]), $request->user()->getKey(), $clubComputer, $changes);
+            }
+        });
+
+        return back()->with('status', __('Данные компьютера обновлены.'))->with('edit_mode', true);
     }
 
     public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
@@ -135,6 +193,12 @@ class ClubComputerController extends Controller
             $updates['current_session_id'] = $data['state'] === 'in_session'
                 ? ($data['session_id'] ?? null)
                 : null;
+
+            if ($data['state'] !== 'in_session') {
+                $updates['session_ends_at'] = null;
+            } elseif (array_key_exists('session_ends_at', $data)) {
+                $updates['session_ends_at'] = $data['session_ends_at'];
+            }
         }
 
         if (array_key_exists('agent_version', $data)) {

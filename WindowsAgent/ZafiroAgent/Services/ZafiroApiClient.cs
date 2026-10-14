@@ -321,6 +321,9 @@ namespace ZafiroAgent.Services
                 ["os_version"] = hardware.OsVersion
             };
 
+            if (request.SessionEndsAtUtc is { } sessionEndsAtUtc)
+                payload["session_ends_at"] = sessionEndsAtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+
             using var content = JsonBody(payload);
             var path = $"club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/heartbeat";
             using var response = await SendAuthorizedAsync(session, HttpMethod.Post, path, content, cancellationToken).ConfigureAwait(false);

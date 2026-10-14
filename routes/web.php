@@ -68,6 +68,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::resource('/club-map', ClubZoneController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::patch('/club-map/{clubMap}/layout', [ClubZoneController::class, 'updateLayout'])->name('club-map.layout');
         Route::post('/club-map/{clubMap}/computers', [ClubComputerController::class, 'store'])->name('club-computers.store');
+        Route::patch('/club-computers/{clubComputer}', [ClubComputerController::class, 'update'])->name('club-computers.update');
         Route::post('/club-map/align', [ClubZoneController::class, 'align'])->name('club-map.align');
         Route::patch('/club-computers/{clubComputer}/layout', ClubComputerController::class)->name('club-computers.layout');
         Route::post('/warehouse/stock-movements', StockMovementController::class)->name('warehouse.stock-movements.store');

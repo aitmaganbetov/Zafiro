@@ -48,7 +48,7 @@
 
   if (!shopCatalog) return;
 
-  const formatPrice = (value) => `${new Intl.NumberFormat('ru-RU').format(value)} KZT`;
+  const formatPrice = (value, currency = 'KZT') => `${new Intl.NumberFormat('ru-RU').format(value)} ${currency}`;
 
   const setView = (view) => {
     currentView = view;
@@ -238,7 +238,7 @@
       footer.className = 'tariff-card-footer';
 
       const price = document.createElement('strong');
-      price.textContent = formatPrice(tariffValue(tariff, 'price'));
+      price.textContent = formatPrice(tariffValue(tariff, 'price'), tariffValue(tariff, 'currency') || 'KZT');
 
       const button = document.createElement('button');
       button.className = 'tariff-purchase';
@@ -346,6 +346,7 @@
 
     if (event.data?.type === 'tariffs') {
       renderTariffs(Array.isArray(event.data.list) ? event.data.list : []);
+      if (event.data.error) tariffPageStatus.textContent = event.data.message || 'Не удалось загрузить тарифы. Проверьте подключение.';
     }
 
     if (event.data?.type === 'purchaseResult') {
@@ -360,6 +361,15 @@
         document.getElementById('bonusSmall').textContent = formattedBonus;
         document.getElementById('historyBalance').textContent = formattedBalance;
         document.getElementById('historyBonus').textContent = formattedBonus;
+        const sessionEnd = Date.parse(event.data.sessionEndsAt || '');
+        if (!Number.isNaN(sessionEnd)) {
+          const remainingMinutes = Math.max(0, Math.ceil((sessionEnd - Date.now()) / 60000));
+          document.getElementById('remainingBig').textContent = String(remainingMinutes);
+          document.getElementById('sessionExpires').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sessionEnd));
+          document.getElementById('profileRemaining').textContent = `${remainingMinutes} мин`;
+          document.getElementById('profileStatus').textContent = 'Активная сессия';
+          setSessionActive(remainingMinutes > 0);
+        }
       }
     }
 

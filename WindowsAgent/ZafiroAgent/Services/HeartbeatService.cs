@@ -36,6 +36,7 @@ namespace ZafiroAgent.Services
         private readonly object _stateLock = new();
         private ComputerState _state = ComputerState.Idle;
         private string? _sessionId;
+        private DateTimeOffset? _sessionEndsAtUtc;
 
         private volatile ClubSession? _session;
         private long _computerId;
@@ -93,8 +94,20 @@ namespace ZafiroAgent.Services
             {
                 var id = state == ComputerState.InSession ? sessionId : null;
                 if (_state == state && _sessionId == id) return;
+                if (state != ComputerState.InSession || _sessionId != id) _sessionEndsAtUtc = null;
                 _state = state;
                 _sessionId = id;
+            }
+
+            _wake.Release();
+        }
+
+        public void SetSessionEnd(DateTimeOffset? sessionEndsAtUtc)
+        {
+            lock (_stateLock)
+            {
+                if (_state != ComputerState.InSession || _sessionEndsAtUtc == sessionEndsAtUtc) return;
+                _sessionEndsAtUtc = sessionEndsAtUtc?.ToUniversalTime();
             }
 
             _wake.Release();
@@ -133,7 +146,7 @@ namespace ZafiroAgent.Services
             try
             {
                 // Сбор характеристик может обращаться к WMI, поэтому выполняется вне вызывающего потока.
-                var request = await Task.Run(() => BuildRequest(finalState.Value, null), cts.Token).ConfigureAwait(false);
+                var request = await Task.Run(() => BuildRequest(finalState.Value, null, null), cts.Token).ConfigureAwait(false);
                 await _api.SendHeartbeatAsync(session, computerId, request, cts.Token).ConfigureAwait(false);
             }
             catch
@@ -142,20 +155,22 @@ namespace ZafiroAgent.Services
             }
         }
 
-        private HeartbeatRequest BuildRequest(ComputerState state, string? sessionId) =>
-            new(state, sessionId, _agentVersion, _deviceName, _hardware.GetSnapshot());
+        private HeartbeatRequest BuildRequest(ComputerState state, string? sessionId, DateTimeOffset? sessionEndsAtUtc) =>
+            new(state, sessionId, _agentVersion, _deviceName, _hardware.GetSnapshot(), sessionEndsAtUtc);
 
         private HeartbeatRequest CurrentRequest()
         {
             ComputerState state;
             string? sessionId;
+            DateTimeOffset? sessionEndsAtUtc;
             lock (_stateLock)
             {
                 state = _state;
                 sessionId = _sessionId;
+                sessionEndsAtUtc = _sessionEndsAtUtc;
             }
 
-            return BuildRequest(state, sessionId);
+            return BuildRequest(state, sessionId, sessionEndsAtUtc);
         }
 
         private async Task LoopAsync(CancellationToken cancellationToken)

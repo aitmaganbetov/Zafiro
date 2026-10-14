@@ -92,6 +92,7 @@ test('empty heartbeat remains compatible and full heartbeat stores agent state',
         $this->withToken($token)->postJson(route('api.club-computers.heartbeat', $computer), [
             'state' => 'in_session',
             'session_id' => 'session-42',
+            'session_ends_at' => '2026-10-13T13:30:00Z',
             'agent_version' => '1.4.0',
             'device_name' => 'PC-07',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
@@ -112,6 +113,7 @@ test('empty heartbeat remains compatible and full heartbeat stores agent state',
         $computer->refresh();
         expect($computer->agent_state)->toBe('in_session')
             ->and($computer->current_session_id)->toBe('session-42')
+            ->and($computer->session_ends_at->utc()->toIso8601String())->toBe('2026-10-13T13:30:00+00:00')
             ->and($computer->agent_version)->toBe('1.4.0')
             ->and($computer->mac_address)->toBe('AA:BB:CC:DD:EE:FF')
             ->and($computer->cpu_model)->toBe('AMD Ryzen 7 5800X')
@@ -123,6 +125,11 @@ test('empty heartbeat remains compatible and full heartbeat stores agent state',
 
         Carbon::setTestNow($frozenTime->copy()->addSeconds(91));
         expect($computer->fresh()->connectionStatus())->toBe('offline');
+
+        $this->withToken($token)->postJson(route('api.club-computers.heartbeat', $computer), [
+            'state' => 'idle',
+        ])->assertSuccessful();
+        expect($computer->fresh()->session_ends_at)->toBeNull();
     } finally {
         Carbon::setTestNow();
     }

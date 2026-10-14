@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\ClubComputer;
+use App\Models\ClubMembership;
 use App\Models\ClubZone;
+use App\Models\MemberBalance;
 use App\Models\Tariff;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,4 +109,70 @@ test('tariff fields are validated', function () {
         ])->assertSessionHasErrors(['name', 'duration_value', 'duration_unit', 'price', 'payment_method', 'color', 'club_name', 'zone_ids.0', 'usage_limit_value', 'usage_limit_unit', 'quantity_limit', 'validity_periods', 'is_active']);
 
     expect(Tariff::query()->count())->toBe(0);
+});
+
+test('agent can list and purchase an eligible tariff for its active computer session', function () {
+    $user = User::factory()->create();
+    $membership = ClubMembership::query()->where('user_id', $user->id)->firstOrFail();
+    $membership->update(['discount' => 10]);
+    $token = $user->createToken('agent', ['club:'.$membership->club_id])->plainTextToken;
+    $zone = ClubZone::query()->create(['name' => 'Игровой зал']);
+    $computer = ClubComputer::query()->create([
+        'club_zone_id' => $zone->id,
+        'number' => 7,
+        'current_session_id' => $token,
+        'session_ends_at' => now()->addMinutes(10),
+    ]);
+    $tariff = Tariff::query()->create([
+        'name' => 'Ночной',
+        'duration_minutes' => 120,
+        'price' => 100,
+        'currency' => 'KZT',
+        'payment_method' => 'main_or_bonus',
+        'discount_enabled' => true,
+        'usage_limit_enabled' => true,
+        'usage_limit_minutes' => 90,
+        'quantity_limit_enabled' => true,
+        'quantity_limit' => 1,
+        'is_active' => true,
+    ]);
+    $tariff->zones()->syncWithPivotValues([$zone->id], ['club_id' => $computer->club_id]);
+    $balance = MemberBalance::query()->where('user_id', $user->id)->firstOrFail();
+    $balance->update(['balance' => 80, 'bonus_balance' => 20]);
+    app(\App\Services\CurrentClub::class)->clear();
+
+    $this->getJson(route('api.tariffs.index'))->assertUnauthorized();
+    $this->withToken($token)->getJson(route('api.tariffs.index'))
+        ->assertSuccessful()
+        ->assertJsonPath('data.0.id', (string) $tariff->id)
+        ->assertJsonPath('data.0.price', '90.00')
+        ->assertJsonPath('data.0.minutes', 90)
+        ->assertJsonPath('data.0.currency', 'KZT');
+
+    $frozenTime = now()->startOfSecond();
+    \Illuminate\Support\Carbon::setTestNow($frozenTime);
+
+    try {
+        $computer->update(['session_ends_at' => $frozenTime->copy()->addMinutes(10)]);
+
+        $this->withToken($token)->postJson(route('api.tariffs.purchase', $tariff), [
+            'computer_id' => $computer->id,
+            'session_id' => $token,
+        ])->assertSuccessful()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('new_balance', '0.00')
+            ->assertJsonPath('new_bonus', '10.00')
+            ->assertJsonPath('minutes_added', 90);
+
+        expect($balance->refresh()->balance)->toBe('0.00')
+            ->and($balance->bonus_balance)->toBe('10.00')
+            ->and($computer->refresh()->session_ends_at->utc()->toIso8601String())
+            ->toBe($frozenTime->copy()->addMinutes(100)->toIso8601String());
+
+        $this->withToken($token)->getJson(route('api.tariffs.index'))
+            ->assertSuccessful()
+            ->assertJsonCount(0, 'data');
+    } finally {
+        \Illuminate\Support\Carbon::setTestNow();
+    }
 });

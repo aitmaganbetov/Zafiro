@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\ClubInstallationController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
@@ -47,6 +48,16 @@ Route::post('/club-computers/register', [ClubComputerController::class, 'registe
 Route::get('/products', ProductController::class)
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1'])
     ->name('api.products.index');
+
+Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(function () {
+    Route::get('/tariffs', [AgentTariffController::class, 'index'])
+        ->middleware('throttle:60,1')
+        ->name('api.tariffs.index');
+    Route::post('/tariffs/{tariff}/purchase', [AgentTariffController::class, 'purchase'])
+        ->whereNumber('tariff')
+        ->middleware('throttle:10,1')
+        ->name('api.tariffs.purchase');
+});
 
 Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting'])
     ->where([

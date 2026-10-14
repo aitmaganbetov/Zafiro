@@ -327,6 +327,10 @@ namespace ZafiroAgent
             try
             {
                 var session = await _apiService.GetSessionInfoAsync(sessionId, CancellationToken.None);
+                var sessionEndsAt = session.Remaining is { } remaining && remaining > TimeSpan.Zero
+                    ? DateTimeOffset.UtcNow.Add(remaining)
+                    : (DateTimeOffset?) null;
+                _heartbeatService?.SetSessionEnd(sessionEndsAt);
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", session = SessionPayload(session) }));
             }
             catch (HttpRequestException ex)
@@ -339,6 +343,19 @@ namespace ZafiroAgent
             catch
             {
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", error = true, message = "Не удалось загрузить баланс." }));
+            }
+        }
+
+        private async Task SendTariffsAsync()
+        {
+            try
+            {
+                var list = await _apiService.GetTariffsAsync(CancellationToken.None);
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "tariffs", list }));
+            }
+            catch
+            {
+                SendMessageToWeb("{\"type\":\"tariffs\",\"list\":[],\"error\":true,\"message\":\"Не удалось загрузить тарифы. Проверьте подключение.\"}");
             }
         }
 
@@ -385,6 +402,7 @@ namespace ZafiroAgent
                 if (!string.IsNullOrWhiteSpace(result.Token) || !string.IsNullOrWhiteSpace(result.SessionId))
                 {
                     await SendSessionDataAsync(result.SessionId ?? string.Empty);
+                    await SendTariffsAsync();
                 }
 
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "authSuccess", userName = result.UserName ?? login }));
@@ -502,16 +520,7 @@ namespace ZafiroAgent
                 }
                 else if (type == "requestTariffs")
                 {
-                    try
-                    {
-                        var list = await _apiService.GetTariffsAsync(CancellationToken.None);
-                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "tariffs", list }));
-                    }
-                    catch
-                    {
-                        Debug.WriteLine("[Error] failed to get tariffs");
-                        SendMessageToWeb("{\"type\":\"tariffs\",\"list\":[]}");
-                    }
+                    await SendTariffsAsync();
                 }
                 else if (type == "requestProducts")
                 {
@@ -532,9 +541,10 @@ namespace ZafiroAgent
                     {
                         var tariffId = doc.RootElement.GetProperty("tariffId").GetString() ?? string.Empty;
                         var sid = _sessionViewModel?.SessionId ?? string.Empty;
-                        Debug.WriteLine($"[Purchase] sid={sid} tariff={tariffId}");
                         var res = await _apiService.PurchaseTariffAsync(sid, tariffId, CancellationToken.None);
-                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "purchaseResult", success = res.Success, message = res.Message, newBalance = res.NewBalance, newBonus = res.NewBonus }));
+                        if (res.Success && res.SessionEndsAt is { } sessionEndsAt)
+                            _heartbeatService?.SetSessionEnd(sessionEndsAt);
+                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "purchaseResult", success = res.Success, message = res.Message, newBalance = res.NewBalance, newBonus = res.NewBonus, minutesAdded = res.MinutesAdded, sessionEndsAt = res.SessionEndsAt?.ToUniversalTime().ToString("O") }));
                     }
                     catch
                     {

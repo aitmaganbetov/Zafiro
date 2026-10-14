@@ -22,6 +22,7 @@ class Tariff extends Model
             'duration_minutes' => 'integer',
             'price' => 'decimal:2',
             'is_active' => 'boolean',
+            'user_roles' => 'array',
             'discount_enabled' => 'boolean',
             'usage_limit_enabled' => 'boolean',
             'usage_limit_minutes' => 'integer',

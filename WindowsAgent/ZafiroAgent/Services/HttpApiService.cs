@@ -133,9 +133,30 @@ namespace ZafiroAgent.Services
             };
         }
 
-        public Task<Tariff[]> GetTariffsAsync(CancellationToken cancellationToken)
+        public async Task<Tariff[]> GetTariffsAsync(CancellationToken cancellationToken)
         {
-            return Task.FromResult(Array.Empty<Tariff>());
+            var config = _config.Load();
+            var token = _secure.Unprotect(config.ProtectedApiToken);
+            if (string.IsNullOrWhiteSpace(token))
+                throw new UnauthorizedAccessException("Выполните вход, чтобы загрузить тарифы.");
+
+            var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');
+            var tariffsUri = new Uri(endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
+                ? $"{endpoint}/tariffs"
+                : $"{endpoint}/api/tariffs");
+            using var request = new HttpRequestMessage(HttpMethod.Get, tariffsUri);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException(ExtractErrorMessage(payload) ?? "Не удалось загрузить тарифы.", null, response.StatusCode);
+
+            using var document = JsonDocument.Parse(payload);
+            var root = document.RootElement;
+            var items = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var data) ? data : root;
+            return items.ValueKind == JsonValueKind.Array
+                ? JsonSerializer.Deserialize<Tariff[]>(items.GetRawText()) ?? Array.Empty<Tariff>()
+                : Array.Empty<Tariff>();
         }
 
         public async Task<Product[]> GetProductsAsync(CancellationToken cancellationToken)
@@ -166,13 +187,36 @@ namespace ZafiroAgent.Services
             return JsonSerializer.Deserialize<Product[]>(items.GetRawText()) ?? Array.Empty<Product>();
         }
 
-        public Task<PurchaseResult> PurchaseTariffAsync(string sessionId, string tariffId, CancellationToken cancellationToken)
+        public async Task<PurchaseResult> PurchaseTariffAsync(string sessionId, string tariffId, CancellationToken cancellationToken)
         {
-            return Task.FromResult(new PurchaseResult
+            var config = _config.Load();
+            var token = _secure.Unprotect(config.ProtectedApiToken);
+            if (string.IsNullOrWhiteSpace(token))
             {
-                Success = false,
-                Message = "Покупка недоступна без активной сессии."
-            });
+                return new PurchaseResult { Success = false, Message = "Выполните вход, чтобы купить тариф." };
+            }
+            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0 || string.IsNullOrWhiteSpace(sessionId))
+            {
+                return new PurchaseResult { Success = false, Message = "Нет активной сессии на компьютере." };
+            }
+
+            var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');
+            var purchaseUri = new Uri(endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
+                ? $"{endpoint}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase"
+                : $"{endpoint}/api/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
+            var payload = JsonSerializer.Serialize(new { computer_id = computerId, session_id = sessionId });
+            using var request = new HttpRequestMessage(HttpMethod.Post, purchaseUri)
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return new PurchaseResult { Success = false, Message = ExtractErrorMessage(responseBody) ?? "Не удалось купить тариф." };
+
+            return JsonSerializer.Deserialize<PurchaseResult>(responseBody)
+                ?? new PurchaseResult { Success = false, Message = "Сервер вернул неожиданный ответ." };
         }
 
         public Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken)

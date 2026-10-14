@@ -178,6 +178,27 @@ public sealed class HeartbeatTests : IDisposable
     }
 
     [Fact]
+    public async Task SetSessionEnd_SendsUtcEndTimeImmediately()
+    {
+        var (service, handler, _) = Create(options: Slow);
+        var sessionEnd = new DateTimeOffset(2026, 10, 14, 10, 30, 0, TimeSpan.Zero);
+
+        service.Start();
+        await WaitUntil(() => handler.Snapshot().Length >= 2);
+        service.SetState(ComputerState.InSession, "sess-1");
+        await WaitUntil(() => handler.Snapshot().Length >= 3, 3000);
+
+        service.SetSessionEnd(sessionEnd);
+        await WaitUntil(() => handler.Snapshot().Length >= 4, 3000);
+
+        using var body = Body(handler.Snapshot()[3]);
+        Assert.True(body.RootElement.GetProperty("session_ends_at").TryGetDateTimeOffset(out var actual));
+        Assert.Equal(sessionEnd, actual);
+
+        await Finish(service);
+    }
+
+    [Fact]
     public async Task SetState_WithSameState_DoesNotTriggerExtraHeartbeat()
     {
         var (service, handler, _) = Create(options: Slow);

@@ -26,6 +26,7 @@ class HeartbeatClubComputerRequest extends FormRequest
         return [
             'state' => ['sometimes', 'required', 'string', Rule::in(ClubComputer::AGENT_STATES)],
             'session_id' => ['sometimes', 'nullable', 'string', 'max:255', 'prohibited_unless:state,in_session'],
+            'session_ends_at' => ['sometimes', 'nullable', 'date', 'prohibited_unless:state,in_session'],
             'agent_version' => ['sometimes', 'nullable', 'string', 'max:50'],
             'device_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'mac_address' => ['sometimes', 'nullable', 'string', 'regex:/^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/'],

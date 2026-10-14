@@ -1319,7 +1319,15 @@ body {
     color: #a72d23
 }
 
+.cm-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    align-items: start;
+    gap: 14px
+}
+
 .cm-board {
+    min-width: 0;
     overflow: auto;
     border: 1px solid #e2e8e3;
     border-radius: 22px;
@@ -1334,6 +1342,103 @@ body {
     min-height: 430px;
     background-image: radial-gradient(#dfe7e1 1px, transparent 1px);
     background-size: 20px 20px
+}
+
+.cm-info-panel {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 112px);
+    overflow-y: auto;
+    border: 1px solid #e2e8e3;
+    border-radius: 6px;
+    background: #fff;
+    padding: 16px;
+    color: #1f2922;
+    box-shadow: 0 8px 24px rgba(26, 53, 35, .06)
+}
+
+.cm-info-panel[hidden],
+.cm-info-section[hidden] {
+    display: none
+}
+
+.cm-info-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 14px
+}
+
+.cm-info-heading h3,
+.cm-info-section h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700
+}
+
+.cm-info-close {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 0;
+    border-radius: 4px;
+    background: #f1f5f2;
+    color: #47534a;
+    cursor: pointer
+}
+
+.cm-info-list {
+    display: grid;
+    gap: 10px;
+    margin: 0
+}
+
+.cm-info-list>div {
+    display: grid;
+    gap: 3px
+}
+
+.cm-info-list dt {
+    color: #68736b;
+    font-size: 12px
+}
+
+.cm-info-list dd {
+    overflow-wrap: anywhere;
+    margin: 0;
+    color: #202a23;
+    font-size: 14px;
+    font-weight: 600
+}
+
+.cm-info-section {
+    margin-top: 16px;
+    border-top: 1px solid #e7ece8;
+    padding-top: 14px
+}
+
+.cm-info-section h4 {
+    margin-bottom: 12px
+}
+
+.cm-info-section p {
+    margin: 0;
+    color: #087634;
+    font-size: 14px;
+    font-weight: 600
+}
+
+@media(max-width:900px) {
+    .cm-workspace {
+        grid-template-columns: minmax(0, 1fr)
+    }
+
+    .cm-info-panel {
+        position: static;
+        max-height: none
+    }
 }
 
 .cm-zone {
@@ -1574,6 +1679,16 @@ body {
     color: #5f6961;
     font-size: 14px;
     font-weight: 700
+}
+
+.cm-form-errors {
+    margin-bottom: 12px;
+    color: #b42318;
+    font-size: 14px
+}
+
+.cm-form-errors p+p {
+    margin-top: 4px
 }
 
 .cm-field input,
@@ -1827,6 +1942,40 @@ body {
 .cm-page.edit-mode .cm-computer {
     cursor: move;
     touch-action: none
+}
+
+.cm-computer-edit {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    z-index: 1;
+    display: none;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #fff;
+    border-radius: 50%;
+    background: #16803c;
+    color: #fff;
+    font-size: 8px;
+    cursor: pointer;
+    touch-action: manipulation
+}
+
+.cm-page.edit-mode .cm-computer-edit {
+    display: flex
+}
+
+.cm-page.edit-mode .cm-computer>span:first-child {
+    display: block;
+    padding-right: 10px;
+    font-size: 11px
+}
+
+.cm-page.edit-mode .cm-computer:before {
+    right: auto;
+    left: 3px
 }
 
 .cm-computer.moving {
