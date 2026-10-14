@@ -849,7 +849,7 @@ public sealed class HeartbeatTests : IDisposable
     [Fact]
     public async Task DeviceToken_FromResolve_IsStoredProtected_AndUsedInsteadOfUserToken()
     {
-        var resolve = ResolveJson.TrimEnd('}') + ",\"agent_token\":\"" + DeviceToken + "\"}";
+        var resolve = """{"computer_id":45,"number":"7","name":"PC-07","zone":{"id":3,"name":"VIP"},"agent_token":"DEVICE"}""".Replace("DEVICE", DeviceToken);
         var (service, handler, config) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? resolve : HeartbeatJson()));
 
         service.Start();
