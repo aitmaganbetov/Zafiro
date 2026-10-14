@@ -121,15 +121,22 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          # Версия Inno Setup закреплена: образ runner может принести другую.
+          # Версия Inno Setup закреплена: образ runner может принести другую. Если поставить её
+          # не вышло, сборка идёт на установленной Inno Setup 6, а причина видна в предупреждении.
           $innoVersion = '6.4.3'
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          $installed = if (Test-Path $iscc) { (Get-Item $iscc).VersionInfo.ProductVersion } else { '' }
+          $version = { if (Test-Path $iscc) { "$((Get-Item $iscc).VersionInfo.FileVersion)".Trim() } else { '' } }
+          $installed = & $version
           if (-not $installed.StartsWith($innoVersion)) {
-            choco install innosetup --version=$innoVersion -y --no-progress --force --allow-downgrade | Out-Null
+            $log = choco install innosetup --version=$innoVersion -y --no-progress --force --allow-downgrade 2>&1 | Select-Object -Last 3
+            $chocoExit = $LASTEXITCODE
+            $installed = & $version
+            if (-not $installed.StartsWith($innoVersion)) {
+              Write-Host "::warning title=Inno Setup::Wanted $innoVersion, using '$installed' (choco exit $chocoExit): $(($log -join ' ') -replace '[\r\n]', ' ')"
+            }
           }
-          $installed = if (Test-Path $iscc) { (Get-Item $iscc).VersionInfo.ProductVersion } else { '' }
-          if (-not $installed.StartsWith($innoVersion)) { throw "Inno Setup $innoVersion is required, found '$installed'" }
+          if (-not $installed.StartsWith('6.')) { throw "Inno Setup 6 is required, found '$installed'" }
+          Write-Host "Inno Setup $installed"
           & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$PWD\publish\full" WindowsAgent/installer/ZafiroAgent.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
           $name = "ZafiroAgentSetup-$version.exe"
