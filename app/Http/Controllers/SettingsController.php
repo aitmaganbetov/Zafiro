@@ -9,6 +9,7 @@ use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,52 @@ class SettingsController extends Controller
 
     public function club()
     {
-        return view('settings.club', ['settings' => $this->loadSettings()]);
+        return view('settings.club', [
+            'settings' => $this->loadSettings(),
+            'clubTimezone' => $this->currentClub->get()->timezone,
+            'timezones' => $this->timezoneOptions(),
+        ]);
+    }
+
+    public function timezone(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $data = $request->validate(['timezone' => ['required', 'string', 'timezone:all']]);
+        $club = $this->currentClub->get();
+        $from = $club->timezone;
+
+        if ($from !== $data['timezone']) {
+            DB::transaction(function () use ($club, $data, $from, $request, $activity): void {
+                $club->forceFill(['timezone' => $data['timezone']])->save();
+                $activity->record('club.timezone_changed', __('Часовой пояс клуба изменён: :from → :to', ['from' => $from, 'to' => $data['timezone']]), $request->user()->getKey(), $club, [
+                    'from' => $from,
+                    'to' => $data['timezone'],
+                ]);
+            });
+        }
+
+        return back()->with('status', __('Часовой пояс сохранён.'));
+    }
+
+    /**
+     * Kazakhstan first, then every zone ordered by its current UTC offset.
+     *
+     * @return array<string, array<string, string>> group label => [identifier => label]
+     */
+    private function timezoneOptions(): array
+    {
+        $label = function (string $zone): string {
+            $offset = (new \DateTimeImmutable('now', new \DateTimeZone($zone)))->format('P');
+
+            return "(UTC{$offset}) ".str_replace('_', ' ', $zone);
+        };
+        $kazakhstan = \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, 'KZ');
+        $all = collect(\DateTimeZone::listIdentifiers())
+            ->sortBy(fn (string $zone): string => sprintf('%06d %s', (new \DateTimeZone($zone))->getOffset(new \DateTimeImmutable) + 50000, $zone));
+
+        return [
+            __('Казахстан') => collect($kazakhstan)->mapWithKeys(fn (string $zone): array => [$zone => $label($zone)])->all(),
+            __('Все часовые пояса') => $all->mapWithKeys(fn (string $zone): array => [$zone => $label($zone)])->all(),
+        ];
     }
 
     public function languages(TranslationCatalog $catalog, LocaleResolver $locales)

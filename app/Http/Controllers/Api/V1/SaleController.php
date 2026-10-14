@@ -6,6 +6,7 @@ use App\Models\CashTransaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /** Point-of-sale receipts: income transactions that carry receipt items. */
 class SaleController extends ApiV1Controller
@@ -19,8 +20,8 @@ class SaleController extends ApiV1Controller
         ]);
 
         $query = $this->sales()
-            ->when($filters['from'] ?? null, fn ($q, string $from) => $q->where('created_at', '>=', $from))
-            ->when($filters['to'] ?? null, fn ($q, string $to) => $q->where('created_at', '<=', $to))
+            ->when($filters['from'] ?? null, fn ($q, string $from) => $q->where('created_at', '>=', Carbon::parse($from)->utc()->format('Y-m-d H:i:s')))
+            ->when($filters['to'] ?? null, fn ($q, string $to) => $q->where('created_at', '<=', Carbon::parse($to)->utc()->format('Y-m-d H:i:s')))
             ->when($filters['cash_shift_id'] ?? null, fn ($q, int $id) => $q->where('cash_shift_id', $id));
 
         return $this->paginate($request, $query, Transformers::sale(...));

@@ -71,7 +71,7 @@ class AppServiceProvider extends ServiceProvider
         WebhookEndpoint::deleted($webhooks);
 
         Club::saved(function (Club $club) use ($keys): void {
-            if ($club->wasChanged(['name', 'slug', 'locale', 'settings'])) {
+            if ($club->wasChanged(['name', 'slug', 'locale', 'timezone', 'settings'])) {
                 $keys()->forgetClub((int) $club->getKey());
             }
         });

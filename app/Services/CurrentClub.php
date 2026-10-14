@@ -12,6 +12,8 @@ class CurrentClub
 
     private ?ClubMembership $membership = null;
 
+    private bool $utc = false;
+
     public function set(Club $club, ?ClubMembership $membership = null): void
     {
         $this->club = $club;
@@ -22,6 +24,13 @@ class CurrentClub
     {
         $this->club = null;
         $this->membership = null;
+        $this->utc = false;
+    }
+
+    /** API responses keep UTC timestamps (their contract); pages use the club's zone. */
+    public function useUtc(): void
+    {
+        $this->utc = true;
     }
 
     public function get(): ?Club
@@ -37,6 +46,14 @@ class CurrentClub
     public function id(): ?int
     {
         return $this->club?->getKey();
+    }
+
+    /** Time zone for showing times: the club's, or UTC outside a club (queue jobs, guests) and in APIs. */
+    public function timezone(): string
+    {
+        $timezone = $this->utc ? null : ($this->club?->getAttributes()['timezone'] ?? null);
+
+        return is_string($timezone) && $timezone !== '' ? $timezone : config('app.timezone');
     }
 
     /** @return array<string, mixed> */

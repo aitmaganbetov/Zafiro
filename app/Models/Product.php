@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['sku', 'name', 'category', 'product_category_id', 'price', 'quantity'])]
 class Product extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     /** @use HasFactory<ProductFactory> */
     use HasFactory;

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable(['user_id', 'role', 'discount'])]
 class ClubMembership extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     protected function casts(): array
     {

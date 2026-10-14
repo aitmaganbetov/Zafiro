@@ -162,7 +162,7 @@ class ApiKeyManager
             'key_hash' => $key->key_hash,
             'club_id' => $key->club_id,
             // raw attributes without the encrypted installation key
-            'club' => $club === null ? null : array_intersect_key($club->getAttributes(), array_flip(['id', 'name', 'slug', 'locale', 'settings', 'created_at', 'updated_at'])),
+            'club' => $club === null ? null : array_intersect_key($club->getAttributes(), array_flip(['id', 'name', 'slug', 'locale', 'timezone', 'settings', 'created_at', 'updated_at'])),
             'created_by' => $key->created_by,
             'scopes' => $key->scopes,
             'allowed_ips' => $key->allowed_ips ?: [],

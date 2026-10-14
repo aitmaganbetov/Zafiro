@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Hidden(['key_hash'])]
 class ApiKey extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     protected function casts(): array
     {

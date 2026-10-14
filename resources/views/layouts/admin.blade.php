@@ -30,6 +30,11 @@
                             </form>
                         @endif
                         <label class="admin-search"><i class="fas fa-search"></i><input type="search" placeholder="{{ __('Поиск...') }}"></label>
+                        @php($clubTime = now(app(\App\Services\CurrentClub::class)->timezone()))
+                        <time class="admin-clock" data-clock data-timezone="{{ $clubTime->tzName }}" data-now="{{ $clubTime->getTimestampMs() }}" datetime="{{ $clubTime->toIso8601String() }}" title="{{ __('Время клуба') }}: {{ $clubTime->tzName }} (UTC{{ $clubTime->format('P') }})">
+                            <span class="admin-clock-time"><span data-clock-hm>{{ $clubTime->format('H:i') }}</span><span class="admin-clock-seconds" data-clock-seconds>:{{ $clubTime->format('s') }}</span></span>
+                            <span class="admin-clock-date" data-clock-date>{{ $clubTime->translatedFormat('D, j M') }}</span>
+                        </time>
                         <div class="admin-notifications" data-notifications data-url="{{ route('notifications.index') }}" data-seen-url="{{ route('notifications.seen') }}" data-csrf="{{ csrf_token() }}">
                             <button type="button" id="notifications-button" class="admin-icon-button" aria-label="{{ __('Уведомления') }}" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
                             <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="{{ __('Уведомления') }}" hidden>

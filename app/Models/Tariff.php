@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use App\Services\CurrentClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 #[Fillable(['name', 'description', 'duration_minutes', 'price', 'is_active', 'payment_method', 'currency', 'discount_enabled', 'color', 'club_name', 'usage_limit_enabled', 'usage_limit_minutes', 'quantity_limit_enabled', 'quantity_limit', 'validity_periods'])]
 class Tariff extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     protected $attributes = ['is_active' => true];
 

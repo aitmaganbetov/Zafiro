@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['club_zone_id', 'number', 'device_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
 class ClubComputer extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     public const HEARTBEAT_TIMEOUT_SECONDS = 90;
 

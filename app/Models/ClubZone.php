@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use App\Services\CurrentClub;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['name', 'description', 'capacity', 'icon', 'theme', 'status', 'is_featured', 'sort_order', 'position_x', 'position_y', 'width', 'height', 'rotation'])]
 class ClubZone extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     protected $attributes = ['icon' => 'desktop', 'theme' => 'neutral', 'status' => 'available', 'is_featured' => false, 'sort_order' => 0, 'position_x' => 20, 'position_y' => 20, 'width' => 320, 'height' => 180, 'rotation' => 0];
 

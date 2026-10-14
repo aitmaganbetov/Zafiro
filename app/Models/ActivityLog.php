@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
+use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['event', 'description', 'user_id', 'subject_type', 'subject_id', 'details', 'ip_address', 'user_agent'])]
 class ActivityLog extends Model
 {
-    use BelongsToClub;
+    use BelongsToClub, UsesClubTimezone;
 
     public const EVENT_LABELS = [
         'stock.received' => 'Оприходование',
@@ -60,6 +61,7 @@ class ActivityLog extends Model
         'language.deleted' => 'Удаление языка',
         'translations.updated' => 'Изменение переводов',
         'translations.imported' => 'Импорт переводов',
+        'club.timezone_changed' => 'Изменение часового пояса клуба',
     ];
 
     protected function casts(): array

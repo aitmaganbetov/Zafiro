@@ -16,30 +16,34 @@ class DashboardController extends Controller
 
     public function __invoke(): View
     {
-        $now = now();
-        $today = $now->copy()->startOfDay();
-        $weekStart = $today->copy()->subDays(6);
-        $dailyTotals = CashTransaction::query()
-            ->whereBetween('created_at', [$weekStart, $now])
-            ->selectRaw('DATE(created_at) as day, type, SUM(amount) as total, COUNT(*) as transaction_count')
-            ->groupByRaw('DATE(created_at), type')
-            ->toBase()
-            ->get();
-        $totalFor = fn (string $day, string $type, string $column = 'total'): float => (float) $dailyTotals
-            ->where('day', $day)
-            ->where('type', $type)
-            ->sum($column);
-        $todayKey = $today->toDateString();
-        $chartLabels = [];
-        $chartIncome = [];
-        $chartExpenses = [];
+        // Days are the club's local days; stored times are UTC, so each local day becomes
+        // a UTC range and the sums are made in one SQL query.
+        $today = now($this->currentClub->timezone())->startOfDay();
+        $days = collect(range(6, 0))->map(fn (int $daysAgo) => $today->copy()->subDays($daysAgo));
+        $utc = fn ($moment): string => $moment->copy()->utc()->format('Y-m-d H:i:s');
+        $columns = [];
+        $bindings = [];
 
-        foreach (range(6, 0) as $daysAgo) {
-            $day = $today->copy()->subDays($daysAgo);
-            $chartLabels[] = $day->format('d.m');
-            $chartIncome[] = $totalFor($day->toDateString(), CashTransaction::TYPE_INCOME);
-            $chartExpenses[] = $totalFor($day->toDateString(), CashTransaction::TYPE_EXPENSE);
+        foreach ($days as $i => $day) {
+            $range = [$utc($day), $utc($day->copy()->addDay())];
+            $columns[] = "SUM(CASE WHEN created_at >= ? AND created_at < ? THEN amount ELSE 0 END) as total_{$i}";
+            $columns[] = "SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END) as count_{$i}";
+            array_push($bindings, ...$range, ...$range);
         }
+
+        $totals = CashTransaction::query()
+            ->where('created_at', '>=', $utc($days->first()))
+            ->where('created_at', '<', $utc($today->copy()->addDay()))
+            ->selectRaw('type, '.implode(', ', $columns), $bindings)
+            ->groupBy('type')
+            ->toBase()
+            ->get()
+            ->keyBy('type');
+        $totalFor = fn (int $day, string $type, string $column = 'total'): float => (float) ($totals[$type]->{"{$column}_{$day}"} ?? 0);
+        $todayKey = 6;
+        $chartLabels = $days->map(fn ($day): string => $day->format('d.m'))->all();
+        $chartIncome = $days->keys()->map(fn (int $i): float => $totalFor($i, CashTransaction::TYPE_INCOME))->all();
+        $chartExpenses = $days->keys()->map(fn (int $i): float => $totalFor($i, CashTransaction::TYPE_EXPENSE))->all();
 
         $computerStatuses = ClubComputer::query()->get(['status', 'is_reserved', 'last_seen_at'])
             ->map(fn (ClubComputer $computer): string => $computer->currentStatus());
@@ -48,8 +52,8 @@ class DashboardController extends Controller
         return view('dashboard', [
             'todayIncome' => $totalFor($todayKey, CashTransaction::TYPE_INCOME),
             'todayExpenses' => $totalFor($todayKey, CashTransaction::TYPE_EXPENSE),
-            'todayTransactionCount' => (int) $dailyTotals->where('day', $todayKey)->sum('transaction_count'),
-            'todayExpenseCount' => (int) $totalFor($todayKey, CashTransaction::TYPE_EXPENSE, 'transaction_count'),
+            'todayTransactionCount' => (int) ($totalFor($todayKey, CashTransaction::TYPE_INCOME, 'count') + $totalFor($todayKey, CashTransaction::TYPE_EXPENSE, 'count')),
+            'todayExpenseCount' => (int) $totalFor($todayKey, CashTransaction::TYPE_EXPENSE, 'count'),
             'currency' => data_get($settings ?: [], 'finances.currency', 'KZT'),
             'chartLabels' => $chartLabels,
             'chartIncome' => $chartIncome,

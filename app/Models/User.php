@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\UsesClubTimezone;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Services\CurrentClub;
 use Database\Factories\UserFactory;
@@ -20,6 +21,8 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    use UsesClubTimezone;
 
     /**
      * Get the attributes that should be cast.

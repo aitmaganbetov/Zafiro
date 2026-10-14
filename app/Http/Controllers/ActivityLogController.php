@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FilterActivityLogsRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -14,14 +15,15 @@ class ActivityLogController extends Controller
     public function index(FilterActivityLogsRequest $request): View
     {
         $filters = $request->validated();
+        $timezone = app(CurrentClub::class)->timezone(); // dates in the filter are the club's local days
         $query = ActivityLog::query()->with('user:id,name,phone')->latest();
 
         if (! empty($filters['from'])) {
-            $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay());
+            $query->where('created_at', '>=', Carbon::parse($filters['from'], $timezone)->startOfDay()->utc());
         }
 
         if (! empty($filters['to'])) {
-            $query->where('created_at', '<', Carbon::parse($filters['to'])->addDay()->startOfDay());
+            $query->where('created_at', '<', Carbon::parse($filters['to'], $timezone)->addDay()->startOfDay()->utc());
         }
 
         if (! empty($filters['event'])) {

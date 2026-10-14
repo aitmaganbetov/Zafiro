@@ -72,6 +72,7 @@ class AuthenticateApiKey
 
         $club = $this->keys->clubFrom($key);
         $this->currentClub->set($club);
+        $this->currentClub->useUtc();
         $this->locales->apply($this->locales->forClub($club));
         $this->touch($key, (string) $request->ip());
 

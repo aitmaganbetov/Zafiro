@@ -127,3 +127,34 @@ if (banner) {
 		hideBanner();
 	});
 }
+
+// Club clock in the top bar: the club's time zone, corrected by the server clock so a
+// wrong device clock does not matter. Updates exactly on each second.
+document.querySelectorAll('[data-clock]').forEach((clock) => {
+	const timeZone = clock.dataset.timezone;
+	const skew = Number(clock.dataset.now) - Date.now();
+	const format = (options) => {
+		try {
+			return new Intl.DateTimeFormat(document.documentElement.lang || 'ru', { timeZone, ...options });
+		} catch (e) {
+			return new Intl.DateTimeFormat('ru', { timeZone, ...options });
+		}
+	};
+	const hoursMinutes = format({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+	const seconds = format({ second: '2-digit' });
+	const date = format({ weekday: 'short', day: 'numeric', month: 'short' });
+	const hm = clock.querySelector('[data-clock-hm]');
+	const ss = clock.querySelector('[data-clock-seconds]');
+	const day = clock.querySelector('[data-clock-date]');
+
+	const tick = () => {
+		const now = new Date(Date.now() + skew);
+		hm.textContent = hoursMinutes.format(now);
+		ss.textContent = `:${seconds.format(now).padStart(2, '0')}`;
+		day.textContent = date.format(now);
+		clock.setAttribute('datetime', now.toISOString());
+		setTimeout(tick, 1000 - (now.getTime() % 1000) + 5);
+	};
+
+	tick();
+});

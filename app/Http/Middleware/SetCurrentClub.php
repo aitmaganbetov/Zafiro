@@ -53,6 +53,10 @@ class SetCurrentClub
         }
 
         $currentClub->set($membership->club, $membership);
+
+        if ($request->is('api/*')) {
+            $currentClub->useUtc();
+        }
         $this->locales->apply($this->locales->forClub($membership->club));
 
         if (! $request->is('api/*')) {

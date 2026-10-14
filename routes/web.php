@@ -81,6 +81,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/settings/api', [SettingsController::class, 'api'])->name('settings.api');
         Route::post('/settings/save', [SettingsController::class, 'save'])->name('settings.save');
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
+        Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
     });

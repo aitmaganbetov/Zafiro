@@ -2356,6 +2356,50 @@ body {
     color: #e5ece7
 }
 
+.admin-clock {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 0 12px;
+    background: linear-gradient(180deg, #fff, #f7f9f7);
+    line-height: 1.1;
+    white-space: nowrap
+}
+
+.admin-clock-time {
+    color: #17201a;
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .01em
+}
+
+.admin-clock-seconds {
+    color: var(--brand);
+    font-weight: 600
+}
+
+.admin-clock-date {
+    color: #647068;
+    font-size: 12px;
+    font-weight: 500
+}
+
+@media(max-width:768px) {
+    .admin-clock {
+        padding: 0 10px
+    }
+
+    .admin-clock-date {
+        display: none
+    }
+}
+
 .admin-icon-button .dot {
     position: absolute;
     right: 8px;
