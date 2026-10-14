@@ -192,6 +192,12 @@ class ClubComputerController extends Controller
         return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), $request->validated() === []);
     }
 
+    /** New device token for this PC; the one in the request stops working. */
+    public function rotateAgentToken(Request $request, ClubComputerSessions $sessions): JsonResponse
+    {
+        return response()->json(['agent_token' => $sessions->issueAgentToken($request->attributes->get('agent_computer'))]);
+    }
+
     /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
     public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions): JsonResponse
     {

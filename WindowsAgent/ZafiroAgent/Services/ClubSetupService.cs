@@ -156,6 +156,9 @@ namespace ZafiroAgent.Services
             SafeLog.Register(info.AgentToken);
             // Если установлена служба, токен уходит к ней, а у агента остаётся только метка.
             var keep = string.IsNullOrEmpty(info.AgentToken) ? null : await DeviceTokens.KeepAsync(info.AgentToken, cancellationToken).ConfigureAwait(false);
+            if (keep is { Persist: false })
+                return ApiResult<ComputerInfo>.Fail(ApiFailure.ServiceUnavailable, "Служба Zafiro Agent не приняла токен ПК. Проверьте, что служба запущена, и повторите вход.");
+
             _config.Update(cfg =>
             {
                 cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
@@ -164,7 +167,7 @@ namespace ZafiroAgent.Services
                 cfg.DeviceName = _deviceName;
                 cfg.DeviceId = deviceId ?? string.Empty;
                 if (keep is not null)
-                    cfg.ProtectedDeviceToken = _secure.Protect(keep);
+                    cfg.ProtectedDeviceToken = _secure.Protect(keep.Use);
             });
 
             return result;

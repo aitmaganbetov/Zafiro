@@ -71,6 +71,17 @@ namespace ZafiroAgent.Views
                     var claim = await _setup.ClaimComputerAsync(result.Value!, deviceId, _cts.Token);
                     var isStaff = claim.Success && !string.IsNullOrEmpty(claim.Value!.AgentToken);
 
+                    // ПК не подтверждён (нет связи, служба не приняла токен): никто не остаётся
+                    // в системе — иначе сотрудник мог бы остаться вошедшим вместо клиента.
+                    if (!claim.Success && claim.Failure is not (ApiFailure.Forbidden or ApiFailure.ComputerNotFound) && !firstSetup)
+                    {
+                        await _setup.SignOutAsync(TimeSpan.FromSeconds(3));
+                        ErrorText.Text = claim.Message;
+                        PasswordBox.Clear();
+                        SubmitButton.IsEnabled = true;
+                        return;
+                    }
+
                     // Сотрудник подключил (или обслужил) ПК и выходит: играют только под учётными записями клиентов.
                     if (isStaff)
                     {
@@ -107,6 +118,12 @@ namespace ZafiroAgent.Views
             catch (OperationCanceledException)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                // Например, настройки нельзя записать: окно остаётся, агент не падает.
+                SafeLog.Write("[Setup] sign-in failed: " + ex.Message);
+                ErrorText.Text = "Не удалось выполнить вход. Повторите попытку или обратитесь к администратору клуба.";
             }
             finally
             {

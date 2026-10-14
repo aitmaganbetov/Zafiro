@@ -182,7 +182,17 @@ namespace ZafiroAgent
             _sessionTimer.Start();
             ApplyKioskMode();
 
-            await InitializeWebViewAsync();
+            try
+            {
+                await InitializeWebViewAsync();
+            }
+            catch (Exception ex)
+            {
+                // Без интерфейса ПК остаётся заблокированным; сотрудник выходит по PIN-коду.
+                SafeLog.Write("[WebView] could not start: " + ex.Message);
+                WebView.Visibility = Visibility.Collapsed;
+                UiError.Visibility = Visibility.Visible;
+            }
         }
 
         // Повторный вход поверх агента: отдельной кнопки на панели задач у окна нет.
@@ -347,11 +357,32 @@ namespace ZafiroAgent
         }
 #endif
 
+        /// <summary>
+        /// Данные WebView2 — в профиле пользователя: рядом с exe (Program Files) писать нельзя.
+        /// Клиент может подменить папку файлом или ссылкой — тогда она пересоздаётся, а если
+        /// не выходит, берётся новая временная папка.
+        /// </summary>
+        private static string WebViewDataFolder()
+        {
+            var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZafiroAgent", "WebView2");
+            try
+            {
+                if (File.Exists(folder)) File.Delete(folder);
+                var dir = new DirectoryInfo(folder);
+                if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) dir.Delete();
+                Directory.CreateDirectory(folder);
+                return folder;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                SafeLog.Write("[WebView] data folder is unusable, using a temporary one: " + ex.Message);
+                return Path.Combine(Path.GetTempPath(), "ZafiroAgent-WebView2-" + Guid.NewGuid().ToString("N"));
+            }
+        }
+
         private async Task InitializeWebViewAsync()
         {
-            // Данные WebView2 — в профиле пользователя: рядом с exe (Program Files) писать нельзя.
-            var dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZafiroAgent", "WebView2");
-            var environment = await CoreWebView2Environment.CreateAsync(null, dataFolder);
+            var environment = await CoreWebView2Environment.CreateAsync(null, WebViewDataFolder());
             await WebView.EnsureCoreWebView2Async(environment);
 
             var core = WebView.CoreWebView2;

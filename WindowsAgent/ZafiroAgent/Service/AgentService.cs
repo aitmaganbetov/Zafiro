@@ -30,6 +30,7 @@ namespace ZafiroAgent.Service
             var server = new VaultServer(VaultProtocol.PipeName, new DeviceVaultStore(), ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive);
             _work = Task.WhenAll(
                 Task.Run(() => server.RunAsync(_stop.Token)),
+                Task.Run(() => server.KeepOnlineAsync(TimeSpan.FromSeconds(60), _stop.Token)),
                 Task.Run(() => _watchdog.RunAsync(_stop.Token)));
             SafeLog.Write("[Service] started");
         }

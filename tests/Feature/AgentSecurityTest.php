@@ -122,3 +122,17 @@ test('PIN guessing is limited per club, not only per PC', function () {
 
     expect($attempts)->toBe(30);
 });
+
+test('the agent service swaps its device token for a new one and the old one stops working', function () {
+    $computer = securityPc();
+    $old = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    app(CurrentClub::class)->clear();
+
+    $new = $this->postJson(route('api.agent.token.rotate'), [], ['X-Agent-Token' => $old])
+        ->assertSuccessful()->json('agent_token');
+
+    expect($new)->toMatch('/^zag_[A-Za-z0-9]{48}$/')->not->toBe($old);
+    $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $old])->assertUnauthorized();
+    $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $new])->assertSuccessful();
+    $this->postJson(route('api.agent.token.rotate'), [], ['X-Agent-Token' => $old])->assertUnauthorized();
+});

@@ -32,6 +32,18 @@ public sealed class KioskTests
         Assert.False(KioskKeyboard.ShouldBlock(vk, alt, ctrl, shift, strict: false));
     }
 
+    [Theory]
+    [InlineData(KioskKeyboard.VkTab, false)]   // Win+Tab: представление задач
+    [InlineData(KioskKeyboard.VkD, true)]      // Win+Ctrl+D: новый рабочий стол
+    [InlineData(KioskKeyboard.VkLeft, true)]   // Win+Ctrl+←/→: переход между столами
+    [InlineData(KioskKeyboard.VkRight, true)]
+    [InlineData(KioskKeyboard.VkF4, true)]     // Win+Ctrl+F4: закрыть стол
+    public void VirtualDesktopShortcuts_AreBlockedEvenDuringPaidSession(int vk, bool ctrl)
+    {
+        Assert.True(KioskKeyboard.ShouldBlock(vk, alt: false, ctrl, shift: false, strict: false, win: true));
+        Assert.False(KioskKeyboard.ShouldBlock(KioskKeyboard.VkD, alt: false, ctrl: false, shift: false, strict: false, win: true)); // Win+D — свернуть окна
+    }
+
     [Fact]
     public void TaskManagerShortcut_IsBlockedAlways_AndOrdinaryKeysNever()
     {

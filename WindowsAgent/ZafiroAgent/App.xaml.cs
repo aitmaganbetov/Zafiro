@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,9 +40,31 @@ namespace ZafiroAgent
 
         internal static App Instance => (App)Current;
 
+        // Через эти переменные клиент мог бы подменить браузер WebView2 или включить в нём отладку.
+        private static readonly string[] WebViewOverrides =
+        {
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", "WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "WEBVIEW2_RELEASE_CHANNEL_PREFERENCE", "WEBVIEW2_PIPE_FOR_SCRIPT_DEBUGGER", "WEBVIEW2_WAIT_FOR_SCRIPT_DEBUGGER"
+        };
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            foreach (var name in WebViewOverrides) Environment.SetEnvironmentVariable(name, null);
+
+            // Ошибка в обработчике не должна закрывать агент: закрытый агент — открытый рабочий стол.
+            DispatcherUnhandledException += (_, args) =>
+            {
+                SafeLog.Write("[Crash] " + args.Exception);
+                args.Handled = true;
+            };
+            TaskScheduler.UnobservedTaskException += (_, args) =>
+            {
+                SafeLog.Write("[Crash] background task: " + args.Exception);
+                args.SetObserved();
+            };
+            AppDomain.CurrentDomain.UnhandledException += (_, args) => SafeLog.Write("[Crash] fatal: " + args.ExceptionObject);
 
             // Одна копия на сеанс пользователя (Local): чужой сеанс Windows не может помешать запуску.
             // Служба (--watchdog) запускает агент, только когда настоящий агент не работает или
@@ -99,9 +122,9 @@ namespace ZafiroAgent
             if (string.IsNullOrEmpty(stored) || stored == DeviceTokens.VaultMarker) return;
             SafeLog.Register(stored);
             var keep = Task.Run(() => DeviceTokens.KeepAsync(stored, CancellationToken.None)).GetAwaiter().GetResult();
-            if (keep == DeviceTokens.VaultMarker)
+            if (keep.Use == DeviceTokens.VaultMarker)
             {
-                _config.Update(cfg => cfg.ProtectedDeviceToken = _secure.Protect(keep));
+                _config.Update(cfg => cfg.ProtectedDeviceToken = _secure.Protect(keep.Use));
                 SafeLog.Write("[Vault] device token moved to the service");
             }
         }
@@ -169,10 +192,12 @@ namespace ZafiroAgent
             }
         }
 
-        private Task<ApiResult<bool>> VerifyPinAsync(string pin)
+        // Обращение к службе — не в потоке окна: окно не должно ждать её ответа.
+        private async Task<ApiResult<bool>> VerifyPinAsync(string pin)
         {
             var cfg = _config.Load();
-            return _api.VerifyExitPinAsync(DeviceTokens.Resolve(_secure.Unprotect(cfg.ProtectedDeviceToken)), pin, CancellationToken.None, _secure.Unprotect(cfg.ProtectedApiToken));
+            var deviceToken = await Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(cfg.ProtectedDeviceToken)));
+            return await _api.VerifyExitPinAsync(deviceToken, pin, CancellationToken.None, _secure.Unprotect(cfg.ProtectedApiToken));
         }
 
         protected override void OnExit(ExitEventArgs e)

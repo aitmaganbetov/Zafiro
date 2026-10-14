@@ -314,18 +314,18 @@ namespace ZafiroAgent.Services
             if (!result.Success) throw new ZafiroApiException(result.Failure, result.Message);
 
             var info = result.Value!;
-            string? keep = null;
+            DeviceTokenKeep? keep = null;
             if (!string.IsNullOrEmpty(info.AgentToken))
             {
                 SafeLog.Register(info.AgentToken);
                 keep = await DeviceTokens.KeepAsync(info.AgentToken, cancellationToken).ConfigureAwait(false);
-                _deviceToken = keep;
+                _deviceToken = keep.Use;
             }
 
             _cfgService.Update(cfg =>
             {
-                if (keep is not null)
-                    cfg.ProtectedDeviceToken = _secure.Protect(keep);
+                if (keep is { Persist: true })
+                    cfg.ProtectedDeviceToken = _secure.Protect(keep.Use);
 
                 cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
                 cfg.ComputerNumber = info.Number;

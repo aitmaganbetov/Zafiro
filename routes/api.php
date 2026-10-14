@@ -43,6 +43,11 @@ Route::post('/agent/heartbeat', [ClubComputerController::class, 'agentHeartbeat'
     ->middleware(['agent.device', 'throttle:club-computers'])
     ->name('api.agent.heartbeat');
 
+// The Windows service swaps a token that passed through the customer's profile for a new one.
+Route::post('/agent/token/rotate', [ClubComputerController::class, 'rotateAgentToken'])
+    ->middleware(['agent.device', 'throttle:10,1'])
+    ->name('api.agent.token.rotate');
+
 Route::post('/agent/exit-pin', AgentExitPinController::class)
     ->middleware(['agent.device', 'throttle:agent-exit-pin'])
     ->name('api.agent.exit-pin');

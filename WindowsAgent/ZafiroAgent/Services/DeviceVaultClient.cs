@@ -101,17 +101,33 @@ namespace ZafiroAgent.Services
 
         public static DeviceVaultClient? Vault { get; set; } = DeviceVaultClient.ForInstalledService();
 
-        /// <summary>Что сохранить у агента после получения токена: метку, если токен принят службой, иначе сам токен.</summary>
-        public static async Task<string> KeepAsync(string token, CancellationToken cancellationToken)
+        /// <summary>
+        /// Что агенту делать с полученным токеном. Без службы — хранить сам токен. Со службой —
+        /// хранить метку; если служба токен не приняла, токен остаётся только в памяти агента
+        /// (Persist = false): в профиль клиента он не записывается.
+        /// </summary>
+        public static async Task<DeviceTokenKeep> KeepAsync(string token, CancellationToken cancellationToken)
         {
             var vault = Vault;
-            return vault is not null && await vault.StoreAsync(token, cancellationToken).ConfigureAwait(false) ? VaultMarker : token;
+            if (vault is null) return new DeviceTokenKeep(token, Persist: true);
+
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                if (attempt > 0) await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+                if (await vault.StoreAsync(token, cancellationToken).ConfigureAwait(false)) return new DeviceTokenKeep(VaultMarker, Persist: true);
+            }
+
+            return new DeviceTokenKeep(token, Persist: false);
         }
 
         /// <summary>Токен для запроса: сохранённый у агента, а если его стёрли — метка службы.</summary>
         public static string? Resolve(string? stored) =>
             !string.IsNullOrEmpty(stored) ? stored : Vault?.HasToken() == true ? VaultMarker : null;
     }
+
+    /// <param name="Use">Токен или метка для запросов.</param>
+    /// <param name="Persist">Можно ли сохранить Use в настройках агента.</param>
+    public sealed record DeviceTokenKeep(string Use, bool Persist);
 
     /// <summary>Запросы с меткой вместо токена ПК уходят через службу: она подставит настоящий токен.</summary>
     public sealed class DeviceVaultHandler : DelegatingHandler

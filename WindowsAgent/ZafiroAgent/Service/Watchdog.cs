@@ -19,7 +19,7 @@ namespace ZafiroAgent.Service
     /// папки установки, который каждые несколько секунд сообщает службе, что жив: программа
     /// с тем же именем или приостановленный агент не подходят — такой агент перезапускается.
     /// Учётные записи администраторов не трогает (обслуживание ПК), а после выхода сотрудника
-    /// по PIN-коду ждёт до выхода из Windows.
+    /// по PIN-коду ждёт до выхода из Windows, но не дольше 15 минут: сотрудник мог уйти, не выйдя.
     /// </summary>
     public sealed class Watchdog
     {
@@ -32,9 +32,12 @@ namespace ZafiroAgent.Service
         /// <summary>Время на запуск агента до первого сообщения.</summary>
         public static readonly TimeSpan StartupGrace = TimeSpan.FromSeconds(20);
 
+        /// <summary>Сколько агент не запускается после выхода сотрудника по PIN-коду.</summary>
+        public static readonly TimeSpan StaffPause = TimeSpan.FromMinutes(15);
+
         private readonly string _agentExe;
         private readonly object _gate = new();
-        private readonly HashSet<uint> _paused = new();
+        private readonly Dictionary<uint, DateTime> _paused = new();
         private readonly Dictionary<uint, (int Failures, DateTime NextAttemptUtc)> _launches = new();
         private readonly Dictionary<uint, DateTime> _alive = new();
 
@@ -43,10 +46,10 @@ namespace ZafiroAgent.Service
             _agentExe = agentExe;
         }
 
-        /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент больше не запускается.</summary>
+        /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент не запускается StaffPause.</summary>
         public void Pause(uint session)
         {
-            lock (_gate) _paused.Add(session);
+            lock (_gate) _paused[session] = DateTime.UtcNow + StaffPause;
         }
 
         /// <summary>Агент (процесс pid) сообщил, что работает. Учитывается, только если это exe из папки установки.</summary>
@@ -113,7 +116,13 @@ namespace ZafiroAgent.Service
             {
                 lock (_gate)
                 {
-                    if (_paused.Contains(session)) return;
+                    if (_paused.TryGetValue(session, out var pausedUntil))
+                    {
+                        if (now < pausedUntil) return;
+                        _paused.Remove(session);
+                        SafeLog.Write("[Watchdog] staff pause is over in session " + session);
+                    }
+
                     if (agents.Count > 0)
                     {
                         var newestStart = agents.Max(p => p.StartTime.ToUniversalTime());

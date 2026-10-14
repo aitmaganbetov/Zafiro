@@ -20,6 +20,7 @@ namespace ZafiroAgent.Models
         InvalidRequest,
         NotConfigured,
         DeviceTokenInvalid,
+        ServiceUnavailable,
         Unknown
     }
 

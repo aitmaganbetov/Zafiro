@@ -10,5 +10,9 @@
         FontFamily="Segoe UI" UseLayoutRounding="True">
     <Grid>
         <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <!-- Если WebView2 не запустился, ПК остаётся заблокированным, а на экране — эта подсказка. -->
+        <TextBlock x:Name="UiError" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   TextAlignment="Center" TextWrapping="Wrap" MaxWidth="640" FontSize="22" Foreground="#F3F4F6"
+                   Text="Интерфейс агента не загрузился. Обратитесь к администратору клуба." />
     </Grid>
 </Window>

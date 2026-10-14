@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Http;
@@ -14,11 +16,16 @@ namespace ZafiroAgent.Service
     /// <summary>
     /// Канал службы для агента. Токен ПК никогда не покидает службу: агент присылает запрос
     /// (heartbeat, PIN, покупка), служба подставляет X-Agent-Token и отправляет его на zafiro.kz.
-    /// Новый токен принимается, только если сервер его признаёт, а прежний уже отозван.
+    /// Новый токен принимается, только если сервер его признаёт, а прежний уже отозван, и сразу
+    /// меняется на сервере на другой: токен, прошедший через профиль клиента, перестаёт работать.
     /// </summary>
     public sealed class VaultServer
     {
         private const int MaxBodyChars = 64 * 1024;
+        private const int MaxConnectionsPerProcess = 4;
+        private const int MaxCreateFailures = 30;
+        private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
+        public static readonly Uri RotateEndpoint = new("https://zafiro.kz/api/agent/token/rotate");
 
         private readonly string _pipeName;
         private readonly DeviceVaultStore _store;
@@ -27,6 +34,8 @@ namespace ZafiroAgent.Service
         private readonly Action<uint> _resume;
         private readonly Action<uint, uint> _alive;
         private readonly SemaphoreSlim _storeGate = new(1, 1);
+        private readonly Dictionary<uint, int> _connections = new();
+        private string? _rotatedFrom;
 
         public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
         {
@@ -38,11 +47,43 @@ namespace ZafiroAgent.Service
             _resume = resume ?? (_ => { });
         }
 
-        public async Task RunAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Принимает подключения. Если канал не создаётся (например, имя заняла программа клиента,
+        /// пока служба перезапускалась), повторяет попытки, а затем завершает процесс с ошибкой,
+        /// чтобы Windows перезапустила службу.
+        /// </summary>
+        public async Task RunAsync(CancellationToken cancellationToken, Action? fatal = null)
         {
+            var failures = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
-                var pipe = CreatePipe();
+                NamedPipeServerStream pipe;
+                try
+                {
+                    pipe = CreatePipe();
+                    failures = 0;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    SafeLog.Write("[Service] could not open the pipe: " + ex.Message);
+                    if (++failures >= MaxCreateFailures)
+                    {
+                        (fatal ?? (() => Environment.Exit(1)))();
+                        return;
+                    }
+
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+
+                    continue;
+                }
+
                 try
                 {
                     await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -55,6 +96,27 @@ namespace ZafiroAgent.Service
                 }
 
                 _ = Task.Run(() => ServeAsync(pipe, cancellationToken), CancellationToken.None);
+            }
+        }
+
+        // Одна программа не может занять канал: не больше нескольких подключений от процесса одновременно.
+        private bool Enter(uint process)
+        {
+            lock (_connections)
+            {
+                _connections.TryGetValue(process, out var count);
+                if (count >= MaxConnectionsPerProcess) return false;
+                _connections[process] = count + 1;
+                return true;
+            }
+        }
+
+        private void Leave(uint process)
+        {
+            lock (_connections)
+            {
+                if (_connections.TryGetValue(process, out var count) && count > 1) _connections[process] = count - 1;
+                else _connections.Remove(process);
             }
         }
 
@@ -71,20 +133,30 @@ namespace ZafiroAgent.Service
 
         private async Task ServeAsync(NamedPipeServerStream pipe, CancellationToken cancellationToken)
         {
+            var process = VaultProtocol.ClientProcessId(pipe);
             using (pipe)
             {
+                if (!Enter(process)) return;
                 try
                 {
-                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    timeout.CancelAfter(TimeSpan.FromSeconds(60));
-                    var request = await VaultProtocol.ReadAsync(pipe, timeout.Token).ConfigureAwait(false);
+                    // Запрос нужно прислать сразу; ответ (запрос к серверу) может занять до 45 с.
+                    using var read = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    read.CancelAfter(ReadTimeout);
+                    var request = await VaultProtocol.ReadAsync(pipe, read.Token).ConfigureAwait(false);
+
+                    using var work = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    work.CancelAfter(TimeSpan.FromSeconds(45));
                     var session = VaultProtocol.ClientSessionId(pipe);
-                    var reply = request is null ? Fail("bad_request") : await HandleAsync(request, session, timeout.Token, VaultProtocol.ClientProcessId(pipe)).ConfigureAwait(false);
-                    await VaultProtocol.WriteAsync(pipe, reply, timeout.Token).ConfigureAwait(false);
+                    var reply = request is null ? Fail("bad_request") : await HandleAsync(request, session, work.Token, process).ConfigureAwait(false);
+                    await VaultProtocol.WriteAsync(pipe, reply, work.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     SafeLog.Write("[Service] request failed: " + ex.GetType().Name);
+                }
+                finally
+                {
+                    Leave(process);
                 }
             }
         }
@@ -119,7 +191,7 @@ namespace ZafiroAgent.Service
             try
             {
                 var current = _store.Load();
-                if (current == token) return new VaultMessage { Ok = true };
+                if (current == token || (_rotatedFrom is not null && _rotatedFrom == token)) return new VaultMessage { Ok = true };
 
                 // Сотрудник заново подключил ПК: сервер выдал новый токен и тем самым отозвал прежний.
                 if (await ProbeAsync(token!, cancellationToken).ConfigureAwait(false) != HttpStatusCode.OK)
@@ -129,6 +201,7 @@ namespace ZafiroAgent.Service
 
                 _store.Save(token!);
                 SafeLog.Write("[Service] device token stored");
+                await RotateAsync(token!, cancellationToken).ConfigureAwait(false);
                 return new VaultMessage { Ok = true };
             }
             catch (HttpRequestException)
@@ -142,6 +215,69 @@ namespace ZafiroAgent.Service
             finally
             {
                 _storeGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Меняет токен на сервере: прежний (его видел агент в сеансе клиента) отзывается, новый
+        /// есть только у службы. Старый сервер без этого запроса оставляет токен как есть.
+        /// </summary>
+        private async Task RotateAsync(string token, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await TryRotateAsync(token, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or InvalidOperationException
+                                       || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                SafeLog.Write("[Service] device token was not rotated: " + ex.GetType().Name);
+            }
+        }
+
+        private async Task TryRotateAsync(string token, CancellationToken cancellationToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, RotateEndpoint) { Content = new StringContent("{}", Encoding.UTF8, "application/json") };
+            request.Headers.Add("X-Agent-Token", token);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                SafeLog.Write("[Service] device token was not rotated: " + (int)response.StatusCode);
+                return;
+            }
+
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+            if (json.RootElement.TryGetProperty("agent_token", out var value) && value.GetString() is { } rotated && VaultProtocol.IsDeviceToken(rotated))
+            {
+                SafeLog.Register(rotated);
+                _store.Save(rotated);
+                _rotatedFrom = token;
+                SafeLog.Write("[Service] device token rotated");
+            }
+        }
+
+        /// <summary>Пустой heartbeat от службы: ПК отмечается в сети, даже когда в агенте никто не вошёл.</summary>
+        public async Task KeepOnlineAsync(TimeSpan interval, CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_store.Load() is { } token) await ProbeAsync(token, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
+                {
+                }
+
+                try
+                {
+                    await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
         }
 

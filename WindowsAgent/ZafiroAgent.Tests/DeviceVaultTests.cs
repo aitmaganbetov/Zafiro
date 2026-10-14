@@ -3,6 +3,9 @@ using ZafiroAgent.Models;
 using ZafiroAgent.Service;
 using ZafiroAgent.Services;
 
+// DeviceTokens.Vault — общая настройка процесса: тесты, которые её меняют, не должны идти параллельно с остальными.
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace ZafiroAgent.Tests;
 
 /// <summary>Служба хранит токен ПК: агент передаёт ей запросы с меткой, и токен не покидает службу.</summary>
@@ -72,7 +75,8 @@ public sealed class DeviceVaultTests : IDisposable
         Assert.True(await vault.StoreAsync(Token, CancellationToken.None));
         Assert.True(vault.HasToken());
 
-        var probe = Assert.Single(server.Snapshot());
+        var probe = server.Snapshot().First();
+        Assert.Equal("https://zafiro.kz/api/agent/heartbeat", probe.Url.AbsoluteUri);
         Assert.Equal(Token, probe.AgentToken);
         Assert.Equal("{}", probe.Body);
 
@@ -146,6 +150,43 @@ public sealed class DeviceVaultTests : IDisposable
 
         var garbage = await vault.HandleAsync(new VaultMessage { Op = "store", Token = "zag_short" }, 1, CancellationToken.None);
         Assert.False(garbage.Ok);
+    }
+
+    [Fact]
+    public async Task StoredToken_IsSwappedOnTheServer_SoTheCopyTheAgentSawStopsWorking()
+    {
+        var server = new StubHandler((request, _) => request.RequestUri!.AbsolutePath == "/api/agent/token/rotate"
+            ? StubHandler.Json(HttpStatusCode.OK, $$"""{"agent_token":"{{NewToken}}"}""")
+            : StubHandler.Json(HttpStatusCode.OK, "{}"));
+        var store = new DeviceVaultStore(_dir, restrictAccess: false);
+        var vault = new VaultServer(_pipe, store, new HttpClient(server));
+
+        Assert.True((await vault.HandleAsync(new VaultMessage { Op = "store", Token = Token }, 1, CancellationToken.None)).Ok);
+        Assert.Equal(NewToken, store.Load());
+        var rotate = server.Snapshot().Single(r => r.Url.AbsolutePath == "/api/agent/token/rotate");
+        Assert.Equal(Token, rotate.AgentToken);
+
+        // Агент не получил ответ и прислал тот же токен ещё раз: служба не считает это ошибкой.
+        Assert.True((await vault.HandleAsync(new VaultMessage { Op = "store", Token = Token }, 1, CancellationToken.None)).Ok);
+        Assert.Equal(NewToken, store.Load());
+    }
+
+    [Fact]
+    public async Task TokenTheServiceDidNotAccept_IsKeptOnlyInMemory()
+    {
+        var server = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.Unauthorized, "{}"));
+        var previous = DeviceTokens.Vault;
+        DeviceTokens.Vault = StartVault(server);
+        try
+        {
+            var keep = await DeviceTokens.KeepAsync(Token, CancellationToken.None);
+            Assert.Equal(Token, keep.Use);
+            Assert.False(keep.Persist);
+        }
+        finally
+        {
+            DeviceTokens.Vault = previous;
+        }
     }
 
     [Fact]
