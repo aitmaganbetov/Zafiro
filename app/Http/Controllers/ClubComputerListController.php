@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClubComputer;
+use App\Services\AgentUpdate;
 use Illuminate\Contracts\View\View;
 
 class ClubComputerListController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(AgentUpdate $agentUpdate): View
     {
         $computers = ClubComputer::query()
             ->with('zone:id,name')
@@ -15,6 +16,6 @@ class ClubComputerListController extends Controller
             ->orderBy('number')
             ->paginate(50);
 
-        return view('club-computers.index', ['computers' => $computers]);
+        return view('club-computers.index', ['computers' => $computers, 'agentUpdate' => $agentUpdate->status(), 'agentVersions' => $agentUpdate]);
     }
 }

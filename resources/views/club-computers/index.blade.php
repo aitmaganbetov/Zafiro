@@ -11,6 +11,27 @@
         </div>
     </div>
 
+    @if($agentUpdate)
+        <section class="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200" aria-labelledby="agent-update-title">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 flex-1 basis-80">
+                    <h4 id="agent-update-title" class="font-semibold">{{ __('Новая версия агента :version', ['version' => $agentUpdate['version']]) }}</h4>
+                    <p class="mt-1">{{ __('Старая версия агента на :count ПК из :total. Агент не обновляется сам: установите новую версию.', ['count' => $agentUpdate['outdated'], 'total' => $agentUpdate['total']]) }}</p>
+                </div>
+                @if($agentUpdate['download_url'])
+                    <a href="{{ $agentUpdate['download_url'] }}" target="_blank" rel="noopener noreferrer" class="brand-button inline-flex items-center gap-2 rounded-lg px-4 py-2"><i class="fas fa-download"></i>{{ __('Скачать установщик') }}</a>
+                @endif
+            </div>
+            <p class="mt-3 font-semibold">{{ __('Бездисковая система — обновить один раз в образе:') }}</p>
+            <ol class="mt-1 list-decimal space-y-1 pl-5">
+                <li>{{ __('На сервере бездисковой загрузки включите режим обновления образа (супер-рабочая станция) и загрузите с него один ПК.') }}</li>
+                <li>{{ __('На этом ПК выйдите из агента по PIN-коду (Ctrl+Alt+P) и запустите установщик поверх старой версии.') }}</li>
+                <li>{{ __('Сохраните образ и перезагрузите ПК клуба: после перезагрузки на всех будет новая версия.') }}</li>
+            </ol>
+            <p class="mt-2 text-xs">{{ __('ПК с обычным диском обновляются установщиком на каждом ПК.') }}</p>
+        </section>
+    @endif
+
     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div class="overflow-x-auto">
             <table class="w-full min-w-[1900px] text-left text-sm">
@@ -54,7 +75,7 @@
                             <td class="max-w-48 px-3 py-3"><div class="max-w-48 truncate" title="{{ $computer->os_version }}">{{ $computer->os_version ?? '—' }}</div></td>
                             <td class="max-w-48 px-3 py-3 font-mono text-xs"><div class="max-w-48 truncate" title="{{ $computer->device_id }}">{{ $computer->device_id ?? '—' }}</div></td>
                             <td class="max-w-40 px-3 py-3 font-mono text-xs"><div class="max-w-40 truncate" title="{{ $computer->current_session_id }}">{{ $computer->current_session_id ?? '—' }}</div></td>
-                            <td class="whitespace-nowrap px-3 py-3">{{ $computer->agent_version ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-3 py-3 {{ $agentVersions->isOutdated($computer->agent_version) ? 'font-semibold text-amber-700 dark:text-amber-400' : '' }}">{{ $computer->agent_version ?? '—' }}@if($agentVersions->isOutdated($computer->agent_version)) <span class="text-xs font-normal">· {{ __('устарела') }}</span>@endif</td>
                             <td class="whitespace-nowrap px-3 py-3 text-xs">{{ $computer->last_seen_at?->format('d.m.Y H:i:s') ?? __('Нет данных') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-xs">{{ $computer->hardware_reported_at?->format('d.m.Y H:i:s') ?? __('Нет данных') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-xs">{{ $computer->created_at?->format('d.m.Y H:i:s') ?? '—' }}</td>

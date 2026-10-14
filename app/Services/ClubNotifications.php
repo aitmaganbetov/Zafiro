@@ -47,7 +47,8 @@ class ClubNotifications
         if (in_array($role, self::MANAGERS, true)) {
             $items = $items->merge($this->activity($membership))
                 ->merge($this->subscription($membership->club_id))
-                ->merge($this->invitations());
+                ->merge($this->invitations())
+                ->merge($this->agentUpdate());
         }
 
         if (in_array($role, [...self::MANAGERS, 'cashier'], true)) {
@@ -141,6 +142,25 @@ class ClubNotifications
             'body' => $this->listWithMore($names, $computers->count() - 5),
             'url' => route('club-computers.index'),
             'at' => $computers->max('last_seen_at')->copy()->addSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS),
+        ]];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function agentUpdate(): array
+    {
+        $update = app(AgentUpdate::class)->status();
+
+        if ($update === null) {
+            return [];
+        }
+
+        return [[
+            'id' => 'agent-update-'.$update['version'],
+            'icon' => 'fa-download',
+            'title' => __('Новая версия агента :version', ['version' => $update['version']]),
+            'body' => __('Устарела на :count ПК из :total. Бездисковая система: обновите агент один раз в образе на сервере загрузки.', ['count' => $update['outdated'], 'total' => $update['total']]),
+            'url' => route('club-computers.index'),
+            'at' => $update['released_at'],
         ]];
     }
 
