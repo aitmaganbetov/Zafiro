@@ -11,4 +11,12 @@ CHANGELOG.md export-ignore
 .styleci.yml export-ignore
 
 # Windows agent: Visual Studio expects CRLF in the working copy
-/WindowsAgent/** text eol=crlf
+/WindowsAgent/** text=auto eol=crlf
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary

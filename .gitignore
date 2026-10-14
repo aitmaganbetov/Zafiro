@@ -28,9 +28,9 @@ Thumbs.db
 /storage/framework/testing-temp/
 # Windows agent (.NET)
 # build output (bin/ also holds WebView2 browser data: cookies, local storage, tokens)
-/WindowsAgent/bin/
-/WindowsAgent/obj/
-/WindowsAgent/publish/
+/WindowsAgent/**/bin/
+/WindowsAgent/**/obj/
+/WindowsAgent/**/publish/
 /publish/
 *.WebView2/
 TestResults/
@@ -49,3 +49,6 @@ TestResults/
 agent.config.json
 appsettings.*.local.json
 secrets.json
+# saved HTTP responses from debugging (server paths and traces)
+/WindowsAgent/body.txt
+/WindowsAgent/headers.txt

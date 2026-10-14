@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ZafiroAgent.Tests/ZafiroAgent.Tests.csproj" />
+  <Project Path="ZafiroAgent/ZafiroAgent.csproj" />
+</Solution>

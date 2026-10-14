@@ -1,4 +1,4 @@
-# Builds the Windows PC agent (WindowsAgent/, WPF + WebView2, .NET 10).
+# Builds and tests the Windows PC agent (WindowsAgent/: ZafiroAgent + Frontend UI + tests; WPF + WebView2, .NET 10).
 # - every push to main and every pull request that touches the agent: build + downloadable artifact
 # - tag agent-vX.Y.Z (e.g. `git tag agent-v1.0.0 && git push origin agent-v1.0.0`): GitHub Release with the zip
 # - manual run from the Actions tab
@@ -10,12 +10,10 @@ on:
     tags: ['agent-v*']
     paths:
       - 'WindowsAgent/**'
-      - 'Frontend/**'
       - '.github/workflows/windows-agent.yml'
   pull_request:
     paths:
       - 'WindowsAgent/**'
-      - 'Frontend/**'
       - '.github/workflows/windows-agent.yml'
   workflow_dispatch:
 
@@ -29,7 +27,8 @@ concurrency:
 env:
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
-  PROJECT: WindowsAgent/ZafiroAgent.csproj
+  SOLUTION: WindowsAgent/ZafiroAgent.slnx
+  PROJECT: WindowsAgent/ZafiroAgent/ZafiroAgent.csproj
 
 jobs:
   build:
@@ -60,19 +59,22 @@ jobs:
       - name: Check UI files
         shell: pwsh
         run: |
-          if (-not (Test-Path 'Frontend/index.html')) {
-            Write-Host "::warning title=Frontend missing::Frontend/index.html is not in the repository. The agent window shows 'UI не найден' until the Frontend folder is committed next to WindowsAgent/."
+          if (-not (Test-Path 'WindowsAgent/Frontend/index.html')) {
+            throw "WindowsAgent/Frontend/index.html is missing: the agent window would show 'UI не найден'."
           }
 
       - name: Restore
-        run: dotnet restore ${{ env.PROJECT }} -r win-x64
+        run: dotnet restore ${{ env.SOLUTION }}
 
       - name: Build
-        run: dotnet build ${{ env.PROJECT }} -c Release --no-restore -r win-x64 -p:Version=${{ steps.version.outputs.version }}
+        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --logger "console;verbosity=normal"
 
       - name: Publish (single exe, .NET included)
         run: >
-          dotnet publish ${{ env.PROJECT }} -c Release -r win-x64 --self-contained true --no-restore
+          dotnet publish ${{ env.PROJECT }} -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
@@ -84,6 +86,7 @@ jobs:
         shell: pwsh
         run: |
           $name = "ZafiroAgent-win-x64-${{ steps.version.outputs.version }}"
+          if (-not (Test-Path 'publish/Frontend/index.html')) { throw 'Frontend was not copied into the build' }
           Compress-Archive -Path publish/* -DestinationPath "$name.zip"
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
