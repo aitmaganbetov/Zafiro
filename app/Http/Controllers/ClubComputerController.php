@@ -189,10 +189,20 @@ class ClubComputerController extends Controller
         ];
 
         if (array_key_exists('state', $data)) {
+            $sessionId = $data['session_id'] ?? null;
+            if ($data['state'] === 'in_session'
+                && $computer->current_session_user_id !== null
+                && $computer->session_ends_at?->isFuture() === true
+                && $computer->current_session_id !== $sessionId) {
+                throw ValidationException::withMessages(['session_id' => __('Идентификатор сессии не совпадает с активной сессией компьютера.')]);
+            }
+
             $updates['agent_state'] = $data['state'];
-            $updates['current_session_id'] = $data['state'] === 'in_session'
-                ? ($data['session_id'] ?? null)
-                : null;
+            $updates['current_session_id'] = $data['state'] === 'in_session' ? $sessionId : null;
+            $updates['current_session_user_id'] = $data['state'] === 'in_session'
+                && $sessionId === $computer->current_session_id
+                    ? $computer->current_session_user_id
+                    : null;
 
             if ($data['state'] !== 'in_session') {
                 $updates['session_ends_at'] = null;

@@ -76,15 +76,18 @@ namespace ZafiroAgent.Services
             return Task.FromResult(true);
         }
 
-        public Task<PurchaseResult> PurchaseTariffAsync(string sessionId, string tariffId, CancellationToken cancellationToken)
+        public Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken)
         {
             // Простая логика: успешная покупка, баланс уменьшается
             return Task.FromResult(new PurchaseResult
             {
                 Success = true,
                 Message = "Покупка выполнена",
+                SessionId = Guid.NewGuid().ToString(),
                 NewBalance = 50.50m,
-                NewBonus = 20.00m
+                NewBonus = 20.00m,
+                MinutesAdded = 60,
+                SessionEndsAt = DateTimeOffset.UtcNow.AddMinutes(60)
             });
         }
     }

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
+#[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'current_session_user_id', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
 class ClubComputer extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -26,6 +26,7 @@ class ClubComputer extends Model
             'is_reserved' => 'boolean',
             'position_x' => 'integer',
             'position_y' => 'integer',
+            'current_session_user_id' => 'integer',
             'last_seen_at' => 'datetime',
             'session_ends_at' => 'datetime',
             'cpu_cores' => 'integer',

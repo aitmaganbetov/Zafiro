@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AgentTariffPurchaseService
@@ -42,9 +43,9 @@ class AgentTariffPurchaseService
     }
 
     /** @return array<string, mixed> */
-    public function purchase(User $user, Tariff $tariff, int $computerId, string $sessionId): array
+    public function purchase(User $user, Tariff $tariff, int $computerId): array
     {
-        return DB::transaction(function () use ($user, $tariff, $computerId, $sessionId): array {
+        return DB::transaction(function () use ($user, $tariff, $computerId): array {
             $tariff = Tariff::query()->lockForUpdate()->findOrFail($tariff->getKey());
             $membership = $user->currentMembership()->lockForUpdate()->firstOrFail();
             $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computerId);
@@ -53,8 +54,15 @@ class AgentTariffPurchaseService
                 throw ValidationException::withMessages(['tariff' => __('Тариф недоступен.')]);
             }
 
-            if ($computer->current_session_id === null || ! hash_equals($computer->current_session_id, $sessionId)) {
-                throw ValidationException::withMessages(['session_id' => __('На компьютере нет вашей активной сессии.')]);
+            if ($computer->is_reserved) {
+                throw ValidationException::withMessages(['computer_id' => __('Забронированный компьютер нельзя использовать для сессии.')]);
+            }
+
+            $hasActiveSession = $computer->current_session_id !== null
+                && $computer->session_ends_at?->isFuture() === true
+                && $computer->current_session_user_id !== null;
+            if ($hasActiveSession && $computer->current_session_user_id !== $user->getKey()) {
+                throw ValidationException::withMessages(['computer_id' => __('На компьютере уже идёт сессия другого пользователя.')]);
             }
 
             if ($tariff->zones()->exists() && ! $tariff->zones()->whereKey($computer->club_zone_id)->exists()) {
@@ -84,14 +92,19 @@ class AgentTariffPurchaseService
 
             $minutes = $this->effectiveMinutes($tariff);
             $now = now();
-            $sessionEndsAt = ($computer->session_ends_at?->isFuture() ? $computer->session_ends_at->copy() : $now->copy())
+            $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
+            $sessionEndsAt = ($hasActiveSession ? $computer->session_ends_at->copy() : $now->copy())
                 ->addMinutes($minutes);
 
             $balance->update([
                 'balance' => self::formatCents($mainBalance),
                 'bonus_balance' => self::formatCents($bonusBalance),
             ]);
-            $computer->update(['session_ends_at' => $sessionEndsAt]);
+            $computer->update([
+                'current_session_id' => $sessionId,
+                'current_session_user_id' => $user->getKey(),
+                'session_ends_at' => $sessionEndsAt,
+            ]);
             $this->activity->record('tariff.purchased', __('Куплен тариф: :tariff', ['tariff' => $tariff->name]), $user->getKey(), $tariff, [
                 'amount' => self::formatCents($price),
                 'currency' => $tariff->currency,
@@ -99,6 +112,8 @@ class AgentTariffPurchaseService
                 'bonus_balance_amount' => self::formatCents($bonusPayment),
                 'duration_minutes' => $minutes,
                 'computer_id' => $computer->getKey(),
+                'session_id' => $sessionId,
+                'session_ends_at' => $sessionEndsAt->toIso8601String(),
             ]);
 
             return [
@@ -107,6 +122,7 @@ class AgentTariffPurchaseService
                 'new_balance' => self::formatCents($mainBalance),
                 'new_bonus' => self::formatCents($bonusBalance),
                 'minutes_added' => $minutes,
+                'session_id' => $sessionId,
                 'session_ends_at' => $sessionEndsAt->toIso8601String(),
             ];
         });

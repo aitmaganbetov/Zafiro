@@ -49,6 +49,8 @@ namespace ZafiroAgent.Services
         public event Action<Exception>? OnError;
         public event Action<ComputerInfo>? OnComputerResolved;
 
+        public long CurrentComputerId => Interlocked.Read(ref _computerId);
+
         public HeartbeatService(
             ConfigurationService cfgService,
             ClubSetupService clubSetup,

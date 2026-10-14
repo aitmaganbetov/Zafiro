@@ -25,7 +25,6 @@ class PurchaseAgentTariffRequest extends FormRequest
                 Rule::exists((new ClubComputer)->getTable(), 'id')
                     ->where('club_id', app(CurrentClub::class)->id()),
             ],
-            'session_id' => ['required', 'string', 'max:255'],
         ];
     }
 }

@@ -156,7 +156,7 @@ namespace ZafiroAgent
             _loginViewModel.OnAuthenticated += async result =>
             {
                 Dispatcher.Invoke(() => _sessionViewModel?.StartSession(result));
-                _heartbeatService?.SetState(ComputerState.InSession, result.SessionId);
+                _heartbeatService?.SetState(ComputerState.Idle);
                 await SendSessionDataAsync(result.SessionId ?? string.Empty);
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "authSuccess", userName = result.UserName }));
             };
@@ -398,7 +398,7 @@ namespace ZafiroAgent
                 }
 
                 _sessionViewModel?.StartSession(result);
-                _heartbeatService?.SetState(ComputerState.InSession, result.SessionId);
+                _heartbeatService?.SetState(ComputerState.Idle);
                 if (!string.IsNullOrWhiteSpace(result.Token) || !string.IsNullOrWhiteSpace(result.SessionId))
                 {
                     await SendSessionDataAsync(result.SessionId ?? string.Empty);
@@ -540,17 +540,27 @@ namespace ZafiroAgent
                     try
                     {
                         var tariffId = doc.RootElement.GetProperty("tariffId").GetString() ?? string.Empty;
-                        var sid = _sessionViewModel?.SessionId ?? string.Empty;
-                        if (_heartbeatService is null || !await _heartbeatService.WaitForStateHeartbeatAsync(ComputerState.InSession, sid, TimeSpan.FromSeconds(10), CancellationToken.None))
+                        var res = await _apiService.PurchaseTariffAsync(tariffId, CancellationToken.None);
+
+                        if (res.Success && !string.IsNullOrWhiteSpace(res.SessionId))
                         {
-                            SendMessageToWeb("{\"type\":\"purchaseResult\",\"success\":false,\"message\":\"Компьютер ещё подтверждает активную сессию. Повторите покупку через несколько секунд.\"}");
-                            return;
+                            _sessionViewModel?.StartGameSession(res.SessionId, res.SessionEndsAt ?? DateTimeOffset.UtcNow.AddMinutes(1));
+                            _heartbeatService?.SetState(ComputerState.InSession, res.SessionId);
+                            if (res.SessionEndsAt is { } sessionEndsAt)
+                                _heartbeatService?.SetSessionEnd(sessionEndsAt);
                         }
 
-                        var res = await _apiService.PurchaseTariffAsync(sid, tariffId, CancellationToken.None);
-                        if (res.Success && res.SessionEndsAt is { } sessionEndsAt)
-                            _heartbeatService?.SetSessionEnd(sessionEndsAt);
-                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "purchaseResult", success = res.Success, message = res.Message, newBalance = res.NewBalance, newBonus = res.NewBonus, minutesAdded = res.MinutesAdded, sessionEndsAt = res.SessionEndsAt?.ToUniversalTime().ToString("O") }));
+                        SendMessageToWeb(JsonSerializer.Serialize(new
+                        {
+                            type = "purchaseResult",
+                            success = res.Success,
+                            message = res.Message,
+                            sessionId = res.SessionId,
+                            newBalance = res.NewBalance,
+                            newBonus = res.NewBonus,
+                            minutesAdded = res.MinutesAdded,
+                            sessionEndsAt = res.SessionEndsAt?.ToUniversalTime().ToString("O")
+                        }));
                     }
                     catch
                     {

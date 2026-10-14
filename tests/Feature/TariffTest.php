@@ -120,8 +120,6 @@ test('agent can list and purchase an eligible tariff for its active computer ses
     $computer = ClubComputer::query()->create([
         'club_zone_id' => $zone->id,
         'number' => 7,
-        'current_session_id' => $token,
-        'session_ends_at' => now()->addMinutes(10),
     ]);
     $tariff = Tariff::query()->create([
         'name' => 'Ночной',
@@ -153,21 +151,22 @@ test('agent can list and purchase an eligible tariff for its active computer ses
     \Illuminate\Support\Carbon::setTestNow($frozenTime);
 
     try {
-        $computer->update(['session_ends_at' => $frozenTime->copy()->addMinutes(10)]);
-
-        $this->withToken($token)->postJson(route('api.tariffs.purchase', $tariff), [
+        $purchaseResponse = $this->withToken($token)->postJson(route('api.tariffs.purchase', $tariff), [
             'computer_id' => $computer->id,
-            'session_id' => $token,
-        ])->assertSuccessful()
+        ]);
+        $purchaseResponse->assertSuccessful()
             ->assertJsonPath('success', true)
             ->assertJsonPath('new_balance', '0.00')
             ->assertJsonPath('new_bonus', '10.00')
             ->assertJsonPath('minutes_added', 90);
 
+        $sessionId = $purchaseResponse->json('session_id');
         expect($balance->refresh()->balance)->toBe('0.00')
             ->and($balance->bonus_balance)->toBe('10.00')
+            ->and($computer->refresh()->current_session_id)->toBe($sessionId)
+            ->and($computer->current_session_user_id)->toBe($user->id)
             ->and($computer->refresh()->session_ends_at->utc()->toIso8601String())
-            ->toBe($frozenTime->copy()->addMinutes(100)->toIso8601String());
+            ->toBe($frozenTime->copy()->addMinutes(90)->toIso8601String());
 
         $this->withToken($token)->getJson(route('api.tariffs.index'))
             ->assertSuccessful()

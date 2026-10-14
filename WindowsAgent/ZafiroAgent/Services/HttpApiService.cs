@@ -187,7 +187,7 @@ namespace ZafiroAgent.Services
             return JsonSerializer.Deserialize<Product[]>(items.GetRawText()) ?? Array.Empty<Product>();
         }
 
-        public async Task<PurchaseResult> PurchaseTariffAsync(string sessionId, string tariffId, CancellationToken cancellationToken)
+        public async Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken)
         {
             var config = _config.Load();
             var token = _secure.Unprotect(config.ProtectedApiToken);
@@ -199,16 +199,11 @@ namespace ZafiroAgent.Services
             {
                 return new PurchaseResult { Success = false, Message = "Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента." };
             }
-            if (string.IsNullOrWhiteSpace(sessionId))
-            {
-                return new PurchaseResult { Success = false, Message = "Войдите в аккаунт перед покупкой тарифа." };
-            }
-
             var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');
             var purchaseUri = new Uri(endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
                 ? $"{endpoint}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase"
                 : $"{endpoint}/api/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
-            var payload = JsonSerializer.Serialize(new { computer_id = computerId, session_id = sessionId });
+            var payload = JsonSerializer.Serialize(new { computer_id = computerId });
             using var request = new HttpRequestMessage(HttpMethod.Post, purchaseUri)
             {
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")

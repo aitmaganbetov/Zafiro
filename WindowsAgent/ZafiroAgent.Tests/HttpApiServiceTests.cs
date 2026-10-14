@@ -199,7 +199,7 @@ public sealed class HttpApiServiceTests
     }
 
     [Fact]
-    public async Task PurchaseTariffAsync_SendsComputerAndSession_AndParsesExtendedSession()
+    public async Task PurchaseTariffAsync_SendsComputerIdOnly_AndParsesExtendedSession()
     {
         const string token = "purchase-token";
         var handler = new StubHandler((request, body) =>
@@ -209,9 +209,9 @@ public sealed class HttpApiServiceTests
             Assert.Equal("Bearer " + token, request.Headers.Authorization?.ToString());
             using var json = JsonDocument.Parse(body!);
             Assert.Equal(45, json.RootElement.GetProperty("computer_id").GetInt64());
-            Assert.Equal(token, json.RootElement.GetProperty("session_id").GetString());
+            Assert.False(json.RootElement.TryGetProperty("session_id", out _));
             return StubHandler.Json(HttpStatusCode.OK, """
-                {"success":true,"message":"Тариф подключён.","new_balance":"0.00","new_bonus":"100.00","minutes_added":30,"session_ends_at":"2026-10-14T12:40:00+00:00"}
+                {"success":true,"message":"Тариф подключён.","session_id":"sess-777","new_balance":"0.00","new_bonus":"100.00","minutes_added":30,"session_ends_at":"2026-10-14T12:40:00+00:00"}
                 """);
         });
         var path = Path.Combine(Path.GetTempPath(), "zafiro-purchase-tests-" + Guid.NewGuid().ToString("N"), "agent.config.json");
@@ -220,9 +220,10 @@ public sealed class HttpApiServiceTests
         config.Save(new AgentConfig { ComputerId = "45", ProtectedApiToken = secure.Protect(token), ApiBaseUrl = "https://zafiro.kz/api" });
         var service = new HttpApiService(new HttpClient(handler), config: config, secure: secure);
 
-        var result = await service.PurchaseTariffAsync(token, "7", CancellationToken.None);
+        var result = await service.PurchaseTariffAsync("7", CancellationToken.None);
 
         Assert.True(result.Success);
+        Assert.Equal("sess-777", result.SessionId);
         Assert.Equal(0m, result.NewBalance);
         Assert.Equal(100m, result.NewBonus);
         Assert.Equal(30, result.MinutesAdded);

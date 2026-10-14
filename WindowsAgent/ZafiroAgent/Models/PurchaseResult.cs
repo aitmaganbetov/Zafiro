@@ -12,6 +12,9 @@ namespace ZafiroAgent.Models
         [JsonPropertyName("message")]
         public string? Message { get; set; }
 
+        [JsonPropertyName("session_id")]
+        public string SessionId { get; set; } = string.Empty;
+
         [JsonPropertyName("new_balance")]
         public decimal NewBalance { get; set; }
 

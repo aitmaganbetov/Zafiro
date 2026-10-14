@@ -20,8 +20,14 @@ namespace ZafiroAgent.ViewModels
         {
             if (auth == null || !auth.Success) return;
             UserName = auth.UserName ?? "Клиент";
-            SessionId = auth.SessionId ?? string.Empty;
-            Remaining = auth.ExpiresAt.HasValue ? auth.ExpiresAt.Value - DateTime.UtcNow : TimeSpan.Zero;
+            SessionId = string.Empty;
+            Remaining = TimeSpan.Zero;
+        }
+
+        public void StartGameSession(string sessionId, DateTimeOffset sessionEndsAt)
+        {
+            SessionId = sessionId;
+            Remaining = sessionEndsAt.UtcDateTime - DateTime.UtcNow;
         }
 
         // Завершает игровую сессию, оставляя пользователя в системе.
