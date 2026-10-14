@@ -37,6 +37,8 @@ namespace ZafiroAgent.Services
         private ComputerState _state = ComputerState.Idle;
         private string? _sessionId;
         private DateTimeOffset? _sessionEndsAtUtc;
+        private ComputerState? _lastSuccessfulState;
+        private string? _lastSuccessfulSessionId;
 
         private volatile ClubSession? _session;
         private long _computerId;
@@ -97,9 +99,39 @@ namespace ZafiroAgent.Services
                 if (state != ComputerState.InSession || _sessionId != id) _sessionEndsAtUtc = null;
                 _state = state;
                 _sessionId = id;
+                _lastSuccessfulState = null;
+                _lastSuccessfulSessionId = null;
             }
 
             _wake.Release();
+        }
+
+        public async Task<bool> WaitForStateHeartbeatAsync(ComputerState state, string? sessionId, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(timeout);
+
+            try
+            {
+                while (true)
+                {
+                    lock (_stateLock)
+                    {
+                        if (Interlocked.Read(ref _computerId) > 0
+                            && _lastSuccessfulState == state
+                            && _lastSuccessfulSessionId == sessionId)
+                        {
+                            return true;
+                        }
+                    }
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), timeoutSource.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
         }
 
         public void SetSessionEnd(DateTimeOffset? sessionEndsAtUtc)
@@ -205,7 +237,16 @@ namespace ZafiroAgent.Services
                         Interlocked.Exchange(ref _computerId, computerId);
                     }
 
-                    var heartbeat = await _api.SendHeartbeatAsync(session, computerId, CurrentRequest(), cancellationToken).ConfigureAwait(false);
+                    var request = CurrentRequest();
+                    var heartbeat = await _api.SendHeartbeatAsync(session, computerId, request, cancellationToken).ConfigureAwait(false);
+                    lock (_stateLock)
+                    {
+                        if (_state == request.State && _sessionId == request.SessionId)
+                        {
+                            _lastSuccessfulState = request.State;
+                            _lastSuccessfulSessionId = request.SessionId;
+                        }
+                    }
                     failures = 0;
                     OnHeartbeat?.Invoke(heartbeat);
 

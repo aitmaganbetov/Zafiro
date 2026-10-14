@@ -160,6 +160,7 @@ public sealed class HeartbeatTests : IDisposable
 
         service.SetState(ComputerState.InSession, "sess-1");
         await WaitUntil(() => handler.Snapshot().Length >= 3, 3000);
+        Assert.True(await service.WaitForStateHeartbeatAsync(ComputerState.InSession, "sess-1", TimeSpan.FromSeconds(1), CancellationToken.None));
         using (var body = Body(handler.Snapshot()[2]))
         {
             Assert.Equal("in_session", body.RootElement.GetProperty("state").GetString());

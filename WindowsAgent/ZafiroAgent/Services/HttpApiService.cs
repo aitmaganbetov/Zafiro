@@ -195,9 +195,13 @@ namespace ZafiroAgent.Services
             {
                 return new PurchaseResult { Success = false, Message = "Выполните вход, чтобы купить тариф." };
             }
-            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0 || string.IsNullOrWhiteSpace(sessionId))
+            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0)
             {
-                return new PurchaseResult { Success = false, Message = "Нет активной сессии на компьютере." };
+                return new PurchaseResult { Success = false, Message = "Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента." };
+            }
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return new PurchaseResult { Success = false, Message = "Войдите в аккаунт перед покупкой тарифа." };
             }
 
             var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');

@@ -541,6 +541,12 @@ namespace ZafiroAgent
                     {
                         var tariffId = doc.RootElement.GetProperty("tariffId").GetString() ?? string.Empty;
                         var sid = _sessionViewModel?.SessionId ?? string.Empty;
+                        if (_heartbeatService is null || !await _heartbeatService.WaitForStateHeartbeatAsync(ComputerState.InSession, sid, TimeSpan.FromSeconds(10), CancellationToken.None))
+                        {
+                            SendMessageToWeb("{\"type\":\"purchaseResult\",\"success\":false,\"message\":\"Компьютер ещё подтверждает активную сессию. Повторите покупку через несколько секунд.\"}");
+                            return;
+                        }
+
                         var res = await _apiService.PurchaseTariffAsync(sid, tariffId, CancellationToken.None);
                         if (res.Success && res.SessionEndsAt is { } sessionEndsAt)
                             _heartbeatService?.SetSessionEnd(sessionEndsAt);
