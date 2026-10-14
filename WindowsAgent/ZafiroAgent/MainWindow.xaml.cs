@@ -391,7 +391,18 @@ namespace ZafiroAgent
             }
 
             core.SetVirtualHostNameToFolderMapping(AppHost, frontendFolder, CoreWebView2HostResourceAccessKind.Allow);
-            core.NavigationCompleted += (_, _) => SendMessageToWeb("{\"type\":\"pong\"}");
+            core.NavigationCompleted += (_, _) =>
+            {
+                SendMessageToWeb("{\"type\":\"pong\"}");
+                var cfg = _cfgService.Load();
+                SendMessageToWeb(JsonSerializer.Serialize(new
+                {
+                    type = "clubInfo",
+                    clubName = cfg.ClubName,
+                    number = string.IsNullOrWhiteSpace(cfg.ComputerNumber) ? null : cfg.ComputerNumber,
+                    zone = string.IsNullOrWhiteSpace(cfg.Zone) ? null : cfg.Zone
+                }));
+            };
             core.Navigate(AppOrigin + "index.html");
         }
 

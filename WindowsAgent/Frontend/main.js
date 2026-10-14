@@ -294,6 +294,10 @@
   document.getElementById('btnReturn')?.addEventListener('click', () => {
     webview?.postMessage({ type: 'returnToDesktop' });
   });
+  document.getElementById('btnExtend')?.addEventListener('click', () => setView('tariffs'));
+  document.getElementById('btnTopUp')?.addEventListener('click', () => {
+    actionStatus.textContent = 'Пополнить баланс можно на кассе клуба.';
+  });
   const endButton = document.getElementById('btnEnd');
   const endButtonLabel = endButton.querySelector('span');
   const endButtonIcon = document.getElementById('endIconPath');
@@ -305,12 +309,20 @@
   let hasActiveSession = false;
   let sessionEndsAt = null;
 
+  // «1 ч 27 мин» вместо «87»: так оставшееся время читается с одного взгляда.
+  const formatMinutes = (minutes) => {
+    const value = Math.max(0, Math.round(Number(minutes) || 0));
+    const hours = Math.floor(value / 60);
+    const rest = value % 60;
+    return hours ? `${hours} ч ${String(rest).padStart(2, '0')} мин` : `${rest} мин`;
+  };
+
   // Оставшееся время по данным сервера: обновляется на экране, пока сессия идёт.
   const showSessionTime = () => {
     if (!sessionEndsAt) return;
     const remainingMinutes = Math.max(0, Math.ceil((sessionEndsAt - Date.now()) / 60000));
-    document.getElementById('remainingBig').textContent = String(remainingMinutes);
-    document.getElementById('profileRemaining').textContent = `${remainingMinutes} мин`;
+    document.getElementById('remainingBig').textContent = formatMinutes(remainingMinutes);
+    document.getElementById('profileRemaining').textContent = formatMinutes(remainingMinutes);
     document.getElementById('sessionExpires').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sessionEndsAt));
   };
   setInterval(showSessionTime, 15000);
@@ -327,6 +339,7 @@
     endButton.disabled = false;
     endButtonLabel.textContent = active ? 'Завершить сессию' : 'Выйти';
     endButtonIcon.setAttribute('d', active ? endIconPaths.end : endIconPaths.logout);
+    document.getElementById('extendLabel').textContent = active ? 'Продлить сессию' : 'Выбрать тариф';
   };
 
   const clearSessionDetails = () => {
@@ -424,6 +437,17 @@
       actionStatus.textContent = event.data.message;
     }
 
+    // Название клуба и номер ПК: от агента при запуске и с каждым heartbeat.
+    if (event.data?.type === 'clubInfo' || event.data?.type === 'heartbeat') {
+      if (event.data.clubName) document.getElementById('clubName').textContent = event.data.clubName;
+      const pc = event.data.number ? `ПК ${event.data.number}${event.data.zone ? ' · ' + event.data.zone : ''}` : '';
+      if (pc) {
+        const label = document.getElementById('pcLabel');
+        label.textContent = pc;
+        label.hidden = false;
+      }
+    }
+
     if (event.data?.type === 'authSuccess' && event.data.userName) {
       updateProfileName(event.data.userName);
       document.getElementById('profileStatus').textContent = 'Авторизован';
@@ -458,7 +482,7 @@
       : '—';
     if (sessionEndsAt) showSessionTime();
     else document.getElementById('profileRemaining').textContent = Number.isFinite(Number(remainingMinutes))
-      ? `${Math.max(0, Math.floor(Number(remainingMinutes)))} мин`
+      ? formatMinutes(Math.floor(Number(remainingMinutes)))
       : '—';
     if (userName) updateProfileName(userName);
   });

@@ -38,7 +38,7 @@
 	  <main class="main">
 		<header class="main-header">
 		  <div>
-			<div class="club">Игровой клуб — Asia</div>
+			<div class="club"><span id="clubName">Zafiro</span><span class="pc-label" id="pcLabel" hidden></span></div>
 			<div id="userName" class="muted small">Гость</div>
 		  </div>
 		  <button class="shop-shortcut" id="pageToggle" type="button">
@@ -50,7 +50,7 @@
 		<section class="grid" id="sessionPage" aria-label="Текущая сессия">
 		  <div class="card info-card">
 			<h3>Информация о текущей сессии</h3>
-			<div class="small muted">Оставшиеся минуты:</div>
+			<div class="small muted">Осталось времени</div>
 			<div id="remainingBig" class="large">—</div>
 			<div class="muted small">Сессия истекает: <span id="sessionExpires">—</span></div>
 		  </div>
@@ -59,9 +59,8 @@
 			<h3>Основной счёт</h3>
 			<div class="balance"><span id="balanceBig">0</span> <span class="muted">KZT</span></div>
 			<div class="small muted">Бонус: <span id="bonusSmall">0</span> KZT</div>
-			<div style="margin-top:12px">
-			  <button id="btnTopUp" class="primary">Пополнить</button>
-			  <button id="btnPromo" class="secondary">Промокод</button>
+			<div class="balance-actions">
+			  <button id="btnTopUp" class="primary" type="button">Пополнить</button>
 			</div>
 		  </div>
 
@@ -212,23 +211,15 @@
 			
 			<p class="tariff-status" id="actionStatus" role="status" aria-live="polite"></p>
 			<div class="actions-row">
-			  <button class="action" id="btnReturn">
+			  <button class="action" id="btnReturn" type="button">
 				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-2-11 2-2 2 2m-2-2v6"/></svg>
-				<span>Вернуться к рабочему столу</span>
+				<span>На рабочий стол</span>
 			  </button>
-			  <button class="action" id="btnReport">
-				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/><path d="M12 8v4m0 4h.01"/></svg>
-				<span>Сообщить о проблеме</span>
-			  </button>
-			  <button class="action" id="btnTransfer">
-				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M7 10h10m-3-3 3 3-3 3"/></svg>
-				<span>Пересесть на другой ПК</span>
-			  </button>
-			  <button class="action" id="btnExtend">
+			  <button class="action" id="btnExtend" type="button">
 				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2m4-10v4m-2-2h4"/></svg>
-				<span>Продлить сессию</span>
+				<span id="extendLabel">Выбрать тариф</span>
 			  </button>
-			  <button class="action danger" id="btnEnd">
+			  <button class="action danger" id="btnEnd" type="button">
 				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="endIconPath" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9"/></svg>
 				<span>Выйти</span>
 			  </button>

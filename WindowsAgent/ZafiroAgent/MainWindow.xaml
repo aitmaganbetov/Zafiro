@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:ZafiroAgent"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Zafiro Agent" WindowState="Maximized" WindowStyle="None" Background="#0B0D12">
+        Title="Zafiro Agent" WindowState="Maximized" WindowStyle="None" Background="#0B0D12"
+        FontFamily="Segoe UI" UseLayoutRounding="True">
     <Grid>
         <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
     </Grid>
