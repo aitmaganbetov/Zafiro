@@ -1,14 +1,46 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
+﻿using System.Windows;
+using ZafiroAgent.Models;
+using ZafiroAgent.Security;
+using ZafiroAgent.Services;
+using ZafiroAgent.Views;
 
 namespace ZafiroAgent
 {
     /// <summary>
-    /// Interaction logic for App.xaml
+    /// Запуск: сначала проверяется вход в клуб, и только потом открывается главное окно.
+    /// Так на экране всегда одно окно: либо вход, либо агент.
     /// </summary>
     public partial class App : System.Windows.Application
     {
-    }
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
 
+            var config = new ConfigurationService();
+            var api = new ZafiroApiClient(ZafiroApiClient.CreateHttpClient());
+            var clubSetup = new ClubSetupService(api, config, new SecureStorageService());
+
+            // Без подтверждённого клуба агент не запускается.
+            if (!SignIn(clubSetup))
+            {
+                Shutdown();
+                return;
+            }
+
+            var window = new MainWindow(config, clubSetup, api);
+            MainWindow = window;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+            window.Show();
+        }
+
+        private static bool SignIn(ClubSetupService clubSetup)
+        {
+            var stored = clubSetup.LoadSession();
+            if (stored.Success) return true;
+
+            var notice = stored.Failure is ApiFailure.NotConfigured or ApiFailure.TokenExpired ? null : stored.Message;
+            var window = new ClubSetupWindow(clubSetup, notice);
+            return window.ShowDialog() == true && window.Session is not null;
+        }
+    }
 }

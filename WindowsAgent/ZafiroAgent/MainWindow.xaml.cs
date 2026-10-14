@@ -23,9 +23,9 @@ namespace ZafiroAgent
     public partial class MainWindow : Window
     {
         private readonly IApiService _apiService = new HttpApiService();
-        private readonly ZafiroApiClient _zafiroApi = new(ZafiroApiClient.CreateHttpClient());
-        private ConfigurationService? _cfgService;
-        private ClubSetupService? _clubSetup;
+        private readonly ZafiroApiClient _zafiroApi;
+        private readonly ConfigurationService _cfgService;
+        private readonly ClubSetupService _clubSetup;
         private AuthenticationService? _authService;
         private LoginViewModel? _loginViewModel;
         private SessionViewModel? _sessionViewModel;
@@ -38,8 +38,11 @@ namespace ZafiroAgent
         [DllImport("shell32.dll")]
         private static extern void SHMinimizeAll();
 
-        public MainWindow()
+        public MainWindow(ConfigurationService config, ClubSetupService clubSetup, ZafiroApiClient api)
         {
+            _cfgService = config;
+            _clubSetup = clubSetup;
+            _zafiroApi = api;
             InitializeComponent();
             InitializeTrayIcon();
             Loaded += MainWindow_Loaded;
@@ -119,7 +122,7 @@ namespace ZafiroAgent
             try
             {
                 _sessionViewModel?.EndSession();
-                _clubSetup?.ResetClub();
+                _clubSetup.ResetClub();
             }
             catch (Exception ex)
             {
@@ -139,16 +142,7 @@ namespace ZafiroAgent
 
         private async void MainWindow_Loaded(object? sender, RoutedEventArgs e)
         {
-            _cfgService = new ConfigurationService();
-            _clubSetup = new ClubSetupService(_zafiroApi, _cfgService, new SecureStorageService());
-
-            // Без подтверждённого клуба агент не запускается.
-            if (!EnsureClubSession())
-            {
-                Close();
-                return;
-            }
-
+            // Вход в клуб уже проверен в App до открытия этого окна.
             _authService = new AuthenticationService(_apiService);
             _loginViewModel = new LoginViewModel(_authService);
             _sessionViewModel = new SessionViewModel();
@@ -166,13 +160,10 @@ namespace ZafiroAgent
             await InitializeWebViewAsync();
         }
 
-        private bool EnsureClubSession()
+        // Повторный вход поверх агента: отдельной кнопки на панели задач у окна нет.
+        private bool ShowSignIn()
         {
-            var stored = _clubSetup!.LoadSession();
-            if (stored.Success) return true;
-
-            var notice = stored.Failure is ApiFailure.NotConfigured or ApiFailure.TokenExpired ? null : stored.Message;
-            var window = new Views.ClubSetupWindow(_clubSetup, notice) { Owner = this };
+            var window = new Views.ClubSetupWindow(_clubSetup) { Owner = this, ShowInTaskbar = false };
             return window.ShowDialog() == true && window.Session is not null;
         }
 
@@ -181,7 +172,7 @@ namespace ZafiroAgent
             StopHeartbeat();
             try
             {
-                var service = new HeartbeatService(_cfgService!, _clubSetup!, _zafiroApi);
+                var service = new HeartbeatService(_cfgService, _clubSetup, _zafiroApi);
                 service.OnHeartbeat += hb =>
                 {
                     _reloginTried = false;
@@ -226,8 +217,7 @@ namespace ZafiroAgent
             try
             {
                 StopHeartbeat();
-                var window = new Views.ClubSetupWindow(_clubSetup!) { Owner = this };
-                if (window.ShowDialog() == true && window.Session is not null)
+                if (ShowSignIn())
                     StartHeartbeat();
                 else
                     Close();
@@ -390,7 +380,7 @@ namespace ZafiroAgent
 
                 if (!string.IsNullOrWhiteSpace(result.Token))
                 {
-                    _cfgService?.Update(cfg =>
+                    _cfgService.Update(cfg =>
                     {
                         cfg.ProtectedApiToken = new SecureStorageService().Protect(result.Token);
                         cfg.TokenExpiresAtUtc = result.ExpiresAt ?? DateTime.UtcNow.AddHours(2);
@@ -454,12 +444,11 @@ namespace ZafiroAgent
                 }
 
                 _sessionViewModel?.EndSession();
-                _clubSetup!.Logout();
+                _clubSetup.Logout();
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
 
                 // Клуб и ключ установки сохраняются: нужен только повторный вход пользователя.
-                var window = new Views.ClubSetupWindow(_clubSetup, null) { Owner = this };
-                if (window.ShowDialog() == true && window.Session is not null)
+                if (ShowSignIn())
                 {
                     StartHeartbeat();
                 }
