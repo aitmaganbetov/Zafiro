@@ -9,6 +9,7 @@ use App\Http\Middleware\Api\RequireApiScope;
 use App\Http\Middleware\AuthenticateAgentDevice;
 use App\Http\Middleware\RequireActiveSubscription;
 use App\Http\Middleware\RequireClubRole;
+use App\Http\Middleware\RequireSuperadmin;
 use App\Http\Middleware\SetCurrentClub;
 use App\Http\Middleware\SetLocale;
 use App\Support\ApiError;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request) => route('auth.show-login'));
         $middleware->alias([
             'current-club' => SetCurrentClub::class,
+            'superadmin' => RequireSuperadmin::class,
             'club-role' => RequireClubRole::class,
             'subscription' => RequireActiveSubscription::class,
             'agent.device' => AuthenticateAgentDevice::class,

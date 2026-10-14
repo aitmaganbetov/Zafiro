@@ -42,6 +42,12 @@ class AuthController extends Controller
             return response()->json(['message' => __('Неверный номер телефона или пароль.')], 401);
         }
 
+        if ($user->isBlocked()) {
+            $failed('blocked');
+
+            return response()->json(['message' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.'), 'code' => 'account_blocked'], 403);
+        }
+
         $requestedClubId = $request->validated('club_id');
 
         if ($request->filled('club_key')) {

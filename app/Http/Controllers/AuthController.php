@@ -8,6 +8,7 @@ use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\PlatformLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ class AuthController extends Controller
     /**
      * Handle login
      */
-    public function login(Request $request, ActivityLogger $activity, CurrentClub $currentClub)
+    public function login(Request $request, ActivityLogger $activity, CurrentClub $currentClub, PlatformLogger $platformLog)
     {
         $this->normalizePhone($request);
         $credentials = $request->validate([
@@ -42,7 +43,22 @@ class AuthController extends Controller
         if (Auth::attempt(['phone' => $credentials['phone'], 'password' => $credentials['password']], $request->filled('remember'))) {
             $request->session()->regenerate();
             $user = $request->user();
+
+            if ($user->isBlocked()) {
+                Auth::logout();
+                $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'blocked');
+
+                return back()->withErrors(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')])->onlyInput('phone');
+            }
+
             $membership = $user->memberships()->withoutGlobalScope('club')->with('club')->first();
+
+            // A superadmin without a club of their own works from the platform cabinet.
+            if ($membership === null && $user->isSuperadmin()) {
+                $platformLog->record('superadmin.login', __('Вход суперадмина: :user', ['user' => $user->name]), $user);
+
+                return redirect()->intended(route('superadmin.dashboard'));
+            }
 
             if ($membership === null) {
                 Auth::logout();

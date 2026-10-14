@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 #[Signature('superadmin:grant {phone : Phone of an existing user, e.g. +77001234567} {--revoke : Take the superadmin rights away}')]
-#[Description('Give or take platform superadmin rights (languages and translations of all clubs)')]
+#[Description('Give or take platform superadmin rights (cabinet /superadmin: all clubs, users, plans, languages)')]
 class GrantSuperadmin extends Command
 {
     public function handle(): int

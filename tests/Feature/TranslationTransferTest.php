@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\ActivityLog;
 use App\Models\ClubMembership;
 use App\Models\Language;
+use App\Models\PlatformLog;
 use App\Models\Translation;
 use App\Models\User;
 use App\Services\TranslationCatalog;
@@ -89,7 +89,7 @@ test('an edited export imports back: filled cells update, empty cells keep trans
     expect(Translation::query()->where('language_id', $kk->id)->where('key', 'Склад')->value('value'))->toBe('Қойма (CSV)')
         ->and(Translation::query()->where('language_id', $kk->id)->where('key', 'Касса')->exists())->toBeTrue()
         ->and(Translation::query()->where('language_id', $kk->id)->count())->toBe($before)
-        ->and(ActivityLog::query()->where('event', 'translations.imported')->sole()->details)->toMatchArray(['changed' => 1, 'empty' => 1, 'unknown' => 1]);
+        ->and(PlatformLog::query()->where('event', 'translations.imported')->sole()->details)->toMatchArray(['changed' => 1, 'empty' => 1, 'unknown' => 1]);
     $this->get(route('dashboard'))->assertOk();
 });
 

@@ -57,7 +57,7 @@ class UserFactory extends Factory
         ];
     }
 
-    /** Platform superadmin: manages languages and translations of all clubs. */
+    /** Platform superadmin: the /superadmin cabinet for every club, user, plan and language. */
     public function superadmin(): static
     {
         return $this->state(fn (array $attributes) => ['is_superadmin' => true]);

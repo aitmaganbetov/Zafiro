@@ -19,6 +19,12 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\Superadmin\ClubController as SuperadminClubController;
+use App\Http\Controllers\Superadmin\DashboardController as SuperadminDashboardController;
+use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageController;
+use App\Http\Controllers\Superadmin\LogController as SuperadminLogController;
+use App\Http\Controllers\Superadmin\PlanController as SuperadminPlanController;
+use App\Http\Controllers\Superadmin\UserController as SuperadminUserController;
 use App\Http\Controllers\TariffController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
@@ -52,6 +58,43 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('auth.show-register');
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
+});
+
+// Platform superadmin cabinet: outside any club, for users with the superadmin flag.
+Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function () {
+    Route::name('superadmin.')->group(function () {
+        Route::get('/', SuperadminDashboardController::class)->name('dashboard');
+
+        Route::get('/clubs', [SuperadminClubController::class, 'index'])->name('clubs.index');
+        Route::get('/clubs/{club}', [SuperadminClubController::class, 'show'])->name('clubs.show');
+        Route::post('/clubs/{club}/subscription/extend', [SuperadminClubController::class, 'extend'])->name('clubs.extend');
+        Route::post('/clubs/{club}/subscription/suspend', [SuperadminClubController::class, 'suspend'])->name('clubs.suspend');
+        Route::post('/clubs/{club}/subscription/plan', [SuperadminClubController::class, 'changePlan'])->name('clubs.plan');
+        Route::post('/clubs/{club}/view', [SuperadminClubController::class, 'view'])->name('clubs.view');
+        Route::post('/leave-club', [SuperadminClubController::class, 'leave'])->name('clubs.leave');
+
+        Route::get('/users', [SuperadminUserController::class, 'index'])->name('users.index');
+        Route::post('/users/{user}/block', [SuperadminUserController::class, 'block'])->name('users.block');
+        Route::post('/users/{user}/unblock', [SuperadminUserController::class, 'unblock'])->name('users.unblock');
+        Route::post('/users/{user}/superadmin', [SuperadminUserController::class, 'grant'])->name('users.grant');
+        Route::delete('/users/{user}/superadmin', [SuperadminUserController::class, 'revoke'])->name('users.revoke');
+
+        Route::get('/plans', [SuperadminPlanController::class, 'index'])->name('plans.index');
+        Route::post('/plans', [SuperadminPlanController::class, 'store'])->name('plans.store');
+        Route::patch('/plans/{plan}', [SuperadminPlanController::class, 'update'])->name('plans.update');
+
+        Route::get('/logs', SuperadminLogController::class)->name('logs.index');
+        Route::get('/languages', [SuperadminLanguageController::class, 'index'])->name('languages');
+    });
+
+    // Languages and translations shared by every club (route names kept from the club settings).
+    Route::post('/languages', [SuperadminLanguageController::class, 'store'])->name('languages.store');
+    Route::get('/languages/export', [SuperadminLanguageController::class, 'export'])->name('languages.export');
+    Route::post('/languages/import', [SuperadminLanguageController::class, 'import'])->middleware('throttle:20,1')->name('languages.import');
+    Route::patch('/languages/{language}', [SuperadminLanguageController::class, 'update'])->name('languages.update');
+    Route::delete('/languages/{language}', [SuperadminLanguageController::class, 'destroy'])->name('languages.destroy');
+    Route::get('/languages/{language}/translations', [SuperadminLanguageController::class, 'translations'])->name('languages.translations');
+    Route::put('/languages/{language}/translations', [SuperadminLanguageController::class, 'saveTranslations'])->name('languages.translations.save');
 });
 
 // Protected routes
@@ -112,17 +155,6 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
         Route::post('/settings/agent-pin', [SettingsController::class, 'agentPin'])->name('settings.agent-pin');
         Route::post('/settings/agent-staff-time', [SettingsController::class, 'agentStaffTime'])->name('settings.agent-staff-time');
-    });
-
-    // Languages and translations are shared by every club: platform superadmin only.
-    Route::middleware('can:manage-translations')->group(function () {
-        Route::post('/settings/languages', [LanguageController::class, 'store'])->name('languages.store');
-        Route::patch('/settings/languages/{language}', [LanguageController::class, 'update'])->name('languages.update');
-        Route::delete('/settings/languages/{language}', [LanguageController::class, 'destroy'])->name('languages.destroy');
-        Route::get('/settings/languages/{language}/translations', [LanguageController::class, 'translations'])->name('languages.translations');
-        Route::put('/settings/languages/{language}/translations', [LanguageController::class, 'saveTranslations'])->name('languages.translations.save');
-        Route::get('/settings/languages/export', [LanguageController::class, 'export'])->name('languages.export');
-        Route::post('/settings/languages/import', [LanguageController::class, 'import'])->middleware('throttle:20,1')->name('languages.import');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {

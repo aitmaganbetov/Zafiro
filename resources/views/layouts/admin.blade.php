@@ -46,7 +46,16 @@
                     </div>
                 </div>
             </header>
-            <div class="admin-content">@yield('content')</div>
+            <div class="admin-content">
+                @isset($superadminViewing)
+                    {{-- Суперадмин смотрит чужой клуб: изменения сервер отклоняет. --}}
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-violet-200 bg-violet-50 px-6 py-3 text-sm text-violet-900 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100" role="status">
+                        <span><i class="fas fa-eye mr-2" aria-hidden="true"></i>{{ __('Вы смотрите клуб «:club» как суперадмин. Только просмотр: изменения недоступны.', ['club' => $superadminViewing->name]) }}</span>
+                        <form method="POST" action="{{ route('superadmin.clubs.leave') }}">@csrf<button type="submit" class="rounded-lg bg-violet-700 px-3 py-1.5 font-medium text-white hover:bg-violet-800">{{ __('Вернуться в кабинет') }}</button></form>
+                    </div>
+                @endisset
+                @yield('content')
+            </div>
         </main>
     </div>
     @stack('scripts')
@@ -85,45 +94,7 @@
             load();
         })();
     </script>
-    <script>
-        (()=>{
-            const app=document.querySelector('.admin-app'),sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('overlay'),toggle=document.getElementById('sidebarToggle');
-            if(!app||!sidebar||!toggle)return;
-            const mobile=matchMedia('(max-width: 768px)'),key='zafiro.sidebarCollapsed';
-            const groups=[...sidebar.querySelectorAll('.sidebar-group')];
-            groups.forEach((group)=>{group.dataset.initialOpen=group.open?'1':'0';});
-            const sync=()=>{
-                const rail=!mobile.matches&&app.classList.contains('sidebar-collapsed');
-                const open=mobile.matches?sidebar.classList.contains('active'):!rail;
-                toggle.setAttribute('aria-expanded',String(open));
-                toggle.setAttribute('aria-label',mobile.matches?(open?@json(__('Скрыть меню')):@json(__('Показать меню'))):(rail?@json(__('Развернуть меню')):@json(__('Свернуть меню'))));
-                groups.forEach((group)=>{group.open=rail||group.dataset.initialOpen==='1';});
-                sidebar.querySelectorAll('a.sidebar-link').forEach((link)=>{
-                    if(rail)link.title=link.textContent.trim();else link.removeAttribute('title');
-                });
-            };
-            const closeDrawer=()=>{sidebar.classList.remove('active');overlay?.classList.remove('active');sync();};
-            toggle.addEventListener('click',()=>{
-                if(mobile.matches){
-                    const open=!sidebar.classList.contains('active');
-                    sidebar.classList.toggle('active',open);overlay?.classList.toggle('active',open);
-                }else{
-                    const collapsed=app.classList.toggle('sidebar-collapsed');
-                    try{localStorage.setItem(key,collapsed?'1':'0');}catch(e){}
-                }
-                sync();
-            });
-            overlay?.addEventListener('click',closeDrawer);
-            sidebar.querySelector('[data-sidebar-close]')?.addEventListener('click',()=>{closeDrawer();toggle.focus();});
-            document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&sidebar.classList.contains('active')){closeDrawer();toggle.focus();}});
-            mobile.addEventListener('change',()=>{
-                closeDrawer();
-                let collapsed=false;try{collapsed=localStorage.getItem(key)==='1';}catch(e){}
-                app.classList.toggle('sidebar-collapsed',collapsed&&!mobile.matches);sync();
-            });
-            sync();
-        })();
-    </script>
+    @include('partials.sidebar-script')
 <div class="pwa-banner" data-pwa-banner role="region" aria-label="{{ __('Установите Zafiro как приложение') }}" hidden>
     <img src="{{ asset('icons/icon-192.png') }}" alt="" width="44" height="44">
     <div class="pwa-banner-text">

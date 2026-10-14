@@ -35,13 +35,20 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_superadmin' => 'boolean',
+            'blocked_at' => 'datetime',
         ];
     }
 
-    /** Platform superadmin (not a club role): manages languages and translations shared by all clubs. */
+    /** Platform superadmin (not a club role): manages clubs, users, plans, languages of the whole platform. */
     public function isSuperadmin(): bool
     {
         return $this->is_superadmin === true;
+    }
+
+    /** Blocked by a superadmin: cannot sign in, sessions and API tokens are revoked. */
+    public function isBlocked(): bool
+    {
+        return $this->blocked_at !== null;
     }
 
     public function memberships(): HasMany

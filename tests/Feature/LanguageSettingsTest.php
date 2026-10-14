@@ -4,6 +4,7 @@ use App\Models\ActivityLog;
 use App\Models\Club;
 use App\Models\ClubMembership;
 use App\Models\Language;
+use App\Models\PlatformLog;
 use App\Models\Translation;
 use App\Models\User;
 use App\Services\CurrentClub;
@@ -65,7 +66,9 @@ test('the superadmin adds a custom language and translates it in the editor', fu
 
     $this->put(route('languages.translations.save', $uz), ['translations' => [$hash => '']]);
     $this->get(route('dashboard'))->assertSee('Warehouse')->assertDontSee('Ombor');
-    expect(ActivityLog::query()->where('event', 'translations.updated')->count())->toBe(2);
+    // Shared by every club: logged in the platform log, not in this club's log.
+    expect(PlatformLog::query()->where('event', 'translations.updated')->count())->toBe(2)
+        ->and(ActivityLog::query()->where('event', 'translations.updated')->exists())->toBeFalse();
 });
 
 test('the selected and the last enabled language cannot be disabled; built-in ones cannot be deleted', function () {
@@ -87,7 +90,7 @@ test('deleting a custom language moves its clubs back to the default language', 
     $uz = Language::query()->create(['code' => 'uz', 'name' => 'Oʻzbekcha', 'is_enabled' => true]);
     currentClub()->forceFill(['locale' => 'uz'])->save();
 
-    $this->actingAs($owner)->delete(route('languages.destroy', $uz))->assertRedirect(route('settings.languages'));
+    $this->actingAs($owner)->delete(route('languages.destroy', $uz))->assertRedirect(route('superadmin.languages'));
 
     expect(Language::query()->where('code', 'uz')->exists())->toBeFalse()
         ->and(currentClub()->locale)->toBeNull();
@@ -114,9 +117,12 @@ test('languages have their own settings tab', function () {
         ->assertOk()
         ->assertSee(__('Язык интерфейса'))
         ->assertDontSee(__('Добавить язык'));
+    // The superadmin sees a link to the cabinet, where languages are managed.
     $this->actingAs(User::factory()->superadmin()->create())->get(route('settings.languages'))
         ->assertOk()
-        ->assertSee(__('Добавить язык'));
+        ->assertDontSee(__('Добавить язык'))
+        ->assertSee(route('superadmin.languages'));
+    $this->get(route('superadmin.languages'))->assertOk()->assertSee(__('Добавить язык'));
     $this->get(route('settings.club'))
         ->assertOk()
         ->assertSee(route('settings.languages'))

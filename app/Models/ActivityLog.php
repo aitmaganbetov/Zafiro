@@ -68,6 +68,7 @@ class ActivityLog extends Model
         'club.logo_changed' => 'Изменение логотипа клуба',
         'agent.staff_exit' => 'Выход из агента по PIN-коду',
         'agent.staff_signin' => 'Вход сотрудника на ПК',
+        'superadmin.club_viewed' => 'Просмотр клуба суперадмином',
         'agent.exit_pin_failed' => 'Неверный PIN-код агента',
     ];
 
