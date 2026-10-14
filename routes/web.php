@@ -105,6 +105,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::delete('/settings/languages/{language}', [LanguageController::class, 'destroy'])->name('languages.destroy');
         Route::get('/settings/languages/{language}/translations', [LanguageController::class, 'translations'])->name('languages.translations');
         Route::put('/settings/languages/{language}/translations', [LanguageController::class, 'saveTranslations'])->name('languages.translations.save');
+        Route::get('/settings/languages/export', [LanguageController::class, 'export'])->name('languages.export');
+        Route::post('/settings/languages/import', [LanguageController::class, 'import'])->middleware('throttle:20,1')->name('languages.import');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {

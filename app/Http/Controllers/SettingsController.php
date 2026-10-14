@@ -23,7 +23,11 @@ class SettingsController extends Controller
 
     public function languages(TranslationCatalog $catalog, LocaleResolver $locales)
     {
-        $translated = Translation::query()->selectRaw('language_id, count(*) as aggregate')->groupBy('language_id')->pluck('aggregate', 'language_id');
+        // Only texts that still exist in the code count; rows of removed texts stay in the table.
+        $sourceHashes = collect($catalog->sourceKeys())
+            ->flatMap(fn (array $lines, string $group) => collect($lines)->keys()->map(fn ($key) => Translation::hashKey($group, (string) $key)))
+            ->all();
+        $translated = Translation::query()->whereIn('key_hash', $sourceHashes)->selectRaw('language_id, count(*) as aggregate')->groupBy('language_id')->pluck('aggregate', 'language_id');
 
         return view('settings.languages', [
             'languages' => Language::query()->orderBy('sort_order')->orderBy('id')->get()

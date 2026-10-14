@@ -9,6 +9,7 @@ use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
+use App\Services\TranslationTransfer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Interface languages are shared by all clubs; each club picks the language it uses.
@@ -152,49 +154,15 @@ class LanguageController extends Controller
         ]);
     }
 
-    public function saveTranslations(Request $request, Language $language): RedirectResponse
+    public function saveTranslations(Request $request, Language $language, TranslationTransfer $transfer): RedirectResponse
     {
         $data = $request->validate([
             'translations' => ['required', 'array', 'max:200'],
             'translations.*' => ['nullable', 'string', 'max:5000'],
         ]);
-        $source = collect($this->catalog->sourceKeys())
-            ->flatMap(fn (array $lines, string $group) => collect($lines)->keys()->mapWithKeys(fn (string $key): array => [Translation::hashKey($group, $key) => [$group, $key]]));
 
-        $changed = DB::transaction(function () use ($data, $source, $language, $request): int {
-            $submitted = collect($data['translations'])->only($source->keys()->all());
-            $existing = Translation::query()
-                ->where('language_id', $language->id)
-                ->whereIn('key_hash', $submitted->keys()->all())
-                ->get(['id', 'key_hash', 'value'])
-                ->keyBy('key_hash');
-            $deletes = [];
-            $upserts = [];
-            $now = now();
-
-            foreach ($submitted as $hash => $value) {
-                [$group, $key] = $source[$hash];
-                $value = trim((string) $value);
-                $row = $existing->get($hash);
-
-                if ($value === '') {
-                    if ($row !== null) {
-                        $deletes[] = $row->id;
-                    }
-                } elseif ($row?->value !== $value) {
-                    $upserts[] = ['language_id' => $language->id, 'group' => $group, 'key' => $key, 'key_hash' => $hash, 'value' => $value, 'created_at' => $now, 'updated_at' => $now];
-                }
-            }
-
-            if ($deletes !== []) {
-                Translation::query()->whereKey($deletes)->delete();
-            }
-
-            if ($upserts !== []) {
-                Translation::query()->upsert($upserts, ['language_id', 'group', 'key_hash'], ['value', 'updated_at']);
-            }
-
-            $changed = count($deletes) + count($upserts);
+        $changed = DB::transaction(function () use ($data, $language, $request, $transfer): int {
+            $changed = $transfer->apply($language, $data['translations'], deleteEmpty: true);
 
             if ($changed > 0) {
                 $this->activity->record('translations.updated', __('Изменены переводы: :name (:count)', ['name' => $language->name, 'count' => $changed]), $request->user()->getKey(), $language, ['changed' => $changed]);
@@ -208,5 +176,58 @@ class LanguageController extends Controller
         }
 
         return back()->with('status', trans_choice('Сохранён :count перевод.|Сохранено :count перевода.|Сохранено :count переводов.', $changed));
+    }
+
+    /** CSV for translators: all texts, or only the untranslated ones. */
+    public function export(Request $request, TranslationTransfer $transfer): StreamedResponse
+    {
+        $data = $request->validate(['language' => ['required', 'string', 'exists:languages,code'], 'missing' => ['nullable', 'boolean']]);
+        $language = Language::query()->where('code', $data['language'])->firstOrFail();
+        $missingOnly = (bool) ($data['missing'] ?? false);
+        $rows = $transfer->exportRows($language, $missingOnly);
+        $name = sprintf('zafiro-translations-%s%s-%s.csv', $language->code, $missingOnly ? '-missing' : '', now()->format('Y-m-d'));
+
+        return response()->streamDownload(function () use ($rows): void {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // BOM: Excel opens the file as UTF-8
+            foreach ($rows as $row) {
+                fputcsv($out, $row, TranslationTransfer::DELIMITER, '"', '');
+            }
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'no-store']);
+    }
+
+    public function import(Request $request, TranslationTransfer $transfer): RedirectResponse
+    {
+        $data = $request->validate([
+            'language' => ['required', 'string', 'exists:languages,code'],
+            'file' => ['required', 'file', 'max:2048', 'mimes:csv,txt'],
+        ]);
+        $language = Language::query()->where('code', $data['language'])->firstOrFail();
+
+        $stats = DB::transaction(function () use ($request, $language, $transfer): array {
+            $stats = $transfer->import($language, (string) file_get_contents($request->file('file')->getRealPath()));
+            $this->activity->record('translations.imported', __('Импорт переводов: :name (:count)', ['name' => $language->name, 'count' => $stats['changed']]), $request->user()->getKey(), $language, [
+                'changed' => $stats['changed'],
+                'unchanged' => $stats['unchanged'],
+                'empty' => $stats['empty'],
+                'unknown' => $stats['unknown'],
+                'invalid_placeholders' => count($stats['invalid']),
+            ]);
+
+            return $stats;
+        });
+
+        if ($stats['changed'] > 0) {
+            $this->catalog->flush();
+        }
+
+        return back()->with('status', __('Импорт :name: обновлено :changed, без изменений :unchanged, пустых :empty, неизвестных строк :unknown.', [
+            'name' => $language->name,
+            'changed' => $stats['changed'],
+            'unchanged' => $stats['unchanged'],
+            'empty' => $stats['empty'],
+            'unknown' => $stats['unknown'],
+        ]))->with('import_invalid', array_slice($stats['invalid'], 0, 20))->with('import_invalid_count', count($stats['invalid']));
     }
 }

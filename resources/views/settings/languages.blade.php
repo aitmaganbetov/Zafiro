@@ -73,4 +73,52 @@
         </form>
     @endif
 </section>
+
+@if($canManageLanguages)
+<section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="translation-files-title">
+    <h5 id="translation-files-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Экспорт и импорт переводов') }}</h5>
+    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{{ __('Выгрузите язык в CSV, переведите столбец с кодом языка в Excel или Google Таблицах и загрузите файл обратно. Пустые ячейки ничего не удаляют.') }}</p>
+
+    @if($errors->has('file') || $errors->has('language'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $errors->first('file') ?: $errors->first('language') }}</div>
+    @endif
+    @if(session('import_invalid_count'))
+        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+            <p class="font-medium">{{ trans_choice('Пропущена :count строка: подстановки (:name и т. п.) в переводе не совпадают с оригиналом.|Пропущено :count строки: подстановки (:name и т. п.) в переводе не совпадают с оригиналом.|Пропущено :count строк: подстановки (:name и т. п.) в переводе не совпадают с оригиналом.', session('import_invalid_count')) }}</p>
+            <ul class="mt-2 list-disc pl-5">@foreach(session('import_invalid', []) as $source)<li>{{ $source }}</li>@endforeach</ul>
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <form method="GET" action="{{ route('languages.export') }}" class="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+            <h6 class="font-medium text-gray-900 dark:text-white">{{ __('Экспорт') }}</h6>
+            <label class="block"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Язык') }}</span>
+                <select name="language" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+                    @foreach($languages->where('code', '!=', 'ru') as $language)
+                        <option value="{{ $language->code }}">{{ $language->name }} ({{ $language->code }})</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="missing" value="1"> {{ __('Только непереведённые') }}</label>
+            <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm"><i class="fas fa-file-arrow-down mr-1"></i>{{ __('Скачать CSV') }}</button>
+        </form>
+
+        <form method="POST" action="{{ route('languages.import') }}" enctype="multipart/form-data" class="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+            @csrf
+            <h6 class="font-medium text-gray-900 dark:text-white">{{ __('Импорт') }}</h6>
+            <label class="block"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Язык') }}</span>
+                <select name="language" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+                    @foreach($languages->where('code', '!=', 'ru') as $language)
+                        <option value="{{ $language->code }}" @selected(old('language') === $language->code)>{{ $language->name }} ({{ $language->code }})</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="block"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Файл CSV') }}</span>
+                <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-sm text-gray-700 dark:text-gray-300">
+            </label>
+            <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm"><i class="fas fa-file-arrow-up mr-1"></i>{{ __('Загрузить') }}</button>
+        </form>
+    </div>
+</section>
+@endif
 @endsection

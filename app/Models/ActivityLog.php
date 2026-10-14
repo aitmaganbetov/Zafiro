@@ -59,6 +59,7 @@ class ActivityLog extends Model
         'language.updated' => 'Изменение языка',
         'language.deleted' => 'Удаление языка',
         'translations.updated' => 'Изменение переводов',
+        'translations.imported' => 'Импорт переводов',
     ];
 
     protected function casts(): array
