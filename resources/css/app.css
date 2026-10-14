@@ -2300,6 +2300,12 @@ body {
     background: #f4c35e !important
 }
 
+/* Сотрудник работает на ПК (выход по PIN-коду или вход сотрудника). */
+.cm-computer.staff-visit {
+    outline: 2px dashed #60a5fa;
+    outline-offset: 1px
+}
+
 .cm-control-button.reserve {
     background: #80551a
 }

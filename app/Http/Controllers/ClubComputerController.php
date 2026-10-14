@@ -256,13 +256,21 @@ class ClubComputerController extends Controller
 
     /**
      * Staff who set up a PC get its device token (shown once, replaces the previous one);
-     * customers resolving a PC never do.
+     * customers resolving a PC never do. A staff sign-in also marks the PC as in staff hands.
      *
      * @return array{agent_token?: string}
      */
     private function agentToken(ClubComputer $computer, ClubComputerSessions $sessions): array
     {
-        return Gate::allows('register', ClubComputer::class) ? ['agent_token' => $sessions->issueAgentToken($computer)] : [];
+        if (! Gate::allows('register', ClubComputer::class)) {
+            return [];
+        }
+
+        $staff = request()->user();
+        $sessions->startStaffVisit($computer, $staff, 'signin');
+        app(ActivityLogger::class)->record('agent.staff_signin', __('Сотрудник :user вошёл на ПК :computer', ['user' => $staff->name, 'computer' => $computer->displayName()]), $staff->getKey(), $computer);
+
+        return ['agent_token' => $sessions->issueAgentToken($computer)];
     }
 
     private function computerIdentity(ClubComputer $computer): array

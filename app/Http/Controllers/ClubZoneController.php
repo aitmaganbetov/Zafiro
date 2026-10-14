@@ -27,7 +27,7 @@ class ClubZoneController extends Controller
     public function index(): View
     {
         return view('club-map.index', [
-            'zones' => ClubZone::query()->with(['computers', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get(),
+            'zones' => ClubZone::query()->with(['computers.staffUser:id,name', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get(),
             'tariffs' => Tariff::query()->orderBy('name')->get(),
         ]);
     }

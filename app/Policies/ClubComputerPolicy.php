@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\ClubComputer;
 use App\Models\User;
+use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use Illuminate\Auth\Access\Response;
 
@@ -18,7 +19,7 @@ class ClubComputerPolicy
     {
         $role = $user->currentMembership()->value('role');
 
-        return in_array($role, ['owner', 'admin', 'manager', 'operator'], true)
+        return in_array($role, ClubComputerSessions::STAFF_ROLES, true)
             ? Response::allow()
             : Response::deny(__('Недостаточно прав для регистрации компьютера в клубе.'));
     }

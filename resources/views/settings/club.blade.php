@@ -73,6 +73,20 @@
         </form>
         <p class="mt-2 text-xs text-gray-500">{{ __('Оставьте поля пустыми и сохраните, чтобы удалить PIN.') }}</p>
     @endif
+
+    <h6 class="mb-2 mt-5 font-semibold text-gray-900 dark:text-white">{{ __('Время обслуживания ПК') }}</h6>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Сколько минут сотрудник может работать на ПК после выхода из агента по PIN-коду или входа на ПК. Всё это время ПК отмечен на карте клуба как «Обслуживание», затем агент снова блокирует ПК.') }}</p>
+    @if($canManageAgentPin)
+        @error('minutes')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+        <form method="POST" action="{{ route('settings.agent-staff-time') }}" class="flex flex-wrap items-end gap-3">
+            @csrf
+            <label class="w-40"><span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Минут') }}</span>
+                <input type="number" name="minutes" min="1" max="240" required value="{{ old('minutes', $agentStaffMinutes) }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"></label>
+            <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Сохранить время') }}</button>
+        </form>
+    @else
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ trans_choice(':count минута|:count минуты|:count минут', $agentStaffMinutes) }}</p>
+    @endif
 </section>
 @endsection
 

@@ -8,6 +8,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\ClubComputerSessions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  */
 class AgentExitPinController extends Controller
 {
-    public function __invoke(Request $request, ActivityLogger $activity): JsonResponse
+    public function __invoke(Request $request, ActivityLogger $activity, ClubComputerSessions $sessions): JsonResponse
     {
         $data = $request->validate(['pin' => ['required', 'string', 'max:16']]);
         $computer = $request->attributes->get('agent_computer');
@@ -32,16 +33,30 @@ class AgentExitPinController extends Controller
         }
 
         $valid = Hash::check($data['pin'], $hash);
-        $this->record($request, $activity, $computer, $valid);
+        $user = $this->signedInUser($request, $computer->club_id);
+        $this->record($request, $activity, $computer, $valid, $user);
 
-        return $valid
-            ? response()->json(['valid' => true])
-            : response()->json(['valid' => false, 'code' => 'invalid_pin', 'message' => __('Неверный PIN-код.')], 422);
+        if (! $valid) {
+            return response()->json(['valid' => false, 'code' => 'invalid_pin', 'message' => __('Неверный PIN-код.')], 422);
+        }
+
+        // The PC shows "maintenance" in the panel, and the agent service waits this long before
+        // bringing the agent back. The PIN is shared, so the staff member is known only if they
+        // are the one signed in on the PC.
+        $staff = $user !== null && $this->isStaff($user, $computer->club_id) ? $user : null;
+
+        return response()->json(['valid' => true, 'staff_minutes' => $sessions->startStaffVisit($computer, $staff, 'pin')]);
     }
 
-    private function record(Request $request, ActivityLogger $activity, ClubComputer $computer, bool $valid): void
+    private function isStaff(User $user, int $clubId): bool
     {
-        $user = $this->signedInUser($request, $computer->club_id);
+        return ClubMembership::query()->withoutGlobalScope('club')
+            ->where('club_id', $clubId)->where('user_id', $user->getKey())
+            ->whereIn('role', ClubComputerSessions::STAFF_ROLES)->exists();
+    }
+
+    private function record(Request $request, ActivityLogger $activity, ClubComputer $computer, bool $valid, ?User $user): void
+    {
         $context = ['club_id' => $computer->club_id, 'computer_id' => $computer->getKey(), 'ip' => $request->ip()];
 
         if ($user === null) {

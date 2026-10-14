@@ -158,3 +158,55 @@ test('the heartbeat reports the server clock so the agent does not trust the PC 
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $token])
         ->assertSuccessful()->assertJsonPath('server_time', now()->utc()->format('Y-m-d\TH:i:s.vP'));
 });
+
+test('closing the agent with the PIN marks the PC as in staff hands for the club time', function () {
+    $club = Club::query()->findOrFail(app(CurrentClub::class)->id());
+    $club->forceFill(['agent_exit_pin_hash' => bcrypt('4821'), 'agent_staff_minutes' => 25])->save();
+    $computer = securityPc();
+    $token = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    app(CurrentClub::class)->clear();
+
+    $this->postJson(route('api.agent.exit-pin'), ['pin' => '4821'], ['X-Agent-Token' => $token])
+        ->assertSuccessful()->assertJsonPath('staff_minutes', 25);
+
+    $computer->refresh();
+    expect($computer->hasStaffVisit())->toBeTrue()
+        ->and($computer->staff_kind)->toBe('pin')
+        ->and($computer->staff_user_id)->toBeNull()
+        ->and($computer->staff_until->diffInMinutes(now()->addMinutes(25)))->toBeLessThan(1.0);
+
+    // The agent closing (shutting_down) keeps the mark; the agent back with a customer clears it.
+    $this->postJson(route('api.agent.heartbeat'), ['state' => 'shutting_down'], ['X-Agent-Token' => $token])->assertSuccessful();
+    expect($computer->fresh()->hasStaffVisit())->toBeTrue();
+    $this->postJson(route('api.agent.heartbeat'), ['state' => 'locked'], ['X-Agent-Token' => $token])->assertSuccessful();
+    expect($computer->fresh()->hasStaffVisit())->toBeFalse();
+});
+
+test('a staff sign-in on a PC is logged and shown as staff work, a customer resolve is not', function () {
+    $computer = securityPc();
+    $staff = securityMember('operator', '+77001112250');
+    $customer = securityMember('cashier', '+77001112251');
+    $staffToken = $staff->createToken('PC-1', ['club:'.$computer->club_id])->plainTextToken;
+    $customerToken = $customer->createToken('PC-1', ['club:'.$computer->club_id])->plainTextToken;
+    app(CurrentClub::class)->clear();
+
+    $this->withToken($customerToken)->postJson(route('api.club-computers.resolve'), ['device_name' => 'PC-1'])->assertSuccessful();
+    expect($computer->fresh()->hasStaffVisit())->toBeFalse();
+
+    $this->app['auth']->forgetGuards();
+    $this->withToken($staffToken)->postJson(route('api.club-computers.resolve'), ['device_name' => 'PC-1'])->assertSuccessful();
+    expect($computer->fresh())->staff_kind->toBe('signin')->staff_user_id->toBe($staff->id)
+        ->and(ActivityLog::query()->withoutGlobalScope('club')->where('event', 'agent.staff_signin')->value('user_id'))->toBe($staff->id);
+});
+
+test('owners set the staff time on a PC, other roles cannot', function () {
+    $owner = User::factory()->create();
+    $this->actingAs($owner)->post(route('settings.agent-staff-time'), ['minutes' => 0])->assertSessionHasErrors('minutes');
+    $this->actingAs($owner)->post(route('settings.agent-staff-time'), ['minutes' => 241])->assertSessionHasErrors('minutes');
+    $this->actingAs($owner)->post(route('settings.agent-staff-time'), ['minutes' => 40])->assertSessionHasNoErrors();
+    expect(Club::query()->findOrFail(app(CurrentClub::class)->id())->agent_staff_minutes)->toBe(40);
+
+    $manager = securityMember('manager', '+77001112252');
+    $this->flushSession();
+    $this->actingAs($manager)->post(route('settings.agent-staff-time'), ['minutes' => 5])->assertForbidden();
+});

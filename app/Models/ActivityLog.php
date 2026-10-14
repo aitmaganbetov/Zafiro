@@ -64,7 +64,9 @@ class ActivityLog extends Model
         'club.timezone_changed' => 'Изменение часового пояса клуба',
         'computer.session_ended' => 'Досрочное завершение сессии ПК',
         'club.agent_pin_changed' => 'Изменение PIN-кода агента',
+        'club.agent_staff_time_changed' => 'Изменение времени обслуживания ПК',
         'agent.staff_exit' => 'Выход из агента по PIN-коду',
+        'agent.staff_signin' => 'Вход сотрудника на ПК',
         'agent.exit_pin_failed' => 'Неверный PIN-код агента',
     ];
 
