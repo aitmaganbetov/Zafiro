@@ -26,9 +26,26 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /storage/framework/testing-temp/
-# Windows agent (.NET) build output and per-user IDE files
+# Windows agent (.NET)
+# build output (bin/ also holds WebView2 browser data: cookies, local storage, tokens)
 /WindowsAgent/bin/
 /WindowsAgent/obj/
 /WindowsAgent/publish/
-*.csproj.user
+/publish/
+*.WebView2/
+TestResults/
+# per-user IDE files
 .vs/
+*.user
+*.suo
+*.rsuser
+# signing certificates and keys, publish profiles (may contain passwords)
+*.pfx
+*.p12
+*.snk
+*.pubxml
+*.pubxml.user
+# local agent configuration and secrets (the agent keeps its real config in %APPDATA%\ZafiroAgent)
+agent.config.json
+appsettings.*.local.json
+secrets.json
