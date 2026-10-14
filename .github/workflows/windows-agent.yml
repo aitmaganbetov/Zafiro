@@ -70,7 +70,21 @@ jobs:
         run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
 
       - name: Test
-        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --logger "console;verbosity=normal"
+        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=results.trx" --results-directory test-results
+
+      # Job logs need a GitHub login; annotations are visible to everyone on the run page.
+      - name: Report failed tests
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem test-results -Filter *.trx -Recurse | ForEach-Object {
+            [xml]$trx = Get-Content $_.FullName
+            $trx.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' } | ForEach-Object {
+              $message = ($_.Output.ErrorInfo.Message -replace "`r?`n", ' ').Trim()
+              if ($message.Length -gt 900) { $message = $message.Substring(0, 900) }
+              Write-Host "::error title=$($_.testName)::$message"
+            }
+          }
 
       - name: Publish (single exe, .NET included)
         run: >
