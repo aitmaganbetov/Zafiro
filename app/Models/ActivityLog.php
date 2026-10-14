@@ -62,6 +62,7 @@ class ActivityLog extends Model
         'translations.updated' => 'Изменение переводов',
         'translations.imported' => 'Импорт переводов',
         'club.timezone_changed' => 'Изменение часового пояса клуба',
+        'computer.session_ended' => 'Досрочное завершение сессии ПК',
     ];
 
     protected function casts(): array

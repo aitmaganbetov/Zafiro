@@ -6,7 +6,9 @@ use App\Models\ClubZone;
 use App\Models\MemberBalance;
 use App\Models\Tariff;
 use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -137,7 +139,7 @@ test('agent can list and purchase an eligible tariff for its active computer ses
     $tariff->zones()->syncWithPivotValues([$zone->id], ['club_id' => $computer->club_id]);
     $balance = MemberBalance::query()->where('user_id', $user->id)->firstOrFail();
     $balance->update(['balance' => 80, 'bonus_balance' => 20]);
-    app(\App\Services\CurrentClub::class)->clear();
+    app(CurrentClub::class)->clear();
 
     $this->getJson(route('api.tariffs.index'))->assertUnauthorized();
     $this->withToken($token)->getJson(route('api.tariffs.index'))
@@ -148,7 +150,7 @@ test('agent can list and purchase an eligible tariff for its active computer ses
         ->assertJsonPath('data.0.currency', 'KZT');
 
     $frozenTime = now()->startOfSecond();
-    \Illuminate\Support\Carbon::setTestNow($frozenTime);
+    Carbon::setTestNow($frozenTime);
 
     try {
         $purchaseResponse = $this->withToken($token)->postJson(route('api.tariffs.purchase', $tariff), [
@@ -172,6 +174,6 @@ test('agent can list and purchase an eligible tariff for its active computer ses
             ->assertSuccessful()
             ->assertJsonCount(0, 'data');
     } finally {
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
     }
 });

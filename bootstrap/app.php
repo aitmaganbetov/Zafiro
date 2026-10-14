@@ -6,6 +6,7 @@ use App\Http\Middleware\Api\AuthenticateApiKey;
 use App\Http\Middleware\Api\LimitApiRequestSize;
 use App\Http\Middleware\Api\LogApiRequest;
 use App\Http\Middleware\Api\RequireApiScope;
+use App\Http\Middleware\AuthenticateAgentDevice;
 use App\Http\Middleware\RequireActiveSubscription;
 use App\Http\Middleware\RequireClubRole;
 use App\Http\Middleware\SetCurrentClub;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'current-club' => SetCurrentClub::class,
             'club-role' => RequireClubRole::class,
             'subscription' => RequireActiveSubscription::class,
+            'agent.device' => AuthenticateAgentDevice::class,
             'api.log' => LogApiRequest::class,
             'api.size' => LimitApiRequestSize::class,
             'api.key' => AuthenticateApiKey::class,

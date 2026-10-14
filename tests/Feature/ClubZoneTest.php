@@ -200,6 +200,7 @@ test('computer details can be edited from the club map', function () {
     ]);
 
     $this->from(route('club-map.index'))->followingRedirects()->patch(route('club-computers.update', $computer), [
+        'computer_id' => $computer->id, // the edit form sends it to reopen the failed computer
         'number' => 3,
         'display_name' => 'Занятое имя',
         'club_zone_id' => $targetZone->id,

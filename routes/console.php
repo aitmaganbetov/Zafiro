@@ -16,4 +16,7 @@ Schedule::command('queue:work --stop-when-empty --max-time=50 --sleep=1')
     ->everyMinute()
     ->withoutOverlapping(5);
 
+// Paid PC sessions end on time even when the PC is offline.
+Schedule::command('club-computers:expire-sessions')->everyMinute();
+
 Schedule::command('integrations:prune')->hourly()->withoutOverlapping();

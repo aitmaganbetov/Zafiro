@@ -113,7 +113,7 @@ test('empty heartbeat remains compatible and full heartbeat stores agent state',
         $computer->refresh();
         expect($computer->agent_state)->toBe('in_session')
             ->and($computer->current_session_id)->toBe('session-42')
-            ->and($computer->session_ends_at->utc()->toIso8601String())->toBe('2026-10-13T13:30:00+00:00')
+            ->and($computer->session_ends_at)->toBeNull() // the end time is never taken from the agent
             ->and($computer->agent_version)->toBe('1.4.0')
             ->and($computer->mac_address)->toBe('AA:BB:CC:DD:EE:FF')
             ->and($computer->cpu_model)->toBe('AMD Ryzen 7 5800X')

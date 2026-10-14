@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AgentTariffController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubInstallationController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
@@ -36,6 +36,16 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
 Route::post('/club-computers/{computer}/heartbeat', [ClubComputerController::class, 'heartbeat'])
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computers'])
     ->name('api.club-computers.heartbeat');
+
+// Agent with a device token (issued to staff at registration): bound to one PC.
+Route::post('/agent/heartbeat', [ClubComputerController::class, 'agentHeartbeat'])
+    ->middleware(['agent.device', 'throttle:club-computers'])
+    ->name('api.agent.heartbeat');
+
+Route::post('/club-computers/{computer}/session/end', [ClubComputerController::class, 'endSession'])
+    ->whereNumber('computer')
+    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computers'])
+    ->name('api.club-computers.session.end');
 
 Route::post('/club-computers/resolve', [ClubComputerController::class, 'resolve'])
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:club-computers'])

@@ -79,6 +79,12 @@ class AppServiceProvider extends ServiceProvider
 
     private function agentRateLimitKey(Request $request): string
     {
+        $device = $request->header('X-Agent-Token');
+
+        if (is_string($device) && $device !== '') {
+            return 'device:'.hash('sha256', $device);
+        }
+
         $token = $request->user()?->currentAccessToken();
         $tokenId = is_object($token) && method_exists($token, 'getKey') ? $token->getKey() : null;
 

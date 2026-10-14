@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
-use App\Models\ActivityLog;
 use App\Models\MemberBalance;
 use App\Models\Tariff;
 use App\Models\User;

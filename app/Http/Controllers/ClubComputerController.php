@@ -13,6 +13,7 @@ use App\Models\ClubZone;
 use App\Services\ActivityLogger;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
+use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
 use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Http\JsonResponse;
@@ -148,7 +149,7 @@ class ClubComputerController extends Controller
         return response()->json(['updated' => $updated, 'status' => $status]);
     }
 
-    public function resolve(ResolveClubComputerRequest $request, ClubComputerResolver $computers): JsonResponse
+    public function resolve(ResolveClubComputerRequest $request, ClubComputerResolver $computers, ClubComputerSessions $sessions): JsonResponse
     {
         $computer = $computers->resolve(
             $request->validated('device_name'),
@@ -162,81 +163,57 @@ class ClubComputerController extends Controller
             ], 404);
         }
 
-        return response()->json($this->computerIdentity($computer));
+        return response()->json($this->computerIdentity($computer) + $this->agentToken($computer, $sessions));
     }
 
-    public function register(RegisterClubComputerRequest $request, ClubComputerRegistrar $computers): JsonResponse
+    public function register(RegisterClubComputerRequest $request, ClubComputerRegistrar $computers, ClubComputerSessions $sessions): JsonResponse
     {
         Gate::authorize('register', ClubComputer::class);
         $result = $computers->register($request->validated(), $request->user()->getKey());
 
         return response()->json(
-            $this->computerIdentity($result['computer']),
+            $this->computerIdentity($result['computer']) + $this->agentToken($result['computer'], $sessions),
             $result['created'] ? 201 : 200,
         );
     }
 
-    public function heartbeat(HeartbeatClubComputerRequest $request, string $computer): JsonResponse
+    /** Heartbeat with a user token (agents before 1.1); same rules as the device heartbeat. */
+    public function heartbeat(HeartbeatClubComputerRequest $request, string $computer, ClubComputerSessions $sessions): JsonResponse
     {
         $computer = ClubComputer::query()->withoutGlobalScope('club')->findOrFail($computer);
         Gate::authorize('heartbeat', $computer);
 
-        $data = $request->validated();
-        $updates = [
-            'last_seen_at' => now(),
-            'status' => 'online',
-            'remote_ip' => $request->ip(),
-        ];
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), $request->validated() === []);
+    }
 
-        if (array_key_exists('state', $data)) {
-            $sessionId = $data['session_id'] ?? null;
-            if ($data['state'] === 'in_session'
-                && $computer->current_session_user_id !== null
-                && $computer->session_ends_at?->isFuture() === true
-                && $computer->current_session_id !== $sessionId) {
-                throw ValidationException::withMessages(['session_id' => __('Идентификатор сессии не совпадает с активной сессией компьютера.')]);
-            }
+    /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
+    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions): JsonResponse
+    {
+        $computer = $request->attributes->get('agent_computer');
 
-            $updates['agent_state'] = $data['state'];
-            $updates['current_session_id'] = $data['state'] === 'in_session' ? $sessionId : null;
-            $updates['current_session_user_id'] = $data['state'] === 'in_session'
-                && $sessionId === $computer->current_session_id
-                    ? $computer->current_session_user_id
-                    : null;
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), $request->validated() === []);
+    }
 
-            if ($data['state'] !== 'in_session') {
-                $updates['session_ends_at'] = null;
-            } elseif (array_key_exists('session_ends_at', $data)) {
-                $updates['session_ends_at'] = $data['session_ends_at'];
-            }
-        }
+    /** Ends the paid session early: its owner or club staff. */
+    public function endSession(Request $request, ClubComputer $computer, ClubComputerSessions $sessions): JsonResponse
+    {
+        $data = $request->validate(['session_id' => ['required', 'string', 'max:255']]);
+        $sessions->end($computer, $data['session_id'], $request->user(), Gate::allows('register', ClubComputer::class));
 
-        if (array_key_exists('agent_version', $data)) {
-            $updates['agent_version'] = $data['agent_version'];
-        }
+        return response()->json(['success' => true, 'session' => null]);
+    }
 
-        if (! empty($data['device_name'])) {
-            $updates['device_name'] = $data['device_name'];
-        }
-
-        $hardwareFields = ['mac_address', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'];
-        foreach ($hardwareFields as $field) {
-            if (array_key_exists($field, $data)) {
-                $updates[$field] = $data[$field];
-            }
-        }
-        if (array_intersect($hardwareFields, array_keys($data)) !== []) {
-            $updates['hardware_reported_at'] = now();
-        }
-
-        $computer->update($updates);
+    /** @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result */
+    private function heartbeatResponse(array $result, bool $emptyHeartbeat): JsonResponse
+    {
+        $computer = $result['computer'];
         $computer->loadMissing('zone');
         $recommendedInterval = max(5, (int) config('club.computer_heartbeat_interval_seconds', 30));
         $connectionStatus = $computer->connectionStatus();
 
         return response()->json([
             ...$this->computerIdentity($computer),
-            'status' => $data === [] ? $computer->currentStatus() : $connectionStatus,
+            'status' => $emptyHeartbeat ? $computer->currentStatus() : $connectionStatus,
             'connection_status' => $connectionStatus,
             'hardware' => [
                 'mac_address' => $computer->mac_address,
@@ -249,13 +226,25 @@ class ClubComputerController extends Controller
                 'os_version' => $computer->os_version,
                 'reported_at' => $computer->hardware_reported_at?->utc()->toIso8601String(),
             ],
+            'session' => $result['session'],
+            'session_expired' => $result['session_expired'],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             'recommended_interval_seconds' => $recommendedInterval,
             'heartbeat_interval_seconds' => $recommendedInterval,
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Staff who set up a PC get its device token (shown once, replaces the previous one);
+     * customers resolving a PC never do.
+     *
+     * @return array{agent_token?: string}
+     */
+    private function agentToken(ClubComputer $computer, ClubComputerSessions $sessions): array
+    {
+        return Gate::allows('register', ClubComputer::class) ? ['agent_token' => $sessions->issueAgentToken($computer)] : [];
+    }
+
     private function computerIdentity(ClubComputer $computer): array
     {
         $computer->loadMissing('zone');
