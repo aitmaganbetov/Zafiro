@@ -96,7 +96,7 @@ test('missing phrases fall back without touching the database', function () {
 });
 
 test('editing a translation is visible on the next request and old packs are removed', function () {
-    $owner = User::factory()->create();
+    $owner = User::factory()->superadmin()->create();
     clubWithLocale('kk');
     $this->actingAs($owner)->get(route('dashboard'))->assertSee('Қойма');
     $oldVersion = Cache::get('translations.state')['version'];
@@ -168,7 +168,7 @@ test('laravel validation errors are localized in every language', function (stri
 ]);
 
 test('saving translations costs the same number of queries for 10 or 50 rows', function () {
-    $owner = User::factory()->create();
+    $owner = User::factory()->superadmin()->create();
     $kk = Language::query()->where('code', 'kk')->firstOrFail();
     $save = function (int $rows, string $mark) use ($kk) {
         $payload = Translation::query()->where('language_id', $kk->id)->where('group', '*')->orderBy('id')->limit($rows)->get()
@@ -186,10 +186,11 @@ test('saving translations costs the same number of queries for 10 or 50 rows', f
         ->and(Translation::query()->where('language_id', $kk->id)->where('value', 'like', '% ✓')->count())->toBe(50);
 });
 
-test('the translation editor is limited to owners and admins', function () {
+test('the translation editor is limited to the superadmin', function () {
     $cashier = User::factory()->create();
     ClubMembership::query()->where('user_id', $cashier->id)->update(['role' => 'cashier']);
     $kk = Language::query()->where('code', 'kk')->firstOrFail();
 
     $this->actingAs($cashier)->put(route('languages.translations.save', $kk), ['translations' => []])->assertForbidden();
+    $this->actingAs(User::factory()->create())->put(route('languages.translations.save', $kk), ['translations' => []])->assertForbidden();
 });

@@ -34,7 +34,14 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_superadmin' => 'boolean',
         ];
+    }
+
+    /** Platform superadmin (not a club role): manages languages and translations shared by all clubs. */
+    public function isSuperadmin(): bool
+    {
+        return $this->is_superadmin === true;
     }
 
     public function memberships(): HasMany

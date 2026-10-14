@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
+use App\Models\User;
 use App\Models\WebhookEndpoint;
 use App\Policies\ClubComputerPolicy;
 use App\Services\CurrentClub;
@@ -40,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(ClubComputer::class, ClubComputerPolicy::class);
+        // Languages and translations are shared by every club, so only the platform superadmin edits them.
+        Gate::define('manage-translations', fn (User $user): bool => $user->isSuperadmin());
         Gate::define('manage-integrations', fn (): bool => app(CurrentClub::class)->membership()?->canManageIntegrations() === true);
 
         $this->invalidateApiKeyCache();

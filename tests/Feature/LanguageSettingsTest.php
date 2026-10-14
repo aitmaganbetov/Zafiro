@@ -46,8 +46,8 @@ test('a disabled or unknown language cannot be selected', function () {
     expect(currentClub()->locale)->toBeNull();
 });
 
-test('an owner adds a custom language and translates it in the editor', function () {
-    $owner = User::factory()->create();
+test('the superadmin adds a custom language and translates it in the editor', function () {
+    $owner = User::factory()->superadmin()->create();
 
     $this->actingAs($owner)->post(route('languages.store'), ['code' => 'uz', 'name' => 'Oʻzbekcha'])->assertRedirect();
     $uz = Language::query()->where('code', 'uz')->firstOrFail();
@@ -69,7 +69,7 @@ test('an owner adds a custom language and translates it in the editor', function
 });
 
 test('the selected and the last enabled language cannot be disabled; built-in ones cannot be deleted', function () {
-    $owner = User::factory()->create();
+    $owner = User::factory()->superadmin()->create();
     $ru = Language::query()->where('code', 'ru')->firstOrFail();
 
     $this->actingAs($owner)->patch(route('languages.update', $ru), ['is_enabled' => 0])->assertSessionHasErrors('language');
@@ -83,7 +83,7 @@ test('the selected and the last enabled language cannot be disabled; built-in on
 });
 
 test('deleting a custom language moves its clubs back to the default language', function () {
-    $owner = User::factory()->create();
+    $owner = User::factory()->superadmin()->create();
     $uz = Language::query()->create(['code' => 'uz', 'name' => 'Oʻzbekcha', 'is_enabled' => true]);
     currentClub()->forceFill(['locale' => 'uz'])->save();
 
@@ -93,21 +93,29 @@ test('deleting a custom language moves its clubs back to the default language', 
         ->and(currentClub()->locale)->toBeNull();
 });
 
-test('only owners and admins manage languages', function (string $role) {
+test('club roles cannot manage the languages shared by all clubs', function (string $role) {
     $user = memberAs($role);
     $kk = Language::query()->where('code', 'kk')->firstOrFail();
 
     $this->actingAs($user)->post(route('languages.store'), ['code' => 'uz', 'name' => 'Uz'])->assertForbidden();
     $this->get(route('languages.translations', $kk))->assertForbidden();
     $this->patch(route('languages.update', $kk), ['is_enabled' => 0])->assertForbidden();
-})->with(['manager', 'cashier']);
+    $this->put(route('languages.translations.save', $kk), ['translations' => []])->assertForbidden();
+    $this->delete(route('languages.destroy', $kk))->assertForbidden();
+    expect(Language::query()->where('code', 'uz')->exists())->toBeFalse()
+        ->and($kk->refresh()->is_enabled)->toBeTrue();
+})->with(['owner', 'admin', 'manager', 'cashier']);
 
 test('languages have their own settings tab', function () {
     $owner = User::factory()->create();
 
+    // A club owner only picks the club language; managing languages is for the superadmin.
     $this->actingAs($owner)->get(route('settings.languages'))
         ->assertOk()
         ->assertSee(__('Язык интерфейса'))
+        ->assertDontSee(__('Добавить язык'));
+    $this->actingAs(User::factory()->superadmin()->create())->get(route('settings.languages'))
+        ->assertOk()
         ->assertSee(__('Добавить язык'));
     $this->get(route('settings.club'))
         ->assertOk()
