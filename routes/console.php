@@ -16,6 +16,9 @@ Schedule::command('queue:work --stop-when-empty --max-time=50 --sleep=1')
     ->everyMinute()
     ->withoutOverlapping(5);
 
+// Expired API tokens (30-day agent and mobile sign-ins) are removed from the database.
+Schedule::command('sanctum:prune-expired --hours=24')->daily();
+
 // Paid PC sessions end on time even when the PC is offline.
 Schedule::command('club-computers:expire-sessions')->everyMinute();
 

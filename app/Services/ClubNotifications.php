@@ -28,6 +28,7 @@ class ClubNotifications
     private const ACTIVITY_EVENTS = [
         'auth.login_failed' => 'fa-user-lock',
         'auth.api_login_failed' => 'fa-user-lock',
+        'agent.exit_pin_failed' => 'fa-lock',
         'computer.controlled' => 'fa-power-off',
         'computer.registered' => 'fa-desktop',
         'settings.updated' => 'fa-sliders',

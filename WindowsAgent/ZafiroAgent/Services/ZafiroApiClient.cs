@@ -116,7 +116,7 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Проверяет PIN-код сотрудника на сервере (по токену устройства этого ПК).</summary>
-        public async Task<ApiResult<bool>> VerifyExitPinAsync(string? deviceToken, string pin, CancellationToken cancellationToken)
+        public async Task<ApiResult<bool>> VerifyExitPinAsync(string? deviceToken, string pin, CancellationToken cancellationToken, string? userToken = null)
         {
             if (string.IsNullOrEmpty(deviceToken))
                 return ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, "ПК ещё не настроен сотрудником клуба: PIN проверить нельзя.");
@@ -127,6 +127,9 @@ namespace ZafiroAgent.Services
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, ExitPinEndpoint) { Content = JsonBody(new Dictionary<string, object?> { ["pin"] = pin }) };
                 request.Headers.Add("X-Agent-Token", deviceToken);
+                // Токен вошедшего пользователя — только чтобы сервер записал в журнал, при ком закрыли агент.
+                if (!string.IsNullOrEmpty(userToken))
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
                 using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                 return response.StatusCode switch

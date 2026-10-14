@@ -9,7 +9,7 @@ namespace ZafiroAgent.Views
     public partial class ClubSetupWindow : Window
     {
         private readonly ClubSetupService _setup;
-        private readonly bool _relogin;
+        private bool _relogin;
         private readonly CancellationTokenSource _cts = new();
         private bool _busy;
 
@@ -59,12 +59,39 @@ namespace ZafiroAgent.Views
 
             try
             {
+                var firstSetup = !_relogin;
                 var result = _relogin
                     ? await _setup.ReloginAsync(phone, PasswordBox.Password, _cts.Token)
                     : await _setup.SetupAsync(ClubKeyBox.Password, phone, PasswordBox.Password, _cts.Token);
 
                 if (result.Success)
                 {
+                    // Сервер выдаёт токен устройства только сотруднику: так агент узнаёт, кто вошёл.
+                    var deviceId = await System.Threading.Tasks.Task.Run(() => DeviceInfo.Id);
+                    var claim = await _setup.ClaimComputerAsync(result.Value!, deviceId, _cts.Token);
+                    var isStaff = claim.Success && !string.IsNullOrEmpty(claim.Value!.AgentToken);
+
+                    // Сотрудник подключил (или обслужил) ПК и выходит: играют только под учётными записями клиентов.
+                    if (isStaff)
+                    {
+                        await _setup.SignOutAsync(TimeSpan.FromSeconds(3));
+                        ShowCustomerSignIn(claim.Value!);
+                        return;
+                    }
+
+                    // Первое подключение ПК к клубу — только сотрудником.
+                    if (firstSetup)
+                    {
+                        await _setup.SignOutAsync(TimeSpan.FromSeconds(3));
+                        _setup.ResetClub();
+                        ErrorText.Text = claim.Success || claim.Failure == ApiFailure.Forbidden
+                            ? "Подключать ПК к клубу может только сотрудник клуба: владелец, администратор, менеджер или оператор."
+                            : claim.Message;
+                        PasswordBox.Clear();
+                        SubmitButton.IsEnabled = true;
+                        return;
+                    }
+
                     Session = result.Value;
                     DialogResult = true;
                     return;
@@ -87,6 +114,24 @@ namespace ZafiroAgent.Views
             }
 
             SubmitButton.IsEnabled = allowRetry;
+        }
+
+        /// <summary>ПК подключён сотрудником: окно ждёт вход клиента.</summary>
+        private void ShowCustomerSignIn(ComputerInfo computer)
+        {
+            _relogin = true;
+            HeaderText.Text = "ПК подключён";
+            ClubText.Text = $"Клуб: {_setup.ClubName} · ПК {computer.Number}. Сотрудник вышел — теперь клиент входит своей учётной записью.";
+            ComputerText.Text = $"ПК: {computer.Number}";
+            ZoneText.Text = $"Зона: {(string.IsNullOrWhiteSpace(computer.ZoneName) ? "не задана" : computer.ZoneName)}";
+            KeyPanel.Visibility = Visibility.Collapsed;
+            ClubKeyBox.Clear();
+            PhoneBox.Clear();
+            PasswordBox.Clear();
+            ErrorText.Text = string.Empty;
+            SubmitButton.IsEnabled = true;
+            App.Instance.RefreshKiosk();
+            PhoneBox.Focus();
         }
     }
 }

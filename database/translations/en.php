@@ -783,6 +783,11 @@ return [
         'Сохранить PIN' => 'Save PIN',
         'Оставьте поля пустыми и сохраните, чтобы удалить PIN.' => 'Leave the fields empty and save to remove the PIN.',
         'Изменение PIN-кода агента' => 'Agent PIN change',
+        'Агент на ПК :computer закрыт по PIN-коду сотрудника' => 'Agent on PC :computer closed with the staff PIN',
+        'Неверный PIN-код выхода на ПК :computer' => 'Wrong exit PIN on PC :computer',
+        'Тариф можно купить только на самом компьютере.' => 'The tariff can only be bought on the computer itself.',
+        'Выход из агента по PIN-коду' => 'Agent exit with PIN',
+        'Неверный PIN-код агента' => 'Wrong agent PIN',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

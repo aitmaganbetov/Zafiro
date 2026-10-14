@@ -179,6 +179,10 @@ namespace ZafiroAgent.Services
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            // Токен устройства подтверждает, что тариф покупают на этом самом ПК.
+            var deviceToken = _secure.Unprotect(config.ProtectedDeviceToken);
+            if (!string.IsNullOrEmpty(deviceToken))
+                request.Headers.Add("X-Agent-Token", deviceToken);
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)

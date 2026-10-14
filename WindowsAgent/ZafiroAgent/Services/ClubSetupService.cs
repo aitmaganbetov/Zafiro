@@ -140,6 +140,57 @@ namespace ZafiroAgent.Services
             return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, token, expires));
         }
 
+        /// <summary>
+        /// Привязывает этот ПК к клубу от имени вошедшего пользователя. Сотруднику сервер
+        /// выдаёт токен устройства (он сохраняется защищённым) — по нему агент работает
+        /// дальше, а сам сотрудник выходит. Клиенту токен не выдаётся: AgentToken = null.
+        /// </summary>
+        public async Task<ApiResult<ComputerInfo>> ClaimComputerAsync(ClubSession session, string? deviceId, CancellationToken cancellationToken)
+        {
+            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken).ConfigureAwait(false);
+            if (!result.Success && result.Failure == ApiFailure.ComputerNotFound)
+                result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, null, cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return result;
+
+            var info = result.Value!;
+            SafeLog.Register(info.AgentToken);
+            _config.Update(cfg =>
+            {
+                cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
+                cfg.ComputerNumber = info.Number;
+                cfg.Zone = info.ZoneName ?? string.Empty;
+                cfg.DeviceName = _deviceName;
+                cfg.DeviceId = deviceId ?? string.Empty;
+                if (!string.IsNullOrEmpty(info.AgentToken))
+                    cfg.ProtectedDeviceToken = _secure.Protect(info.AgentToken);
+            });
+
+            return result;
+        }
+
+        /// <summary>
+        /// Выход с отзывом токена на сервере (не дольше timeout): скопированный с ПК токен
+        /// после выхода больше не работает. Локально токен удаляется в любом случае.
+        /// </summary>
+        public async Task SignOutAsync(TimeSpan timeout)
+        {
+            var session = LoadSession();
+            if (session.Success)
+            {
+                using var cts = new CancellationTokenSource(timeout);
+                try
+                {
+                    using var response = await _api.SendAuthorizedAsync(session.Value!, System.Net.Http.HttpMethod.Post, "auth/logout", null, cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    SafeLog.Write("[SignOut] token was not revoked on the server: " + ex.Message);
+                }
+            }
+
+            Logout();
+        }
+
         /// <summary>Выход пользователя: удаляет токен, клуб и ключ установки остаются.</summary>
         public void Logout()
         {

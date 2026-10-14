@@ -141,6 +141,8 @@ namespace ZafiroAgent
             {
                 if (_heartbeatService is { } heartbeat)
                     await heartbeat.StopAsync(ComputerState.ShuttingDown, TimeSpan.FromSeconds(2));
+                // Пользователь выходит: токен отзывается на сервере, а не только стирается на ПК.
+                await _clubSetup.SignOutAsync(TimeSpan.FromSeconds(2));
             }
             catch (Exception ex)
             {
@@ -517,7 +519,7 @@ namespace ZafiroAgent
                     _heartbeatService = null;
                 }
 
-                _clubSetup.Logout();
+                await _clubSetup.SignOutAsync(TimeSpan.FromSeconds(3));
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
 
                 // Клуб и ключ установки сохраняются: нужен только повторный вход пользователя.

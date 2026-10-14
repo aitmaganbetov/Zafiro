@@ -38,7 +38,8 @@ namespace ZafiroAgent
         {
             base.OnStartup(e);
 
-            _singleInstance = new Mutex(true, @"Global\ZafiroAgent", out var isFirst);
+            // Одна копия на сеанс пользователя (Local): чужой сеанс Windows не может помешать запуску.
+            _singleInstance = new Mutex(true, @"Local\ZafiroAgent", out var isFirst);
             if (!isFirst)
             {
                 MessageBox.Show("Zafiro Agent уже запущен на этом компьютере.", "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -54,6 +55,8 @@ namespace ZafiroAgent
             Keyboard.Install();
             KioskPolicy.EnsureAutostart();
             RefreshKiosk();
+            if (!KioskEnabled)
+                KioskPolicy.EnableTaskManager(); // после сбоя агента диспетчер задач не остаётся выключенным
 
             // Без подтверждённого клуба агент не запускается. В режиме киоска окно входа
             // закрыть нельзя: выйти можно только по PIN-коду сотрудника.
@@ -72,10 +75,14 @@ namespace ZafiroAgent
             window.Show();
         }
 
-        /// <summary>Киоск включается, когда ПК настроен сотрудником (получен токен устройства).</summary>
+        /// <summary>
+        /// Киоск включается, когда ПК привязан к клубу (или получил токен устройства). Удаление
+        /// токена устройства из настроек его не выключает — только выход сотрудника по PIN.
+        /// </summary>
         internal void RefreshKiosk()
         {
-            if (KioskEnabled || string.IsNullOrEmpty(_config.Load().ProtectedDeviceToken)) return;
+            var cfg = _config.Load();
+            if (KioskEnabled || (string.IsNullOrEmpty(cfg.ProtectedDeviceToken) && string.IsNullOrEmpty(cfg.ClubId))) return;
             Keyboard.Enabled = true;
             KioskPolicy.DisableTaskManager();
             SafeLog.Write("[Kiosk] enabled");
@@ -125,8 +132,8 @@ namespace ZafiroAgent
 
         private Task<ApiResult<bool>> VerifyPinAsync(string pin)
         {
-            var deviceToken = _secure.Unprotect(_config.Load().ProtectedDeviceToken);
-            return _api.VerifyExitPinAsync(deviceToken, pin, CancellationToken.None);
+            var cfg = _config.Load();
+            return _api.VerifyExitPinAsync(_secure.Unprotect(cfg.ProtectedDeviceToken), pin, CancellationToken.None, _secure.Unprotect(cfg.ProtectedApiToken));
         }
 
         protected override void OnExit(ExitEventArgs e)

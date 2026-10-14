@@ -85,8 +85,16 @@ class AuthController extends Controller
         }
 
         $expiresAt = now()->addDays(30);
+        $deviceName = $request->validated('device_name') ?: 'mobile';
+
+        // A PC agent keeps one token per PC: signing in again revokes the previous ones,
+        // so tokens left on a PC (or copied from it) stop working.
+        if ($agentContract && $request->filled('device_name')) {
+            $user->tokens()->where('name', $deviceName)->delete();
+        }
+
         $token = $user->createToken(
-            $request->validated('device_name') ?: 'mobile',
+            $deviceName,
             ['club:'.$membership->club_id],
             $expiresAt,
         )->plainTextToken;

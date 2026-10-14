@@ -182,8 +182,14 @@ class ClubComputerController extends Controller
     {
         $computer = ClubComputer::query()->withoutGlobalScope('club')->findOrFail($computer);
         Gate::authorize('heartbeat', $computer);
+        $data = $request->validated();
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), $request->validated() === []);
+        // A customer's token may report the agent's state, but not rename the PC or its hardware.
+        if (! Gate::allows('register', ClubComputer::class)) {
+            $data = array_intersect_key($data, array_flip(['state', 'session_id', 'session_ends_at', 'agent_version']));
+        }
+
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), $request->validated() === []);
     }
 
     /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
