@@ -11,5 +11,11 @@ namespace ZafiroAgent.Models
         public string? ComputerId { get; set; }
         public string? Number { get; set; }
         public string? Zone { get; set; }
+
+        // Оплаченная сессия по данным сервера; SessionReported=false — сервер старой версии.
+        public bool SessionReported { get; set; }
+        public string? SessionId { get; set; }
+        public DateTimeOffset? SessionEndsAtUtc { get; set; }
+        public bool SessionExpired { get; set; }
     }
 }

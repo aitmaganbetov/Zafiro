@@ -4,8 +4,6 @@ namespace ZafiroAgent.Configuration
 {
     public class AgentConfig
     {
-        public string ApiUrl { get; set; } = string.Empty;
-        public string ProtectedAgentKey { get; set; } = string.Empty;
         public string ClubId { get; set; } = string.Empty;
         public string ComputerId { get; set; } = string.Empty;
         public string ComputerNumber { get; set; } = string.Empty;
@@ -20,6 +18,9 @@ namespace ZafiroAgent.Configuration
         // Секреты хранятся только в виде DPAPI (SecureStorageService).
         public string ProtectedClubKey { get; set; } = string.Empty;
         public string ProtectedApiToken { get; set; } = string.Empty;
+
+        // Токен устройства (выдаётся сотруднику при регистрации ПК): heartbeat только этого ПК.
+        public string ProtectedDeviceToken { get; set; } = string.Empty;
         public DateTime? TokenExpiresAtUtc { get; set; }
     }
 }

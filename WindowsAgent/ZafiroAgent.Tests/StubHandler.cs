@@ -23,7 +23,8 @@ internal sealed class StubHandler : HttpMessageHandler
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-        lock (Requests) Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, request.Headers.Authorization?.ToString(), body));
+        var agentToken = request.Headers.TryGetValues("X-Agent-Token", out var values) ? values.FirstOrDefault() : null;
+        lock (Requests) Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, request.Headers.Authorization?.ToString(), body, agentToken));
         return _respond(request, body);
     }
 
@@ -31,4 +32,4 @@ internal sealed class StubHandler : HttpMessageHandler
         new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 }
 
-internal sealed record RecordedRequest(HttpMethod Method, Uri Url, string? Authorization, string? Body);
+internal sealed record RecordedRequest(HttpMethod Method, Uri Url, string? Authorization, string? Body, string? AgentToken = null);

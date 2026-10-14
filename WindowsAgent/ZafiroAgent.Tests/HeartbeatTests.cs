@@ -81,11 +81,14 @@ public sealed class HeartbeatTests : IDisposable
     private (HeartbeatService Service, StubHandler Handler, ConfigurationService Config) Create(
         Func<HttpRequestMessage, string?, HttpResponseMessage>? respond = null,
         HeartbeatOptions? options = null,
-        DateTime? tokenExpires = null)
+        DateTime? tokenExpires = null,
+        Action<AgentConfig>? configure = null)
     {
         var config = new ConfigurationService(Path.Combine(_dir, "agent.config.json"));
         var secure = new SecureStorageService();
-        config.Save(SeedConfig(secure, tokenExpires ?? Now.AddDays(10)));
+        var seed = SeedConfig(secure, tokenExpires ?? Now.AddDays(10));
+        configure?.Invoke(seed);
+        config.Save(seed);
 
         var handler = new StubHandler(respond ?? Default);
         var api = new ZafiroApiClient(new HttpClient(handler), () => Now);
@@ -837,5 +840,83 @@ public sealed class HeartbeatTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal(ApiFailure.InvalidResponse, result.Failure);
+    }
+
+    private const string DeviceToken = "zag_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+    private static bool IsDeviceHeartbeat(HttpRequestMessage r) => r.RequestUri!.AbsolutePath.EndsWith("/agent/heartbeat");
+
+    [Fact]
+    public async Task DeviceToken_FromResolve_IsStoredProtected_AndUsedInsteadOfUserToken()
+    {
+        var resolve = ResolveJson.TrimEnd('}') + ",\"agent_token\":\"" + DeviceToken + "\"}";
+        var (service, handler, config) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? resolve : HeartbeatJson()));
+
+        service.Start();
+        await WaitUntil(() => handler.Snapshot().Length >= 2);
+        await Finish(service);
+
+        var beat = handler.Snapshot()[1];
+        Assert.Equal("https://zafiro.kz/api/agent/heartbeat", beat.Url.AbsoluteUri);
+        Assert.Null(beat.Authorization);
+        Assert.Equal(DeviceToken, beat.AgentToken);
+        Assert.Equal(DeviceToken, new SecureStorageService().Unprotect(config.Load().ProtectedDeviceToken));
+        Assert.DoesNotContain(DeviceToken, File.ReadAllText(Path.Combine(_dir, "agent.config.json")));
+    }
+
+    [Fact]
+    public async Task RejectedDeviceToken_IsForgotten_AndHeartbeatFallsBackToUserToken()
+    {
+        var (service, handler, config) = Create(
+            (r, _) => IsResolve(r) ? StubHandler.Json(HttpStatusCode.OK, ResolveJson)
+                : IsDeviceHeartbeat(r) ? StubHandler.Json(HttpStatusCode.Unauthorized, """{"code":"invalid_agent_token"}""")
+                : StubHandler.Json(HttpStatusCode.OK, HeartbeatJson()),
+            configure: cfg => cfg.ProtectedDeviceToken = new SecureStorageService().Protect(DeviceToken));
+
+        service.Start();
+        await WaitUntil(() => handler.Snapshot().Any(x => x.Url.AbsolutePath.EndsWith("/club-computers/45/heartbeat")));
+        await Finish(service);
+
+        Assert.Equal(string.Empty, config.Load().ProtectedDeviceToken);
+        Assert.Equal("Bearer " + Token, handler.Snapshot().Last(x => x.Url.AbsolutePath.EndsWith("/club-computers/45/heartbeat")).Authorization);
+        Assert.Empty(_errors);
+    }
+
+    [Fact]
+    public async Task Heartbeat_ReportsPaidSessionFromServer()
+    {
+        const string json = """{"computer_id":45,"status":"online","recommended_interval_seconds":30,"session":{"id":"paid-1","ends_at":"2026-10-13T13:30:00+00:00","user_id":7},"session_expired":false}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        Assert.True(_beats.TryPeek(out var beat));
+        Assert.True(beat!.SessionReported);
+        Assert.Equal("paid-1", beat.SessionId);
+        Assert.Equal(new DateTimeOffset(2026, 10, 13, 13, 30, 0, TimeSpan.Zero), beat.SessionEndsAtUtc);
+        Assert.False(beat.SessionExpired);
+    }
+
+    [Fact]
+    public async Task Heartbeat_ReportsExpiredSession_AndOldServersReportNothing()
+    {
+        const string expired = """{"computer_id":45,"status":"online","recommended_interval_seconds":30,"session":null,"session_expired":true}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : expired));
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+        Assert.True(_beats.TryDequeue(out var beat));
+        Assert.True(beat!.SessionReported);
+        Assert.Null(beat.SessionId);
+        Assert.True(beat.SessionExpired);
+
+        var (old, _, _) = Create();
+        old.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(old);
+        Assert.True(_beats.TryDequeue(out var oldBeat));
+        Assert.False(oldBeat!.SessionReported);
     }
 }

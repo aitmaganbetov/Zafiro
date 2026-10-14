@@ -17,7 +17,6 @@ namespace ZafiroAgent.Services
     public sealed class HttpApiService : IApiService
     {
         private const string DefaultBaseUrl = "https://zafiro.kz";
-        private static readonly Uri DefaultLoginEndpoint = new($"{DefaultBaseUrl}/api/agent/user/login");
 
         private readonly HttpClient _http;
         private readonly Uri _loginEndpoint;
@@ -26,7 +25,8 @@ namespace ZafiroAgent.Services
 
         public HttpApiService(HttpClient? http = null, string? baseUrl = null, ConfigurationService? config = null, SecureStorageService? secure = null)
         {
-            _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            // Без редиректов: токен и пароль не уходят на другой хост.
+            _http = http ?? ZafiroApiClient.CreateHttpClient();
             var root = string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl : baseUrl.TrimEnd('/');
             _loginEndpoint = new Uri($"{root}/api/agent/user/login");
             _config = config ?? new ConfigurationService();
@@ -72,19 +72,6 @@ namespace ZafiroAgent.Services
             }
         }
 
-        public async Task<bool> CheckServerReachableAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                using var response = await _http.GetAsync(DefaultLoginEndpoint, cancellationToken).ConfigureAwait(false);
-                return response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.OK || response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         public async Task<SessionInfo> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken)
         {
             var token = _secure.Unprotect(_config.Load().ProtectedApiToken);
@@ -102,14 +89,7 @@ namespace ZafiroAgent.Services
                 };
             }
 
-            var endpoint = _config.Load().ApiBaseUrl;
-            if (string.IsNullOrWhiteSpace(endpoint))
-                endpoint = DefaultBaseUrl;
-
-            var baseUrl = endpoint.TrimEnd('/');
-            var uri = new Uri(baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
-                ? $"{baseUrl}/me"
-                : $"{baseUrl}/api/me");
+            var uri = new Uri($"{ApiRoot(_config.Load())}/me");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -140,10 +120,7 @@ namespace ZafiroAgent.Services
             if (string.IsNullOrWhiteSpace(token))
                 throw new UnauthorizedAccessException("Выполните вход, чтобы загрузить тарифы.");
 
-            var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');
-            var tariffsUri = new Uri(endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
-                ? $"{endpoint}/tariffs"
-                : $"{endpoint}/api/tariffs");
+            var tariffsUri = new Uri($"{ApiRoot(config)}/tariffs");
             using var request = new HttpRequestMessage(HttpMethod.Get, tariffsUri);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -161,11 +138,7 @@ namespace ZafiroAgent.Services
 
         public async Task<Product[]> GetProductsAsync(CancellationToken cancellationToken)
         {
-            var configuredBaseUrl = _config.Load().ApiBaseUrl;
-            var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl) ? DefaultBaseUrl : configuredBaseUrl.TrimEnd('/');
-            var productsUri = new Uri(baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
-                ? $"{baseUrl}/products"
-                : $"{baseUrl}/api/products");
+            var productsUri = new Uri($"{ApiRoot(_config.Load())}/products");
 
             using var request = new HttpRequestMessage(HttpMethod.Get, productsUri);
             var token = _secure.Unprotect(_config.Load().ProtectedApiToken);
@@ -199,10 +172,7 @@ namespace ZafiroAgent.Services
             {
                 return new PurchaseResult { Success = false, Message = "Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента." };
             }
-            var endpoint = string.IsNullOrWhiteSpace(config.ApiBaseUrl) ? DefaultBaseUrl : config.ApiBaseUrl.TrimEnd('/');
-            var purchaseUri = new Uri(endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)
-                ? $"{endpoint}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase"
-                : $"{endpoint}/api/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
+            var purchaseUri = new Uri($"{ApiRoot(config)}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
             var payload = JsonSerializer.Serialize(new { computer_id = computerId });
             using var request = new HttpRequestMessage(HttpMethod.Post, purchaseUri)
             {
@@ -218,9 +188,32 @@ namespace ZafiroAgent.Services
                 ?? new PurchaseResult { Success = false, Message = "Сервер вернул неожиданный ответ." };
         }
 
-        public Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken)
+        /// <summary>Досрочно завершает оплаченную сессию на сервере (неиспользованное время не возвращается).</summary>
+        public async Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken)
         {
-            return Task.FromResult(true);
+            var config = _config.Load();
+            var token = _secure.Unprotect(config.ProtectedApiToken);
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(sessionId)) return false;
+            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0) return false;
+
+            var uri = new Uri($"{ApiRoot(config)}/club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/session/end");
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { session_id = sessionId }), Encoding.UTF8, "application/json")
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            return response.IsSuccessStatusCode;
+        }
+
+        /// <summary>Корень API (https://zafiro.kz/api): адрес из настроек используется, только если он проверен.</summary>
+        private static string ApiRoot(AgentConfig config)
+        {
+            var configured = config.ApiBaseUrl?.TrimEnd('/');
+            var root = ZafiroApiClient.TryValidateHttpsEndpoint(configured, out _) ? configured! : DefaultBaseUrl;
+
+            return root.EndsWith("/api", StringComparison.OrdinalIgnoreCase) ? root : root + "/api";
         }
 
         private static AuthResult ParseAuthResponse(string payload)

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Threading;
 using System.Text.RegularExpressions;
@@ -58,8 +59,45 @@ namespace ZafiroAgent.Services
         {
             var safe = Redact(message);
             var sink = TestSink.Value;
-            if (sink is not null) sink(safe);
-            else System.Diagnostics.Debug.WriteLine(safe);
+            if (sink is not null)
+            {
+                sink(safe);
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine(safe);
+            WriteToFile(safe);
+        }
+
+        // %LOCALAPPDATA%\ZafiroAgent\logs\agent-ГГГГММДД.log, хранятся 7 дней. Ошибки записи не мешают работе.
+        private static readonly string LogDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZafiroAgent", "logs");
+        private static readonly object FileGate = new();
+        private static DateTime _cleanedOn;
+
+        private static void WriteToFile(string safe)
+        {
+            try
+            {
+                lock (FileGate)
+                {
+                    Directory.CreateDirectory(LogDirectory);
+                    var now = DateTime.Now;
+                    File.AppendAllText(Path.Combine(LogDirectory, $"agent-{now:yyyyMMdd}.log"), $"{now:HH:mm:ss.fff} {safe}{Environment.NewLine}");
+
+                    if (_cleanedOn != now.Date)
+                    {
+                        _cleanedOn = now.Date;
+                        foreach (var file in Directory.EnumerateFiles(LogDirectory, "agent-*.log"))
+                        {
+                            if (File.GetLastWriteTime(file) < now.AddDays(-7)) File.Delete(file);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Диагностика не должна ломать агент.
+            }
         }
     }
 }

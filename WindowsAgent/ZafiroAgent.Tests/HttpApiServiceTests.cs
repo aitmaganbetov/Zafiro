@@ -229,4 +229,46 @@ public sealed class HttpApiServiceTests
         Assert.Equal(30, result.MinutesAdded);
         Assert.Equal(DateTimeOffset.Parse("2026-10-14T12:40:00+00:00"), result.SessionEndsAt);
     }
+
+    [Fact]
+    public async Task EndSessionAsync_AsksServerToEndThePaidSession()
+    {
+        const string token = "end-token";
+        var handler = new StubHandler((request, body) =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("https://zafiro.kz/api/club-computers/45/session/end", request.RequestUri!.AbsoluteUri);
+            Assert.Equal("Bearer " + token, request.Headers.Authorization?.ToString());
+            using var json = JsonDocument.Parse(body!);
+            Assert.Equal("sess-777", json.RootElement.GetProperty("session_id").GetString());
+            return StubHandler.Json(HttpStatusCode.OK, """{"success":true,"session":null}""");
+        });
+        var path = Path.Combine(Path.GetTempPath(), "zafiro-end-tests-" + Guid.NewGuid().ToString("N"), "agent.config.json");
+        var config = new ConfigurationService(path);
+        var secure = new SecureStorageService();
+        config.Save(new AgentConfig { ComputerId = "45", ProtectedApiToken = secure.Protect(token), ApiBaseUrl = "https://zafiro.kz/api" });
+        var service = new HttpApiService(new HttpClient(handler), config: config, secure: secure);
+
+        Assert.True(await service.EndSessionAsync("sess-777", CancellationToken.None));
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Requests_NeverGoToAHostFromTamperedSettings()
+    {
+        var handler = new StubHandler((request, _) =>
+        {
+            Assert.Equal("zafiro.kz", request.RequestUri!.Host);
+            return StubHandler.Json(HttpStatusCode.OK, """{"data":[]}""");
+        });
+        var path = Path.Combine(Path.GetTempPath(), "zafiro-host-tests-" + Guid.NewGuid().ToString("N"), "agent.config.json");
+        var config = new ConfigurationService(path);
+        var secure = new SecureStorageService();
+        config.Save(new AgentConfig { ProtectedApiToken = secure.Protect("t"), ApiBaseUrl = "https://evil.example.com/api" });
+        var service = new HttpApiService(new HttpClient(handler), config: config, secure: secure);
+
+        await service.GetTariffsAsync(CancellationToken.None);
+
+        Assert.Equal("https://zafiro.kz/api/tariffs", Assert.Single(handler.Requests).Url.AbsoluteUri);
+    }
 }

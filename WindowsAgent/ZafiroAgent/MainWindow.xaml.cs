@@ -1,4 +1,4 @@
-﻿using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Core;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using ZafiroAgent.Models;
 using ZafiroAgent.Security;
 using ZafiroAgent.Services;
@@ -22,18 +23,30 @@ namespace ZafiroAgent
 
     public partial class MainWindow : Window
     {
+        // Интерфейс агента открывается только с этого виртуального адреса (папка Frontend рядом с exe).
+        private const string AppHost = "appassets.local";
+        private const string AppOrigin = "https://" + AppHost + "/";
+
+        // Пока покупка только что прошла, сервер может ещё не прислать сессию в heartbeat.
+        private static readonly TimeSpan SessionSyncGrace = TimeSpan.FromSeconds(20);
+
         private readonly IApiService _apiService = new HttpApiService();
         private readonly ZafiroApiClient _zafiroApi;
         private readonly ConfigurationService _cfgService;
         private readonly ClubSetupService _clubSetup;
-        private AuthenticationService? _authService;
-        private LoginViewModel? _loginViewModel;
-        private SessionViewModel? _sessionViewModel;
+        private readonly SessionViewModel _sessionViewModel = new();
+        private readonly DispatcherTimer _sessionTimer = new() { Interval = TimeSpan.FromSeconds(5) };
         private HeartbeatService? _heartbeatService;
         private System.Windows.Forms.NotifyIcon? _trayIcon;
         private bool _authPromptOpen;
         private bool _closeFlushed;
         private bool _reloginTried;
+        private bool _showingDiagnosticPage;
+
+        // Оплаченная сессия на этом ПК (по данным сервера). Без неё рабочий стол недоступен.
+        private string? _activeSessionId;
+        private DateTimeOffset? _activeSessionEndsAt;
+        private DateTime _sessionAdoptedAtUtc;
 
         [DllImport("shell32.dll")]
         private static extern void SHMinimizeAll();
@@ -46,7 +59,10 @@ namespace ZafiroAgent
             InitializeComponent();
             InitializeTrayIcon();
             Loaded += MainWindow_Loaded;
+#if DEBUG
             KeyDown += MainWindow_KeyDown;
+#endif
+            _sessionTimer.Tick += (_, _) => CheckSessionTime();
         }
 
         private void InitializeTrayIcon()
@@ -117,16 +133,20 @@ namespace ZafiroAgent
             Close();
         }
 
+        // При закрытии выходит только пользователь: клуб, ключ установки и токен ПК сохраняются,
+        // а оплаченная сессия остаётся на сервере до конца своего времени.
         protected override void OnClosed(EventArgs e)
         {
+            _sessionTimer.Stop();
+
             try
             {
-                _sessionViewModel?.EndSession();
-                _clubSetup.ResetClub();
+                _sessionViewModel.EndSession();
+                _clubSetup.Logout();
             }
             catch (Exception ex)
             {
-                SafeLog.Write("[Shutdown] hard logout failed: " + ex.Message);
+                SafeLog.Write("[Shutdown] logout failed: " + ex.Message);
             }
 
             StopHeartbeat();
@@ -143,19 +163,8 @@ namespace ZafiroAgent
         private async void MainWindow_Loaded(object? sender, RoutedEventArgs e)
         {
             // Вход в клуб уже проверен в App до открытия этого окна.
-            _authService = new AuthenticationService(_apiService);
-            _loginViewModel = new LoginViewModel(_authService);
-            _sessionViewModel = new SessionViewModel();
-
-            _loginViewModel.OnAuthenticated += async result =>
-            {
-                Dispatcher.Invoke(() => _sessionViewModel?.StartSession(result));
-                _heartbeatService?.SetState(ComputerState.Idle);
-                await SendSessionDataAsync(result.SessionId ?? string.Empty);
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "authSuccess", userName = result.UserName }));
-            };
-
             StartHeartbeat();
+            _sessionTimer.Start();
 
             await InitializeWebViewAsync();
         }
@@ -189,6 +198,7 @@ namespace ZafiroAgent
                         zone = hb.Zone
                     };
                     SendMessageToWeb(JsonSerializer.Serialize(payload));
+                    Dispatcher.BeginInvoke(() => SyncSessionWithServer(hb));
                 };
                 service.OnError += ex =>
                 {
@@ -205,6 +215,64 @@ namespace ZafiroAgent
             {
                 SafeLog.Write("[Heartbeat] init failed: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Сервер — единственный источник правды о сессии: после перезапуска агент
+        /// восстанавливает оплаченную сессию, а закончившуюся сразу завершает.
+        /// </summary>
+        private void SyncSessionWithServer(HeartbeatResponse hb)
+        {
+            if (hb.SessionExpired && _activeSessionId is not null)
+            {
+                EndSessionLocally("expired");
+                return;
+            }
+
+            if (!hb.SessionReported) return; // сервер старой версии
+
+            if (hb.SessionId is { } serverSessionId)
+            {
+                if (serverSessionId != _activeSessionId || hb.SessionEndsAtUtc != _activeSessionEndsAt)
+                    AdoptSession(serverSessionId, hb.SessionEndsAtUtc);
+            }
+            else if (_activeSessionId is not null && DateTime.UtcNow - _sessionAdoptedAtUtc > SessionSyncGrace)
+            {
+                EndSessionLocally("server");
+            }
+        }
+
+        private void AdoptSession(string sessionId, DateTimeOffset? endsAtUtc)
+        {
+            if (_activeSessionId != sessionId) _sessionAdoptedAtUtc = DateTime.UtcNow;
+            _activeSessionId = sessionId;
+            _activeSessionEndsAt = endsAtUtc;
+            _sessionViewModel.StartGameSession(sessionId, endsAtUtc ?? DateTimeOffset.UtcNow);
+            _heartbeatService?.SetState(ComputerState.InSession, sessionId);
+            _heartbeatService?.SetSessionEnd(endsAtUtc);
+            SendMessageToWeb(JsonSerializer.Serialize(new
+            {
+                type = "sessionSync",
+                sessionId,
+                sessionEndsAt = endsAtUtc?.ToUniversalTime().ToString("O")
+            }));
+        }
+
+        /// <summary>Сессия закончилась: агент снова поверх рабочего стола и ждёт оплаты.</summary>
+        private void EndSessionLocally(string reason)
+        {
+            _activeSessionId = null;
+            _activeSessionEndsAt = null;
+            _sessionViewModel.EndActiveSession();
+            _heartbeatService?.SetState(ComputerState.Idle);
+            SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionEnded", reason }));
+            RestoreFromTray();
+        }
+
+        private void CheckSessionTime()
+        {
+            if (_activeSessionId is not null && _activeSessionEndsAt is { } endsAt && endsAt <= DateTimeOffset.UtcNow)
+                EndSessionLocally("expired");
         }
 
         // 401: вход обновляется один раз; повторный 401 после нового входа цикл не запускает.
@@ -236,70 +304,63 @@ namespace ZafiroAgent
             _heartbeatService = null;
         }
 
+#if DEBUG
         private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             try
             {
                 if (e.Key == System.Windows.Input.Key.F12)
-                {
                     WebView.CoreWebView2?.OpenDevToolsWindow();
-                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("[DevTools] failed to open: " + ex);
             }
         }
+#endif
 
         private async Task InitializeWebViewAsync()
         {
-            await WebView.EnsureCoreWebView2Async();
-            WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-            WebView.CoreWebView2.Settings.AreDevToolsEnabled = true; // выключить в production
-            WebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+            // Данные WebView2 — в профиле пользователя: рядом с exe (Program Files) писать нельзя.
+            var dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZafiroAgent", "WebView2");
+            var environment = await CoreWebView2Environment.CreateAsync(null, dataFolder);
+            await WebView.EnsureCoreWebView2Async(environment);
 
-            var exeDir = AppContext.BaseDirectory;
-            var frontendFolder = Path.Combine(exeDir, "Frontend");
+            var core = WebView.CoreWebView2;
+            core.Settings.AreDefaultContextMenusEnabled = false;
+            core.Settings.IsStatusBarEnabled = false;
+#if DEBUG
+            core.Settings.AreDevToolsEnabled = true;
+#else
+            // Без консоли и горячих клавиш браузера клиент не может слать агенту свои команды.
+            core.Settings.AreDevToolsEnabled = false;
+            core.Settings.AreBrowserAcceleratorKeysEnabled = false;
+#endif
+            core.NavigationStarting += (_, args) =>
+            {
+                if (!IsAppUrl(args.Uri) && !(_showingDiagnosticPage && args.Uri.StartsWith("data:", StringComparison.Ordinal)))
+                    args.Cancel = true;
+            };
+            core.NewWindowRequested += (_, args) => args.Handled = true;
+            core.WebMessageReceived += CoreWebView2_WebMessageReceived;
+
+            var frontendFolder = Path.Combine(AppContext.BaseDirectory, "Frontend");
             var indexPath = Path.Combine(frontendFolder, "index.html");
-
-            // Виртуальный host -> папка решает проблему с file:// origin.
-            var virtualHost = "appassets.local";
-            try
+            if (!File.Exists(indexPath))
             {
-                WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(virtualHost, frontendFolder, CoreWebView2HostResourceAccessKind.Allow);
-                var mappedUrl = $"https://{virtualHost}/index.html";
-                Debug.WriteLine("[WebView] navigating to mapped url: " + mappedUrl + " (folder: " + frontendFolder + ")");
-                WebView.CoreWebView2.Navigate(mappedUrl);
-                WebView.CoreWebView2.NavigationCompleted += (_, __) =>
-                {
-                    try { SendMessageToWeb("{\"type\":\"pong\"}"); } catch { }
-                };
-                return;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("[WebView] virtual host mapping failed: " + ex + ", falling back to file and dev locations");
-            }
-
-            if (File.Exists(indexPath))
-            {
-                WebView.CoreWebView2.Navigate(new Uri(indexPath).AbsoluteUri);
+                _showingDiagnosticPage = true;
+                WebView.NavigateToString("<html><body style=\"background:#0B0D12;color:#F3F4F6;font-family:Segoe UI;padding:30px\">" +
+                    $"<h2>UI не найден</h2><p>Ожидаемый путь:</p><pre style=\"color:#9299AA\">{System.Net.WebUtility.HtmlEncode(indexPath)}</pre></body></html>");
                 return;
             }
 
-            // Dev fallback: файл в корне репозитория
-            var devIndex = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "Frontend", "index.html"));
-            if (File.Exists(devIndex))
-            {
-                WebView.CoreWebView2.Navigate(new Uri(devIndex).AbsoluteUri);
-                return;
-            }
-
-            var diag = $"<html><body style=\"background:#0B0D12;color:#F3F4F6;font-family:Segoe UI;padding:30px\">" +
-                       $"<h2>UI не найден</h2><p>Ожидаемые пути:</p><pre style=\"color:#9299AA\">{System.Net.WebUtility.HtmlEncode(indexPath)}\n{System.Net.WebUtility.HtmlEncode(devIndex)}</pre>" +
-                       "</body></html>";
-            WebView.NavigateToString(diag);
+            core.SetVirtualHostNameToFolderMapping(AppHost, frontendFolder, CoreWebView2HostResourceAccessKind.Allow);
+            core.NavigationCompleted += (_, _) => SendMessageToWeb("{\"type\":\"pong\"}");
+            core.Navigate(AppOrigin + "index.html");
         }
+
+        private static bool IsAppUrl(string? url) =>
+            url is not null && url.StartsWith(AppOrigin, StringComparison.OrdinalIgnoreCase);
 
         private static object SessionPayload(SessionInfo session) => new
         {
@@ -317,10 +378,6 @@ namespace ZafiroAgent
             try
             {
                 var session = await _apiService.GetSessionInfoAsync(sessionId, CancellationToken.None);
-                var sessionEndsAt = session.Remaining is { } remaining && remaining > TimeSpan.Zero
-                    ? DateTimeOffset.UtcNow.Add(remaining)
-                    : (DateTimeOffset?) null;
-                _heartbeatService?.SetSessionEnd(sessionEndsAt);
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", session = SessionPayload(session) }));
             }
             catch (HttpRequestException ex)
@@ -334,6 +391,9 @@ namespace ZafiroAgent
             {
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", error = true, message = "Не удалось загрузить баланс." }));
             }
+
+            // Профиль не знает о сессии ПК: её состояние присылаем отдельно.
+            if (_activeSessionId is not null) AdoptSession(_activeSessionId, _activeSessionEndsAt);
         }
 
         private async Task SendTariffsAsync()
@@ -346,24 +406,6 @@ namespace ZafiroAgent
             catch
             {
                 SendMessageToWeb("{\"type\":\"tariffs\",\"list\":[],\"error\":true,\"message\":\"Не удалось загрузить тарифы. Проверьте подключение.\"}");
-            }
-        }
-
-        // Временный режим без проверки пользователя: сразу создаёт demo-сессию.
-        private async Task StartDemoSessionAsync()
-        {
-            try
-            {
-                var session = await _apiService.GetSessionInfoAsync(Guid.NewGuid().ToString(), CancellationToken.None);
-                _sessionViewModel?.StartSession(new AuthResult { Success = true, SessionId = session.SessionId, UserName = session.UserName, ExpiresAt = DateTime.UtcNow.AddHours(2) });
-                _heartbeatService?.SetState(ComputerState.InSession, session.SessionId);
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", session = SessionPayload(session) }));
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "authSuccess", userName = session.UserName }));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("[Auth bypass] error: " + ex.Message);
-                SendMessageToWeb("{\"type\":\"authFailed\",\"message\":\"internal_error\"}");
             }
         }
 
@@ -387,8 +429,9 @@ namespace ZafiroAgent
                     });
                 }
 
-                _sessionViewModel?.StartSession(result);
-                _heartbeatService?.SetState(ComputerState.Idle);
+                _sessionViewModel.StartSession(result);
+                // Вход не отменяет оплаченную сессию: её состояние определяет сервер.
+                if (_activeSessionId is null) _heartbeatService?.SetState(ComputerState.Idle);
                 if (!string.IsNullOrWhiteSpace(result.Token) || !string.IsNullOrWhiteSpace(result.SessionId))
                 {
                     await SendSessionDataAsync(result.SessionId ?? string.Empty);
@@ -408,18 +451,21 @@ namespace ZafiroAgent
         {
             try
             {
-                var sid = _sessionViewModel?.SessionId ?? string.Empty;
-                var ended = await _apiService.EndSessionAsync(sid, CancellationToken.None);
-                if (!ended)
+                var sessionId = _activeSessionId;
+                if (sessionId is null)
+                {
+                    SendMessageToWeb("{\"type\":\"sessionEnded\",\"reason\":\"none\"}");
+                    return;
+                }
+
+                if (!await _apiService.EndSessionAsync(sessionId, CancellationToken.None))
                 {
                     SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = "Не удалось завершить сессию." }));
                     return;
                 }
 
                 // Пользователь остаётся в системе: токен и клуб не трогаем.
-                _sessionViewModel?.EndActiveSession();
-                _heartbeatService?.SetState(ComputerState.Idle);
-                SendMessageToWeb("{\"type\":\"sessionEnded\"}");
+                EndSessionLocally("ended");
             }
             catch (Exception ex)
             {
@@ -443,7 +489,7 @@ namespace ZafiroAgent
                     _heartbeatService = null;
                 }
 
-                _sessionViewModel?.EndSession();
+                _sessionViewModel.EndSession();
                 _clubSetup.Logout();
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
 
@@ -465,6 +511,13 @@ namespace ZafiroAgent
 
         private async void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // Команды принимаются только от собственного интерфейса агента.
+            if (!IsAppUrl(e.Source))
+            {
+                Debug.WriteLine("[WebMsg] ignored message from " + e.Source);
+                return;
+            }
+
             try
             {
                 string? json = null;
@@ -487,11 +540,7 @@ namespace ZafiroAgent
                 using var doc = JsonDocument.Parse(json);
                 if (!doc.RootElement.TryGetProperty("type", out var t)) return;
                 var type = t.GetString();
-                if (type == "requestAuth")
-                {
-                    await StartDemoSessionAsync();
-                }
-                else if (type == "userLogin")
+                if (type == "userLogin")
                 {
                     var login = doc.RootElement.TryGetProperty("phone", out var phone) ? phone.GetString() ?? string.Empty : string.Empty;
                     var password = doc.RootElement.TryGetProperty("password", out var pass) ? pass.GetString() ?? string.Empty : string.Empty;
@@ -505,7 +554,7 @@ namespace ZafiroAgent
                 }
                 else if (type == "requestSession")
                 {
-                    await SendSessionDataAsync(_sessionViewModel?.SessionId ?? string.Empty);
+                    await SendSessionDataAsync(_sessionViewModel.SessionId);
                 }
                 else if (type == "requestTariffs")
                 {
@@ -532,12 +581,7 @@ namespace ZafiroAgent
                         var res = await _apiService.PurchaseTariffAsync(tariffId, CancellationToken.None);
 
                         if (res.Success && !string.IsNullOrWhiteSpace(res.SessionId))
-                        {
-                            _sessionViewModel?.StartGameSession(res.SessionId, res.SessionEndsAt ?? DateTimeOffset.UtcNow.AddMinutes(1));
-                            _heartbeatService?.SetState(ComputerState.InSession, res.SessionId);
-                            if (res.SessionEndsAt is { } sessionEndsAt)
-                                _heartbeatService?.SetSessionEnd(sessionEndsAt);
-                        }
+                            AdoptSession(res.SessionId, res.SessionEndsAt);
 
                         SendMessageToWeb(JsonSerializer.Serialize(new
                         {
@@ -568,6 +612,13 @@ namespace ZafiroAgent
                 }
                 else if (type == "returnToDesktop")
                 {
+                    // Рабочий стол — только во время оплаченной сессии.
+                    if (_activeSessionId is null)
+                    {
+                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = "Сначала выберите тариф: без активной сессии рабочий стол недоступен." }));
+                        return;
+                    }
+
                     Dispatcher.Invoke(MinimizeToTray);
                     SendMessageToWeb("{\"type\":\"returned\"}");
                 }

@@ -115,7 +115,7 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Запрос относительно api_base_url с Bearer-токеном. 401/402/403 приводят к ZafiroApiException.</summary>
-        public async Task<HttpResponseMessage> SendAuthorizedAsync(ClubSession session, HttpMethod method, string relativePath, HttpContent? content, CancellationToken cancellationToken)
+        public async Task<HttpResponseMessage> SendAuthorizedAsync(ClubSession session, HttpMethod method, string relativePath, HttpContent? content, CancellationToken cancellationToken, string? deviceToken = null)
         {
             var baseUri = WithTrailingSlash(session.ApiBaseUrl);
             if (!TryValidateHttpsEndpoint(baseUri.AbsoluteUri, out _) ||
@@ -128,7 +128,10 @@ namespace ZafiroAgent.Services
             }
 
             using var request = new HttpRequestMessage(method, target) { Content = content };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
+            if (deviceToken is null)
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
+            else
+                request.Headers.Add("X-Agent-Token", deviceToken);
 
             HttpResponseMessage response;
             try
@@ -142,7 +145,8 @@ namespace ZafiroAgent.Services
 
             var failure = response.StatusCode switch
             {
-                HttpStatusCode.Unauthorized => (ApiFailure?)ApiFailure.TokenExpired,
+                HttpStatusCode.Unauthorized when deviceToken is not null => (ApiFailure?)ApiFailure.DeviceTokenInvalid,
+                HttpStatusCode.Unauthorized => ApiFailure.TokenExpired,
                 HttpStatusCode.PaymentRequired => ApiFailure.SubscriptionInactive,
                 HttpStatusCode.Forbidden => ApiFailure.Forbidden,
                 _ => null
@@ -154,6 +158,7 @@ namespace ZafiroAgent.Services
             throw new ZafiroApiException(failure.Value, failure.Value switch
             {
                 ApiFailure.TokenExpired => "Срок действия входа истёк. Выполните вход повторно.",
+                ApiFailure.DeviceTokenInvalid => "Токен устройства недействителен: сотрудник должен заново войти на этом ПК.",
                 ApiFailure.SubscriptionInactive => "Подписка клуба неактивна. Обратитесь к администратору клуба.",
                 _ => "Доступ запрещён: пользователь не состоит в клубе либо club_id не совпадает. Работа с текущей конфигурацией остановлена."
             });
@@ -296,14 +301,18 @@ namespace ZafiroAgent.Services
 
             var number = TryGetText(body, "number", out var n) ? n : computerId.ToString(CultureInfo.InvariantCulture);
             var name = TryGetString(body, "name", out var nm) ? nm : string.Empty;
-            return ApiResult<ComputerInfo>.Ok(new ComputerInfo(computerId, number, name, ReadZoneName(body)));
+            var agentToken = TryGetString(body, "agent_token", out var at) && at.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') ? at : null;
+            return ApiResult<ComputerInfo>.Ok(new ComputerInfo(computerId, number, name, ReadZoneName(body), agentToken));
         }
 
         private static async Task<string?> ReadErrorCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
             await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } body && TryGetString(body, "code", out var code) ? code : null;
 
-        /// <summary>Отправляет статус ПК. 401/402/403 приводят к ZafiroApiException без повторов.</summary>
-        public async Task<HeartbeatResponse> SendHeartbeatAsync(ClubSession session, long computerId, HeartbeatRequest request, CancellationToken cancellationToken)
+        /// <summary>
+        /// Отправляет статус ПК: с токеном устройства — на api/agent/heartbeat (только этот ПК),
+        /// иначе — с токеном пользователя. 401/402/403 приводят к ZafiroApiException без повторов.
+        /// </summary>
+        public async Task<HeartbeatResponse> SendHeartbeatAsync(ClubSession session, long computerId, HeartbeatRequest request, CancellationToken cancellationToken, string? deviceToken = null)
         {
             var hardware = request.Hardware;
             var payload = new Dictionary<string, object?>
@@ -325,8 +334,10 @@ namespace ZafiroAgent.Services
                 payload["session_ends_at"] = sessionEndsAtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 
             using var content = JsonBody(payload);
-            var path = $"club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/heartbeat";
-            using var response = await SendAuthorizedAsync(session, HttpMethod.Post, path, content, cancellationToken).ConfigureAwait(false);
+            var path = deviceToken is null
+                ? $"club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/heartbeat"
+                : "agent/heartbeat";
+            using var response = await SendAuthorizedAsync(session, HttpMethod.Post, path, content, cancellationToken, deviceToken).ConfigureAwait(false);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -389,6 +400,20 @@ namespace ZafiroAgent.Services
             if (TryGetText(root, "computer_id", out var id)) heartbeat.ComputerId = id;
             if (TryGetText(root, "number", out var number)) heartbeat.Number = number;
             heartbeat.Zone = ReadZoneName(root);
+
+            if (root.TryGetProperty("session", out var session))
+            {
+                heartbeat.SessionReported = true;
+                if (session.ValueKind == JsonValueKind.Object && TryGetString(session, "id", out var sessionId))
+                {
+                    heartbeat.SessionId = sessionId;
+                    if (TryGetString(session, "ends_at", out var endsAt) &&
+                        DateTimeOffset.TryParse(endsAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var ends))
+                        heartbeat.SessionEndsAtUtc = ends.ToUniversalTime();
+                }
+            }
+
+            heartbeat.SessionExpired = root.TryGetProperty("session_expired", out var expired) && expired.ValueKind == JsonValueKind.True;
             return heartbeat;
         }
 

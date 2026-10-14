@@ -7,7 +7,6 @@ namespace ZafiroAgent.Services
     public interface IApiService
     {
         Task<AuthResult> AuthenticateAsync(string login, string password, CancellationToken cancellationToken);
-        Task<bool> CheckServerReachableAsync(CancellationToken cancellationToken);
         Task<SessionInfo> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken);
         Task<Product[]> GetProductsAsync(CancellationToken cancellationToken);
         Task<Tariff[]> GetTariffsAsync(CancellationToken cancellationToken);

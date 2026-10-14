@@ -19,6 +19,7 @@ namespace ZafiroAgent.Models
         EndpointNotFound,
         InvalidRequest,
         NotConfigured,
+        DeviceTokenInvalid,
         Unknown
     }
 

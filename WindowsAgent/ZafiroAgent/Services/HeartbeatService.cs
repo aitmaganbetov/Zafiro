@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using ZafiroAgent.Models;
+using ZafiroAgent.Security;
 
 namespace ZafiroAgent.Services
 {
@@ -31,6 +32,8 @@ namespace ZafiroAgent.Services
         private readonly HardwareCollector _hardware;
         private readonly HeartbeatOptions _options;
         private readonly Func<DateTime> _utcNow;
+        private readonly SecureStorageService _secure;
+        private string? _deviceToken;
 
         private readonly SemaphoreSlim _wake = new(0, int.MaxValue);
         private readonly object _stateLock = new();
@@ -60,8 +63,10 @@ namespace ZafiroAgent.Services
             string? agentVersion = null,
             HeartbeatOptions? options = null,
             Func<DateTime>? utcNow = null,
-            HardwareCollector? hardware = null)
+            HardwareCollector? hardware = null,
+            SecureStorageService? secure = null)
         {
+            _secure = secure ?? new SecureStorageService();
             _cfgService = cfgService;
             _clubSetup = clubSetup;
             _api = api;
@@ -181,7 +186,7 @@ namespace ZafiroAgent.Services
             {
                 // Сбор характеристик может обращаться к WMI, поэтому выполняется вне вызывающего потока.
                 var request = await Task.Run(() => BuildRequest(finalState.Value, null, null), cts.Token).ConfigureAwait(false);
-                await _api.SendHeartbeatAsync(session, computerId, request, cts.Token).ConfigureAwait(false);
+                await _api.SendHeartbeatAsync(session, computerId, request, cts.Token, _deviceToken).ConfigureAwait(false);
             }
             catch
             {
@@ -219,6 +224,7 @@ namespace ZafiroAgent.Services
             var session = loaded.Value!;
             _session = session;
             SafeLog.Register(session.Token);
+            LoadDeviceToken();
 
             long computerId = 0;
             var failures = 0;
@@ -240,7 +246,19 @@ namespace ZafiroAgent.Services
                     }
 
                     var request = CurrentRequest();
-                    var heartbeat = await _api.SendHeartbeatAsync(session, computerId, request, cancellationToken).ConfigureAwait(false);
+                    HeartbeatResponse heartbeat;
+                    try
+                    {
+                        heartbeat = await _api.SendHeartbeatAsync(session, computerId, request, cancellationToken, _deviceToken).ConfigureAwait(false);
+                    }
+                    catch (ZafiroApiException ex) when (_deviceToken is not null && ex.Failure is ApiFailure.DeviceTokenInvalid or ApiFailure.EndpointNotFound)
+                    {
+                        // Токен устройства отозван (или сервер старый): дальше — токен пользователя.
+                        if (ex.Failure == ApiFailure.DeviceTokenInvalid)
+                            _cfgService.Update(cfg => cfg.ProtectedDeviceToken = string.Empty);
+                        _deviceToken = null;
+                        continue;
+                    }
                     lock (_stateLock)
                     {
                         if (_state == request.State && _sessionId == request.SessionId)
@@ -296,8 +314,17 @@ namespace ZafiroAgent.Services
             if (!result.Success) throw new ZafiroApiException(result.Failure, result.Message);
 
             var info = result.Value!;
+            if (!string.IsNullOrEmpty(info.AgentToken))
+            {
+                _deviceToken = info.AgentToken;
+                SafeLog.Register(info.AgentToken);
+            }
+
             _cfgService.Update(cfg =>
             {
+                if (!string.IsNullOrEmpty(info.AgentToken))
+                    cfg.ProtectedDeviceToken = _secure.Protect(info.AgentToken);
+
                 cfg.ComputerId = info.ComputerId.ToString(CultureInfo.InvariantCulture);
                 cfg.ComputerNumber = info.Number;
                 cfg.Zone = info.ZoneName ?? string.Empty;
@@ -306,6 +333,13 @@ namespace ZafiroAgent.Services
             });
             OnComputerResolved?.Invoke(info);
             return info.ComputerId;
+        }
+
+        private void LoadDeviceToken()
+        {
+            var token = _secure.Unprotect(_cfgService.Load().ProtectedDeviceToken);
+            _deviceToken = string.IsNullOrEmpty(token) ? null : token;
+            SafeLog.Register(_deviceToken);
         }
 
         private async Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)

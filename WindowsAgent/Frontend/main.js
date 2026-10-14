@@ -303,6 +303,24 @@
     logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9'
   };
   let hasActiveSession = false;
+  let sessionEndsAt = null;
+
+  // Оставшееся время по данным сервера: обновляется на экране, пока сессия идёт.
+  const showSessionTime = () => {
+    if (!sessionEndsAt) return;
+    const remainingMinutes = Math.max(0, Math.ceil((sessionEndsAt - Date.now()) / 60000));
+    document.getElementById('remainingBig').textContent = String(remainingMinutes);
+    document.getElementById('profileRemaining').textContent = `${remainingMinutes} мин`;
+    document.getElementById('sessionExpires').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sessionEndsAt));
+  };
+  setInterval(showSessionTime, 15000);
+
+  const sessionEndMessages = {
+    expired: 'Время сессии закончилось. Выберите тариф, чтобы продолжить.',
+    server: 'Сессия завершена в клубе.',
+    ended: 'Сессия завершена. Вы остались в системе.',
+    none: ''
+  };
 
   const setSessionActive = (active) => {
     hasActiveSession = active;
@@ -312,6 +330,9 @@
   };
 
   const clearSessionDetails = () => {
+    sessionEndsAt = null;
+    document.getElementById('remainingBig').textContent = '—';
+    document.getElementById('sessionExpires').textContent = '—';
     document.getElementById('profileStatus').textContent = 'Нет активной сессии';
     document.getElementById('profileTariff').textContent = '—';
     document.getElementById('profileStartedAt').textContent = '—';
@@ -363,20 +384,27 @@
         document.getElementById('historyBonus').textContent = formattedBonus;
         const sessionEnd = Date.parse(event.data.sessionEndsAt || '');
         if (!Number.isNaN(sessionEnd)) {
-          const remainingMinutes = Math.max(0, Math.ceil((sessionEnd - Date.now()) / 60000));
-          document.getElementById('remainingBig').textContent = String(remainingMinutes);
-          document.getElementById('sessionExpires').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sessionEnd));
-          document.getElementById('profileRemaining').textContent = `${remainingMinutes} мин`;
+          sessionEndsAt = sessionEnd;
+          showSessionTime();
           document.getElementById('profileStatus').textContent = 'Активная сессия';
-          setSessionActive(remainingMinutes > 0);
+          setSessionActive(sessionEnd > Date.now());
         }
       }
+    }
+
+    // Сессия по данным сервера: после покупки, после перезапуска агента, при продлении.
+    if (event.data?.type === 'sessionSync') {
+      const sessionEnd = Date.parse(event.data.sessionEndsAt || '');
+      sessionEndsAt = Number.isNaN(sessionEnd) ? null : sessionEnd;
+      showSessionTime();
+      document.getElementById('profileStatus').textContent = 'Активная сессия';
+      setSessionActive(true);
     }
 
     if (event.data?.type === 'sessionEnded') {
       setSessionActive(false);
       clearSessionDetails();
-      actionStatus.textContent = 'Сессия завершена. Вы остались в системе.';
+      actionStatus.textContent = sessionEndMessages[event.data.reason] ?? sessionEndMessages.ended;
     }
 
     if (event.data?.type === 'loggedOut') {
@@ -421,13 +449,15 @@
     document.getElementById('profileBalance').textContent = formattedBalance;
     document.getElementById('profileBonus').textContent = formattedBonus;
     document.getElementById('profileTariff').textContent = tariff || '—';
-    const sessionActive = Number(remainingMinutes) > 0;
+    // Сессию ПК присылает сервер (sessionSync); профиль её не отменяет.
+    const sessionActive = Number(remainingMinutes) > 0 || (sessionEndsAt !== null && sessionEndsAt > Date.now());
     setSessionActive(sessionActive);
     document.getElementById('profileStatus').textContent = sessionActive ? 'Активная сессия' : 'Нет активной сессии';
     document.getElementById('profileStartedAt').textContent = startedAt && !Number.isNaN(Date.parse(startedAt))
       ? new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(startedAt))
       : '—';
-    document.getElementById('profileRemaining').textContent = Number.isFinite(Number(remainingMinutes))
+    if (sessionEndsAt) showSessionTime();
+    else document.getElementById('profileRemaining').textContent = Number.isFinite(Number(remainingMinutes))
       ? `${Math.max(0, Math.floor(Number(remainingMinutes)))} мин`
       : '—';
     if (userName) updateProfileName(userName);
