@@ -92,7 +92,10 @@ public sealed class SafeLogTests : IDisposable
 
             Assert.True((await setup.SetupAsync(Key, "+77001234567", Password, CancellationToken.None)).Success);
             service.Start();
-            await Task.Delay(400);
+            // Ждём само событие, а не фиксированную паузу: на загруженной CI-машине 400 мс не всегда хватает.
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while ((errors.IsEmpty || _lines.IsEmpty) && DateTime.UtcNow < deadline)
+                await Task.Delay(20);
             await service.StopAsync(null, TimeSpan.FromSeconds(1));
 
             Assert.NotEmpty(errors);
