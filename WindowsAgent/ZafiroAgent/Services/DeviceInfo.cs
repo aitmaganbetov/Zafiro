@@ -7,8 +7,31 @@ namespace ZafiroAgent.Services
     {
         public static string Name => Environment.MachineName;
 
-        // UUID из SMBIOS (Win32_ComputerSystemProduct); null, если получить его нельзя. MAC как идентификатор не используется.
-        public static string? Id => new WindowsHardwareProbe().GetDeviceUuid();
+        // UUID из SMBIOS; если это заглушка производителя (одинаковая на многих ПК) — MAC основного
+        // адаптера с префиксом «MAC-». null — ПК опознать нельзя.
+        public static string? Id
+        {
+            get
+            {
+                var probe = new WindowsHardwareProbe();
+                return DeviceIdentity.Choose(probe.GetDeviceUuid(), Mac(probe));
+            }
+        }
+
+        /// <summary>MAC основного сетевого адаптера (тот же, что агент сообщает серверу в heartbeat).</summary>
+        public static string? MacAddress => Mac(new WindowsHardwareProbe());
+
+        private static string? Mac(WindowsHardwareProbe probe)
+        {
+            try
+            {
+                return NetworkSelector.Select(probe.GetNetworkAdapters()).Mac;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
 
         // UUID не меняется, пока процесс работает: WMI опрашивается один раз.
         private static readonly Lazy<string?> StableIdValue = new(() => Id);

@@ -98,3 +98,26 @@ test('enrollment attempts are rate limited per PC', function () {
     $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'UNKNOWN'])->assertTooManyRequests();
     $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'ANOTHER'])->assertNotFound();
 });
+
+test('a second PC with the same UUID but another MAC gets no token', function () {
+    User::factory()->create();
+    $computer = disklessPc(1, '03000200-0400-0500-0006-000700080009');
+    $computer->forceFill(['mac_address' => 'AA:BB:CC:00:11:22'])->save();
+    $key = disklessClubKey();
+    app(CurrentClub::class)->clear();
+
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => '03000200-0400-0500-0006-000700080009', 'mac_address' => 'AA:BB:CC:99:99:99'])
+        ->assertStatus(409)->assertJsonPath('code', 'device_conflict');
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => '03000200-0400-0500-0006-000700080009', 'mac_address' => 'aa-bb-cc-00-11-22'])
+        ->assertOk();
+});
+
+test('a PC identified by its MAC (placeholder UUID) enrolls like any other', function () {
+    User::factory()->create();
+    $computer = disklessPc(3, 'MAC-AABBCC001122');
+    $key = disklessClubKey();
+    app(CurrentClub::class)->clear();
+
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'MAC-AABBCC001122', 'mac_address' => 'AA:BB:CC:00:11:22'])
+        ->assertOk()->assertJsonPath('computer_id', $computer->id);
+});

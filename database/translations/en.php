@@ -793,6 +793,7 @@ return [
         'устарела' => 'outdated',
         'ПК не зарегистрирован в клубе: сотрудник должен один раз войти на нём в агенте.' => 'The PC is not registered in the club: a staff member must sign in to the agent on it once.',
         'Токен устройства принадлежит другому ПК.' => 'The device token belongs to another PC.',
+        'Этот идентификатор ПК уже занят другим компьютером клуба.' => 'This PC identifier is already taken by another club computer.',
         'PIN-код выхода из агента изменён' => 'Agent exit PIN changed',
         'PIN-код удалён.' => 'PIN removed.',
         'PIN-код сохранён.' => 'PIN saved.',

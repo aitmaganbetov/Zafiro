@@ -27,7 +27,7 @@ namespace ZafiroAgent.Service
         {
             var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Agent path is unknown.");
             _watchdog = new Watchdog(exe);
-            var server = new VaultServer(VaultProtocol.PipeName, new DeviceVaultStore(), ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive);
+            var server = new VaultServer(VaultProtocol.PipeName, new DeviceVaultStore(), ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive, () => DeviceInfo.MacAddress);
             _work = Task.WhenAll(
                 Task.Run(() => server.RunAsync(_stop.Token)),
                 Task.Run(() => server.KeepOnlineAsync(TimeSpan.FromSeconds(60), _stop.Token)),

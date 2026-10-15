@@ -62,11 +62,13 @@ namespace ZafiroAgent.Services
                 cfg.ClubName = login.Value!.ClubName;
                 cfg.ApiBaseUrl = club.ApiBaseUrl.AbsoluteUri;
                 cfg.LoginEndpoint = club.LoginEndpoint.AbsoluteUri;
-                cfg.ProtectedClubKey = _secure.Protect(key);
+                // Если служба приняла ключ, в профиле клиента остаётся только метка: ключ знает служба.
+                var keyInService = DeviceTokens.Vault is { } vault && vault.SetClubKey(key);
+                if (DeviceTokens.Vault is not null && !keyInService)
+                    SafeLog.Write("[Vault] club key was not accepted by the service");
+                cfg.ProtectedClubKey = _secure.Protect(keyInService ? DeviceTokens.VaultMarker : key);
                 ApplyToken(cfg, login.Value);
                 _config.Save(cfg);
-                if (DeviceTokens.Vault is { } vault && !vault.SetClubKey(key))
-                    SafeLog.Write("[Vault] club key was not accepted by the service");
 
                 return ApiResult<ClubSession>.Ok(new ClubSession(club.ClubId, cfg.ClubName, club.ApiBaseUrl, login.Value.Token, login.Value.ExpiresAtUtc));
             }
@@ -91,22 +93,30 @@ namespace ZafiroAgent.Services
                 if (string.IsNullOrEmpty(key))
                     return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Сохранённый ключ установки недоступен. Настройте клуб заново.");
 
+                var keyInService = key == DeviceTokens.VaultMarker;
+                if (keyInService && DeviceTokens.Vault is null)
+                    return ApiResult<ClubSession>.Fail(ApiFailure.ServiceUnavailable, "Ключ установки хранится в службе Zafiro Agent, а она не установлена. Переустановите агент.");
+
                 if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var savedClubId) ||
                     !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase) ||
                     !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.LoginEndpoint, out var loginEndpoint))
                     return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, "Сохранённые настройки клуба повреждены. Настройте клуб заново.");
 
                 // Сначала проверяем, что ключ не отозван и по-прежнему принадлежит тому же клубу.
-                var resolved = await _api.ResolveClubAsync(key, cancellationToken).ConfigureAwait(false);
-                if (!resolved.Success)
+                // Ключ у службы — его проверяет сервер при входе, а клуб — по club_id в ответе.
+                if (!keyInService)
                 {
-                    return resolved.Failure == ApiFailure.InvalidKey
-                        ? ApiResult<ClubSession>.Fail(ApiFailure.KeyRevoked, "Ключ установки недействителен или отозван. Обратитесь к администратору клуба.")
-                        : ApiResult<ClubSession>.Fail(resolved.Failure, resolved.Message);
-                }
+                    var resolved = await _api.ResolveClubAsync(key, cancellationToken).ConfigureAwait(false);
+                    if (!resolved.Success)
+                    {
+                        return resolved.Failure == ApiFailure.InvalidKey
+                            ? ApiResult<ClubSession>.Fail(ApiFailure.KeyRevoked, "Ключ установки недействителен или отозван. Обратитесь к администратору клуба.")
+                            : ApiResult<ClubSession>.Fail(resolved.Failure, resolved.Message);
+                    }
 
-                if (resolved.Value!.ClubId != savedClubId)
-                    return ApiResult<ClubSession>.Fail(ApiFailure.ClubMismatch, "Ключ установки теперь относится к другому клубу. Автоматическое переключение запрещено.");
+                    if (resolved.Value!.ClubId != savedClubId)
+                        return ApiResult<ClubSession>.Fail(ApiFailure.ClubMismatch, "Ключ установки теперь относится к другому клубу. Автоматическое переключение запрещено.");
+                }
 
                 var club = new ClubInfo(savedClubId, cfg.ClubName, apiBase, loginEndpoint);
                 var login = await _api.LoginAsync(club, key, phone, password, _deviceName, cancellationToken).ConfigureAwait(false);

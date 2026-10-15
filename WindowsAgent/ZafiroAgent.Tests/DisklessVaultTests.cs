@@ -1,5 +1,6 @@
 using System.Net;
 using ZafiroAgent.Service;
+using ZafiroAgent.Services;
 
 namespace ZafiroAgent.Tests;
 
@@ -147,5 +148,65 @@ public sealed class DisklessVaultTests : IDisposable
         await new VaultServer(_pipe, store, new HttpClient(server)).KeepOnlineOnceAsync(CancellationToken.None);
 
         Assert.Equal(MasterUuid, sentUuid);
+    }
+    [Theory]
+    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", "AA:BB:CC:00:11:22", "4C4C4544-0042-3510-8051-B4C04F4A3132")]
+    [InlineData("03000200-0400-0500-0006-000700080009", "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
+    [InlineData("11111111-1111-1111-1111-111111111111", "aa-bb-cc-00-11-22", "MAC-AABBCC001122")]
+    [InlineData("00000000-0000-0000-0000-000000000000", "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
+    [InlineData(null, "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
+    [InlineData("03000200-0400-0500-0006-000700080009", null, null)]
+    [InlineData(null, "00:00:00:00:00:00", null)]
+    public void PlaceholderUuid_IsReplacedWithTheMac(string? uuid, string? mac, string? expected)
+    {
+        Assert.Equal(expected, DeviceIdentity.Choose(uuid, mac));
+    }
+
+    [Fact]
+    public async Task CustomerLogin_GetsTheClubKeyFromTheService_NotFromTheProfile()
+    {
+        var store = StoreOn(MasterUuid);
+        store.SaveClubKey(ClubKey);
+        store.Save(Token);
+        var server = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK, """{"token":"user-token","club_id":5}"""));
+        var vault = new VaultServer(_pipe, store, new HttpClient(server));
+
+        var reply = await vault.HandleAsync(new VaultMessage
+        {
+            Op = "relay",
+            Method = "POST",
+            Url = "https://zafiro.kz/api/agent/user/login",
+            Body = """{"phone":"+77001234567","password":"secret","club_key":"vault","club_id":5}"""
+        }, 1, CancellationToken.None);
+
+        Assert.True(reply.Ok);
+        var login = server.Snapshot().Single();
+        Assert.Contains(ClubKey, login.Body);
+        Assert.DoesNotContain("\"vault\"", login.Body);
+        Assert.Null(login.AgentToken); // токен ПК во вход не отправляется
+    }
+
+    [Fact]
+    public async Task CustomerLogin_WithoutAClubKeyInTheService_IsRefused()
+    {
+        var server = new StubHandler((_, _) => throw new InvalidOperationException());
+        var vault = new VaultServer(_pipe, StoreOn(MasterUuid), new HttpClient(server));
+
+        var reply = await vault.HandleAsync(new VaultMessage { Op = "relay", Method = "POST", Url = "https://zafiro.kz/api/agent/user/login", Body = "{}" }, 1, CancellationToken.None);
+
+        Assert.False(reply.Ok);
+        Assert.Equal("no_club_key", reply.Error);
+    }
+
+    [Fact]
+    public async Task Enrollment_SendsTheMac_SoAPcWithTheSameUuidIsTold_Apart()
+    {
+        StoreOn(CloneUuid).SaveClubKey(ClubKey);
+        var server = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.Conflict, """{"code":"device_conflict"}"""));
+        var vault = new VaultServer(_pipe, StoreOn(CloneUuid), new HttpClient(server), macAddress: () => "AA:BB:CC:00:11:22");
+
+        await vault.KeepOnlineOnceAsync(CancellationToken.None);
+
+        Assert.Contains("AA:BB:CC:00:11:22", server.Snapshot().Single().Body);
     }
 }

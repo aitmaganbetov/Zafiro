@@ -96,8 +96,10 @@ namespace ZafiroAgent.Services
                 ["club_id"] = club.ClubId
             };
 
-            var response = await PostJsonAsync(AgentLoginEndpoint, payload, isLogin: true, cancellationToken).ConfigureAwait(false);
-            if (!response.Success && response.Failure == ApiFailure.EndpointNotFound && club.LoginEndpoint != AgentLoginEndpoint)
+            // Ключ клуба у службы: запрос идёт через неё, и ключ подставляет она.
+            var viaService = clubKey == DeviceTokens.VaultMarker;
+            var response = await PostJsonAsync(AgentLoginEndpoint, payload, isLogin: true, cancellationToken, viaService).ConfigureAwait(false);
+            if (!viaService && !response.Success && response.Failure == ApiFailure.EndpointNotFound && club.LoginEndpoint != AgentLoginEndpoint)
                 response = await PostJsonAsync(club.LoginEndpoint, payload, isLogin: true, cancellationToken).ConfigureAwait(false);
             if (!response.Success) return ApiResult<ClubLogin>.Fail(response.Failure, response.Message);
 
@@ -209,12 +211,17 @@ namespace ZafiroAgent.Services
             });
         }
 
-        private async Task<ApiResult<JsonElement>> PostJsonAsync(Uri url, object payload, bool isLogin, CancellationToken cancellationToken)
+        private async Task<ApiResult<JsonElement>> PostJsonAsync(Uri url, object payload, bool isLogin, CancellationToken cancellationToken, bool viaService = false)
         {
             try
             {
-                using var content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
-                using var response = await _http.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+                using var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json")
+                };
+                // Метка вместо токена: DeviceVaultHandler отправит запрос через службу.
+                if (viaService) request.Headers.Add("X-Agent-Token", DeviceTokens.VaultMarker);
+                using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                     return MapError(response.StatusCode, isLogin);

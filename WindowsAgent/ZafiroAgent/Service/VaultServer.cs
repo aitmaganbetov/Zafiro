@@ -35,13 +35,15 @@ namespace ZafiroAgent.Service
         private readonly Action<uint, TimeSpan> _staffExit;
         private readonly Action<uint> _resume;
         private readonly Action<uint, uint> _alive;
+        private readonly Func<string?> _macAddress;
         private readonly SemaphoreSlim _storeGate = new(1, 1);
         private readonly Dictionary<uint, int> _connections = new();
         private string? _rotatedFrom;
         private DateTime _enrollAfterUtc;
 
-        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null)
+        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null, Func<string?>? macAddress = null)
         {
+            _macAddress = macAddress ?? (() => null);
             _alive = alive ?? ((_, _) => { });
             _pipeName = pipeName;
             _store = store;
@@ -357,7 +359,8 @@ namespace ZafiroAgent.Service
             SafeLog.Register(key);
 
             _enrollAfterUtc = DateTime.UtcNow + EnrollRetry;
-            var body = System.Text.Json.JsonSerializer.Serialize(new { club_key = key, device_id = deviceId, device_name = Environment.MachineName });
+            // MAC — чтобы сервер не выдал токен другому ПК с таким же UUID.
+            var body = System.Text.Json.JsonSerializer.Serialize(new { club_key = key, device_id = deviceId, device_name = Environment.MachineName, mac_address = _macAddress() });
             using var request = new HttpRequestMessage(HttpMethod.Post, VaultProtocol.EnrollEndpoint) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -413,15 +416,27 @@ namespace ZafiroAgent.Service
             if (request.Method != "POST" || !VaultProtocol.IsAllowedRelayTarget(request.Url, out var target)) return Fail("not_allowed");
             if (request.Body is { Length: > MaxBodyChars }) return Fail("too_large");
 
-            var token = _store.Load();
-            if (token is null) return Fail(VaultProtocol.NoToken);
-            SafeLog.Register(token);
-
-            using var message = new HttpRequestMessage(HttpMethod.Post, target)
+            HttpRequestMessage message;
+            if (VaultProtocol.IsUserLogin(target))
             {
-                Content = new StringContent(request.Body ?? string.Empty, Encoding.UTF8, "application/json")
-            };
-            Sign(message, token);
+                // Вход клиента: ключ клуба подставляет служба, в профиле клиента его нет.
+                // Токен ПК сюда не нужен и не отправляется.
+                var key = _store.LoadClubKey();
+                if (key is null) return Fail("no_club_key");
+                SafeLog.Register(key);
+                if (WithClubKey(request.Body, key) is not { } loginBody) return Fail("bad_request");
+                message = new HttpRequestMessage(HttpMethod.Post, target) { Content = new StringContent(loginBody, Encoding.UTF8, "application/json") };
+            }
+            else
+            {
+                var token = _store.Load();
+                if (token is null) return Fail(VaultProtocol.NoToken);
+                SafeLog.Register(token);
+                message = new HttpRequestMessage(HttpMethod.Post, target) { Content = new StringContent(request.Body ?? string.Empty, Encoding.UTF8, "application/json") };
+                Sign(message, token);
+            }
+
+            using var disposeMessage = message;
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (request.Authorization is { } authorization)
             {
@@ -470,6 +485,21 @@ namespace ZafiroAgent.Service
             }
 
             return Watchdog.DefaultStaffPause;
+        }
+
+        // Тело входа — объект JSON; club_key в нём заменяется настоящим ключом.
+        private static string? WithClubKey(string? body, string key)
+        {
+            try
+            {
+                if (System.Text.Json.Nodes.JsonNode.Parse(body ?? string.Empty) is not System.Text.Json.Nodes.JsonObject json) return null;
+                json["club_key"] = key;
+                return json.ToJsonString();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;
+            }
         }
 
         private static VaultMessage Fail(string error) => new() { Ok = false, Error = error };

@@ -42,6 +42,42 @@ namespace ZafiroAgent.Services
         IReadOnlyList<NetworkAdapterInfo> GetNetworkAdapters();
     }
 
+    /// <summary>
+    /// Идентификатор ПК для сервера. Обычно — UUID из SMBIOS. У дешёвых плат UUID бывает
+    /// заглушкой, одинаковой на всех ПК клуба: тогда идентификатором служит MAC основного адаптера
+    /// (в бездисковой системе ПК и так различаются по MAC).
+    /// </summary>
+    public static class DeviceIdentity
+    {
+        // Заглушки производителей, которые встречаются на многих платах сразу.
+        private static readonly HashSet<string> PlaceholderUuids = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "03000200-0400-0500-0006-000700080009",
+            "00020003-0004-0005-0006-000700080009",
+            "12345678-1234-5678-90AB-CDDEEFAABBCC",
+            "01234567-89AB-CDEF-0123-456789ABCDEF",
+        };
+
+        public static bool IsUsableUuid(string? uuid)
+        {
+            if (string.IsNullOrWhiteSpace(uuid)) return false;
+            var trimmed = uuid.Trim();
+            if (PlaceholderUuids.Contains(trimmed)) return false;
+
+            // 00000000-…, FFFFFFFF-…, 11111111-… и подобные: одна-две разные цифры на весь UUID.
+            var digits = trimmed.Replace("-", string.Empty).ToUpperInvariant();
+            return digits.Length >= 16 && digits.Distinct().Count() > 2;
+        }
+
+        public static string? Choose(string? uuid, string? mac)
+        {
+            if (IsUsableUuid(uuid)) return uuid!.Trim();
+
+            var hex = new string((mac ?? string.Empty).Where(Uri.IsHexDigit).ToArray()).ToUpperInvariant();
+            return hex.Length == 12 && hex.Distinct().Count() > 1 ? "MAC-" + hex : null;
+        }
+    }
+
     public static class NetworkSelector
     {
         private static readonly string[] VirtualMarkers =
