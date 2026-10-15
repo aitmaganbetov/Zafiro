@@ -69,6 +69,9 @@ class ActivityLog extends Model
         'agent.staff_exit' => 'Выход из агента по PIN-коду',
         'agent.staff_signin' => 'Вход сотрудника на ПК',
         'agent.exit_pin_failed' => 'Неверный PIN-код агента',
+        'reservation.created' => 'Бронирование ПК',
+        'reservation.cancelled' => 'Отмена брони ПК',
+        'reservation.arrived' => 'Клиент пришёл по брони',
     ];
 
     protected function casts(): array

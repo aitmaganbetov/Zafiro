@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubLogoController;
 use App\Http\Controllers\ClubZoneController;
+use App\Http\Controllers\ComputerReservationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LanguageController;
@@ -171,6 +172,14 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/cash-register/shifts/{cashShift}/close', [CashRegisterController::class, 'close'])->name('cash-register.shifts.close');
         Route::get('/cash-register/shifts/{cashShift}/z-report', [CashRegisterController::class, 'zReport'])->name('cash-register.z-report');
         Route::post('/cash-register/shifts/{cashShift}/z-report/printed', [CashRegisterController::class, 'markZReportPrinted'])->name('cash-register.z-report.printed');
+    });
+
+    // PC bookings: everyone who works at the front desk.
+    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
+        Route::get('/reservations', [ComputerReservationController::class, 'index'])->name('reservations.index');
+        Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
+        Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');
+        Route::post('/reservations/{reservation}/arrive', [ComputerReservationController::class, 'arrive'])->name('reservations.arrive');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,operator'])->group(function () {

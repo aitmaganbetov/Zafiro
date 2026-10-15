@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreComputerReservationRequest;
+use App\Models\ClubComputer;
+use App\Models\ComputerReservation;
+use App\Models\User;
+use App\Services\ComputerReservations;
+use App\Services\CurrentClub;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ComputerReservationController extends Controller
+{
+    public function __construct(private ComputerReservations $reservations, private CurrentClub $currentClub) {}
+
+    /** Bookings of one day (the club's local day), by start time. */
+    public function index(Request $request): View
+    {
+        $timezone = $this->currentClub->timezone();
+        $date = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']])['date'] ?? null;
+        $day = $date === null ? Carbon::now($timezone)->startOfDay() : Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay();
+
+        $reservations = ComputerReservation::query()
+            ->with(['computer:id,number,display_name,device_name,club_zone_id', 'computer.zone:id,name', 'user:id,name,phone'])
+            ->where('starts_at', '>=', $day->copy()->setTimezone(config('app.timezone')))
+            ->where('starts_at', '<', $day->copy()->addDay()->setTimezone(config('app.timezone')))
+            ->orderBy('starts_at')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('reservations.index', [
+            'reservations' => $reservations,
+            'day' => $day,
+            'computers' => ClubComputer::query()->with('zone:id,name')->orderBy('club_zone_id')->orderBy('number')
+                ->get(['id', 'number', 'display_name', 'device_name', 'club_zone_id']),
+            'gapMinutes' => $this->reservations->gapMinutes(),
+            'defaultStart' => Carbon::now($timezone)->addHour()->startOfHour(),
+        ]);
+    }
+
+    public function store(StoreComputerReservationRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['starts_at'], $this->currentClub->timezone());
+        if ($startsAt->lt(now()->subMinutes(5))) {
+            throw ValidationException::withMessages(['starts_at' => __('Нельзя забронировать ПК на прошедшее время.')]);
+        }
+
+        // A club customer with this phone may buy time on the PC during the booking.
+        $customer = $data['customer_phone'] === null ? null : User::query()
+            ->where('phone', $data['customer_phone'])
+            ->whereHas('memberships', fn ($query) => $query->where('club_id', $this->currentClub->id()))
+            ->first(['id', 'name']);
+
+        $reservation = $this->reservations->create([
+            'club_computer_id' => (int) $data['club_computer_id'],
+            'user_id' => $customer?->getKey(),
+            'customer_name' => $data['customer_name'] ?? $customer?->name,
+            'customer_phone' => $data['customer_phone'],
+            'note' => $data['note'] ?? null,
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addMinutes((int) $data['duration_minutes']),
+        ], $request->user());
+
+        return redirect()->route('reservations.index', ['date' => $reservation->starts_at->format('Y-m-d')])
+            ->with('status', $customer === null
+                ? __('ПК забронирован.')
+                : __('ПК забронирован для клиента :name: в это время он сможет купить тариф на этом ПК.', ['name' => $customer->name]));
+    }
+
+    public function cancel(Request $request, ComputerReservation $reservation): RedirectResponse
+    {
+        $this->reservations->cancel($reservation, $request->user());
+
+        return back()->with('status', __('Бронь отменена.'));
+    }
+
+    public function arrive(Request $request, ComputerReservation $reservation): RedirectResponse
+    {
+        $this->reservations->arrive($reservation, $request->user());
+
+        return back()->with('status', __('Отмечено: клиент пришёл. ПК свободен для его сессии.'));
+    }
+}

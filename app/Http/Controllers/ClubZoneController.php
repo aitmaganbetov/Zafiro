@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
+use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\ClubZoneLayoutService;
+use App\Services\ComputerReservations;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -24,10 +26,14 @@ class ClubZoneController extends Controller
         private ActivityLogger $activity,
     ) {}
 
-    public function index(): View
+    public function index(ComputerReservations $reservations): View
     {
+        $zones = ClubZone::query()->with(['computers.staffUser:id,name', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get();
+        $booked = $reservations->heldComputerIds();
+        $zones->each(fn (ClubZone $zone) => $zone->computers->each(fn (ClubComputer $computer) => $computer->bookedNow = in_array($computer->id, $booked, true)));
+
         return view('club-map.index', [
-            'zones' => ClubZone::query()->with(['computers.staffUser:id,name', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get(),
+            'zones' => $zones,
             'tariffs' => Tariff::query()->orderBy('name')->get(),
         ]);
     }

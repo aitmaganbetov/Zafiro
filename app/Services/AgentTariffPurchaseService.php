@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class AgentTariffPurchaseService
 {
-    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub) {}
+    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations) {}
 
     /** @return Collection<int, array<string, mixed>> */
     public function availableFor(User $user): Collection
@@ -95,6 +95,13 @@ class AgentTariffPurchaseService
             $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
             $sessionEndsAt = ($hasActiveSession ? $computer->session_ends_at->copy() : $now->copy())
                 ->addMinutes($minutes);
+
+            // Time that runs into someone else's booking is not sold; the booked customer may play.
+            $booking = $this->reservations->blocking($computer, $user->getKey(), $sessionEndsAt);
+            if ($booking !== null) {
+                throw ValidationException::withMessages(['computer_id' => __('ПК забронирован с :time. Выберите тариф короче или другой ПК.', ['time' => $booking->starts_at->format('H:i')])]);
+            }
+            $this->reservations->markArrivedBy($computer, $user->getKey(), $sessionEndsAt);
 
             $balance->update([
                 'balance' => self::formatCents($mainBalance),

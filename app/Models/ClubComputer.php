@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'current_session_user_id', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
 #[Hidden(['agent_token_hash'])]
@@ -20,6 +21,9 @@ class ClubComputer extends Model
     public const AGENT_STATES = ['idle', 'in_session', 'locked', 'shutting_down'];
 
     protected $attributes = ['status' => 'available', 'is_reserved' => false, 'position_x' => 5, 'position_y' => 5];
+
+    /** Held by a booking now (set by pages that show the status, see ComputerReservations::heldComputerIds()). */
+    public bool $bookedNow = false;
 
     protected function casts(): array
     {
@@ -53,7 +57,7 @@ class ClubComputer extends Model
 
     public function currentStatus(): string
     {
-        if ($this->is_reserved) {
+        if ($this->is_reserved || $this->bookedNow) {
             return 'reserved';
         }
 
@@ -89,6 +93,11 @@ class ClubComputer extends Model
     public function displayName(): string
     {
         return $this->display_name ?: $this->device_name ?: sprintf('PC-%02d', $this->number);
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(ComputerReservation::class);
     }
 
     public function zone(): BelongsTo
