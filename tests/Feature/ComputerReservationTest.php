@@ -238,3 +238,20 @@ test('the club map shows a PC as reserved during its booking', function () {
     Carbon::setTestNow(Carbon::parse('2026-10-15 06:45:00', 'UTC'));
     $this->get(route('club-map.index'))->assertOk()->assertSee('cm-computer reserved', false);
 });
+
+test('the club map shows every booked PC, also after a PC without a booking', function () {
+    Carbon::setTestNow(Carbon::parse('2026-10-15 06:00:00', 'UTC'));
+    setBookingInterval(30);
+    $this->actingAs(User::factory()->create());
+    $first = reservationComputer(1);
+    $second = reservationComputer(2);
+    $this->post(route('reservations.store'), reservationForm($first, '2026-10-15T06:15'))->assertSessionHasNoErrors();
+    $this->post(route('reservations.store'), reservationForm($second, '2026-10-15T06:15'))->assertSessionHasNoErrors();
+
+    // The customer came to the first PC: only the second one stays reserved.
+    $this->post(route('reservations.arrive', ComputerReservation::query()->where('club_computer_id', $first->id)->sole()))->assertSessionHasNoErrors();
+
+    $this->get(route('club-map.index'))->assertOk()
+        ->assertSee('class="cm-computer offline" data-id="'.$first->id.'"', false)
+        ->assertSee('class="cm-computer reserved" data-id="'.$second->id.'"', false);
+});
