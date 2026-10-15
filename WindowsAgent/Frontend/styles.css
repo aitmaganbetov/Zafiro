@@ -112,6 +112,9 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .shop-product-details{padding:14px}
 .shop-product-details h3{margin:0;font-size:0.9375rem;line-height:1.4}
 .shop-product-details p{min-height:34px;margin:6px 0 16px;color:var(--muted);font-size:0.8125rem;line-height:1.45}
+.shop-product-details p.shop-stock{min-height:0;margin:-10px 0 14px;color:#86d7c3;font-weight:600}
+.shop-product-details p.shop-stock.empty{color:var(--danger)}
+.shop-buy:disabled{opacity:0.45;cursor:default}
 .shop-product-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
 .shop-product-footer strong,.shop-buy{white-space:nowrap}
 .shop-product-footer strong{font-size:1.0625rem;font-variant-numeric:tabular-nums}

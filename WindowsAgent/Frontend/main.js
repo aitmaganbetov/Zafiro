@@ -193,6 +193,11 @@
       const description = document.createElement('p');
       description.textContent = product.description ?? t('Товар');
 
+      // Остаток на складе клуба: больше, чем есть, в корзину не добавить.
+      const stock = document.createElement('p');
+      stock.className = `shop-stock${product.quantity > 0 ? '' : ' empty'}`;
+      stock.textContent = product.quantity > 0 ? t('В наличии: :count шт.', { count: product.quantity }) : t('Нет в наличии');
+
       const footer = document.createElement('div');
       footer.className = 'shop-product-footer';
 
@@ -206,8 +211,9 @@
         () => changeQuantity(product.id, 1),
         t('Добавить :product в корзину', { product: productName(product) })
       );
+      addButton.disabled = quantity >= product.quantity;
       footer.append(price, addButton);
-      details.append(name, description, footer);
+      details.append(name, description, stock, footer);
       cover.append(image);
       card.append(cover, details);
       shopCatalog.append(card);
@@ -265,7 +271,8 @@
   };
 
   function changeQuantity(productId, change) {
-    const nextQuantity = (cart.get(productId) || 0) + change;
+    const product = products.find((item) => item.id === productId);
+    const nextQuantity = Math.min((cart.get(productId) || 0) + change, product ? product.quantity : Infinity);
     if (nextQuantity > 0) cart.set(productId, nextQuantity);
     else cart.delete(productId);
     renderCart();
@@ -1068,6 +1075,9 @@
       };
       updateSeatButton();
       renderFriends();
+      // Пока ПК не определился в клубе (сразу после запуска), поминутная цена не загружается:
+      // с первым heartbeat ПК уже известен — пробуем снова, не дожидаясь перехода в «Тарифы».
+      if (minuteOffer === null) requestMinutes();
       // С каждым heartbeat (~30 с): новые заявки в друзья видны без перезахода.
       requestFriends();
     }

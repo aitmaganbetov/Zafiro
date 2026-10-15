@@ -53,9 +53,15 @@
                 </Rectangle>
 
                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="34,30,24,24">
-                    <TextBlock Text="ZAFIRO" FontSize="17" FontWeight="ExtraBold" Foreground="#FFFFFF"/>
-                    <TextBlock x:Name="ComputerText" FontSize="13" FontWeight="SemiBold" Foreground="#E7E3F0" Margin="0,22,0,0"/>
-                    <TextBlock x:Name="ZoneText" FontSize="13" Margin="0,4,0,0" Foreground="#C2BDCF"/>
+                    <TextBlock Text="ZAFIRO" FontSize="20" FontWeight="ExtraBold" Foreground="#FFFFFF"/>
+                    <!-- Номер ПК и зона на полупрозрачной плашке: читаются поверх любой картинки. -->
+                    <Border Margin="0,20,0,0" Padding="20,14,26,16" CornerRadius="14" Background="#73100E1A"
+                            BorderBrush="#33FFFFFF" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock x:Name="ComputerText" FontSize="28" FontWeight="Bold" Foreground="#FFFFFF"/>
+                            <TextBlock x:Name="ZoneText" FontSize="17" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="#C9BEF5"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
             </Grid>

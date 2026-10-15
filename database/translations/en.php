@@ -1422,5 +1422,7 @@ return [
         'Раньше →' => 'Older →',
         '← Новее' => '← Newer',
         'Язык ввода: :language. Нажмите, чтобы сменить (или Alt+Shift).' => 'Input language: :language. Click to switch (or Alt+Shift).',
+        'В наличии: :count шт.' => 'In stock: :count',
+        'Нет в наличии' => 'Out of stock',
     ],
 ];
