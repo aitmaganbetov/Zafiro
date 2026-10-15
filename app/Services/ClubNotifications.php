@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\ChatMessage;
 use App\Models\ClubComputer;
 use App\Models\ClubInvitation;
 use App\Models\ClubMembership;
@@ -51,6 +52,9 @@ class ClubNotifications
                 ->merge($this->agentUpdate());
         }
 
+        // Unread customer messages: to everybody who works with the chat.
+        $items = $items->merge($this->chat());
+
         if (in_array($role, [...self::MANAGERS, 'cashier'], true)) {
             $items = $items->merge($this->lowStock());
         }
@@ -89,6 +93,25 @@ class ClubNotifications
                 'at' => $log->created_at,
             ])
             ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function chat(): array
+    {
+        $unread = ChatMessage::query()->where('from_staff', false)->whereNull('read_at');
+        $latest = (clone $unread)->latest('id')->first(['id', 'body', 'created_at']);
+        if ($latest === null) {
+            return [];
+        }
+
+        return [[
+            'id' => 'chat-'.$latest->id,
+            'icon' => 'fa-comments',
+            'title' => __('Новые сообщения в чате: :count', ['count' => $unread->count()]),
+            'body' => mb_strimwidth($latest->body, 0, 120, '…'),
+            'url' => route('chat.index'),
+            'at' => $latest->created_at,
+        ]];
     }
 
     /** @return list<array<string, mixed>> */

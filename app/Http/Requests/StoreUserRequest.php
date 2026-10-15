@@ -39,7 +39,6 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'regex:/^\+7\d{10}$/', Rule::unique((new User)->getTable(), 'phone')],
             'email' => ['nullable', 'email', 'max:255', Rule::unique((new User)->getTable(), 'email')],
-            'role' => ['required', Rule::in(['admin', 'cashier', 'manager', 'operator'])],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'discount' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'balance' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],

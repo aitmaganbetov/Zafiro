@@ -39,6 +39,7 @@ public sealed class DeviceVaultTests : IDisposable
     [InlineData("https://zafiro.kz/api/agent/qr-login/poll", true)]
     [InlineData("https://zafiro.kz/api/guest/seat-transfer", true)]
     [InlineData("https://zafiro.kz/api/guest/minutes/purchase", true)]
+    [InlineData("https://zafiro.kz/api/guest/chat", true)]
     [InlineData("https://zafiro.kz/api/guest/friends", false)]
     [InlineData("https://ZAFIRO.KZ/api/agent/heartbeat", true)]
     [InlineData("http://zafiro.kz/api/agent/heartbeat", false)]

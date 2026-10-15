@@ -23,6 +23,8 @@ class SaveSettingsRequest extends FormRequest
             'pc_restart_after_session_end' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
             'session_auto_terminate_when_pc_unavailable' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
             'booking_interval' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
+            'max_cashiers_on_shift' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'max_operators_on_shift' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'currency' => ['required_if:section,finances', Rule::in(['KZT', 'RUB', '$'])],
             'show_qr_code_on_login' => ['nullable', 'boolean'],
             'allow_guest_self_transfer' => ['nullable', 'boolean'],

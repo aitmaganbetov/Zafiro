@@ -236,6 +236,13 @@
         "← Новее": "← Newer",
         "Язык ввода: :language. Нажмите, чтобы сменить (или Alt+Shift).": "Input language: :language. Click to switch (or Alt+Shift).",
         "В наличии: :count шт.": "In stock: :count",
-        "Нет в наличии": "Out of stock"
+        "Нет в наличии": "Out of stock",
+        "Клуб": "Club",
+        "Напишите кассиру или оператору клуба: ответ придёт сюда.": "Write to the club cashier or operator: the answer comes here.",
+        "Не удалось отправить сообщение.": "Could not send the message.",
+        "Отправить": "Send",
+        "СВЯЗЬ С КЛУБОМ": "CONTACT THE CLUB",
+        "Сообщение": "Message",
+        "Чат с клубом": "Chat with the club"
     }
 }

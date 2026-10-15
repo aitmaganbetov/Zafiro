@@ -49,6 +49,7 @@
   const tariffPage = document.getElementById('tariffPage');
   const profilePage = document.getElementById('profilePage');
   const friendsPage = document.getElementById('friendsPage');
+  const chatPage = document.getElementById('chatPage');
   const tariffCatalog = document.getElementById('tariffCatalog');
   const tariffPageStatus = document.getElementById('tariffPageStatus');
   const pageToggle = document.getElementById('pageToggle');
@@ -58,6 +59,7 @@
   const tariffNavigation = document.getElementById('tariffNavigation');
   const profileNavigation = document.getElementById('profileNavigation');
   const friendsNavigation = document.getElementById('friendsNavigation');
+  const chatNavigation = document.getElementById('chatNavigation');
   const cartDialog = document.getElementById('cartDialog');
   const actionStatus = document.getElementById('actionStatus');
   const shopCount = document.getElementById('shopCount');
@@ -112,7 +114,10 @@
     const showTariffs = view === 'tariffs';
     const showProfile = view === 'profile';
     const showFriends = view === 'friends';
-    sessionPage.hidden = showShop || showHistory || showTariffs || showProfile || showFriends;
+    const showChat = view === 'chat';
+    sessionPage.hidden = showShop || showHistory || showTariffs || showProfile || showFriends || showChat;
+    chatPage.hidden = !showChat;
+    chatNavigation.setAttribute('aria-current', showChat ? 'page' : 'false');
     friendsPage.hidden = !showFriends;
     friendsNavigation.setAttribute('aria-current', showFriends ? 'page' : 'false');
     shopPage.hidden = !showShop;
@@ -862,6 +867,62 @@
   const requestNews = () => webview?.postMessage({ type: 'requestNews' });
   setInterval(requestNews, 10 * 60 * 1000);
 
+  // Чат с клубом: сообщения клиента приходят кассиру и оператору в панель. Пока страница чата
+  // открыта — проверка каждые 5 с, иначе каждые 30 с (значок новых ответов на пункте меню).
+  const chatThread = document.getElementById('chatThread');
+  const chatStatus = document.getElementById('chatStatus');
+  const chatInput = document.getElementById('chatInput');
+  const chatBadge = document.getElementById('chatBadge');
+  let chatAfter = 0;
+  let chatUnread = 0;
+  let chatLoading = false;
+
+  const showChatBadge = () => {
+    chatBadge.hidden = chatUnread === 0;
+    chatBadge.textContent = chatUnread > 9 ? '9+' : String(chatUnread);
+  };
+  const appendChat = (message) => {
+    if (!message || message.id <= chatAfter) return;
+    chatAfter = message.id;
+    const item = document.createElement('li');
+    item.className = `chat-message ${message.from_staff ? 'staff' : 'mine'}`;
+    const text = document.createElement('p');
+    text.textContent = message.body ?? '';
+    const meta = document.createElement('small');
+    meta.textContent = [message.at, message.from_staff ? (message.author ?? t('Клуб')) : null].filter(Boolean).join(' · ');
+    item.append(text, meta);
+    chatThread.append(item);
+    chatThread.scrollTop = chatThread.scrollHeight;
+    if (message.from_staff && currentView !== 'chat') {
+      chatUnread += 1;
+      showChatBadge();
+    }
+  };
+  const requestChat = () => {
+    if (!webview || chatLoading) return;
+    chatLoading = true;
+    webview.postMessage({ type: 'requestChat', after: chatAfter });
+  };
+  let chatTicks = 0;
+  setInterval(() => {
+    chatTicks += 1;
+    if (currentView === 'chat' || chatTicks % 6 === 0) requestChat();
+  }, 5000);
+
+  document.getElementById('chatForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const body = chatInput.value.trim();
+    if (!body || !webview) return;
+    setStatus(chatStatus, 'Отправляем…');
+    webview.postMessage({ type: 'sendChat', body });
+  });
+  chatInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      document.getElementById('chatForm').requestSubmit();
+    }
+  });
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -911,6 +972,13 @@
     requestMinutes();
   });
   profileNavigation.addEventListener('click', () => setView('profile'));
+  chatNavigation.addEventListener('click', () => {
+    setView('chat');
+    chatUnread = 0;
+    showChatBadge();
+    requestChat();
+    chatInput.focus();
+  });
   friendsNavigation.addEventListener('click', () => {
     setView('friends');
     requestFriends();
@@ -997,6 +1065,28 @@
       productsFailed = Boolean(event.data.error);
       renderCategories();
       renderCart();
+    }
+
+    if (event.data?.type === 'chat') {
+      chatLoading = false;
+      if (event.data.ok && Array.isArray(event.data.data?.messages)) {
+        // Первая загрузка — история без значка: новыми считаются ответы после неё.
+        const first = chatAfter === 0;
+        const before = chatUnread;
+        event.data.data.messages.forEach(appendChat);
+        if (first) {
+          chatUnread = before;
+          showChatBadge();
+        }
+      }
+    }
+
+    if (event.data?.type === 'chatSent') {
+      if (event.data.ok) {
+        chatInput.value = '';
+        setStatus(chatStatus, null);
+        appendChat(event.data.data?.message);
+      } else setServerStatus(chatStatus, event.data.message ?? t('Не удалось отправить сообщение.'));
     }
 
     if (event.data?.type === 'news') {
@@ -1146,6 +1236,10 @@
       historyBefore = null;
       renderHistory();
       closeDialog(newsDialog);
+      chatThread.replaceChildren();
+      chatAfter = 0;
+      chatUnread = 0;
+      showChatBadge();
       closeDialog(transferDialog);
       closeDialog(seatDialog);
       setSessionActive(false);
@@ -1225,6 +1319,7 @@
   webview?.postMessage({ type: 'requestTariffs' });
   requestMinutes();
   requestNews();
+  requestChat();
   webview?.postMessage({ type: 'requestSession' });
   webview?.postMessage({ type: 'requestGuestFeatures' });
   renderCart();

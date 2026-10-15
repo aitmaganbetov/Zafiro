@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use App\Services\PlatformLogger;
+use App\Services\StaffShifts;
+use App\Support\ClubRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +30,7 @@ class AuthController extends Controller
     /**
      * Handle login
      */
-    public function login(Request $request, ActivityLogger $activity, CurrentClub $currentClub, PlatformLogger $platformLog)
+    public function login(Request $request, ActivityLogger $activity, CurrentClub $currentClub, PlatformLogger $platformLog, StaffShifts $staffShifts)
     {
         $this->normalizePhone($request);
         $credentials = $request->validate([
@@ -51,7 +53,10 @@ class AuthController extends Controller
                 return back()->withErrors(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')])->onlyInput('phone');
             }
 
-            $membership = $user->memberships()->withoutGlobalScope('club')->with('club')->first();
+            // A staff membership first: a cashier who is also a customer of another club works.
+            $staffRoles = "'".implode("','", ClubRoles::STAFF)."'";
+            $membership = $user->memberships()->withoutGlobalScope('club')->with('club')
+                ->orderByRaw("CASE WHEN role IN ({$staffRoles}) THEN 0 ELSE 1 END")->orderBy('id')->first();
 
             // A superadmin without a club of their own works from the platform cabinet.
             if ($membership === null && $user->isSuperadmin()) {
@@ -67,7 +72,28 @@ class AuthController extends Controller
                 return back()->withErrors(['phone' => __('У аккаунта нет доступа ни к одному клубу.')])->onlyInput('phone');
             }
 
+            // Customers sign in on the site only to confirm a sign-in on a PC (QR code).
+            if (! ClubRoles::isStaff($membership->role)) {
+                $intended = (string) $request->session()->get('url.intended', '');
+                if (! str_starts_with(parse_url($intended, PHP_URL_PATH) ?? '', '/pc-login/')) {
+                    Auth::logout();
+                    $request->session()->regenerateToken();
+
+                    return back()->withErrors(['phone' => __('Панель клуба — только для сотрудников. Клиенты входят на ПК клуба в агенте.')])->onlyInput('phone');
+                }
+            }
+
+            // Only as many cashiers and operators on shift (signed in) as the club allows.
             $currentClub->set($membership->club);
+            if (! $staffShifts->hasPlace($membership->club_id, $currentClub->settings(), (string) $membership->role, $user->getKey())) {
+                Auth::logout();
+                $request->session()->regenerateToken();
+                $currentClub->clear();
+                $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'shift_full');
+
+                return back()->withErrors(['phone' => __('На смене уже максимум сотрудников с вашей ролью. Войти можно, когда коллега выйдет из панели.')])->onlyInput('phone');
+            }
+
             $request->session()->put('current_club_id', $membership->club_id);
             $activity->record('auth.login', __('Вход в систему: :user', ['user' => $user->name]), $user->getKey(), $user);
 

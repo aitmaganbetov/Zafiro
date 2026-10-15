@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubInstallationController;
+use App\Http\Controllers\Api\GuestChatController;
 use App\Http\Controllers\Api\GuestFriendController;
 use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestMinutesController;
@@ -114,6 +115,8 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     // Time by the minute at the zone's hourly price.
     Route::get('/guest/minutes', [GuestMinutesController::class, 'show'])->middleware('throttle:60,1,api.guest.minutes')->name('api.guest.minutes');
     Route::post('/guest/minutes/purchase', [GuestMinutesController::class, 'purchase'])->middleware('throttle:10,1,api.guest.minutes.purchase')->name('api.guest.minutes.purchase');
+    Route::get('/guest/chat', [GuestChatController::class, 'index'])->middleware('throttle:60,1,api.guest.chat')->name('api.guest.chat');
+    Route::post('/guest/chat', [GuestChatController::class, 'store'])->middleware('throttle:20,1,api.guest.chat.store')->name('api.guest.chat.store');
     Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');

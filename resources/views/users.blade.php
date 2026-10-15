@@ -10,27 +10,19 @@
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Всего: :count', ['count' => $users->total()]) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-            <form action="{{ route('club-invitations.store') }}" method="POST" class="flex flex-wrap items-center gap-2">
-                @csrf
-                <input name="email" type="email" value="{{ old('email') }}" placeholder="{{ __('Email (необязательно)') }}" aria-label="{{ __('Email приглашённого') }}" class="min-h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-                <select name="role" required aria-label="{{ __('Роль приглашённого') }}" class="min-h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-                    <option value="operator">{{ __('Оператор') }}</option>
-                    <option value="cashier">{{ __('Кассир') }}</option>
-                    <option value="manager">{{ __('Менеджер') }}</option>
-                </select>
-                <button type="submit" class="brand-button min-h-10 px-4"><i class="fas fa-link"></i>{{ __('Создать ссылку') }}</button>
-            </form>
-            <button id="open-user-dialog" type="button" class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"><i class="fas fa-user-plus"></i>{{ __('Добавить напрямую') }}</button>
+            @if(in_array($currentMembership->role, ['owner', 'admin'], true))
+                <a href="{{ route('workers.index') }}" class="min-h-10 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"><i class="fas fa-user-tie"></i>{{ __('Работники') }}</a>
+            @endif
+            <button id="open-user-dialog" type="button" class="brand-button min-h-10 px-4"><i class="fas fa-user-plus"></i>{{ __('Добавить клиента') }}</button>
         </div>
     </div>
 
     @if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
-    @if(session('invite_url'))<div class="mb-4 flex gap-2"><input id="club-invite-url" readonly value="{{ session('invite_url') }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"><button type="button" data-copy-invite class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium dark:border-gray-700">{{ __('Копировать ссылку') }}</button></div>@endif
 
     <dialog id="user-create-dialog" class="user-create-dialog" @if($errors->any()) data-open-on-load @endif>
         <div class="user-create-dialog-shell">
             <header class="user-create-dialog-head">
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Новый пользователь') }}</h4>
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Новый клиент') }}</h4>
                 <button type="button" data-close-user-dialog class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" aria-label="{{ __('Закрыть') }}"><i class="fas fa-times"></i></button>
             </header>
             <div class="user-create-dialog-body">
@@ -40,7 +32,6 @@
                     <div><label for="new-user-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Имя') }}</label><input id="new-user-name" name="name" value="{{ old('name') }}" required maxlength="255" autocomplete="name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
                     <div><label for="new-user-phone" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Телефон') }}</label><div class="flex"><span class="inline-flex items-center rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">+7</span><input id="new-user-phone" name="phone" value="{{ substr(preg_replace('/\D+/', '', (string) old('phone', '')), -10) }}" required type="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="7001234567" autocomplete="tel-national" class="w-full min-w-0 rounded-r-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div></div>
                     <div><label for="new-user-email" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Email <span class="font-normal text-gray-500">{{ __('необязательно') }}</span></label><input id="new-user-email" name="email" value="{{ old('email') }}" type="email" maxlength="255" autocomplete="email" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
-                    <div><label for="new-user-role" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Роль') }}</label><select id="new-user-role" name="role" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"><option value="" disabled @selected(old('role', '') === '')>{{ __('Выберите роль') }}</option>@foreach(['admin' => __('Администратор'), 'cashier' => __('Кассир'), 'manager' => __('Менеджер'), 'operator' => __('Оператор')] as $role => $label)<option value="{{ $role }}" @selected(old('role') === $role)>{{ $label }}</option>@endforeach</select></div>
                     <div><label for="new-user-password" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Пароль') }}</label><input id="new-user-password" name="password" type="password" required minlength="6" autocomplete="new-password" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
                     <div><label for="new-user-password-confirmation" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Повторите пароль') }}</label><input id="new-user-password-confirmation" name="password_confirmation" type="password" required minlength="6" autocomplete="new-password" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
                     <div><label for="new-user-discount" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Скидка, %') }}</label><input id="new-user-discount" name="discount" type="number" value="{{ old('discount', 0) }}" min="0" max="100" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
@@ -59,7 +50,6 @@
                     <tr>
                         <th scope="col" class="px-5 py-3 font-semibold">{{ __('Логин') }}</th>
                         <th scope="col" class="px-5 py-3 font-semibold">{{ __('Номер') }}</th>
-                        <th scope="col" class="px-5 py-3 font-semibold">{{ __('Роль') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Скидка') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Баланс') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Бонусный баланс') }}</th>
@@ -70,14 +60,13 @@
                         <tr class="text-gray-700 dark:text-gray-300">
                             <td class="px-5 py-4 font-medium text-gray-900 dark:text-white">{{ $membership->user->name }}</td>
                             <td class="px-5 py-4 whitespace-nowrap">{{ $membership->user->phone }}</td>
-                            <td class="px-5 py-4">{{ $membership->role }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->discount, 2, '.', ' ') }}%</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->balance, 2, '.', ' ') }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
+                            <td colspan="5" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -95,6 +84,6 @@
 
 @push('scripts')
 <script>
-(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();document.querySelector('[data-copy-invite]')?.addEventListener('click',async()=>{const field=document.getElementById('club-invite-url');await navigator.clipboard.writeText(field.value)})})();
+(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal())();
 </script>
 @endpush

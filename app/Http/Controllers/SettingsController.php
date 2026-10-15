@@ -215,6 +215,8 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end',
                 'session_auto_terminate_when_pc_unavailable',
                 'booking_interval',
+                'max_cashiers_on_shift',
+                'max_operators_on_shift',
             ],
             'finances' => [
                 'currency',
@@ -239,6 +241,8 @@ class SettingsController extends Controller
             'pc_restart_after_session_end',
             'session_auto_terminate_when_pc_unavailable',
             'booking_interval',
+            'max_cashiers_on_shift',
+            'max_operators_on_shift',
         ];
 
         foreach ($fields[$section] ?? [] as $field) {
@@ -299,6 +303,9 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end' => 0.5,
                 'session_auto_terminate_when_pc_unavailable' => 5,
                 'booking_interval' => 30,
+                // How many cashiers / operators may be signed in to the panel at once; 0 — no limit.
+                'max_cashiers_on_shift' => 0,
+                'max_operators_on_shift' => 0,
             ],
             'finances' => [
                 'currency' => 'KZT',
@@ -321,6 +328,8 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end' => __('Через сколько минут выполнить действие после завершения сессии'),
                 'session_auto_terminate_when_pc_unavailable' => __('Время до автоматического завершения сессии при недоступности ПК (в минутах)'),
                 'booking_interval' => __('Интервал между бронированиями (в минутах)'),
+                'max_cashiers_on_shift' => __('Сколько кассиров может быть на смене'),
+                'max_operators_on_shift' => __('Сколько операторов может быть на смене'),
             ],
             'finances' => [
                 'currency' => __('Валюта'),

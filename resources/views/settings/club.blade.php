@@ -26,6 +26,19 @@
     @endforeach
 </div>
 
+<section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="shift-limits-title">
+    <h5 id="shift-limits-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Сотрудники на смене') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Столько кассиров и операторов могут одновременно быть в панели. Следующий войдёт, когда кто-то выйдет (или через 2 часа без действий). 0 — без ограничения.') }}</p>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        @foreach(['max_cashiers_on_shift' => __('Сколько кассиров может быть на смене'), 'max_operators_on_shift' => __('Сколько операторов может быть на смене')] as $field => $label)
+            <div>
+                <label for="{{ $field }}" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ $label }}</label>
+                <input id="{{ $field }}" type="number" min="0" max="100" step="1" name="{{ $field }}" value="{{ old($field, $settings['club'][$field] ?? 0) }}" class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+            </div>
+        @endforeach
+    </div>
+</section>
+
 <section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
     <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Ключ установки клуба') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Укажите этот ключ в установленном ПО. По нему система определит клуб.') }}</p>

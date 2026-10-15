@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
-test('authenticated users can view the user list and account details', function () {
+test('the user list shows the club customers with their balances, not the staff', function () {
     $admin = User::factory()->create();
     User::factory()->create([
         'name' => 'Иван Петров',
@@ -25,7 +25,6 @@ test('authenticated users can view the user list and account details', function 
         ->assertSuccessful()
         ->assertSee('Иван Петров')
         ->assertSee('+79991234567')
-        ->assertSee('Гость')
         ->assertSee('12.50%')
         ->assertSee('1 250.50')
         ->assertSee('75.00');
@@ -43,24 +42,20 @@ test('cashiers can open the cash register but cannot change club settings', func
     $this->actingAs($cashier)->get(route('settings.club'))->assertForbidden();
 });
 
-test('authenticated users can create an account from the user list', function () {
+test('the user list creates customers only', function () {
     $admin = User::factory()->create();
 
     $this->actingAs($admin)->get(route('users.index'))
         ->assertSuccessful()
-        ->assertSee('Добавить напрямую')
+        ->assertSee('Добавить клиента')
         ->assertSee('<dialog id="user-create-dialog"', false)
         ->assertSee('>+7</span>', false)
-        ->assertSee('<option value="admin"', false)
-        ->assertSee('<option value="cashier"', false)
-        ->assertSee('<option value="manager"', false)
-        ->assertSee('<option value="operator"', false);
+        ->assertDontSee('<option value="cashier"', false);
 
     $this->post(route('users.store'), [
         'name' => 'Айжан Садыкова',
         'phone' => '7001234567',
         'email' => 'aizhan@example.com',
-        'role' => 'cashier',
         'password' => 'guest-secret',
         'password_confirmation' => 'guest-secret',
         'discount' => 10.5,
@@ -72,7 +67,7 @@ test('authenticated users can create an account from the user list', function ()
     $createdUser = User::query()->where('phone', '+77001234567')->firstOrFail();
     $membership = $createdUser->currentMembership()->firstOrFail();
     expect($createdUser->name)->toBe('Айжан Садыкова')
-        ->and($membership->role)->toBe('cashier')
+        ->and($membership->role)->toBe('client')
         ->and($membership->discount)->toBe('10.50')
         ->and($membership->balance->balance)->toBe('2500.00')
         ->and($membership->balance->bonus_balance)->toBe('150.00')
@@ -88,10 +83,9 @@ test('user creation validates unique phone and password confirmation', function 
     $this->actingAs($admin)->post(route('users.store'), [
         'name' => 'Повторный пользователь',
         'phone' => '7001234567',
-        'role' => 'invalid-role',
         'password' => 'guest-secret',
         'password_confirmation' => 'different-secret',
-    ])->assertSessionHasErrors(['phone', 'password', 'role']);
+    ])->assertSessionHasErrors(['phone', 'password']);
 
     expect(User::query()->where('name', 'Повторный пользователь')->exists())->toBeFalse();
 });

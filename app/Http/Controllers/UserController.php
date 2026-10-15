@@ -7,6 +7,7 @@ use App\Models\ClubMembership;
 use App\Models\MemberBalance;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
@@ -16,7 +17,9 @@ class UserController extends Controller
 {
     public function index(): View
     {
+        // Customers only; staff are on the Workers page.
         $users = ClubMembership::query()
+            ->whereNotIn('role', ClubRoles::STAFF)
             ->with(['user:id,name,phone', 'balance'])
             ->orderBy('user_id')
             ->paginate(25);
@@ -32,7 +35,7 @@ class UserController extends Controller
             $user = User::query()->create(Arr::only($data, ['name', 'phone', 'email', 'password']));
             $membership = ClubMembership::query()->create([
                 'user_id' => $user->getKey(),
-                'role' => $data['role'],
+                'role' => ClubRoles::CLIENT,
                 'discount' => $data['discount'] ?? 0,
             ]);
             MemberBalance::query()->create([

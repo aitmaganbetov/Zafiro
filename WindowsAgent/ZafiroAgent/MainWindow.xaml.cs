@@ -915,6 +915,17 @@ namespace ZafiroAgent
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
                 }
+                else if (type == "requestChat")
+                {
+                    var after = doc.RootElement.TryGetProperty("after", out var a) && a.ValueKind == JsonValueKind.Number && a.TryGetInt64(out var id) && id > 0 ? id : 0;
+                    await GuestCallAsync("chat", HttpMethod.Get, after > 0 ? $"chat?after={after.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "chat");
+                }
+                else if (type == "sendChat")
+                {
+                    var body = doc.RootElement.TryGetProperty("body", out var b) && b.ValueKind == JsonValueKind.String ? b.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(body)) return;
+                    await GuestCallAsync("chatSent", HttpMethod.Post, "chat", new { body }, fromThisComputer: true);
+                }
                 else if (type == "requestNews")
                 {
                     await GuestCallAsync("news", HttpMethod.Get, "news");

@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CashRegisterController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\ClubController;
@@ -31,8 +32,10 @@ use App\Http\Controllers\Superadmin\NewsController as SuperadminNewsController;
 use App\Http\Controllers\Superadmin\PlanController as SuperadminPlanController;
 use App\Http\Controllers\Superadmin\UserController as SuperadminUserController;
 use App\Http\Controllers\TariffController;
+use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -125,11 +128,20 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function 
 Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
-    Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
+    // Staff only: customers sign in on the site just to confirm a PC sign-in (QR code).
+    Route::middleware('club-role:owner,admin,manager,cashier,operator')->group(function () {
+        Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
+    });
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/todos', [TodoController::class, 'index'])->name('todos.index');
+        Route::get('/todos/state', [TodoController::class, 'state'])->name('todos.state');
+        Route::post('/todos/{task}/toggle', [TodoController::class, 'toggle'])->name('todos.toggle');
+        Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+        Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
+        Route::post('/chat/{customer}', [ChatController::class, 'reply'])->middleware('throttle:60,1,chat.reply')->name('chat.reply');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager'])->group(function () {
@@ -159,6 +171,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
         Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
+        Route::post('/todos', [TodoController::class, 'store'])->name('todos.store');
+        Route::delete('/todos/{task}', [TodoController::class, 'destroy'])->name('todos.destroy');
         Route::get('/news', [NewsController::class, 'index'])->name('news.index');
         Route::post('/news', [NewsController::class, 'store'])->name('news.store');
         Route::patch('/news/{news}', [NewsController::class, 'update'])->name('news.update');
@@ -183,6 +197,10 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
         Route::post('/settings/agent-pin', [SettingsController::class, 'agentPin'])->name('settings.agent-pin');
         Route::post('/settings/agent-staff-time', [SettingsController::class, 'agentStaffTime'])->name('settings.agent-staff-time');
+        Route::get('/workers', [WorkerController::class, 'index'])->name('workers.index');
+        Route::post('/workers', [WorkerController::class, 'store'])->name('workers.store');
+        Route::patch('/workers/{membership}', [WorkerController::class, 'update'])->name('workers.update');
+        Route::delete('/workers/{membership}', [WorkerController::class, 'destroy'])->name('workers.destroy');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {
