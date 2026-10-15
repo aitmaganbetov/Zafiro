@@ -323,6 +323,9 @@ namespace ZafiroAgent
                         if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
                         ApplyClubLanguage(hb);
                         ApplyAfterSessionSettings(hb);
+                        // Друзья, переводы и пересадка: страница показывает только включённое клубом.
+                        if (hb.GuestFeatures is { } features)
+                            SendMessageToWeb(JsonSerializer.Serialize(new { type = "guestFeatures", features }));
                     });
                 };
                 service.OnError += ex =>
@@ -791,6 +794,17 @@ namespace ZafiroAgent
             }
         }
 
+        /// <summary>Запрос /api/guest/… от имени клиента; ответ сервера уходит странице как type.</summary>
+        private async Task<GuestApiResult> GuestCallAsync(string replyType, HttpMethod method, string path, object? body = null, bool fromThisComputer = false)
+        {
+            var result = await _apiService.CallGuestApiAsync(method, path, body, fromThisComputer, CancellationToken.None);
+            SendMessageToWeb(JsonSerializer.Serialize(new { type = replyType, ok = result.Success, message = result.Message, data = result.Data }));
+            return result;
+        }
+
+        private static long? FriendshipId(JsonElement message) =>
+            message.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var value) && value > 0 ? value : null;
+
         private async Task HandleLogoutAsync(string? notice = null)
         {
             if (_authPromptOpen) return;
@@ -863,6 +877,42 @@ namespace ZafiroAgent
                 if (type == "refreshBalance")
                 {
                     await RefreshBalanceAsync(manual: true);
+                }
+                else if (type == "requestFriends")
+                {
+                    await GuestCallAsync("friends", HttpMethod.Get, "friends");
+                }
+                else if (type == "addFriend")
+                {
+                    var phone = doc.RootElement.TryGetProperty("phone", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+                    await GuestCallAsync("friends", HttpMethod.Post, "friends", new { phone = phone ?? string.Empty });
+                }
+                else if (type is "acceptFriend" or "removeFriend")
+                {
+                    if (FriendshipId(doc.RootElement) is not { } id) return;
+                    await GuestCallAsync("friends", HttpMethod.Post, $"friends/{id}/{(type == "acceptFriend" ? "accept" : "remove")}");
+                }
+                else if (type == "transferBalance")
+                {
+                    if (FriendshipId(doc.RootElement) is not { } id) return;
+                    var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
+                    await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
+                }
+                else if (type == "requestSeats")
+                {
+                    await GuestCallAsync("seats", HttpMethod.Get, "seats", fromThisComputer: true);
+                }
+                else if (type == "transferSeat")
+                {
+                    if (!doc.RootElement.TryGetProperty("computerId", out var c) || c.ValueKind != JsonValueKind.Number || !c.TryGetInt64(out var target) || target <= 0) return;
+                    var result = await GuestCallAsync("seatResult", HttpMethod.Post, "seat-transfer", new { target_computer_id = target }, fromThisComputer: true);
+                    if (result.Success)
+                    {
+                        // Сессия теперь на другом ПК: здесь клиент выходит, там входит своей учётной записью.
+                        EndSessionLocally("transferred");
+                        var notice = result.Message;
+                        _ = Dispatcher.InvokeAsync(() => HandleLogoutAsync(notice));
+                    }
                 }
                 else if (type == "requestSession")
                 {

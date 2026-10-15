@@ -428,6 +428,186 @@
     document.getElementById('profileStatus').textContent = hasActiveSession ? t('Активная сессия') : t('Нет активной сессии');
   };
 
+  // Друзья, переводы и пересадка: только то, что клуб включил в настройках «Гости» (приходит с heartbeat).
+  let guestFeatures = { friends: false, balance_transfer: false, self_transfer: false };
+  let friendsData = { friends: [], incoming: [], outgoing: [] };
+  const friendsSection = document.getElementById('friendsSection');
+  const friendAddForm = document.getElementById('friendAddForm');
+  const friendPhone = document.getElementById('friendPhone');
+  const friendsStatus = document.getElementById('friendsStatus');
+  const friendGroups = document.getElementById('friendGroups');
+  const transferDialog = document.getElementById('transferDialog');
+  const transferAmount = document.getElementById('transferAmount');
+  const transferStatus = document.getElementById('transferStatus');
+  const transferSubmit = document.getElementById('transferSubmit');
+  const seatButton = document.getElementById('btnSeat');
+  const seatDialog = document.getElementById('seatDialog');
+  const seatStatus = document.getElementById('seatStatus');
+  const seatList = document.getElementById('seatList');
+  let transferFriend = null;
+  let chosenSeat = null;
+
+  const openDialog = (dialog) => {
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  };
+  const closeDialog = (dialog) => {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  };
+  [[transferDialog, 'transferClose'], [seatDialog, 'seatClose']].forEach(([dialog, closeId]) => {
+    document.getElementById(closeId).addEventListener('click', () => closeDialog(dialog));
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDialog(dialog);
+    });
+  });
+
+  const updateSeatButton = () => {
+    seatButton.hidden = !(guestFeatures.self_transfer && hasActiveSession);
+  };
+
+  const friendRow = (friend, ...buttons) => {
+    const row = document.createElement('div');
+    row.className = 'friend-row';
+    const who = document.createElement('div');
+    who.className = 'friend-who';
+    const name = document.createElement('strong');
+    name.textContent = friend.name ?? '—';
+    const phone = document.createElement('small');
+    phone.textContent = friend.phone ?? '';
+    who.append(name, phone);
+    const actions = document.createElement('div');
+    actions.className = 'friend-actions';
+    actions.append(...buttons);
+    row.append(who, actions);
+    return row;
+  };
+  const friendButton = (label, onClick, className = 'friend-button') => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = t(label);
+    button.addEventListener('click', onClick);
+    return button;
+  };
+  const friendGroup = (title, rows) => {
+    if (rows.length === 0) return null;
+    const group = document.createElement('div');
+    group.className = 'friend-group';
+    const heading = document.createElement('h3');
+    heading.textContent = t(title);
+    group.append(heading, ...rows);
+    return group;
+  };
+  const sendFriendAction = (type, id) => {
+    setStatus(friendsStatus, 'Отправляем…');
+    webview?.postMessage({ type, id });
+  };
+
+  const renderFriends = () => {
+    friendsSection.hidden = !(guestFeatures.friends || guestFeatures.balance_transfer);
+    friendAddForm.hidden = !guestFeatures.friends;
+    const incoming = guestFeatures.friends
+      ? friendsData.incoming.map((friend) => friendRow(friend,
+        friendButton('Принять', () => sendFriendAction('acceptFriend', friend.id), 'friend-button accept'),
+        friendButton('Отклонить', () => sendFriendAction('removeFriend', friend.id))))
+      : [];
+    const friends = friendsData.friends.map((friend) => friendRow(friend,
+      ...(guestFeatures.balance_transfer ? [friendButton('Перевести', () => {
+        transferFriend = friend;
+        document.getElementById('transferFriend').textContent = `${friend.name ?? ''} · ${friend.phone ?? ''}`;
+        transferAmount.value = '';
+        setStatus(transferStatus, null);
+        transferSubmit.disabled = false;
+        openDialog(transferDialog);
+        transferAmount.focus();
+      }, 'friend-button accept')] : []),
+      friendButton('Удалить', () => sendFriendAction('removeFriend', friend.id))));
+    const outgoing = friendsData.outgoing.map((friend) => friendRow(friend,
+      friendButton('Отменить заявку', () => sendFriendAction('removeFriend', friend.id))));
+    const groups = [
+      friendGroup('Заявки в друзья', incoming),
+      friendGroup('Мои друзья', friends),
+      friendGroup('Отправленные заявки', outgoing)
+    ].filter(Boolean);
+    if (groups.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'friend-empty';
+      empty.textContent = t('Пока нет друзей.');
+      groups.push(empty);
+    }
+    friendGroups.replaceChildren(...groups);
+  };
+
+  const requestFriends = () => {
+    if (!webview || !(guestFeatures.friends || guestFeatures.balance_transfer)) return;
+    webview.postMessage({ type: 'requestFriends' });
+  };
+
+  friendAddForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const phone = friendPhone.value.replace(/\D+/g, '');
+    if (phone.length < 10) {
+      setStatus(friendsStatus, 'Введите 10 цифр номера после +7.');
+      return;
+    }
+    setStatus(friendsStatus, 'Отправляем…');
+    webview?.postMessage({ type: 'addFriend', phone });
+  });
+
+  document.getElementById('transferForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const amount = transferAmount.value.trim().replace(',', '.');
+    if (!transferFriend || !/^\d{1,10}(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
+      setStatus(transferStatus, 'Введите сумму, например 500 или 250.50.');
+      return;
+    }
+    transferSubmit.disabled = true;
+    setStatus(transferStatus, 'Переводим…');
+    webview?.postMessage({ type: 'transferBalance', id: transferFriend.id, amount });
+  });
+
+  const renderSeats = (seats) => {
+    chosenSeat = null;
+    if (seats.length === 0) {
+      setStatus(seatStatus, 'Свободных ПК, где действует ваш тариф, сейчас нет.');
+      seatList.replaceChildren();
+      return;
+    }
+    setStatus(seatStatus, 'Выберите ПК.');
+    seatList.replaceChildren(...seats.map((seat) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'seat-button';
+      const name = document.createElement('strong');
+      name.textContent = seat.name ?? `#${seat.number}`;
+      const zone = document.createElement('small');
+      zone.textContent = seat.zone ?? '';
+      button.append(name, zone);
+      button.addEventListener('click', () => {
+        // Второе нажатие на тот же ПК — подтверждение: сессия переносится сразу.
+        if (chosenSeat !== seat.id) {
+          chosenSeat = seat.id;
+          seatList.querySelectorAll('.seat-button').forEach((item) => item.classList.toggle('is-chosen', item === button));
+          setStatus(seatStatus, 'Нажмите на ПК :name ещё раз, чтобы пересесть.', { name: seat.name ?? seat.number });
+          return;
+        }
+        seatList.querySelectorAll('.seat-button').forEach((item) => { item.disabled = true; });
+        setStatus(seatStatus, 'Переносим сессию…');
+        webview?.postMessage({ type: 'transferSeat', computerId: seat.id });
+      });
+      return button;
+    }));
+  };
+
+  seatButton.addEventListener('click', () => {
+    if (!webview) return;
+    seatList.replaceChildren();
+    setStatus(seatStatus, 'Ищем свободные ПК…');
+    openDialog(seatDialog);
+    webview.postMessage({ type: 'requestSeats' });
+  });
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -435,6 +615,7 @@
     endButtonIcon.setAttribute('d', active ? endIconPaths.end : endIconPaths.logout);
     document.getElementById('extendLabel').textContent = active ? t('Продлить сессию') : t('Выбрать тариф');
     showProfileStatus();
+    updateSeatButton();
   };
 
   const showStartedAt = () => {
@@ -469,7 +650,10 @@
   shopNavigation.addEventListener('click', () => setView('shop'));
   historyNavigation.addEventListener('click', () => setView('history'));
   tariffNavigation.addEventListener('click', () => setView('tariffs'));
-  profileNavigation.addEventListener('click', () => setView('profile'));
+  profileNavigation.addEventListener('click', () => {
+    setView('profile');
+    requestFriends();
+  });
   pageToggle.addEventListener('click', () => setView(currentView === 'session' ? 'shop' : 'session'));
 
   function showProfileName() {
@@ -529,6 +713,7 @@
     }
     showPcLabel();
     renderLanguageSwitch();
+    renderFriends();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -598,7 +783,65 @@
     if (event.data?.type === 'afterSessionCancelled') stopAfterSessionCountdown();
 
     // Клиент вышел: на экране не остаётся его баланса и корзины.
+    if (event.data?.type === 'guestFeatures' && event.data.features && typeof event.data.features === 'object') {
+      const before = JSON.stringify(guestFeatures);
+      guestFeatures = {
+        friends: event.data.features.friends === true,
+        balance_transfer: event.data.features.balance_transfer === true,
+        self_transfer: event.data.features.self_transfer === true
+      };
+      updateSeatButton();
+      renderFriends();
+      if (before !== JSON.stringify(guestFeatures) && currentView === 'profile') requestFriends();
+    }
+
+    if (event.data?.type === 'friends') {
+      const data = event.data.data;
+      if (event.data.ok && data) {
+        friendsData = {
+          friends: Array.isArray(data.friends) ? data.friends : [],
+          incoming: Array.isArray(data.incoming) ? data.incoming : [],
+          outgoing: Array.isArray(data.outgoing) ? data.outgoing : []
+        };
+        if (typeof data.message === 'string') {
+          setServerStatus(friendsStatus, data.message);
+          friendPhone.value = '';
+        } else setStatus(friendsStatus, null);
+        renderFriends();
+      } else setServerStatus(friendsStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+    }
+
+    if (event.data?.type === 'transferResult') {
+      transferSubmit.disabled = false;
+      if (event.data.ok) {
+        // Бонусы не переводятся: меняется только основной счёт.
+        if (event.data.data?.balance !== undefined) applyBalances(event.data.data.balance, balances[1]);
+        closeDialog(transferDialog);
+        setServerStatus(friendsStatus, event.data.message ?? '');
+      } else setServerStatus(transferStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+    }
+
+    if (event.data?.type === 'seats') {
+      if (event.data.ok) renderSeats(Array.isArray(event.data.data?.data) ? event.data.data.data : []);
+      else setServerStatus(seatStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+    }
+
+    if (event.data?.type === 'seatResult') {
+      if (event.data.ok) {
+        closeDialog(seatDialog);
+        setServerStatus(actionStatus, event.data.message ?? '');
+      } else {
+        seatList.querySelectorAll('.seat-button').forEach((item) => { item.disabled = false; });
+        chosenSeat = null;
+        setServerStatus(seatStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+      }
+    }
+
     if (event.data?.type === 'loggedOut') {
+      friendsData = { friends: [], incoming: [], outgoing: [] };
+      renderFriends();
+      closeDialog(transferDialog);
+      closeDialog(seatDialog);
       setSessionActive(false);
       clearSessionDetails();
       userName = null;

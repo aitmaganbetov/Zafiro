@@ -34,5 +34,8 @@ namespace ZafiroAgent.Models
         // Что делать с ПК после конца сессии (none, restart, shutdown) и через сколько секунд — из настроек клуба.
         public string? AfterSessionAction { get; set; }
         public int? AfterSessionDelaySeconds { get; set; }
+
+        // Что клиент может делать сам (настройки клуба «Гости»): qr_login, self_transfer, friends, balance_transfer.
+        public Dictionary<string, bool>? GuestFeatures { get; set; }
     }
 }

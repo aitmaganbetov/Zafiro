@@ -29,6 +29,8 @@ namespace ZafiroAgent.Services
         public static readonly Uri ResolveEndpoint = new("https://zafiro.kz/api/clubs/resolve");
         public static readonly Uri AgentLoginEndpoint = new("https://zafiro.kz/api/agent/user/login");
         public static readonly Uri ExitPinEndpoint = new("https://zafiro.kz/api/agent/exit-pin");
+        public static readonly Uri QrLoginEndpoint = new("https://zafiro.kz/api/agent/qr-login");
+        public static readonly Uri QrLoginPollEndpoint = new("https://zafiro.kz/api/agent/qr-login/poll");
 
         private static readonly TimeSpan DefaultTokenLifetime = TimeSpan.FromDays(30);
         private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -146,6 +148,18 @@ namespace ZafiroAgent.Services
             return ApiResult<ClubLogin>.Ok(new ClubLogin(token, responseClubId ?? club.ClubId, confirmedName, ReadExpiry(data)));
         }
 
+        /// <summary>Ответ входа по QR-коду (status = approved): токен клиента этого клуба.</summary>
+        public ApiResult<ClubLogin> ReadQrLogin(JsonElement root, long clubId, string clubName)
+        {
+            var token = TryGetString(root, "access_token", out var at) ? at : null;
+            if (token is null || token.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
+                return InvalidResponse<ClubLogin>();
+            if (TryGetLong(root, "club_id", out var responseClubId) && responseClubId != clubId)
+                return ApiResult<ClubLogin>.Fail(ApiFailure.ClubMismatch, L.T("Сервер подтвердил другой клуб. Вход отменён, агент не запущен."));
+
+            return ApiResult<ClubLogin>.Ok(new ClubLogin(token, clubId, TryGetString(root, "club_name", out var name) ? name : clubName, ReadExpiry(root)));
+        }
+
         /// <summary>Проверяет PIN-код сотрудника на сервере (по токену устройства этого ПК).</summary>
         public async Task<ApiResult<bool>> VerifyExitPinAsync(string? deviceToken, string pin, CancellationToken cancellationToken, string? userToken = null)
         {
@@ -176,6 +190,41 @@ namespace ZafiroAgent.Services
             catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
                 return ApiResult<bool>.Fail(ApiFailure.Network, L.T("Нет связи с сервером Zafiro: PIN проверить нельзя."));
+            }
+        }
+
+        /// <summary>
+        /// POST с токеном устройства этого ПК (вход по QR-коду). Ответ — JSON сервера;
+        /// 403 — Forbidden (например, QR-вход выключен в клубе), 401 — токен ПК недействителен.
+        /// </summary>
+        public async Task<ApiResult<JsonElement>> PostWithDeviceTokenAsync(Uri url, object payload, string? deviceToken, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(deviceToken))
+                return ApiResult<JsonElement>.Fail(ApiFailure.DeviceTokenInvalid, L.T("ПК ещё не настроен сотрудником клуба."));
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonBody(payload) };
+                request.Headers.Add("X-Agent-Token", deviceToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                if (deviceToken != DeviceTokens.VaultMarker && DeviceInfo.StableId is { Length: > 0 } deviceId)
+                    request.Headers.Add(ZafiroAgent.Service.VaultProtocol.DeviceHeader, deviceId);
+                using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.Forbidden, L.T("Доступ запрещён."));
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.DeviceTokenInvalid, L.T("Токен устройства недействителен: сотрудник должен заново войти на этом ПК."));
+                if (!response.IsSuccessStatusCode)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
+
+                return await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } root
+                    ? ApiResult<JsonElement>.Ok(root)
+                    : InvalidResponse<JsonElement>();
+            }
+            catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                return ApiResult<JsonElement>.Fail(ApiFailure.Network, L.T("Не удалось связаться с сервером Zafiro."));
             }
         }
 
@@ -504,6 +553,12 @@ namespace ZafiroAgent.Services
                 if (TryGetString(club, "name", out var clubName)) heartbeat.ClubName = clubName;
                 if (TryGetString(club, "logo_url", out var logoUrl)) heartbeat.ClubLogoUrl = logoUrl;
                 if (TryGetString(club, "locale", out var clubLocale)) heartbeat.ClubLocale = clubLocale;
+                if (club.TryGetProperty("guest_features", out var features) && features.ValueKind == JsonValueKind.Object)
+                {
+                    heartbeat.GuestFeatures = features.EnumerateObject()
+                        .Where(feature => feature.Value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        .ToDictionary(feature => feature.Name, feature => feature.Value.GetBoolean());
+                }
                 if (club.TryGetProperty("after_session", out var afterSession) && afterSession.ValueKind == JsonValueKind.Object &&
                     TryGetString(afterSession, "action", out var afterAction))
                 {

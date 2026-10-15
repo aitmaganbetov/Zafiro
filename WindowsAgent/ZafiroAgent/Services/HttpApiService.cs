@@ -160,6 +160,68 @@ namespace ZafiroAgent.Services
             return response.IsSuccessStatusCode;
         }
 
+        /// <summary>
+        /// Друзья, переводы и пересадка: запрос от имени вошедшего клиента к /api/guest/…
+        /// fromThisComputer — добавить computer_id этого ПК и токен устройства (запрос только с самого ПК).
+        /// Ответ сервера (JSON) передаётся странице как есть; при ошибке — его сообщение.
+        /// </summary>
+        public async Task<GuestApiResult> CallGuestApiAsync(HttpMethod method, string path, object? body, bool fromThisComputer, CancellationToken cancellationToken)
+        {
+            var config = _config.Load();
+            var token = _secure.Unprotect(config.ProtectedApiToken);
+            if (string.IsNullOrWhiteSpace(token))
+                return GuestApiResult.Fail(L.T("Выполните вход повторно."));
+
+            var computerId = 0L;
+            if (fromThisComputer && (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out computerId) || computerId <= 0))
+                return GuestApiResult.Fail(L.T("Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента."));
+
+            var uri = new Uri($"{ApiRoot(config)}/guest/{path}");
+            if (fromThisComputer && method == HttpMethod.Get)
+                uri = new Uri($"{uri}{(uri.Query.Length > 0 ? "&" : "?")}computer_id={computerId.ToString(CultureInfo.InvariantCulture)}");
+
+            using var request = new HttpRequestMessage(method, uri);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (method != HttpMethod.Get)
+            {
+                var fields = body is null
+                    ? new Dictionary<string, object?>()
+                    : JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(body)) ?? new Dictionary<string, object?>();
+                if (fromThisComputer) fields["computer_id"] = computerId;
+                request.Content = new StringContent(JsonSerializer.Serialize(fields), Encoding.UTF8, "application/json");
+            }
+
+            if (fromThisComputer)
+            {
+                // Как при покупке тарифа: токен устройства подтверждает, что запрос идёт с этого ПК.
+                var deviceToken = await Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(config.ProtectedDeviceToken)), cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(deviceToken))
+                    request.Headers.Add("X-Agent-Token", deviceToken);
+            }
+
+            try
+            {
+                using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                    return GuestApiResult.Fail(ExtractErrorMessage(payload) ?? L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
+
+                using var document = JsonDocument.Parse(payload);
+                return document.RootElement.ValueKind == JsonValueKind.Object
+                    ? GuestApiResult.Ok(document.RootElement.Clone())
+                    : GuestApiResult.Fail(L.T("Сервер Zafiro вернул неожиданный ответ."));
+            }
+            catch (JsonException)
+            {
+                return GuestApiResult.Fail(L.T("Сервер Zafiro вернул неожиданный ответ."));
+            }
+            catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                return GuestApiResult.Fail(L.T("Не удалось связаться с сервером Zafiro."));
+            }
+        }
+
         /// <summary>Корень API (https://zafiro.kz/api): адрес из настроек используется, только если он проверен.</summary>
         private static string ApiRoot(AgentConfig config)
         {

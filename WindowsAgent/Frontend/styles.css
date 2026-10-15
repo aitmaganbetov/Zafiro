@@ -200,6 +200,32 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .profile-details>div{display:grid;align-content:start;gap:8px;min-height:78px;padding:15px 14px 15px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
 .profile-details dt{color:var(--muted);font-size:0.8125rem}
 .profile-details dd{margin:0;font-size:0.8125rem;line-height:1.4;overflow-wrap:anywhere}
+.profile-friends{border-top:1px solid rgba(255,255,255,0.08);margin-top:8px}
+.profile-friends>h2{margin:0;padding:18px 0 12px;font-size:1.0625rem}
+.friend-add{display:grid;gap:8px;margin-bottom:10px}
+.friend-add label,.transfer-form label{color:var(--muted);font-size:0.8125rem}
+.friend-add-row{display:flex;align-items:center;gap:8px}
+.friend-prefix{color:var(--muted)}
+.friend-add-row input,.transfer-form input{min-width:0;flex:1;padding:9px 12px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text);font:inherit}
+.friend-add-row input:focus-visible,.transfer-form input:focus-visible{outline:2px solid var(--accent-2);outline-offset:1px}
+.friends-status{min-height:1.2em;margin:4px 0 8px;color:var(--muted);font-size:0.8125rem}
+.friend-group h3{margin:14px 0 6px;color:var(--muted);font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em}
+.friend-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.friend-who{display:grid;gap:2px;min-width:0}
+.friend-who strong{font-size:0.875rem;overflow-wrap:anywhere}
+.friend-who small,.friend-empty{color:var(--muted);font-size:0.8125rem}
+.friend-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.friend-button{padding:6px 10px;border:1px solid rgba(255,255,255,0.14);border-radius:7px;background:transparent;color:var(--text);font:inherit;font-size:0.8125rem;cursor:pointer}
+.friend-button:hover,.friend-button:focus-visible{border-color:var(--accent-2);outline:none}
+.friend-button.accept{border-color:rgba(94,183,255,0.5);color:var(--accent-2)}
+.dialog-note{margin:12px 0 4px;color:var(--muted);font-size:0.8125rem;line-height:1.45}
+.transfer-form{display:grid;gap:8px;margin-top:12px}
+.seat-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}
+.seat-button{display:grid;gap:3px;padding:12px;border:1px solid rgba(255,255,255,0.12);border-radius:9px;background:rgba(255,255,255,0.03);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.seat-button small{color:var(--muted);font-size:0.75rem}
+.seat-button:hover,.seat-button:focus-visible{border-color:var(--accent-2);outline:none}
+.seat-button.is-chosen{border-color:var(--accent);background:rgba(139,92,246,0.14)}
+.seat-button:disabled{opacity:0.5;cursor:default}
 
 .large{font-size:2rem;font-weight:700}
 .balance{font-size:2.125rem;font-weight:800;color:var(--text);letter-spacing:0.5px}

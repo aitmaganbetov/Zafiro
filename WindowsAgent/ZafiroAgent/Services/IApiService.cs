@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using ZafiroAgent.Models;
@@ -11,5 +12,6 @@ namespace ZafiroAgent.Services
         Task<Tariff[]> GetTariffsAsync(CancellationToken cancellationToken);
         Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken);
         Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken);
+        Task<GuestApiResult> CallGuestApiAsync(HttpMethod method, string path, object? body, bool fromThisComputer, CancellationToken cancellationToken);
     }
 }

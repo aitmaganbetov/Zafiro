@@ -192,6 +192,20 @@
 			  <div><dt data-i18n="Осталось времени">Осталось времени</dt><dd id="profileRemaining">—</dd></div>
 			</dl>
 		  </section>
+		  <!-- Друзья и переводы: видны, только если клуб их включил (настройки «Гости»). -->
+		  <section class="profile-friends" id="friendsSection" aria-labelledby="friendsTitle" hidden>
+			<h2 id="friendsTitle" data-i18n="Друзья">Друзья</h2>
+			<form class="friend-add" id="friendAddForm" hidden>
+			  <label for="friendPhone" data-i18n="Добавить друга по номеру телефона">Добавить друга по номеру телефона</label>
+			  <div class="friend-add-row">
+				<span class="friend-prefix">+7</span>
+				<input id="friendPhone" type="tel" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="700 123 45 67">
+				<button class="primary" type="submit" data-i18n="Добавить">Добавить</button>
+			  </div>
+			</form>
+			<p class="friends-status" id="friendsStatus" role="status" aria-live="polite"></p>
+			<div class="friend-groups" id="friendGroups"></div>
+		  </section>
 		</section>
 
 		<dialog class="cart-dialog" id="cartDialog" aria-labelledby="cartDialogTitle">
@@ -206,6 +220,34 @@
 		  <div class="cart-total"><span data-i18n="Итого">Итого</span><strong id="dialogCartTotal">0 KZT</strong></div>
 		  <p class="cart-note" data-i18n="Покажите заказ администратору для оформления.">Покажите заказ администратору для оформления.</p>
 		  <button class="clear-cart" id="clearCart" type="button" data-i18n="Очистить корзину">Очистить корзину</button>
+		</dialog>
+
+		<dialog class="cart-dialog" id="transferDialog" aria-labelledby="transferTitle">
+		  <div class="cart-dialog-heading">
+			<h2 id="transferTitle" data-i18n="Перевод другу">Перевод другу</h2>
+			<button class="icon-button" id="transferClose" type="button" aria-label="Закрыть" data-i18n-aria-label="Закрыть" title="Закрыть" data-i18n-title="Закрыть">
+			  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+			</button>
+		  </div>
+		  <p class="dialog-note" id="transferFriend"></p>
+		  <form class="transfer-form" id="transferForm">
+			<label for="transferAmount" data-i18n="Сумма с основного счёта">Сумма с основного счёта</label>
+			<input id="transferAmount" inputmode="decimal" maxlength="13" autocomplete="off" required>
+			<p class="friends-status" id="transferStatus" role="status" aria-live="polite"></p>
+			<button class="primary" id="transferSubmit" type="submit" data-i18n="Перевести">Перевести</button>
+		  </form>
+		</dialog>
+
+		<dialog class="cart-dialog" id="seatDialog" aria-labelledby="seatTitle">
+		  <div class="cart-dialog-heading">
+			<h2 id="seatTitle" data-i18n="Пересесть на другой ПК">Пересесть на другой ПК</h2>
+			<button class="icon-button" id="seatClose" type="button" aria-label="Закрыть" data-i18n-aria-label="Закрыть" title="Закрыть" data-i18n-title="Закрыть">
+			  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+			</button>
+		  </div>
+		  <p class="dialog-note" data-i18n="Оставшееся время перейдёт на выбранный ПК. Здесь вы выйдете из аккаунта, а на новом ПК войдёте снова.">Оставшееся время перейдёт на выбранный ПК. Здесь вы выйдете из аккаунта, а на новом ПК войдёте снова.</p>
+		  <p class="friends-status" id="seatStatus" role="status" aria-live="polite"></p>
+		  <div class="seat-list" id="seatList"></div>
 		</dialog>
 
 	  </main>
@@ -223,6 +265,10 @@
 			  <button class="action" id="btnExtend" type="button">
 				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2m4-10v4m-2-2h4"/></svg>
 				<span id="extendLabel">Выбрать тариф</span>
+			  </button>
+			  <button class="action" id="btnSeat" type="button" hidden>
+				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="8" height="7" rx="1"/><rect x="14" y="13" width="8" height="7" rx="1"/><path d="M10 7.5h6a2 2 0 0 1 2 2V13m-2-2 2 2 2-2"/></svg>
+				<span data-i18n="Пересесть">Пересесть</span>
 			  </button>
 			  <button class="action danger" id="btnEnd" type="button">
 				<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="endIconPath" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9"/></svg>

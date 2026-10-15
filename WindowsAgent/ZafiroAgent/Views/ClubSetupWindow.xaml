@@ -90,6 +90,19 @@
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" FontSize="13" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
                     <TextBlock x:Name="StaffHint" Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#8A85A0" FontSize="13" TextWrapping="Wrap"/>
+
+                    <!-- Вход с телефона: виден, только если клуб включил QR-код в настройках «Гости». -->
+                    <Border x:Name="QrPanel" Visibility="Collapsed" Margin="0,22,0,0" Padding="16" Background="#2A2738" CornerRadius="10">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="White" CornerRadius="6" Padding="6" VerticalAlignment="Top">
+                                <Image x:Name="QrImage" Width="132" Height="132" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                            </Border>
+                            <StackPanel Margin="16,0,0,0" VerticalAlignment="Center" MaxWidth="220">
+                                <TextBlock x:Name="QrTitle" Text="Вход с телефона" Foreground="#F5F3FA" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="QrHint" Text="Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход." Margin="0,6,0,0" Foreground="#AAA5B8" FontSize="13" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 </ScrollViewer>
             </Border>

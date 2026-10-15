@@ -915,6 +915,22 @@ public sealed class HeartbeatTests : IDisposable
     }
 
     [Fact]
+    public async Task Heartbeat_ReadsTheGuestFeaturesOfTheClub()
+    {
+        var json = HeartbeatJson()[..^1] + ""","club":{"name":"Arena","guest_features":{"qr_login":true,"friends":false,"broken":"yes"}}}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        var features = _beats.First().GuestFeatures!;
+        Assert.True(features["qr_login"]);
+        Assert.False(features["friends"]);
+        Assert.False(features.ContainsKey("broken"));
+    }
+
+    [Fact]
     public async Task Heartbeat_ReadsTheActionAfterTheSessionEnds()
     {
         var json = HeartbeatJson()[..^1] + ""","club":{"name":"Arena","after_session":{"action":"shutdown","delay_seconds":90}}}""";

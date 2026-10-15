@@ -1,8 +1,11 @@
 using System;
+using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using ZafiroAgent.Models;
 using ZafiroAgent.Services;
 using ZafiroAgent.Localization;
@@ -23,6 +26,7 @@ namespace ZafiroAgent.Views
         private string? _connectedZone;
         private readonly CancellationTokenSource _cts = new();
         private bool _busy;
+        private bool _qrRunning;
 
         public ClubSession? Session { get; private set; }
 
@@ -38,6 +42,8 @@ namespace ZafiroAgent.Views
             if (!string.IsNullOrEmpty(notice)) ErrorText.Text = notice;
 
             SubmitButton.Click += async (_, _) => await SubmitAsync();
+            // QR-код — только на подключённом ПК (у него есть токен устройства).
+            Loaded += (_, _) => { if (_relogin) _ = RunQrLoginAsync(); };
             L.Changed += OnLanguageChanged;
             Closed += (_, _) =>
             {
@@ -67,6 +73,8 @@ namespace ZafiroAgent.Views
             PasswordLabel.Text = L.T("Пароль");
             SubmitButton.Content = L.T("Войти");
             StaffHint.Text = L.T("Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.");
+            QrTitle.Text = L.T("Вход с телефона");
+            QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
             RenderLanguages();
         }
 
@@ -223,6 +231,88 @@ namespace ZafiroAgent.Views
             SubmitButton.IsEnabled = true;
             App.Instance.RefreshKiosk();
             PhoneBox.Focus();
+            _ = RunQrLoginAsync();
+        }
+
+        /// <summary>
+        /// Вход с телефона: QR-код со ссылкой на сайт, пока окно открыто. Клиент входит на сайте
+        /// и подтверждает вход — агент получает его токен и закрывает окно, как после пароля.
+        /// Код живёт 5 минут, затем показывается новый. Клуб выключил QR-вход — блок скрыт.
+        /// </summary>
+        private async Task RunQrLoginAsync()
+        {
+            if (_qrRunning) return;
+            _qrRunning = true;
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+                    var start = await _setup.StartQrLoginAsync(_cts.Token);
+                    if (!start.Success)
+                    {
+                        QrPanel.Visibility = Visibility.Collapsed;
+                        if (start.Failure is ApiFailure.Forbidden or ApiFailure.DeviceTokenInvalid) return;
+                        await Task.Delay(TimeSpan.FromSeconds(30), _cts.Token);
+                        continue;
+                    }
+
+                    var code = start.Value!;
+                    QrImage.Source = QrBitmap(code.Url);
+                    QrPanel.Visibility = Visibility.Visible;
+                    var renewAt = DateTime.UtcNow + code.Lifetime - TimeSpan.FromSeconds(10);
+
+                    while (DateTime.UtcNow < renewAt)
+                    {
+                        await Task.Delay(code.PollInterval, _cts.Token);
+                        if (_busy) continue; // идёт вход по паролю
+
+                        var poll = await _setup.PollQrLoginAsync(code.Id, _cts.Token);
+                        if (poll.Success && poll.Value is { } session)
+                        {
+                            if (!IsVisible) return;
+                            Session = session;
+                            DialogResult = true;
+                            return;
+                        }
+
+                        if (!poll.Success && poll.Failure is ApiFailure.Forbidden or ApiFailure.DeviceTokenInvalid)
+                        {
+                            QrPanel.Visibility = Visibility.Collapsed;
+                            return;
+                        }
+
+                        if (!poll.Success && poll.Failure is ApiFailure.TokenExpired or ApiFailure.ClubMismatch or ApiFailure.InvalidResponse)
+                            break; // новый QR-код
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[QrLogin] stopped: " + ex.Message);
+                QrPanel.Visibility = Visibility.Collapsed;
+            }
+            finally
+            {
+                _qrRunning = false;
+            }
+        }
+
+        private static BitmapImage QrBitmap(Uri url)
+        {
+            using var generator = new QRCoder.QRCodeGenerator();
+            using var data = generator.CreateQrCode(url.AbsoluteUri, QRCoder.QRCodeGenerator.ECCLevel.M);
+            var png = new QRCoder.PngByteQRCode(data).GetGraphic(8);
+            using var stream = new MemoryStream(png);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
         }
     }
 }

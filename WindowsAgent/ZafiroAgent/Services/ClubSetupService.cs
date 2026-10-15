@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ZafiroAgent.Configuration;
@@ -238,6 +240,55 @@ namespace ZafiroAgent.Services
                 cfg.TokenExpiresAtUtc = null;
             });
         }
+
+        /// <summary>
+        /// Вход с телефона: новый QR-код этого ПК (по токену устройства). Forbidden — вход по
+        /// QR-коду выключен в клубе; без токена устройства (ПК не подключён) — DeviceTokenInvalid.
+        /// </summary>
+        public async Task<ApiResult<QrLoginCode>> StartQrLoginAsync(CancellationToken cancellationToken)
+        {
+            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.QrLoginEndpoint, new { }, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return ApiResult<QrLoginCode>.Fail(result.Failure, result.Message);
+
+            var root = result.Value;
+            if (!root.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String ||
+                !root.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String ||
+                !ZafiroApiClient.TryValidateHttpsEndpoint(url.GetString(), out var link))
+                return ApiResult<QrLoginCode>.Fail(ApiFailure.InvalidResponse, L.T("Сервер Zafiro вернул неожиданный ответ."));
+
+            var lifetime = root.TryGetProperty("lifetime_seconds", out var seconds) && seconds.TryGetInt32(out var s) && s > 0 ? s : 300;
+            var interval = root.TryGetProperty("poll_interval_seconds", out var every) && every.TryGetInt32(out var e) && e >= 2 ? e : 3;
+            return ApiResult<QrLoginCode>.Ok(new QrLoginCode(id.GetString()!, link, TimeSpan.FromSeconds(lifetime), TimeSpan.FromSeconds(interval)));
+        }
+
+        /// <summary>
+        /// Подтвердил ли клиент вход на телефоне. Ok(null) — ещё нет; Ok(session) — клиент вошёл
+        /// (токен сохранён, как при входе по паролю); Fail(Expired…) — нужен новый QR-код.
+        /// </summary>
+        public async Task<ApiResult<ClubSession?>> PollQrLoginAsync(string id, CancellationToken cancellationToken)
+        {
+            var payload = new Dictionary<string, object?> { ["id"] = id, ["device_name"] = _deviceName };
+            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.QrLoginPollEndpoint, payload, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return ApiResult<ClubSession?>.Fail(result.Failure, result.Message);
+
+            var status = result.Value.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+            if (status == "pending") return ApiResult<ClubSession?>.Ok(null);
+            if (status != "approved") return ApiResult<ClubSession?>.Fail(ApiFailure.TokenExpired, L.T("QR-код устарел."));
+
+            var cfg = _config.Load();
+            if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var clubId) ||
+                !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase))
+                return ApiResult<ClubSession?>.Fail(ApiFailure.InvalidEndpoint, L.T("Сохранённые настройки клуба повреждены. Настройте клуб заново."));
+
+            var login = _api.ReadQrLogin(result.Value, clubId, cfg.ClubName);
+            if (!login.Success) return ApiResult<ClubSession?>.Fail(login.Failure, login.Message);
+
+            _config.Update(current => ApplyToken(current, login.Value!));
+            return ApiResult<ClubSession?>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
+        }
+
+        private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>
+            Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(_config.Load().ProtectedDeviceToken)), cancellationToken);
 
         private void ApplyToken(AgentConfig cfg, ClubLogin login)
         {
