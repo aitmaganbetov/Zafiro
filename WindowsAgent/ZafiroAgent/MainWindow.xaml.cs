@@ -52,12 +52,30 @@ namespace ZafiroAgent
         // заканчивается вовремя, а не раньше (и игра не сворачивается каждые 5 секунд).
         private TimeSpan _clockOffset;
         private bool _purchaseInFlight;
+        private readonly DispatcherTimer _lockGuard = new() { Interval = TimeSpan.FromSeconds(1) };
+        private static readonly TimeSpan BalanceRefreshInterval = TimeSpan.FromSeconds(20);
+        private DateTime _balanceRefreshedAtUtc;
+        private bool _balanceRefreshing;
         private DateTime _webViewRecreatedAtUtc;
 
         private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + _clockOffset;
 
         [DllImport("shell32.dll")]
         private static extern void SHMinimizeAll();
+
+        private const int SwMinimize = 6;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr window, int command);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetClassName(IntPtr window, System.Text.StringBuilder className, int maxCount);
 
         public MainWindow(ConfigurationService config, ClubSetupService clubSetup, ZafiroApiClient api)
         {
@@ -73,6 +91,7 @@ namespace ZafiroAgent
             KeyDown += MainWindow_KeyDown;
 #endif
             _sessionTimer.Tick += (_, _) => CheckSessionTime();
+            _lockGuard.Tick += (_, _) => GuardLockedScreen();
         }
 
         private void InitializeTrayIcon()
@@ -123,6 +142,48 @@ namespace ZafiroAgent
             App.Instance.Keyboard.Strict = !paid;
             Topmost = App.Instance.KioskEnabled && !paid;
             App.Instance.Covers.Update(this, Topmost && IsVisible);
+            if (Topmost) _lockGuard.Start(); else _lockGuard.Stop();
+        }
+
+        /// <summary>
+        /// Без оплаченной сессии на переднем плане может быть только агент: окно другой программы
+        /// (например, игра на весь экран, оставшаяся после конца сессии) сворачивается.
+        /// </summary>
+        private void GuardLockedScreen()
+        {
+            if (!Topmost || !IsVisible || _activeSessionId is not null) return;
+            var foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero) return;
+            GetWindowThreadProcessId(foreground, out var processId);
+            if (processId == (uint)Environment.ProcessId) return; // свои окна: вход, PIN-код, чёрные экраны
+
+            // Панель задач и рабочий стол Windows не сворачиваются: агент просто встаёт поверх них.
+            var className = new System.Text.StringBuilder(64);
+            GetClassName(foreground, className, className.Capacity);
+            if (className.ToString() is not ("Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Progman" or "WorkerW"))
+                ShowWindow(foreground, SwMinimize);
+            Activate();
+        }
+
+        /// <summary>Баланс и бонусы в агенте: пополнение на кассе видно без повторного входа.</summary>
+        private async Task RefreshBalanceAsync()
+        {
+            if (_balanceRefreshing || DateTime.UtcNow - _balanceRefreshedAtUtc < BalanceRefreshInterval) return;
+            _balanceRefreshing = true;
+            try
+            {
+                var session = await _apiService.GetSessionInfoAsync(_activeSessionId ?? string.Empty, CancellationToken.None);
+                _balanceRefreshedAtUtc = DateTime.UtcNow;
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "balance", balance = session.Balance, bonus = session.BonusBalance }));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[Balance] refresh failed: " + ex.Message);
+            }
+            finally
+            {
+                _balanceRefreshing = false;
+            }
         }
 
         // Финальный статус отправляется асинхронно: закрытие не блокирует UI-поток.
@@ -170,6 +231,7 @@ namespace ZafiroAgent
         {
             L.Changed -= OnLanguageChanged;
             _sessionTimer.Stop();
+            _lockGuard.Stop();
 
             try
             {
@@ -245,6 +307,7 @@ namespace ZafiroAgent
                     {
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
+                        _ = RefreshBalanceAsync();
                         if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
                         ApplyClubLanguage(hb);
                     });
@@ -308,7 +371,10 @@ namespace ZafiroAgent
             }));
         }
 
-        /// <summary>Сессия закончилась: агент снова поверх рабочего стола и ждёт оплаты.</summary>
+        /// <summary>
+        /// Сессия закончилась: агент снова поверх рабочего стола и ждёт оплаты. Клиент остаётся
+        /// в своём аккаунте (может сразу купить тариф), но играть не может, пока не оплатит.
+        /// </summary>
         private void EndSessionLocally(string reason)
         {
             _activeSessionId = null;
@@ -321,9 +387,6 @@ namespace ZafiroAgent
                 try { SHMinimizeAll(); } catch (Exception ex) { Debug.WriteLine("[Desktop] could not minimize windows: " + ex.Message); }
             }
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
-
-            // Следующий клиент не должен оказаться в чужом аккаунте и тратить чужой баланс.
-            Dispatcher.InvokeAsync(() => HandleLogoutAsync(L.T("Сессия завершена. Войдите, чтобы продолжить.")));
         }
 
         private void CheckSessionTime()
@@ -621,7 +684,7 @@ namespace ZafiroAgent
                     return;
                 }
 
-                // Клиент выходит из аккаунта (EndSessionLocally), клуб и токен ПК остаются.
+                // Пользователь остаётся в системе: токен и клуб не трогаем.
                 EndSessionLocally("ended");
             }
             catch (Exception ex)

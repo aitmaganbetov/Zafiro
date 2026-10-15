@@ -533,6 +533,11 @@
       setSessionActive(true);
     }
 
+    // Баланс обновляется сам (раз в ~20 с): пополнение на кассе видно без повторного входа.
+    if (event.data?.type === 'balance') {
+      applyBalances(formatBalance(event.data.balance), formatBalance(event.data.bonus));
+    }
+
     if (event.data?.type === 'sessionEnded') {
       setSessionActive(false);
       clearSessionDetails();
