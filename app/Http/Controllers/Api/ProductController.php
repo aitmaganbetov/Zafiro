@@ -11,8 +11,8 @@ class ProductController extends Controller
 {
     public function __invoke(): AnonymousResourceCollection
     {
+        // All columns: the photo path too, where the products table has it.
         $products = Product::query()
-            ->select(['id', 'sku', 'name', 'category', 'price', 'quantity'])
             ->orderBy('name')
             ->paginate(50);
 

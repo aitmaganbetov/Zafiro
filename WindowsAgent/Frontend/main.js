@@ -25,21 +25,14 @@
     return fill(forms[index], { count, ...params });
   };
 
-  const normalizeCategory = (value) => {
-    const category = String(value ?? '').toLowerCase();
-    if (category.includes('нап')) return 'drinks';
-    if (category.includes('пер') || category.includes('ед') || category.includes('пищ')) return 'food';
-    if (category.includes('акс') || category.includes('тех') || category.includes('игр')) return 'gear';
-    return 'other'; // видно в «Все», а не среди закусок
-  };
-
   // Локальная заглушка: без сети картинка не превращается в «битую».
   const placeholderImage = 'product-placeholder.svg';
   const normalizeProduct = (product) => ({
     id: product.id ?? product.sku,
     name: product.name ?? null,
     description: product.description ?? product.category ?? product.sku ?? null,
-    category: normalizeCategory(product.category),
+    // Категория склада клуба как есть (данные клуба, не переводятся).
+    category: typeof product.category === 'string' && product.category.trim() ? product.category.trim() : null,
     price: Number(product.price ?? 0),
     currency: product.currency ?? 'KZT',
     quantity: Number(product.quantity ?? 0),
@@ -143,6 +136,28 @@
     button.setAttribute('aria-label', accessibleLabel);
     button.addEventListener('click', action);
     return button;
+  };
+
+  // Кнопки категорий: «Все товары» и категории, которые есть у товаров клуба.
+  const renderCategories = () => {
+    const box = document.getElementById('shopCategories');
+    const names = [...new Set(products.map((product) => product.category).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, intlLocale()));
+    if (activeCategory !== 'all' && !names.includes(activeCategory)) activeCategory = 'all';
+    const all = box.querySelector('[data-category="all"]');
+    box.replaceChildren(all, ...names.map((name) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'category-button';
+      button.dataset.category = name;
+      button.textContent = name;
+      return button;
+    }));
+    box.querySelectorAll('.category-button').forEach((item) => {
+      const isActive = item.dataset.category === activeCategory;
+      item.classList.toggle('is-active', isActive);
+      item.setAttribute('aria-pressed', String(isActive));
+    });
   };
 
   const renderProducts = () => {
@@ -973,6 +988,7 @@
       // Без id два товара с одинаковым названием попали бы в одну строку корзины.
       products = Array.isArray(event.data.list) ? event.data.list.map(normalizeProduct).filter((product) => product.id != null) : [];
       productsFailed = Boolean(event.data.error);
+      renderCategories();
       renderCart();
     }
 
