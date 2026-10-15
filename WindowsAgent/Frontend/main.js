@@ -770,6 +770,76 @@
     webview.postMessage({ type: 'purchaseMinutes', minutes });
   });
 
+  // Новости на главной: Zafiro (первая карточка) и клуб (вторая). Открываются здесь же, в окне агента.
+  const newsDialog = document.getElementById('newsDialog');
+  const newsCards = Array.from(document.querySelectorAll('[data-news-column]'));
+  let news = { platform: [], club: [] };
+  let newsOpen = { column: 'platform', index: 0 };
+  const newsKickers = { platform: 'Новости Zafiro', club: 'Новости клуба' };
+
+  const renderNewsCards = () => {
+    newsCards.forEach((card) => {
+      const latest = news[card.dataset.newsColumn]?.[0];
+      const image = card.querySelector('img');
+      const text = card.querySelector('.news-card-text');
+      card.disabled = !latest;
+      text.hidden = !latest;
+      text.querySelector('strong').textContent = latest?.title ?? '';
+      // Без картинки у новости остаётся встроенная картинка карточки.
+      const src = latest?.image_url || image.dataset.fallback;
+      if (image.getAttribute('src') !== src) image.setAttribute('src', src);
+      card.setAttribute('aria-label', latest ? `${t(newsKickers[card.dataset.newsColumn])}: ${latest.title}` : t(newsKickers[card.dataset.newsColumn]));
+    });
+  };
+
+  const showNews = () => {
+    const list = news[newsOpen.column] ?? [];
+    const item = list[newsOpen.index];
+    if (!item) {
+      closeDialog(newsDialog);
+      return;
+    }
+    document.getElementById('newsKicker').textContent = t(newsKickers[newsOpen.column]);
+    const image = document.getElementById('newsImage');
+    image.hidden = !item.image_url;
+    if (item.image_url) image.src = item.image_url;
+    else image.removeAttribute('src');
+    document.getElementById('newsTitle').textContent = item.title ?? '';
+    document.getElementById('newsDate').textContent = item.published_at ? formatDateTime(item.published_at) : '';
+    document.getElementById('newsBody').textContent = item.body ?? '';
+    document.getElementById('newsPosition').textContent = list.length > 1 ? `${newsOpen.index + 1} / ${list.length}` : '';
+    document.getElementById('newsNewer').disabled = newsOpen.index === 0;
+    document.getElementById('newsOlder').disabled = newsOpen.index >= list.length - 1;
+  };
+
+  // Картинка новости не загрузилась (нет связи) — карточка показывает свою встроенную.
+  newsCards.forEach((card) => {
+    const image = card.querySelector('img');
+    image.addEventListener('error', () => {
+      if (image.getAttribute('src') !== image.dataset.fallback) image.setAttribute('src', image.dataset.fallback);
+    });
+  });
+  newsCards.forEach((card) => card.addEventListener('click', () => {
+    if (!news[card.dataset.newsColumn]?.length) return;
+    newsOpen = { column: card.dataset.newsColumn, index: 0 };
+    showNews();
+    openDialog(newsDialog);
+  }));
+  document.getElementById('newsNewer').addEventListener('click', () => {
+    newsOpen.index = Math.max(0, newsOpen.index - 1);
+    showNews();
+  });
+  document.getElementById('newsOlder').addEventListener('click', () => {
+    newsOpen.index += 1;
+    showNews();
+  });
+  document.getElementById('newsClose').addEventListener('click', () => closeDialog(newsDialog));
+  newsDialog.addEventListener('click', (event) => {
+    if (event.target === newsDialog) closeDialog(newsDialog);
+  });
+  const requestNews = () => webview?.postMessage({ type: 'requestNews' });
+  setInterval(requestNews, 10 * 60 * 1000);
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -808,7 +878,10 @@
     webview.postMessage({ type: hasActiveSession ? 'endSession' : 'logout' });
   });
 
-  homeNavigation.addEventListener('click', () => setView('session'));
+  homeNavigation.addEventListener('click', () => {
+    setView('session');
+    requestNews();
+  });
   shopNavigation.addEventListener('click', () => setView('shop'));
   historyNavigation.addEventListener('click', () => setView('history'));
   tariffNavigation.addEventListener('click', () => {
@@ -883,6 +956,8 @@
     renderFriends();
     renderHistory();
     renderMinutes();
+    renderNewsCards();
+    if (newsDialog.open) showNews();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -899,6 +974,17 @@
       products = Array.isArray(event.data.list) ? event.data.list.map(normalizeProduct).filter((product) => product.id != null) : [];
       productsFailed = Boolean(event.data.error);
       renderCart();
+    }
+
+    if (event.data?.type === 'news') {
+      if (event.data.ok && event.data.data) {
+        news = {
+          platform: Array.isArray(event.data.data.platform) ? event.data.data.platform : [],
+          club: Array.isArray(event.data.data.club) ? event.data.data.club : []
+        };
+        renderNewsCards();
+        if (newsDialog.open) showNews();
+      }
     }
 
     if (event.data?.type === 'minutes') {
@@ -1033,6 +1119,7 @@
       historyEntries = [];
       historyBefore = null;
       renderHistory();
+      closeDialog(newsDialog);
       closeDialog(transferDialog);
       closeDialog(seatDialog);
       setSessionActive(false);
@@ -1111,6 +1198,7 @@
   webview?.postMessage({ type: 'requestI18n' });
   webview?.postMessage({ type: 'requestTariffs' });
   requestMinutes();
+  requestNews();
   webview?.postMessage({ type: 'requestSession' });
   webview?.postMessage({ type: 'requestGuestFeatures' });
   renderCart();

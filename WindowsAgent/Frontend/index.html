@@ -73,13 +73,16 @@
 			</div>
 		  </div>
 
-		  <div class="card media-card game-card">
-			<img class="game-art" src="gaming-setup.jpg" alt="Игровая приставка и телевизор с видеоигрой" data-i18n-alt="Игровая приставка и телевизор с видеоигрой" />
-		  </div>
+		  <!-- Новости: первая карточка — Zafiro (суперадмин), вторая — клуб. Без новостей — просто картинка. -->
+		  <button class="card media-card game-card news-card" type="button" data-news-column="platform" disabled>
+			<img class="game-art" src="gaming-setup.jpg" data-fallback="gaming-setup.jpg" alt="Игровая приставка и телевизор с видеоигрой" data-i18n-alt="Игровая приставка и телевизор с видеоигрой" />
+			<span class="news-card-text" hidden><small data-i18n="Новости Zafiro">Новости Zafiro</small><strong></strong></span>
+		  </button>
 
-		  <div class="card media-card game-card">
-			<img class="game-art" src="gaming-event.jpg" alt="Игрок за компьютером на киберспортивном турнире" data-i18n-alt="Игрок за компьютером на киберспортивном турнире" />
-		  </div>
+		  <button class="card media-card game-card news-card" type="button" data-news-column="club" disabled>
+			<img class="game-art" src="gaming-event.jpg" data-fallback="gaming-event.jpg" alt="Игрок за компьютером на киберспортивном турнире" data-i18n-alt="Игрок за компьютером на киберспортивном турнире" />
+			<span class="news-card-text" hidden><small data-i18n="Новости клуба">Новости клуба</small><strong></strong></span>
+		  </button>
 
 		</section>
 
@@ -255,6 +258,24 @@
 		  <div class="cart-total"><span data-i18n="Итого">Итого</span><strong id="dialogCartTotal">0 KZT</strong></div>
 		  <p class="cart-note" data-i18n="Покажите заказ администратору для оформления.">Покажите заказ администратору для оформления.</p>
 		  <button class="clear-cart" id="clearCart" type="button" data-i18n="Очистить корзину">Очистить корзину</button>
+		</dialog>
+
+		<dialog class="cart-dialog news-dialog" id="newsDialog" aria-labelledby="newsTitle">
+		  <div class="cart-dialog-heading">
+			<p class="news-kicker" id="newsKicker"></p>
+			<button class="icon-button" id="newsClose" type="button" aria-label="Закрыть" data-i18n-aria-label="Закрыть" title="Закрыть" data-i18n-title="Закрыть">
+			  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+			</button>
+		  </div>
+		  <img class="news-image" id="newsImage" alt="" hidden>
+		  <h2 class="news-title" id="newsTitle"></h2>
+		  <p class="news-date" id="newsDate"></p>
+		  <div class="news-body" id="newsBody"></div>
+		  <div class="news-nav">
+			<button class="friend-button" id="newsNewer" type="button" data-i18n="← Новее">← Новее</button>
+			<span id="newsPosition"></span>
+			<button class="friend-button" id="newsOlder" type="button" data-i18n="Раньше →">Раньше →</button>
+		  </div>
 		</dialog>
 
 		<dialog class="cart-dialog" id="transferDialog" aria-labelledby="transferTitle">

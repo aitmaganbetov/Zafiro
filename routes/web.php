@@ -14,6 +14,7 @@ use App\Http\Controllers\ComputerReservationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LanguageController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\Superadmin\ClubController as SuperadminClubController;
 use App\Http\Controllers\Superadmin\DashboardController as SuperadminDashboardController;
 use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageController;
 use App\Http\Controllers\Superadmin\LogController as SuperadminLogController;
+use App\Http\Controllers\Superadmin\NewsController as SuperadminNewsController;
 use App\Http\Controllers\Superadmin\PlanController as SuperadminPlanController;
 use App\Http\Controllers\Superadmin\UserController as SuperadminUserController;
 use App\Http\Controllers\TariffController;
@@ -51,6 +53,11 @@ Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('ap
 Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
     ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
     ->name('club-logos.show');
+
+// News pictures for the PC agent: public by their random file name.
+Route::get('/news-images/{news}/{file}', [NewsController::class, 'image'])
+    ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
+    ->name('news-images.show');
 
 Route::get('/invitations/{token}', [ClubInvitationController::class, 'show'])->name('club-invitations.show');
 Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1,club-invitations.accept')->name('club-invitations.accept');
@@ -97,6 +104,11 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function 
 
         Route::get('/logs', SuperadminLogController::class)->name('logs.index');
         Route::get('/languages', [SuperadminLanguageController::class, 'index'])->name('languages');
+
+        Route::get('/news', [SuperadminNewsController::class, 'index'])->name('news.index');
+        Route::post('/news', [SuperadminNewsController::class, 'store'])->name('news.store');
+        Route::patch('/news/{news}', [SuperadminNewsController::class, 'update'])->name('news.update');
+        Route::delete('/news/{news}', [SuperadminNewsController::class, 'destroy'])->name('news.destroy');
     });
 
     // Languages and translations shared by every club (route names kept from the club settings).
@@ -147,6 +159,10 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
         Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
+        Route::get('/news', [NewsController::class, 'index'])->name('news.index');
+        Route::post('/news', [NewsController::class, 'store'])->name('news.store');
+        Route::patch('/news/{news}', [NewsController::class, 'update'])->name('news.update');
+        Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('news.destroy');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
     });
 

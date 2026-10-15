@@ -12,6 +12,7 @@
         <a href="{{ route('activity-logs.index') }}" class="sidebar-link {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>{{ __('Логи') }}</span></a>
         <span class="sidebar-label">{{ __('Система') }}</span>
         <a href="{{ route('settings') }}" class="sidebar-link {{ request()->routeIs('settings*') ? 'active' : '' }}"><i class="fas fa-sliders"></i><span>{{ __('Настройки') }}</span></a>
+        <a href="{{ route('news.index') }}" class="sidebar-link {{ request()->routeIs('news.*') ? 'active' : '' }}"><i class="fas fa-newspaper"></i><span>{{ __('Новости') }}</span></a>
         <a href="{{ route('billing.show') }}" class="sidebar-link {{ request()->routeIs('billing.*') ? 'active' : '' }}"><i class="fas fa-credit-card"></i><span>{{ __('Подписка') }}</span></a>
         @if(Auth::user()->isSuperadmin() && ! isset($superadminViewing))
             <a href="{{ route('superadmin.dashboard') }}" class="sidebar-link"><i class="fas fa-shield-halved"></i><span>{{ __('Кабинет суперадмина') }}</span></a>

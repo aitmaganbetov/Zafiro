@@ -232,6 +232,10 @@
         "Зона :zone · :price за час": "Zone :zone · :price per hour",
         "Купить": "Buy",
         "Минут": "Minutes",
-        "Поминутно": "By the minute"
+        "Поминутно": "By the minute",
+        "Новости Zafiro": "Zafiro news",
+        "Новости клуба": "Club news",
+        "Раньше →": "Older →",
+        "← Новее": "← Newer"
     }
 }

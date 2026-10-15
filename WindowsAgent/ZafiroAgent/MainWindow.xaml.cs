@@ -915,6 +915,10 @@ namespace ZafiroAgent
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
                 }
+                else if (type == "requestNews")
+                {
+                    await GuestCallAsync("news", HttpMethod.Get, "news");
+                }
                 else if (type == "requestMinutes")
                 {
                     await GuestCallAsync("minutes", HttpMethod.Get, "minutes", fromThisComputer: true);

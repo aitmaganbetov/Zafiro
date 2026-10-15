@@ -6,6 +6,7 @@
         <a href="{{ route('superadmin.clubs.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.clubs.*') ? 'active' : '' }}"><i class="fas fa-building"></i><span>{{ __('Клубы') }}</span></a>
         <a href="{{ route('superadmin.users.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.users.*') ? 'active' : '' }}"><i class="fas fa-users"></i><span>{{ __('Пользователи') }}</span></a>
         <a href="{{ route('superadmin.plans.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.plans.*') ? 'active' : '' }}"><i class="fas fa-tags"></i><span>{{ __('Тарифы платформы') }}</span></a>
+        <a href="{{ route('superadmin.news.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.news.*') ? 'active' : '' }}"><i class="fas fa-newspaper"></i><span>{{ __('Новости') }}</span></a>
         <span class="sidebar-label">{{ __('Система') }}</span>
         <a href="{{ route('superadmin.logs.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>{{ __('Журнал') }}</span></a>
         <a href="{{ route('superadmin.languages') }}" class="sidebar-link {{ request()->routeIs('superadmin.languages', 'languages.*') ? 'active' : '' }}"><i class="fas fa-language"></i><span>{{ __('Языки и переводы') }}</span></a>
