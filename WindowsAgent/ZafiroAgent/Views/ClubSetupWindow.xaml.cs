@@ -42,6 +42,7 @@ namespace ZafiroAgent.Views
             if (!string.IsNullOrEmpty(notice)) ErrorText.Text = notice;
 
             SubmitButton.Click += async (_, _) => await SubmitAsync();
+            PhoneBox.TextChanged += (_, _) => FormatPhone();
             // QR-код — только на подключённом ПК (у него есть токен устройства).
             Loaded += (_, _) => { if (_relogin) _ = RunQrLoginAsync(); };
             L.Changed += OnLanguageChanged;
@@ -53,6 +54,53 @@ namespace ZafiroAgent.Views
         }
 
         private void OnLanguageChanged() => Dispatcher.BeginInvoke(ApplyTexts);
+
+        private bool _formattingPhone;
+        private string _phoneText = string.Empty;
+
+        /// <summary>
+        /// Номер по мере ввода — «700 123-45-67»; курсор остаётся после той же цифры, что и до
+        /// форматирования (в том числе при вставке и удалении в середине).
+        /// </summary>
+        private void FormatPhone()
+        {
+            if (_formattingPhone) return;
+            var text = PhoneBox.Text;
+            var digits = new string(text.Where(c => c is >= '0' and <= '9').ToArray());
+            var allDigits = digits.Length;
+            // Номер уже полный и к нему дописали одну цифру: она не вводится (иначе 11 цифр
+            // с 7 в начале были бы приняты за вставленный номер с кодом страны). Вставка
+            // другого номера целиком поверх старого форматируется как обычно.
+            var previous = new string(_phoneText.Where(c => c is >= '0' and <= '9').ToArray());
+            var extraDigit = previous.Length == 10 && allDigits == 11
+                && Enumerable.Range(0, 11).Any(i => digits.Remove(i, 1) == previous);
+            var formatted = extraDigit ? _phoneText : PhoneNumberFormatter.FormatLocal(text);
+            PhoneHint.Visibility = text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (formatted == text)
+            {
+                _phoneText = formatted;
+                return;
+            }
+
+            var caret = PhoneBox.CaretIndex;
+            var digitsBefore = 0;
+            for (var i = 0; i < Math.Min(caret, text.Length); i++)
+                if (text[i] is >= '0' and <= '9') digitsBefore++;
+            if (extraDigit) digitsBefore = Math.Min(digitsBefore, 10);
+            // Вставлен номер целиком с 7 или 8: первая цифра отброшена.
+            else if (allDigits == 11 && formatted.Length == 13) digitsBefore = Math.Max(0, digitsBefore - 1);
+
+            var position = 0;
+            for (var seen = 0; position < formatted.Length && seen < digitsBefore; position++)
+                if (formatted[position] is >= '0' and <= '9') seen++;
+
+            _formattingPhone = true;
+            PhoneBox.Text = formatted;
+            PhoneBox.CaretIndex = position;
+            _formattingPhone = false;
+            _phoneText = formatted;
+            PhoneHint.Visibility = formatted.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         /// <summary>Все тексты окна на текущем языке: при смене языка окно не теряет введённые данные.</summary>
         private void ApplyTexts()

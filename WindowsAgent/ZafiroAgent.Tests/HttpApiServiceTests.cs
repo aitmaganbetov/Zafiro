@@ -26,6 +26,26 @@ public sealed class HttpApiServiceTests
         Assert.Null(PhoneNumberFormatter.NormalizeKazakhstanNumber(input));
     }
 
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("7", "7")]
+    [InlineData("700", "700")]
+    [InlineData("7001", "700 1")]
+    [InlineData("700123", "700 123")]
+    [InlineData("7001234", "700 123-4")]
+    [InlineData("70012345", "700 123-45")]
+    [InlineData("700123456", "700 123-45-6")]
+    [InlineData("7001234567", "700 123-45-67")]
+    [InlineData("77001234567", "700 123-45-67")]
+    [InlineData("700123456789", "700 123-45-67")]
+    [InlineData("+7 (700) 123-45-67", "700 123-45-67")]
+    [InlineData("8 700 123 45 67", "700 123-45-67")]
+    [InlineData("abc700", "700")]
+    public void FormatLocal_FormatsDigitsAfterPlus7LikeTheSite(string input, string expected)
+    {
+        Assert.Equal(expected, PhoneNumberFormatter.FormatLocal(input));
+    }
+
     [Fact]
     public async Task GetSessionInfoAsync_UsesBearerTokenAndParsesProfileBalance()
     {

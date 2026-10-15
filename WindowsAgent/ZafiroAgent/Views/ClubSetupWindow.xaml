@@ -79,9 +79,11 @@
 
                     <TextBlock x:Name="PhoneLabel" Text="Телефон" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <Grid Margin="0,0,0,16">
-                        <TextBox x:Name="PhoneBox" Padding="42,9,12,9" MaxLength="32"/>
+                        <TextBox x:Name="PhoneBox" Padding="42,9,12,9" MaxLength="16" InputScope="TelephoneNumber"/>
                         <!-- Тот же шрифт и размер, что у поля ввода: «+7» и цифры стоят на одной линии. -->
                         <TextBlock Text="+7" Margin="13,0,0,0" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#AAA5B8" IsHitTestVisible="False"/>
+                        <!-- Подсказка формата, пока поле пустое (как на сайте). -->
+                        <TextBlock x:Name="PhoneHint" Text="700 123-45-67" Margin="43,0,0,0" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#5F5A6E" IsHitTestVisible="False"/>
                     </Grid>
 
                     <TextBlock x:Name="PasswordLabel" Text="Пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
