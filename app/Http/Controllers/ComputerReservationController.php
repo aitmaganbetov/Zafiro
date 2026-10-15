@@ -8,6 +8,7 @@ use App\Models\ComputerReservation;
 use App\Models\User;
 use App\Services\ComputerReservations;
 use App\Services\CurrentClub;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -51,26 +52,47 @@ class ComputerReservationController extends Controller
             throw ValidationException::withMessages(['starts_at' => __('Нельзя забронировать ПК на прошедшее время.')]);
         }
 
-        // A club customer with this phone may buy time on the PC during the booking.
-        $customer = $data['customer_phone'] === null ? null : User::query()
-            ->where('phone', $data['customer_phone'])
-            ->whereHas('memberships', fn ($query) => $query->where('club_id', $this->currentClub->id()))
-            ->first(['id', 'name']);
+        // Name and phone are kept with the booking even if the account is removed later.
+        $customer = User::query()->findOrFail((int) $data['user_id'], ['id', 'name', 'phone']);
 
         $reservation = $this->reservations->create([
             'club_computer_id' => (int) $data['club_computer_id'],
-            'user_id' => $customer?->getKey(),
-            'customer_name' => $data['customer_name'] ?? $customer?->name,
-            'customer_phone' => $data['customer_phone'],
+            'user_id' => $customer->getKey(),
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone,
             'note' => $data['note'] ?? null,
             'starts_at' => $startsAt,
             'ends_at' => $startsAt->copy()->addMinutes((int) $data['duration_minutes']),
         ], $request->user());
 
         return redirect()->route('reservations.index', ['date' => $reservation->starts_at->format('Y-m-d')])
-            ->with('status', $customer === null
-                ? __('ПК забронирован.')
-                : __('ПК забронирован для клиента :name: в это время он сможет купить тариф на этом ПК.', ['name' => $customer->name]));
+            ->with('status', __('ПК забронирован для клиента :name: в это время он сможет купить тариф на этом ПК.', ['name' => $customer->name]));
+    }
+
+    /** Club users for the customer picker, by name or phone (at most 10). */
+    public function customers(Request $request): JsonResponse
+    {
+        $query = trim((string) ($request->validate(['q' => ['nullable', 'string', 'max:50']])['q'] ?? ''));
+        if (mb_strlen($query) < 2) {
+            return response()->json(['data' => []]);
+        }
+        // Phones are stored as +7XXXXXXXXXX: a number typed from 8 is searched from 7.
+        $digits = preg_replace('/^8/', '7', preg_replace('/\D+/', '', $query));
+        $like = fn (string $value): string => '%'.addcslashes($value, '\\%_').'%';
+
+        $customers = User::query()
+            ->whereHas('memberships', fn ($memberships) => $memberships->where('club_id', $this->currentClub->id()))
+            ->where(function ($users) use ($query, $digits, $like): void {
+                $users->where('name', 'like', $like($query));
+                if (strlen($digits) >= 3) {
+                    $users->orWhere('phone', 'like', $like($digits));
+                }
+            })
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'phone']);
+
+        return response()->json(['data' => $customers->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name, 'phone' => $user->phone])]);
     }
 
     public function cancel(Request $request, ComputerReservation $reservation): RedirectResponse

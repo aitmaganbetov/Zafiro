@@ -45,7 +45,8 @@ function reservationComputer(int $number = 1): ClubComputer
 /** Starts at the given club-local time today, as the form sends it. */
 function reservationForm(ClubComputer $computer, string $start, int $minutes = 60, array $extra = []): array
 {
-    return ['club_computer_id' => $computer->id, 'starts_at' => $start, 'duration_minutes' => $minutes, 'customer_name' => 'Арман', ...$extra];
+    // The signed-in staff member is a club user too: a valid customer unless a test picks one.
+    return ['club_computer_id' => $computer->id, 'starts_at' => $start, 'duration_minutes' => $minutes, 'user_id' => auth()->id(), ...$extra];
 }
 
 function setBookingInterval(int $minutes): void
@@ -63,18 +64,20 @@ test('the workspace menu links to the bookings page', function () {
 test('staff book a PC for a time in the club time zone and see it on that day', function () {
     Carbon::setTestNow(Carbon::parse('2026-10-15 06:00:00', 'UTC'));
     $owner = User::factory()->create();
+    $customer = User::factory()->create(['name' => 'Арман', 'phone' => '+77011112233']);
     reservationClub(['timezone' => 'Asia/Almaty']); // UTC+5
     $computer = reservationComputer();
 
-    $this->actingAs($owner)->post(route('reservations.store'), reservationForm($computer, '2026-10-15T18:00', 120, ['customer_phone' => '8 701 111 22 33', 'note' => 'ДР']))
+    $this->actingAs($owner)->post(route('reservations.store'), reservationForm($computer, '2026-10-15T18:00', 120, ['user_id' => $customer->id, 'note' => 'ДР']))
         ->assertRedirect(route('reservations.index', ['date' => '2026-10-15']))
         ->assertSessionHasNoErrors();
 
     $reservation = ComputerReservation::query()->sole();
     expect($reservation->getRawOriginal('starts_at'))->toBe('2026-10-15 13:00:00')
         ->and($reservation->getRawOriginal('ends_at'))->toBe('2026-10-15 15:00:00')
+        ->and($reservation->user_id)->toBe($customer->id)
+        ->and($reservation->customer_name)->toBe('Арман')
         ->and($reservation->customer_phone)->toBe('+77011112233')
-        ->and($reservation->user_id)->toBeNull()
         ->and($reservation->created_by)->toBe($owner->id);
 
     $this->get(route('reservations.index', ['date' => '2026-10-15']))
@@ -105,7 +108,7 @@ test('bookings of a PC keep the club interval between them; other PCs are free',
     expect(ComputerReservation::query()->count())->toBe(3);
 });
 
-test('a booking cannot be in the past, without a customer or for a PC of another club', function () {
+test('a booking cannot be in the past, without a club user or for a PC of another club', function () {
     Carbon::setTestNow(Carbon::parse('2026-10-15 06:00:00', 'UTC'));
     $this->actingAs(User::factory()->create());
     reservationClub();
@@ -113,7 +116,10 @@ test('a booking cannot be in the past, without a customer or for a PC of another
     $foreign = foreignComputer();
 
     $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T05:00'))->assertSessionHasErrors('starts_at');
-    $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T12:00', 60, ['customer_name' => null]))->assertSessionHasErrors('customer_name');
+    $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T12:00', 60, ['user_id' => null]))->assertSessionHasErrors('user_id');
+    $outsider = User::factory()->create();
+    ClubMembership::query()->where('user_id', $outsider->id)->delete();
+    $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T12:00', 60, ['user_id' => $outsider->id]))->assertSessionHasErrors('user_id');
     $this->post(route('reservations.store'), reservationForm($foreign, '2026-10-15T12:00'))->assertSessionHasErrors('club_computer_id');
 
     expect(ComputerReservation::query()->withoutGlobalScope('club')->count())->toBe(0);
@@ -129,6 +135,23 @@ test('a PC with a paid session running into the booking cannot be booked', funct
 
     $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T08:10'))->assertSessionHasErrors('starts_at');
     $this->post(route('reservations.store'), reservationForm($computer, '2026-10-15T08:15'))->assertSessionHasNoErrors();
+});
+
+test('the customer picker finds club users by name or phone, not users of other clubs', function () {
+    $this->actingAs(User::factory()->create(['name' => 'Staff']));
+    User::factory()->create(['name' => 'Арман Сейтов', 'phone' => '+77011112233']);
+    User::factory()->create(['name' => 'Дана', 'phone' => '+77029998877']);
+    $outsider = User::factory()->create(['name' => 'Арман Чужой', 'phone' => '+77011110000']);
+    ClubMembership::query()->where('user_id', $outsider->id)->delete();
+
+    $this->getJson(route('reservations.customers', ['q' => 'Арман']))->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.name', 'Арман Сейтов')
+        ->assertJsonPath('data.0.phone', '+77011112233');
+    $this->getJson(route('reservations.customers', ['q' => '8 702 999']))->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.name', 'Дана');
+    $this->getJson(route('reservations.customers', ['q' => 'А']))->assertOk()->assertJsonCount(0, 'data');
 });
 
 test('bookings can be cancelled or closed by the arrival once', function () {
@@ -177,8 +200,8 @@ test('the agent does not sell time running into a booking of someone else, the b
     $computer = reservationComputer();
     $tariff = Tariff::query()->create(['name' => 'Час', 'duration_minutes' => 60, 'price' => 100, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
 
-    // Booking 07:30–09:30 UTC (club time zone is UTC here), for the customer with this phone.
-    $this->actingAs($staff)->post(route('reservations.store'), reservationForm($computer, '2026-10-15T07:30', 120, ['customer_phone' => '+7 701 222 33 44', 'customer_name' => null]))
+    // Booking 07:30–09:30 UTC (club time zone is UTC here) for one customer.
+    $this->actingAs($staff)->post(route('reservations.store'), reservationForm($computer, '2026-10-15T07:30', 120, ['user_id' => $booked->id]))
         ->assertSessionHasNoErrors();
     expect(ComputerReservation::query()->sole()->user_id)->toBe($booked->id);
 

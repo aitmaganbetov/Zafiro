@@ -54,13 +54,12 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label for="reservation-phone" class="{{ $label }}">{{ __('Телефон клиента') }}</label>
-                    <input id="reservation-phone" name="customer_phone" type="tel" inputmode="tel" maxlength="20" placeholder="+7 7XX XXX XX XX" value="{{ old('customer_phone') }}" class="{{ $field }}">
-                </div>
-                <div>
-                    <label for="reservation-name" class="{{ $label }}">{{ __('Имя клиента') }}</label>
-                    <input id="reservation-name" name="customer_name" maxlength="120" value="{{ old('customer_name') }}" class="{{ $field }}">
+                <div class="pos-user-picker" data-customer-picker data-url="{{ route('reservations.customers') }}">
+                    <label for="reservation-customer" class="{{ $label }}">{{ __('Клиент') }}</label>
+                    <input type="hidden" name="user_id" value="{{ old('user_id') }}" data-customer-id>
+                    <input type="hidden" name="customer_label" value="{{ old('customer_label') }}" data-customer-label>
+                    <input id="reservation-customer" type="search" role="combobox" aria-autocomplete="list" aria-controls="reservation-customer-options" aria-expanded="false" autocomplete="off" required value="{{ old('customer_label') }}" placeholder="{{ __('Поиск по имени или телефону') }}" class="{{ $field }}" data-customer-search>
+                    <div id="reservation-customer-options" class="pos-user-options" role="listbox" hidden data-customer-options></div>
                 </div>
                 <div class="md:col-span-2">
                     <label for="reservation-note" class="{{ $label }}">{{ __('Комментарий') }}</label>
@@ -68,7 +67,7 @@
                 </div>
                 <div><button type="submit" class="brand-button w-full justify-center"><i class="fas fa-calendar-plus"></i>{{ __('Забронировать') }}</button></div>
             </form>
-            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ __('Если телефон принадлежит клиенту клуба, он сам сможет купить тариф на этом ПК во время брони. Иначе, когда гость придёт, нажмите «Клиент пришёл».') }}</p>
+            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ __('Во время брони только этот клиент может купить тариф на этом ПК. Нет в списке — добавьте его в разделе «Пользователи».') }}</p>
         @endif
     </section>
 
@@ -94,7 +93,6 @@
                         <td class="whitespace-nowrap px-4 py-3 text-gray-800 dark:text-gray-200">{{ $reservation->starts_at->format('H:i') }} – {{ $reservation->ends_at->format($reservation->ends_at->isSameDay($reservation->starts_at) ? 'H:i' : 'd.m H:i') }}</td>
                         <td class="px-4 py-3 text-gray-800 dark:text-gray-200">{{ $reservation->computer?->displayName() ?? '—' }}@if($reservation->computer?->zone)<div class="text-xs text-gray-500">{{ $reservation->computer->zone->name }}</div>@endif</td>
                         <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $reservation->customerLabel() ?: '—' }}
-                            @if($reservation->user_id)<div class="text-xs text-green-700 dark:text-green-400">{{ __('Клиент клуба') }}</div>@endif
                             @if($reservation->note)<div class="text-xs text-gray-500">{{ $reservation->note }}</div>@endif
                         </td>
                         <td class="px-4 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {{ $stateClass }}">{{ $stateLabel }}</span></td>
@@ -114,3 +112,83 @@
     <div class="mt-4">{{ $reservations->links() }}</div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const picker = document.querySelector('[data-customer-picker]');
+    if (!picker) return;
+    const search = picker.querySelector('[data-customer-search]');
+    const userId = picker.querySelector('[data-customer-id]');
+    const label = picker.querySelector('[data-customer-label]');
+    const list = picker.querySelector('[data-customer-options]');
+    const texts = {notFound: @json(__('Пользователь не найден')), pick: @json(__('Выберите клиента из пользователей клуба.'))};
+    let timer = null;
+    let request = null;
+
+    const close = () => { list.hidden = true; search.setAttribute('aria-expanded', 'false'); };
+    const render = (customers) => {
+        list.replaceChildren();
+        if (customers.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'pos-user-no-results';
+            empty.textContent = texts.notFound;
+            list.append(empty);
+        }
+        customers.forEach((customer) => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'pos-user-option';
+            option.setAttribute('role', 'option');
+            option.setAttribute('aria-selected', String(String(customer.id) === userId.value));
+            option.dataset.id = customer.id;
+            option.dataset.label = `${customer.name} · ${customer.phone ?? ''}`;
+            const name = document.createElement('strong');
+            name.textContent = customer.name;
+            const phone = document.createElement('small');
+            phone.textContent = customer.phone ?? '';
+            option.append(name, phone);
+            list.append(option);
+        });
+        list.hidden = false;
+        search.setAttribute('aria-expanded', 'true');
+    };
+    const find = async () => {
+        const query = search.value.trim();
+        if (query.length < 2) { close(); return; }
+        request?.abort();
+        request = new AbortController();
+        try {
+            const response = await fetch(`${picker.dataset.url}?${new URLSearchParams({q: query})}`, {headers: {Accept: 'application/json'}, signal: request.signal});
+            if (response.ok) render((await response.json()).data);
+        } catch (error) {
+            if (error.name !== 'AbortError') close();
+        }
+    };
+
+    search.addEventListener('input', () => {
+        userId.value = '';
+        label.value = '';
+        search.setCustomValidity('');
+        clearTimeout(timer);
+        timer = setTimeout(find, 250);
+    });
+    list.addEventListener('click', (event) => {
+        const option = event.target.closest('.pos-user-option');
+        if (!option) return;
+        userId.value = option.dataset.id;
+        label.value = option.dataset.label;
+        search.value = option.dataset.label;
+        search.setCustomValidity('');
+        close();
+    });
+    document.addEventListener('click', (event) => { if (!picker.contains(event.target)) close(); });
+    picker.closest('form').addEventListener('submit', (event) => {
+        if (userId.value) return;
+        event.preventDefault();
+        search.setCustomValidity(texts.pick);
+        search.reportValidity();
+    });
+})();
+</script>
+@endpush

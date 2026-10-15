@@ -178,6 +178,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
         Route::get('/reservations', [ComputerReservationController::class, 'index'])->name('reservations.index');
         Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
+        Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1')->name('reservations.customers');
         Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');
         Route::post('/reservations/{reservation}/arrive', [ComputerReservationController::class, 'arrive'])->name('reservations.arrive');
     });
