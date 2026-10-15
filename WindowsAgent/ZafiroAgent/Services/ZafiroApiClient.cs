@@ -295,9 +295,13 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Определяет этот ПК в клубе по имени и идентификатору устройства.</summary>
-        public async Task<ApiResult<ComputerInfo>> ResolveComputerAsync(ClubSession session, string deviceName, string? deviceId, CancellationToken cancellationToken)
+        /// <param name="claim">
+        /// true — получить токен устройства, если вошёл сотрудник (подключение ПК). Агент просит его,
+        /// только пока токена нет: иначе каждый вход сотрудника выдавал бы новый токен.
+        /// </param>
+        public async Task<ApiResult<ComputerInfo>> ResolveComputerAsync(ClubSession session, string deviceName, string? deviceId, CancellationToken cancellationToken, bool claim = false)
         {
-            var payload = new Dictionary<string, object?> { ["device_name"] = deviceName };
+            var payload = new Dictionary<string, object?> { ["device_name"] = deviceName, ["claim"] = claim };
             if (!string.IsNullOrWhiteSpace(deviceId)) payload["device_id"] = deviceId;
             using var content = JsonBody(payload);
 
@@ -330,9 +334,9 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Регистрирует ПК в клубе токена (201 — создан, 200 — уже был). Вызывается только после resolve с computer_not_found.</summary>
-        public async Task<ApiResult<ComputerInfo>> RegisterComputerAsync(ClubSession session, string deviceName, string? deviceId, string? macAddress, CancellationToken cancellationToken)
+        public async Task<ApiResult<ComputerInfo>> RegisterComputerAsync(ClubSession session, string deviceName, string? deviceId, string? macAddress, CancellationToken cancellationToken, bool claim = false)
         {
-            var payload = new Dictionary<string, object?> { ["device_name"] = deviceName };
+            var payload = new Dictionary<string, object?> { ["device_name"] = deviceName, ["claim"] = claim };
             if (!string.IsNullOrWhiteSpace(deviceId)) payload["device_id"] = deviceId;
             if (!string.IsNullOrWhiteSpace(macAddress)) payload["mac_address"] = macAddress;
             using var content = JsonBody(payload);

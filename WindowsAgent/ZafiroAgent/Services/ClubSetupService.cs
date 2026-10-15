@@ -158,11 +158,12 @@ namespace ZafiroAgent.Services
         /// выдаёт токен устройства (он сохраняется защищённым) — по нему агент работает
         /// дальше, а сам сотрудник выходит. Клиенту токен не выдаётся: AgentToken = null.
         /// </summary>
-        public async Task<ApiResult<ComputerInfo>> ClaimComputerAsync(ClubSession session, string? deviceId, CancellationToken cancellationToken)
+        /// <param name="claim">false — ПК уже подключён: только определить его, токен не нужен.</param>
+        public async Task<ApiResult<ComputerInfo>> ClaimComputerAsync(ClubSession session, string? deviceId, CancellationToken cancellationToken, bool claim = true)
         {
-            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken).ConfigureAwait(false);
+            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken, claim).ConfigureAwait(false);
             if (!result.Success && result.Failure == ApiFailure.ComputerNotFound)
-                result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, null, cancellationToken).ConfigureAwait(false);
+                result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, null, cancellationToken, claim).ConfigureAwait(false);
             if (!result.Success) return result;
 
             var info = result.Value!;
@@ -185,6 +186,10 @@ namespace ZafiroAgent.Services
 
             return result;
         }
+
+        /// <summary>У ПК есть токен устройства (у агента или в службе): ПК уже подключён сотрудником.</summary>
+        public bool HasDeviceToken =>
+            DeviceTokens.Resolve(_secure.Unprotect(_config.Load().ProtectedDeviceToken)) is not null;
 
         /// <summary>
         /// Выход с отзывом токена на сервере (не дольше timeout): скопированный с ПК токен

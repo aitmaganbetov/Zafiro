@@ -167,7 +167,7 @@ class ClubComputerController extends Controller
             ], 404);
         }
 
-        return response()->json($this->computerIdentity($computer) + $this->agentToken($computer, $sessions));
+        return response()->json($this->computerIdentity($computer) + $this->agentToken($computer, $sessions, $request->boolean('claim', true)));
     }
 
     public function register(RegisterClubComputerRequest $request, ClubComputerRegistrar $computers, ClubComputerSessions $sessions): JsonResponse
@@ -176,7 +176,7 @@ class ClubComputerController extends Controller
         $result = $computers->register($request->validated(), $request->user()->getKey());
 
         return response()->json(
-            $this->computerIdentity($result['computer']) + $this->agentToken($result['computer'], $sessions),
+            $this->computerIdentity($result['computer']) + $this->agentToken($result['computer'], $sessions, $request->boolean('claim', true)),
             $result['created'] ? 201 : 200,
         );
     }
@@ -266,13 +266,16 @@ class ClubComputerController extends Controller
 
     /**
      * Staff who set up a PC get its device token (shown once, replaces the previous one);
-     * customers resolving a PC never do. A staff sign-in also marks the PC as in staff hands.
+     * customers resolving a PC never do. The agent asks for it ("claim") only while it has no
+     * token, so a staff member signing in again is an ordinary sign-in; agents that do not
+     * send "claim" (before 1.0.1) get the token on every staff resolve, as before.
+     * A staff claim also marks the PC as in staff hands.
      *
      * @return array{agent_token?: string}
      */
-    private function agentToken(ClubComputer $computer, ClubComputerSessions $sessions): array
+    private function agentToken(ClubComputer $computer, ClubComputerSessions $sessions, bool $claim = true): array
     {
-        if (! Gate::allows('register', ClubComputer::class)) {
+        if (! $claim || ! Gate::allows('register', ClubComputer::class)) {
             return [];
         }
 

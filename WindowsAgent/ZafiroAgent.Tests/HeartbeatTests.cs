@@ -611,7 +611,8 @@ public sealed class HeartbeatTests : IDisposable
         await Finish(service);
 
         using var body = Body(handler.Snapshot()[1]);
-        Assert.Equal(new[] { "device_name" }, body.RootElement.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.Equal(new[] { "device_name", "claim" }, body.RootElement.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.False(body.RootElement.GetProperty("claim").GetBoolean()); // heartbeat не получает токен устройства
     }
 
     [Theory]

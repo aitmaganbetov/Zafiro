@@ -24,7 +24,7 @@ namespace ZafiroAgent.Kiosk
         private const int WhKeyboardLl = 13;
         private const int WmKeyDown = 0x0100, WmSysKeyDown = 0x0104;
         private const int LlkhfAltDown = 0x20;
-        private const int VkShift = 0x10, VkControl = 0x11;
+        private const int VkShift = 0x10, VkControl = 0x11, VkMenu = 0x12;
         private static readonly IntPtr Blocked = new(1);
 
         private const int WmQuit = 0x0012;
@@ -101,7 +101,8 @@ namespace ZafiroAgent.Kiosk
                 var info = Marshal.PtrToStructure<KbdLlHookStruct>(lParam);
                 var down = (int)wParam is WmKeyDown or WmSysKeyDown;
                 var vk = (int)info.VkCode;
-                var alt = (info.Flags & LlkhfAltDown) != 0;
+                // При зажатом Ctrl Windows может не ставить флаг Alt (Ctrl+Alt = AltGr): проверяем и саму клавишу.
+                var alt = (info.Flags & LlkhfAltDown) != 0 || (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
                 var ctrl = (GetAsyncKeyState(VkControl) & 0x8000) != 0;
                 var shift = (GetAsyncKeyState(VkShift) & 0x8000) != 0;
                 var win = ((GetAsyncKeyState(VkLWin) | GetAsyncKeyState(VkRWin)) & 0x8000) != 0;

@@ -210,3 +210,27 @@ test('owners set the staff time on a PC, other roles cannot', function () {
     $this->flushSession();
     $this->actingAs($manager)->post(route('settings.agent-staff-time'), ['minutes' => 5])->assertForbidden();
 });
+
+test('a staff member signing in on a connected PC gets no new device token', function () {
+    $computer = securityPc();
+    $old = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    $hash = $computer->fresh()->agent_token_hash;
+    $staff = securityMember('operator', '+77001112260');
+    $token = $staff->createToken('PC-1', ['club:'.$computer->club_id])->plainTextToken;
+    app(CurrentClub::class)->clear();
+
+    // The agent already has a token: an ordinary sign-in, the PC keeps its token.
+    $this->withToken($token)->postJson(route('api.club-computers.resolve'), ['device_name' => 'PC-1', 'claim' => false])
+        ->assertSuccessful()->assertJsonMissingPath('agent_token');
+    expect($computer->fresh()->agent_token_hash)->toBe($hash)
+        ->and(ActivityLog::query()->withoutGlobalScope('club')->where('event', 'agent.staff_signin')->exists())->toBeFalse();
+    $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $old])->assertSuccessful();
+
+    // Connecting the PC (claim) or an older agent without the flag gets a new token.
+    $this->app['auth']->forgetGuards();
+    $this->withToken($token)->postJson(route('api.club-computers.resolve'), ['device_name' => 'PC-1', 'claim' => true])
+        ->assertSuccessful()->assertJsonStructure(['agent_token']);
+    $this->app['auth']->forgetGuards();
+    $this->withToken($token)->postJson(route('api.club-computers.resolve'), ['device_name' => 'PC-1'])
+        ->assertSuccessful()->assertJsonStructure(['agent_token']);
+});

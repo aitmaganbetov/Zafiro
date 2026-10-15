@@ -77,6 +77,19 @@ public sealed class AgentSecurityTests : IDisposable
         Assert.DoesNotContain(DeviceToken, File.ReadAllText(Path.Combine(_dir, "agent.config.json")));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ClaimComputer_AsksForTheDeviceTokenOnlyWhenConnectingThePc(bool claim)
+    {
+        var handler = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK, """{"computer_id":45,"number":"7","name":"PC-07","zone":{"id":3,"name":"VIP"}}"""));
+        var setup = new ClubSetupService(new ZafiroApiClient(new HttpClient(handler)), Config(), _secure, "PC-07");
+
+        await setup.ClaimComputerAsync(setup.LoadSession().Value!, "uuid-1", CancellationToken.None, claim);
+
+        Assert.Contains($"\"claim\":{(claim ? "true" : "false")}", Assert.Single(handler.Requests).Body);
+    }
+
     [Fact]
     public async Task TariffPurchase_ProvesItComesFromThisPc()
     {

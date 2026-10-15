@@ -333,6 +333,7 @@ namespace ZafiroAgent.Services
             // device_id необязателен: если UUID недоступен, поле не отправляется.
             var deviceId = _deviceIdProvider();
 
+            // Без claim: токен устройства выдаётся только при подключении ПК в окне входа.
             var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken).ConfigureAwait(false);
 
             // ПК нет в клубе: регистрируем его. Backend идемпотентен, а при ошибках цикл ждёт backoff.
