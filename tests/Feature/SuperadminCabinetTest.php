@@ -151,7 +151,7 @@ test('the superadmin creates and edits platform plans', function () {
         ->and((float) $plan->fresh()->price_monthly)->toBe(17000.0);
 });
 
-test('a superadmin views a club read-only and the club log shows it', function () {
+test('a superadmin views a club read-only and the platform log shows it', function () {
     $admin = cabinetAdmin();
     $club = cabinetClub();
 
@@ -174,7 +174,8 @@ test('a superadmin views a club read-only and the club log shows it', function (
     $this->post(route('tariffs.store'), ['name' => 'Взлом', 'price_per_hour' => 1])->assertForbidden();
     $this->post(route('clubs.switch'), ['club_id' => $club->id])->assertForbidden();
     expect(Tariff::query()->where('name', 'Взлом')->exists())->toBeFalse()
-        ->and(ActivityLog::query()->where('event', 'superadmin.club_viewed')->where('user_id', $admin->id)->exists())->toBeTrue();
+        ->and(PlatformLog::query()->where('event', 'superadmin.club_viewed')->where('club_id', $club->id)->where('user_id', $admin->id)->exists())->toBeTrue()
+        ->and(ActivityLog::query()->where('user_id', $admin->id)->exists())->toBeFalse();
 
     $this->post(route('superadmin.clubs.leave'))->assertRedirect(route('superadmin.clubs.show', $club));
     expect(session()->has(SetCurrentClub::VIEWING_KEY))->toBeFalse();

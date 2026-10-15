@@ -12,7 +12,6 @@ use App\Models\ClubSubscription;
 use App\Models\PlatformLog;
 use App\Models\SaasPlan;
 use App\Models\User;
-use App\Services\ActivityLogger;
 use App\Services\PlatformLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -143,12 +142,14 @@ class ClubController extends Controller
         return back()->with('status', __('Тариф клуба изменён.'));
     }
 
-    /** Open the club's panel read-only; the club's own log shows who looked. */
-    public function view(Request $request, Club $club, ActivityLogger $activity): RedirectResponse
+    /**
+     * Open the club's panel read-only. The visit goes to the platform log: the club's own log
+     * only takes entries of its members (a database constraint), and a superadmin is not one.
+     */
+    public function view(Request $request, Club $club): RedirectResponse
     {
         $request->session()->put(SetCurrentClub::VIEWING_KEY, $club->getKey());
         $this->platformLog->record('superadmin.club_viewed', __('Суперадмин открыл клуб :club на просмотр', ['club' => $club->name]), $request->user(), $club);
-        $activity->record('superadmin.club_viewed', __('Суперадмин :user открыл панель клуба на просмотр', ['user' => $request->user()->name]), $request->user()->getKey(), null, [], $club->getKey());
 
         return redirect()->route('dashboard');
     }
