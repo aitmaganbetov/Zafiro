@@ -139,7 +139,7 @@ test('friends transfer money from the main balance only, within the balance', fu
         ->balance->toBe('59.50')
         ->bonus_balance->toBe('50.00')
         ->and(MemberBalance::query()->where('user_id', $dana->id)->value('balance'))->toBe('50.50')
-        ->and(ActivityLog::query()->where('event', 'balance.transferred')->sole()->details)->toBe(['amount' => '40.50', 'to_user_id' => $dana->id]);
+        ->and(ActivityLog::query()->where('event', 'balance.transferred')->sole()->details)->toBe(['amount' => '40.50', 'to_user_id' => $dana->id, 'friendship_id' => $friendship->id]);
 
     guestSettings(['allow_balance_transfer_to_friends' => false]);
     $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '1'], guestApi($arman))->assertForbidden();
@@ -271,4 +271,55 @@ test('the QR code is not issued when the club has it switched off', function () 
     app(CurrentClub::class)->clear();
 
     $this->postJson(route('api.agent.qr-login.store'), [], ['X-Agent-Token' => $token])->assertForbidden()->assertJsonPath('code', 'qr_disabled');
+});
+
+test('the agent shows the customer their own log: purchases, top-ups, transfers, seat changes and sign-ins', function () {
+    allGuestFeatures();
+    $staff = User::factory()->create(['name' => 'Кассир']);
+    $arman = User::factory()->create(['name' => 'Арман', 'phone' => '+77011112233']);
+    $dana = User::factory()->create(['name' => 'Дана', 'phone' => '+77029998877']);
+    $activity = app(ActivityLogger::class);
+    $tariff = Tariff::query()->create(['name' => 'Час', 'duration_minutes' => 60, 'price' => 500, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+
+    $activity->record('user.balance_topped_up', 'x', $staff->id, $arman, ['amount' => 1000, 'balance_type' => 'основной баланс', 'payment_method' => 'наличные', 'new_balance' => 1000]);
+    $activity->record('user.balance_topped_up', 'x', $staff->id, $arman, ['amount' => 200, 'balance_type' => 'бонусный баланс', 'payment_method' => 'карта', 'new_balance' => 200]);
+    $activity->record('tariff.purchased', 'x', $arman->id, $tariff, ['amount' => '500.00', 'main_balance_amount' => '400.00', 'bonus_balance_amount' => '100.00', 'duration_minutes' => 60]);
+    $activity->record('session.transferred', 'x', $arman->id, null, ['from' => 'PC-01', 'to' => 'PC-02']);
+    $activity->record('user.balance_topped_up', 'x', $staff->id, $dana, ['amount' => 999, 'balance_type' => 'основной баланс', 'payment_method' => 'наличные', 'new_balance' => 999]);
+    MemberBalance::query()->whereIn('user_id', [$arman->id, $dana->id])->update(['balance' => 500]);
+    $friendship = Friendship::query()->create(['requester_id' => $arman->id, 'addressee_id' => $dana->id, 'accepted_at' => now()]);
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '50'], guestApi($dana))->assertOk();
+
+    $entries = $this->getJson(route('api.guest.history'), guestApi($arman))->assertOk()
+        ->assertJsonPath('next_before', null)
+        ->json('data');
+
+    expect(collect($entries)->map(fn (array $entry): array => [$entry['kind'], $entry['title'], $entry['amount'], $entry['bonus_amount']])->all())->toBe([
+        ['transfer_in', 'Перевод от друга Дана', '50.00', null],
+        ['seat', 'Пересадка на ПК PC-02', null, null],
+        ['purchase', 'Покупка тарифа «Час»', '-400.00', '-100.00'],
+        ['top_up', 'Пополнение на кассе', null, '200.00'],
+        ['top_up', 'Пополнение на кассе', '1000.00', null],
+    ]);
+
+    $this->getJson(route('api.guest.history'), guestApi($dana))->assertOk()
+        ->assertJsonPath('data.0.kind', 'transfer_out')
+        ->assertJsonPath('data.0.title', 'Перевод другу Арман')
+        ->assertJsonPath('data.0.amount', '-50.00')
+        ->assertJsonCount(2, 'data');
+});
+
+test('the customer log comes in pages', function () {
+    $user = User::factory()->create();
+    foreach (range(1, 35) as $i) {
+        app(ActivityLogger::class)->record('auth.api_login', 'x', $user->id, $user, ['device' => "PC-$i"]);
+    }
+
+    $first = $this->getJson(route('api.guest.history'), guestApi($user))->assertOk()->assertJsonCount(30, 'data');
+    expect($first->json('data.0.note'))->toBe('PC-35');
+
+    $this->getJson(route('api.guest.history', ['before' => $first->json('next_before')]), guestApi($user))->assertOk()
+        ->assertJsonCount(5, 'data')
+        ->assertJsonPath('next_before', null)
+        ->assertJsonPath('data.4.note', 'PC-1');
 });

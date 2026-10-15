@@ -898,6 +898,12 @@ namespace ZafiroAgent
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
                 }
+                else if (type == "requestHistory")
+                {
+                    // Страница «Показать ещё» передаёт id последней показанной записи.
+                    var before = doc.RootElement.TryGetProperty("before", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetInt64(out var id) && id > 0 ? id : (long?)null;
+                    await GuestCallAsync("history", HttpMethod.Get, before is { } from ? $"history?before={from.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "history");
+                }
                 else if (type == "requestSeats")
                 {
                     await GuestCallAsync("seats", HttpMethod.Get, "seats", fromThisComputer: true);

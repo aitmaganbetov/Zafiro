@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubInstallationController;
 use App\Http\Controllers\Api\GuestFriendController;
+use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
@@ -108,6 +109,7 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::post('/guest/friends/{friendship}/accept', [GuestFriendController::class, 'accept'])->middleware('throttle:30,1')->name('api.guest.friends.accept');
     Route::post('/guest/friends/{friendship}/remove', [GuestFriendController::class, 'remove'])->middleware('throttle:30,1')->name('api.guest.friends.remove');
     Route::post('/guest/friends/{friendship}/transfer', [GuestFriendController::class, 'transfer'])->middleware('throttle:10,1')->name('api.guest.friends.transfer');
+    Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1')->name('api.guest.seats.index');
     Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1')->name('api.guest.seat-transfer');
 });

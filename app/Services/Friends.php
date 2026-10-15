@@ -139,14 +139,16 @@ class Friends
 
             $from->update(['balance' => self::formatCents($fromCents - $cents)]);
             $to->update(['balance' => self::formatCents(self::storedCents((string) $to->balance) + $cents)]);
-            $friend = User::query()->find($friendId, ['id', 'name']);
+            $friend = User::query()->findOrFail($friendId, ['id', 'name']);
             $this->activity->record('balance.transferred', __(':user перевёл другу :friend :amount', [
                 'user' => $user->name,
-                'friend' => $friend?->name ?? '—',
+                'friend' => $friend->name,
                 'amount' => self::formatCents($cents),
-            ]), $user->getKey(), $friendship, [
+            ]), $user->getKey(), $friend, [
+                // The friend is the subject: the transfer shows in both customers' history.
                 'amount' => self::formatCents($cents),
                 'to_user_id' => $friendId,
+                'friendship_id' => $friendship->id,
             ]);
 
             return ['balance' => self::formatCents($fromCents - $cents), 'amount' => self::formatCents($cents)];

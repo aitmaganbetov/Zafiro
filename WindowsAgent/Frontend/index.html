@@ -27,6 +27,10 @@
 		  <button class="nav-item" id="historyNavigation" type="button" aria-label="История баланса" data-i18n-aria-label="История баланса" title="История баланса" data-i18n-title="История баланса">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
 		  </button>
+		  <button class="nav-item" id="friendsNavigation" type="button" aria-label="Друзья" data-i18n-aria-label="Друзья" title="Друзья" data-i18n-title="Друзья" hidden>
+			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5 5 0 0 1 6 4.8"/></svg>
+			<span class="nav-badge" id="friendsBadge" hidden></span>
+		  </button>
 		  <button class="nav-item" id="profileNavigation" type="button" aria-label="Профиль" data-i18n-aria-label="Профиль" title="Профиль" data-i18n-title="Профиль">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
 		  </button>
@@ -138,14 +142,17 @@
 			<div class="history-list-heading">
 			  <div>
 				<h2 id="historyListTitle" data-i18n="Операции">Операции</h2>
-				<p data-i18n="Последние изменения по счёту">Последние изменения по счёту</p>
+				<p data-i18n="Покупки, пополнения, переводы и входы на ПК">Покупки, пополнения, переводы и входы на ПК</p>
 			  </div>
 			</div>
-			<div class="history-empty">
+			<ol class="history-list" id="historyList"></ol>
+			<div class="history-empty" id="historyEmpty" hidden>
 			  <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 14v10l7 4M8 11H3V6"/><path d="M4 11a21 21 0 0 1 35-4"/></svg>
-			  <h3 data-i18n="Нет данных об операциях">Нет данных об операциях</h3>
-			  <p data-i18n="Текущий баланс доступен, но список пополнений и списаний пока не передаётся приложением.">Текущий баланс доступен, но список пополнений и списаний пока не передаётся приложением.</p>
+			  <h3 data-i18n="Операций пока нет">Операций пока нет</h3>
+			  <p data-i18n="Здесь появятся покупки тарифов, пополнения, переводы и входы на ПК.">Здесь появятся покупки тарифов, пополнения, переводы и входы на ПК.</p>
 			</div>
+			<p class="friends-status" id="historyStatus" role="status" aria-live="polite"></p>
+			<button class="friend-button history-more" id="historyMore" type="button" hidden data-i18n="Показать ещё">Показать ещё</button>
 		  </section>
 		</section>
 
@@ -192,9 +199,16 @@
 			  <div><dt data-i18n="Осталось времени">Осталось времени</dt><dd id="profileRemaining">—</dd></div>
 			</dl>
 		  </section>
-		  <!-- Друзья и переводы: видны, только если клуб их включил (настройки «Гости»). -->
-		  <section class="profile-friends" id="friendsSection" aria-labelledby="friendsTitle" hidden>
-			<h2 id="friendsTitle" data-i18n="Друзья">Друзья</h2>
+		</section>
+
+		<!-- Друзья и переводы: пункт меню виден, только если клуб их включил (настройки «Гости»). -->
+		<section class="friends-page" id="friendsPage" aria-labelledby="friendsTitle" hidden>
+		  <header class="profile-heading">
+			<p class="profile-kicker" data-i18n="ДРУЗЬЯ В КЛУБЕ">ДРУЗЬЯ В КЛУБЕ</p>
+			<h1 id="friendsTitle" data-i18n="Друзья">Друзья</h1>
+			<p data-i18n="Заявки, друзья и переводы с основного счёта.">Заявки, друзья и переводы с основного счёта.</p>
+		  </header>
+		  <section class="friends-content">
 			<form class="friend-add" id="friendAddForm" hidden>
 			  <label for="friendPhone" data-i18n="Добавить друга по номеру телефона">Добавить друга по номеру телефона</label>
 			  <div class="friend-add-row">

@@ -55,6 +55,7 @@
   const historyPage = document.getElementById('historyPage');
   const tariffPage = document.getElementById('tariffPage');
   const profilePage = document.getElementById('profilePage');
+  const friendsPage = document.getElementById('friendsPage');
   const tariffCatalog = document.getElementById('tariffCatalog');
   const tariffPageStatus = document.getElementById('tariffPageStatus');
   const pageToggle = document.getElementById('pageToggle');
@@ -63,6 +64,7 @@
   const historyNavigation = document.getElementById('historyNavigation');
   const tariffNavigation = document.getElementById('tariffNavigation');
   const profileNavigation = document.getElementById('profileNavigation');
+  const friendsNavigation = document.getElementById('friendsNavigation');
   const cartDialog = document.getElementById('cartDialog');
   const actionStatus = document.getElementById('actionStatus');
   const shopCount = document.getElementById('shopCount');
@@ -116,7 +118,10 @@
     const showHistory = view === 'history';
     const showTariffs = view === 'tariffs';
     const showProfile = view === 'profile';
-    sessionPage.hidden = showShop || showHistory || showTariffs || showProfile;
+    const showFriends = view === 'friends';
+    sessionPage.hidden = showShop || showHistory || showTariffs || showProfile || showFriends;
+    friendsPage.hidden = !showFriends;
+    friendsNavigation.setAttribute('aria-current', showFriends ? 'page' : 'false');
     shopPage.hidden = !showShop;
     historyPage.hidden = !showHistory;
     tariffPage.hidden = !showTariffs;
@@ -431,7 +436,7 @@
   // Друзья, переводы и пересадка: только то, что клуб включил в настройках «Гости» (приходит с heartbeat).
   let guestFeatures = { friends: false, balance_transfer: false, self_transfer: false };
   let friendsData = { friends: [], incoming: [], outgoing: [] };
-  const friendsSection = document.getElementById('friendsSection');
+  const friendsBadge = document.getElementById('friendsBadge');
   const friendAddForm = document.getElementById('friendAddForm');
   const friendPhone = document.getElementById('friendPhone');
   const friendsStatus = document.getElementById('friendsStatus');
@@ -505,8 +510,15 @@
   };
 
   const renderFriends = () => {
-    friendsSection.hidden = !(guestFeatures.friends || guestFeatures.balance_transfer);
+    const friendsOn = guestFeatures.friends || guestFeatures.balance_transfer;
+    friendsNavigation.hidden = !friendsOn;
+    if (!friendsOn && currentView === 'friends') setView('session');
     friendAddForm.hidden = !guestFeatures.friends;
+    // Новые заявки видны на пункте меню, даже когда страница друзей закрыта.
+    const requests = guestFeatures.friends ? friendsData.incoming.length : 0;
+    friendsBadge.hidden = requests === 0;
+    friendsBadge.textContent = requests > 9 ? '9+' : String(requests);
+    friendsNavigation.setAttribute('aria-label', requests ? t('Друзья: новых заявок — :count', { count: requests }) : t('Друзья'));
     const incoming = guestFeatures.friends
       ? friendsData.incoming.map((friend) => friendRow(friend,
         friendButton('Принять', () => sendFriendAction('acceptFriend', friend.id), 'friend-button accept'),
@@ -661,6 +673,60 @@
     webview.postMessage({ type: 'requestSeats' });
   });
 
+  // Логи клиента: покупки, пополнения, переводы, пересадки и входы (сервер, страницами по 30).
+  const historyList = document.getElementById('historyList');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const historyStatus = document.getElementById('historyStatus');
+  const historyMore = document.getElementById('historyMore');
+  let historyEntries = [];
+  let historyBefore = null;
+  let historyLoading = false;
+
+  const historyAmount = (value, bonus) => {
+    if (value === null || value === undefined) return null;
+    const amount = Number(value);
+    const text = `${amount > 0 ? '+' : '−'}${Math.abs(amount).toLocaleString(intlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const element = document.createElement('span');
+    element.className = `history-amount ${amount > 0 ? 'plus' : 'minus'}${bonus ? ' bonus' : ''}`;
+    element.textContent = bonus ? t(':amount бонусов', { amount: text }) : text;
+    return element;
+  };
+
+  const renderHistory = () => {
+    historyList.replaceChildren(...historyEntries.map((entry) => {
+      const item = document.createElement('li');
+      item.className = `history-item ${typeof entry.kind === 'string' ? entry.kind : ''}`;
+      const main = document.createElement('div');
+      main.className = 'history-item-main';
+      const title = document.createElement('strong');
+      title.textContent = entry.title ?? '';
+      const meta = document.createElement('small');
+      meta.textContent = [entry.at ? formatDateTime(entry.at) : null, entry.note].filter(Boolean).join(' · ');
+      main.append(title, meta);
+      const amounts = document.createElement('div');
+      amounts.className = 'history-item-amounts';
+      amounts.append(...[historyAmount(entry.amount, false), historyAmount(entry.bonus_amount, true)].filter(Boolean));
+      item.append(main, amounts);
+      return item;
+    }));
+    historyEmpty.hidden = historyEntries.length > 0 || historyLoading;
+    historyMore.hidden = historyBefore === null;
+    historyMore.disabled = historyLoading;
+  };
+
+  const requestHistory = (more = false) => {
+    if (!webview || historyLoading) return;
+    if (!more) {
+      historyEntries = [];
+      historyBefore = null;
+    }
+    historyLoading = true;
+    setStatus(historyStatus, 'Загружаем операции…');
+    renderHistory();
+    webview.postMessage({ type: 'requestHistory', before: more ? historyBefore : null });
+  };
+  historyMore.addEventListener('click', () => requestHistory(true));
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -703,10 +769,12 @@
   shopNavigation.addEventListener('click', () => setView('shop'));
   historyNavigation.addEventListener('click', () => setView('history'));
   tariffNavigation.addEventListener('click', () => setView('tariffs'));
-  profileNavigation.addEventListener('click', () => {
-    setView('profile');
+  profileNavigation.addEventListener('click', () => setView('profile'));
+  friendsNavigation.addEventListener('click', () => {
+    setView('friends');
     requestFriends();
   });
+  historyNavigation.addEventListener('click', () => requestHistory());
   pageToggle.addEventListener('click', () => setView(currentView === 'session' ? 'shop' : 'session'));
 
   function showProfileName() {
@@ -767,6 +835,7 @@
     showPcLabel();
     renderLanguageSwitch();
     renderFriends();
+    renderHistory();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -837,7 +906,6 @@
 
     // Клиент вышел: на экране не остаётся его баланса и корзины.
     if (event.data?.type === 'guestFeatures' && event.data.features && typeof event.data.features === 'object') {
-      const before = JSON.stringify(guestFeatures);
       guestFeatures = {
         friends: event.data.features.friends === true,
         balance_transfer: event.data.features.balance_transfer === true,
@@ -845,7 +913,8 @@
       };
       updateSeatButton();
       renderFriends();
-      if (before !== JSON.stringify(guestFeatures) && currentView === 'profile') requestFriends();
+      // С каждым heartbeat (~30 с): новые заявки в друзья видны без перезахода.
+      requestFriends();
     }
 
     if (event.data?.type === 'friends') {
@@ -874,6 +943,16 @@
       } else setServerStatus(transferStatus, event.data.message ?? t('Не удалось выполнить действие.'));
     }
 
+    if (event.data?.type === 'history') {
+      historyLoading = false;
+      if (event.data.ok && Array.isArray(event.data.data?.data)) {
+        historyEntries = historyEntries.concat(event.data.data.data);
+        historyBefore = Number.isInteger(event.data.data.next_before) ? event.data.data.next_before : null;
+        setStatus(historyStatus, null);
+      } else setServerStatus(historyStatus, event.data.message ?? t('Не удалось загрузить операции.'));
+      renderHistory();
+    }
+
     if (event.data?.type === 'seats') {
       if (event.data.ok) {
         renderSeats(event.data.data);
@@ -898,6 +977,9 @@
     if (event.data?.type === 'loggedOut') {
       friendsData = { friends: [], incoming: [], outgoing: [] };
       renderFriends();
+      historyEntries = [];
+      historyBefore = null;
+      renderHistory();
       closeDialog(transferDialog);
       closeDialog(seatDialog);
       setSessionActive(false);
