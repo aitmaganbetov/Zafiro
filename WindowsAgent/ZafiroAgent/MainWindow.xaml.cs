@@ -12,6 +12,7 @@ using ZafiroAgent.Models;
 using ZafiroAgent.Security;
 using ZafiroAgent.Services;
 using ZafiroAgent.Infrastructure;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent
 {
@@ -64,6 +65,8 @@ namespace ZafiroAgent
             _clubSetup = clubSetup;
             _zafiroApi = api;
             InitializeComponent();
+            UiError.Text = L.T("Интерфейс агента не загрузился. Обратитесь к администратору клуба.");
+            L.Changed += OnLanguageChanged;
             InitializeTrayIcon();
             Loaded += MainWindow_Loaded;
 #if DEBUG
@@ -75,7 +78,7 @@ namespace ZafiroAgent
         private void InitializeTrayIcon()
         {
             // Выход — только по PIN-коду сотрудника (в режиме киоска).
-            _trayIcon = new TrayIcon("Zafiro Agent", ("Открыть Zafiro", RestoreFromTray), ("Выход", RequestExit));
+            _trayIcon = new TrayIcon("Zafiro Agent", (L.T("Открыть Zafiro"), RestoreFromTray), (L.T("Выход"), RequestExit));
             _trayIcon.Open += RestoreFromTray;
         }
 
@@ -165,6 +168,7 @@ namespace ZafiroAgent
         // а оплаченная сессия остаётся на сервере до конца своего времени.
         protected override void OnClosed(EventArgs e)
         {
+            L.Changed -= OnLanguageChanged;
             _sessionTimer.Stop();
 
             try
@@ -242,6 +246,7 @@ namespace ZafiroAgent
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
                         if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
+                        ApplyClubLanguage(hb);
                     });
                 };
                 service.OnError += ex =>
@@ -318,7 +323,7 @@ namespace ZafiroAgent
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
 
             // Следующий клиент не должен оказаться в чужом аккаунте и тратить чужой баланс.
-            Dispatcher.InvokeAsync(() => HandleLogoutAsync("Сессия завершена. Войдите, чтобы продолжить."));
+            Dispatcher.InvokeAsync(() => HandleLogoutAsync(L.T("Сессия завершена. Войдите, чтобы продолжить.")));
         }
 
         private void CheckSessionTime()
@@ -349,6 +354,69 @@ namespace ZafiroAgent
             }
 
             await Task.CompletedTask;
+        }
+
+        private long? _translationsVersion;
+        private bool _textsLoading;
+
+        private void OnLanguageChanged() => Dispatcher.BeginInvoke(() =>
+        {
+            UiError.Text = L.T("Интерфейс агента не загрузился. Обратитесь к администратору клуба.");
+            SendI18n();
+            RefreshServerTexts();
+        });
+
+        /// <summary>Тексты интерфейса на текущем языке (с английским там, где перевода нет) и языки клуба.</summary>
+        private void SendI18n()
+        {
+            var locale = L.Current;
+            SendMessageToWeb(JsonSerializer.Serialize(new
+            {
+                type = "i18n",
+                locale,
+                lines = L.LinesFor(locale),
+                languages = L.Languages.Select(language => new { code = language.Code, name = language.Name })
+            }));
+        }
+
+        /// <summary>Язык клуба и правки переводов с сервера (из heartbeat).</summary>
+        private void ApplyClubLanguage(HeartbeatResponse hb)
+        {
+            if (!hb.ClubReported) return;
+            if (hb.ClubLanguages is { Count: > 0 } languages) L.SetServerLanguages(languages);
+            if (!string.IsNullOrEmpty(hb.ClubLocale))
+            {
+                L.SetClubLocale(hb.ClubLocale);
+                if (_cfgService.Load().ClubLocale != hb.ClubLocale) _cfgService.Update(cfg => cfg.ClubLocale = hb.ClubLocale!);
+            }
+
+            if (hb.TranslationsVersion is { } version)
+            {
+                _translationsVersion = version;
+                RefreshServerTexts();
+            }
+        }
+
+        // Правки суперадмина: загружаются, только когда версия переводов на сервере новее загруженной.
+        private async void RefreshServerTexts()
+        {
+            var locale = L.Current;
+            if (_translationsVersion is not { } version || L.ServerVersion(locale) == version || _textsLoading) return;
+
+            _textsLoading = true;
+            try
+            {
+                var pack = await _zafiroApi.GetAgentTranslationsAsync(locale, CancellationToken.None);
+                if (pack is not null) L.SetServerLines(locale, pack.Version ?? version, pack.Lines);
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[I18n] server texts were not loaded: " + ex.Message);
+            }
+            finally
+            {
+                _textsLoading = false;
+            }
         }
 
         private void StopHeartbeat()
@@ -473,6 +541,7 @@ namespace ZafiroAgent
             core.SetVirtualHostNameToFolderMapping(AppHost, frontendFolder, CoreWebView2HostResourceAccessKind.Allow);
             core.NavigationCompleted += (_, _) =>
             {
+                SendI18n();
                 var cfg = _cfgService.Load();
                 SendMessageToWeb(JsonSerializer.Serialize(new
                 {
@@ -509,13 +578,13 @@ namespace ZafiroAgent
             catch (HttpRequestException ex)
             {
                 var message = ex.StatusCode is { } statusCode
-                    ? $"Не удалось загрузить баланс с сервера ({(int)statusCode})."
-                    : "Не удалось подключиться к серверу баланса.";
+                    ? L.T("Не удалось загрузить баланс с сервера (:code).", ("code", (int)statusCode))
+                    : L.T("Не удалось подключиться к серверу баланса.");
                 SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", error = true, message }));
             }
             catch
             {
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", error = true, message = "Не удалось загрузить баланс." }));
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionData", error = true, message = L.T("Не удалось загрузить баланс.") }));
             }
 
             // Профиль не знает о сессии ПК: её состояние присылаем отдельно.
@@ -531,7 +600,7 @@ namespace ZafiroAgent
             }
             catch
             {
-                SendMessageToWeb("{\"type\":\"tariffs\",\"list\":[],\"error\":true,\"message\":\"Не удалось загрузить тарифы. Проверьте подключение.\"}");
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "tariffs", list = Array.Empty<object>(), error = true, message = L.T("Не удалось загрузить тарифы. Проверьте подключение.") }));
             }
         }
 
@@ -548,7 +617,7 @@ namespace ZafiroAgent
 
                 if (!await _apiService.EndSessionAsync(sessionId, CancellationToken.None))
                 {
-                    SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = "Не удалось завершить сессию." }));
+                    SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = L.T("Не удалось завершить сессию.") }));
                     return;
                 }
 
@@ -558,7 +627,7 @@ namespace ZafiroAgent
             catch (Exception ex)
             {
                 Debug.WriteLine("[EndSession] failed: " + ex.Message);
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = "Не удалось завершить сессию." }));
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = L.T("Не удалось завершить сессию.") }));
             }
         }
 
@@ -579,6 +648,9 @@ namespace ZafiroAgent
 
                 await _clubSetup.SignOutAsync(TimeSpan.FromSeconds(3));
                 SendMessageToWeb("{\"type\":\"loggedOut\"}");
+
+                // Следующий клиент видит язык клуба, а не язык предыдущего.
+                L.SetUserLocale(null);
 
                 // Клуб и ключ установки сохраняются: нужен только повторный вход пользователя.
                 if (ShowSignIn(notice))
@@ -636,6 +708,16 @@ namespace ZafiroAgent
                 {
                     await SendTariffsAsync();
                 }
+                else if (type == "requestI18n")
+                {
+                    SendI18n();
+                }
+                else if (type == "setLanguage")
+                {
+                    // Только из списка языков клуба; ответ — сообщение i18n (через L.Changed).
+                    if (doc.RootElement.TryGetProperty("locale", out var requested) && requested.ValueKind == JsonValueKind.String)
+                        L.SetUserLocale(requested.GetString());
+                }
                 else if (type == "requestProducts")
                 {
                     try
@@ -677,7 +759,7 @@ namespace ZafiroAgent
                     catch
                     {
                         Debug.WriteLine("[Error] purchase failed");
-                        SendMessageToWeb("{\"type\":\"purchaseResult\",\"success\":false,\"message\":\"Ошибка покупки\"}");
+                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "purchaseResult", success = false, message = L.T("Ошибка покупки") }));
                     }
                     finally
                     {
@@ -698,7 +780,7 @@ namespace ZafiroAgent
                     // Рабочий стол — только во время оплаченной сессии.
                     if (_activeSessionId is null)
                     {
-                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = "Сначала выберите тариф: без активной сессии рабочий стол недоступен." }));
+                        SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = L.T("Сначала выберите тариф: без активной сессии рабочий стол недоступен.") }));
                         return;
                     }
 

@@ -31,6 +31,17 @@ class LocaleResolver
         return in_array($code, $this->enabledCodes(), true) ? $code : $this->fallback();
     }
 
+    /**
+     * The PC agent sends the language the customer picked on the PC (X-Agent-Locale);
+     * otherwise the club language applies.
+     */
+    public function forAgentRequest(Request $request, Club $club): string
+    {
+        $requested = strtolower((string) $request->header('X-Agent-Locale'));
+
+        return $requested !== '' && in_array($requested, $this->enabledCodes(), true) ? $requested : $this->forClub($club);
+    }
+
     public function forGuest(Request $request): string
     {
         $enabled = $this->enabledCodes();

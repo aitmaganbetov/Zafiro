@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ZafiroAgent.Models;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Services
 {
@@ -21,10 +22,10 @@ namespace ZafiroAgent.Services
     public sealed class ZafiroApiClient
     {
         public const string ApiHost = "zafiro.kz";
-        public const string ComputerNotRegistered = "ПК не зарегистрирован в клубе. Добавьте его в зоне клуба в панели или исправьте имя ПК.";
+        public static string ComputerNotRegistered => L.T("ПК не зарегистрирован в клубе. Добавьте его в зоне клуба в панели или исправьте имя ПК.");
         public const string ComputerNotFoundCode = "computer_not_found";
-        public const string EndpointMissing = "Сервер Zafiro не поддерживает этот запрос (маршрут не найден). Обновите backend Zafiro.";
-        public const string RegisterForbidden = "Недостаточно прав, чтобы добавить этот ПК в клуб. Попросите администратора добавить его в зоне клуба.";
+        public static string EndpointMissing => L.T("Сервер Zafiro не поддерживает этот запрос (маршрут не найден). Обновите backend Zafiro.");
+        public static string RegisterForbidden => L.T("Недостаточно прав, чтобы добавить этот ПК в клуб. Попросите администратора добавить его в зоне клуба.");
         public static readonly Uri ResolveEndpoint = new("https://zafiro.kz/api/clubs/resolve");
         public static readonly Uri AgentLoginEndpoint = new("https://zafiro.kz/api/agent/user/login");
         public static readonly Uri ExitPinEndpoint = new("https://zafiro.kz/api/agent/exit-pin");
@@ -44,7 +45,30 @@ namespace ZafiroAgent.Services
         // Редиректы выключены, чтобы ключ и пароль не ушли на другой хост; проверка TLS стандартная.
         // Запросы с меткой токена ПК уходят через службу (DeviceVaultHandler).
         public static HttpClient CreateHttpClient() =>
-            new(new DeviceVaultHandler(new SocketsHttpHandler { AllowAutoRedirect = false })) { Timeout = TimeSpan.FromSeconds(30) };
+            new(new LocaleHandler(new DeviceVaultHandler(new SocketsHttpHandler { AllowAutoRedirect = false }))) { Timeout = TimeSpan.FromSeconds(30) };
+
+        public static readonly Uri TranslationsEndpoint = new("https://zafiro.kz/api/agent/translations/");
+
+        /// <summary>
+        /// Тексты агента с правками суперадмина (без токена: они не секретны). null — нет связи
+        /// или ответ не подходит; тогда остаются встроенные тексты.
+        /// </summary>
+        public async Task<L.TextPack?> GetAgentTranslationsAsync(string locale, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(locale) || !locale.All(c => c is >= 'a' and <= 'z') || locale.Length > 8) return null;
+
+            try
+            {
+                using var response = await _http.GetAsync(new Uri(TranslationsEndpoint, locale), cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > 1024 * 1024) return null;
+                var pack = L.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                return pack?.Locale == locale ? pack : null;
+            }
+            catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                return null;
+            }
+        }
 
         /// <summary>Клиент без службы — для самой службы.</summary>
         public static HttpClient CreateDirectHttpClient() =>
@@ -64,7 +88,7 @@ namespace ZafiroAgent.Services
         public async Task<ApiResult<ClubInfo>> ResolveClubAsync(string clubKey, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(clubKey))
-                return ApiResult<ClubInfo>.Fail(ApiFailure.InvalidInput, "Введите ключ установки.");
+                return ApiResult<ClubInfo>.Fail(ApiFailure.InvalidInput, L.T("Введите ключ установки."));
 
             var response = await PostJsonAsync(ResolveEndpoint, new Dictionary<string, object?> { ["club_key"] = clubKey.Trim() }, isLogin: false, cancellationToken).ConfigureAwait(false);
             if (!response.Success) return ApiResult<ClubInfo>.Fail(response.Failure, response.Message);
@@ -77,7 +101,7 @@ namespace ZafiroAgent.Services
                 return InvalidResponse<ClubInfo>();
 
             if (!TryValidateHttpsEndpoint(apiBase, out var apiBaseUri) || !TryValidateHttpsEndpoint(loginEndpoint, out var loginUri))
-                return ApiResult<ClubInfo>.Fail(ApiFailure.InvalidEndpoint, "Сервер вернул недопустимый адрес API. Работа остановлена.");
+                return ApiResult<ClubInfo>.Fail(ApiFailure.InvalidEndpoint, L.T("Сервер вернул недопустимый адрес API. Работа остановлена."));
 
             return ApiResult<ClubInfo>.Ok(new ClubInfo(clubId, clubName, apiBaseUri, loginUri));
         }
@@ -85,7 +109,7 @@ namespace ZafiroAgent.Services
         public async Task<ApiResult<ClubLogin>> LoginAsync(ClubInfo club, string clubKey, string phone, string password, string deviceName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(phone) || string.IsNullOrEmpty(password))
-                return ApiResult<ClubLogin>.Fail(ApiFailure.InvalidInput, "Введите телефон и пароль.");
+                return ApiResult<ClubLogin>.Fail(ApiFailure.InvalidInput, L.T("Введите телефон и пароль."));
 
             var payload = new Dictionary<string, object?>
             {
@@ -113,7 +137,7 @@ namespace ZafiroAgent.Services
             if (TryGetLong(data, "club_id", out var dataClubId) || TryGetLong(root, "club_id", out dataClubId))
                 responseClubId = dataClubId;
             if (responseClubId is { } id && id != club.ClubId)
-                return ApiResult<ClubLogin>.Fail(ApiFailure.ClubMismatch, "Сервер подтвердил другой клуб. Вход отменён, агент не запущен.");
+                return ApiResult<ClubLogin>.Fail(ApiFailure.ClubMismatch, L.T("Сервер подтвердил другой клуб. Вход отменён, агент не запущен."));
 
             var confirmedName = TryGetString(data, "club_name", out var name)
                 ? name
@@ -126,9 +150,9 @@ namespace ZafiroAgent.Services
         public async Task<ApiResult<bool>> VerifyExitPinAsync(string? deviceToken, string pin, CancellationToken cancellationToken, string? userToken = null)
         {
             if (string.IsNullOrEmpty(deviceToken))
-                return ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, "ПК ещё не настроен сотрудником клуба: PIN проверить нельзя.");
+                return ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, L.T("ПК ещё не настроен сотрудником клуба: PIN проверить нельзя."));
             if (string.IsNullOrWhiteSpace(pin))
-                return ApiResult<bool>.Fail(ApiFailure.InvalidInput, "Введите PIN-код.");
+                return ApiResult<bool>.Fail(ApiFailure.InvalidInput, L.T("Введите PIN-код."));
 
             try
             {
@@ -142,16 +166,16 @@ namespace ZafiroAgent.Services
                 return response.StatusCode switch
                 {
                     HttpStatusCode.OK => ApiResult<bool>.Ok(true),
-                    HttpStatusCode.UnprocessableEntity => ApiResult<bool>.Fail(ApiFailure.InvalidCredentials, "Неверный PIN-код."),
-                    HttpStatusCode.Conflict => ApiResult<bool>.Fail(ApiFailure.NotConfigured, "PIN-код не задан. Задайте его в настройках клуба в панели Zafiro."),
-                    HttpStatusCode.TooManyRequests => ApiResult<bool>.Fail(ApiFailure.Forbidden, "Слишком много попыток. Подождите 5 минут."),
-                    HttpStatusCode.Unauthorized => ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, "Токен устройства недействителен: сотрудник должен заново войти на этом ПК."),
-                    _ => ApiResult<bool>.Fail(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)response.StatusCode}).")
+                    HttpStatusCode.UnprocessableEntity => ApiResult<bool>.Fail(ApiFailure.InvalidCredentials, L.T("Неверный PIN-код.")),
+                    HttpStatusCode.Conflict => ApiResult<bool>.Fail(ApiFailure.NotConfigured, L.T("PIN-код не задан. Задайте его в настройках клуба в панели Zafiro.")),
+                    HttpStatusCode.TooManyRequests => ApiResult<bool>.Fail(ApiFailure.Forbidden, L.T("Слишком много попыток. Подождите 5 минут.")),
+                    HttpStatusCode.Unauthorized => ApiResult<bool>.Fail(ApiFailure.DeviceTokenInvalid, L.T("Токен устройства недействителен: сотрудник должен заново войти на этом ПК.")),
+                    _ => ApiResult<bool>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)))
                 };
             }
             catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
-                return ApiResult<bool>.Fail(ApiFailure.Network, "Нет связи с сервером Zafiro: PIN проверить нельзя.");
+                return ApiResult<bool>.Fail(ApiFailure.Network, L.T("Нет связи с сервером Zafiro: PIN проверить нельзя."));
             }
         }
 
@@ -165,7 +189,7 @@ namespace ZafiroAgent.Services
                 !TryValidateHttpsEndpoint(target.AbsoluteUri, out _) ||
                 !target.AbsolutePath.StartsWith(baseUri.AbsolutePath, StringComparison.Ordinal))
             {
-                throw new ZafiroApiException(ApiFailure.InvalidEndpoint, "Недопустимый адрес запроса к API Zafiro.");
+                throw new ZafiroApiException(ApiFailure.InvalidEndpoint, L.T("Недопустимый адрес запроса к API Zafiro."));
             }
 
             using var request = new HttpRequestMessage(method, target) { Content = content };
@@ -187,7 +211,7 @@ namespace ZafiroAgent.Services
             }
             catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
-                throw new ZafiroApiException(ApiFailure.Network, "Не удалось связаться с сервером Zafiro.");
+                throw new ZafiroApiException(ApiFailure.Network, L.T("Не удалось связаться с сервером Zafiro."));
             }
 
             var failure = response.StatusCode switch
@@ -204,10 +228,10 @@ namespace ZafiroAgent.Services
             response.Dispose();
             throw new ZafiroApiException(failure.Value, failure.Value switch
             {
-                ApiFailure.TokenExpired => "Срок действия входа истёк. Выполните вход повторно.",
-                ApiFailure.DeviceTokenInvalid => "Токен устройства недействителен: сотрудник должен заново войти на этом ПК.",
-                ApiFailure.SubscriptionInactive => "Подписка клуба неактивна. Обратитесь к администратору клуба.",
-                _ => "Доступ запрещён: пользователь не состоит в клубе либо club_id не совпадает. Работа с текущей конфигурацией остановлена."
+                ApiFailure.TokenExpired => L.T("Срок действия входа истёк. Выполните вход повторно."),
+                ApiFailure.DeviceTokenInvalid => L.T("Токен устройства недействителен: сотрудник должен заново войти на этом ПК."),
+                ApiFailure.SubscriptionInactive => L.T("Подписка клуба неактивна. Обратитесь к администратору клуба."),
+                _ => L.T("Доступ запрещён: пользователь не состоит в клубе либо club_id не совпадает. Работа с текущей конфигурацией остановлена.")
             });
         }
 
@@ -238,7 +262,7 @@ namespace ZafiroAgent.Services
             }
             catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
-                return ApiResult<JsonElement>.Fail(ApiFailure.Network, "Не удалось связаться с сервером Zafiro. Проверьте подключение и повторите попытку.");
+                return ApiResult<JsonElement>.Fail(ApiFailure.Network, L.T("Не удалось связаться с сервером Zafiro. Проверьте подключение и повторите попытку."));
             }
         }
 
@@ -246,17 +270,17 @@ namespace ZafiroAgent.Services
         {
             HttpStatusCode.NotFound when isLogin => ApiResult<JsonElement>.Fail(ApiFailure.EndpointNotFound, EndpointMissing),
             HttpStatusCode.Unauthorized => isLogin
-                ? ApiResult<JsonElement>.Fail(ApiFailure.InvalidCredentials, "Неверный номер или пароль.")
-                : ApiResult<JsonElement>.Fail(ApiFailure.InvalidKey, "Неверный ключ установки."),
-            HttpStatusCode.PaymentRequired => ApiResult<JsonElement>.Fail(ApiFailure.SubscriptionInactive, "Подписка клуба неактивна. Обратитесь к администратору клуба."),
+                ? ApiResult<JsonElement>.Fail(ApiFailure.InvalidCredentials, L.T("Неверный номер или пароль."))
+                : ApiResult<JsonElement>.Fail(ApiFailure.InvalidKey, L.T("Неверный ключ установки.")),
+            HttpStatusCode.PaymentRequired => ApiResult<JsonElement>.Fail(ApiFailure.SubscriptionInactive, L.T("Подписка клуба неактивна. Обратитесь к администратору клуба.")),
             HttpStatusCode.Forbidden => ApiResult<JsonElement>.Fail(ApiFailure.Forbidden, isLogin
-                ? "Пользователь не состоит в этом клубе, либо club_id не совпадает."
-                : "Доступ запрещён."),
-            _ => ApiResult<JsonElement>.Fail(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)status}). Повторите попытку позже.")
+                ? L.T("Пользователь не состоит в этом клубе, либо club_id не совпадает.")
+                : L.T("Доступ запрещён.")),
+            _ => ApiResult<JsonElement>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code). Повторите попытку позже.", ("code", (int)status)))
         };
 
         private static ApiResult<T> InvalidResponse<T>() =>
-            ApiResult<T>.Fail(ApiFailure.InvalidResponse, "Сервер Zafiro вернул неожиданный ответ.");
+            ApiResult<T>.Fail(ApiFailure.InvalidResponse, L.T("Сервер Zafiro вернул неожиданный ответ."));
 
         private DateTime ReadExpiry(JsonElement root)
         {
@@ -296,10 +320,10 @@ namespace ZafiroAgent.Services
                         : ApiResult<ComputerInfo>.Fail(ApiFailure.EndpointNotFound, EndpointMissing);
 
                 if (IsTemporaryFailure(response.StatusCode))
-                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Network, "Сервер Zafiro временно недоступен.");
+                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Network, L.T("Сервер Zafiro временно недоступен."));
 
                 if (!response.IsSuccessStatusCode)
-                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)response.StatusCode}).");
+                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
 
                 return await ParseComputerAsync(response, cancellationToken).ConfigureAwait(false);
             }
@@ -333,13 +357,13 @@ namespace ZafiroAgent.Services
                     return ApiResult<ComputerInfo>.Fail(ApiFailure.EndpointNotFound, EndpointMissing);
 
                 if (IsTemporaryFailure(response.StatusCode))
-                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Network, "Сервер Zafiro временно недоступен.");
+                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Network, L.T("Сервер Zafiro временно недоступен."));
 
                 if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict or HttpStatusCode.UnprocessableEntity)
-                    return ApiResult<ComputerInfo>.Fail(ApiFailure.InvalidRequest, "Сервер отклонил регистрацию ПК. Обратитесь к администратору клуба.");
+                    return ApiResult<ComputerInfo>.Fail(ApiFailure.InvalidRequest, L.T("Сервер отклонил регистрацию ПК. Обратитесь к администратору клуба."));
 
                 if (!response.IsSuccessStatusCode)
-                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)response.StatusCode}).");
+                    return ApiResult<ComputerInfo>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
 
                 return await ParseComputerAsync(response, cancellationToken).ConfigureAwait(false);
             }
@@ -400,17 +424,17 @@ namespace ZafiroAgent.Services
             }
 
             if (response.StatusCode == HttpStatusCode.UnprocessableEntity)
-                throw new ZafiroApiException(ApiFailure.InvalidRequest, "Сервер отклонил статус ПК. Обратитесь к администратору.");
+                throw new ZafiroApiException(ApiFailure.InvalidRequest, L.T("Сервер отклонил статус ПК. Обратитесь к администратору."));
 
             // Повторяемые ошибки приходят как Network: цикл heartbeat их не останавливает.
             if (IsTemporaryFailure(response.StatusCode))
-                throw new ZafiroApiException(ApiFailure.Network, "Сервер Zafiro временно недоступен.");
+                throw new ZafiroApiException(ApiFailure.Network, L.T("Сервер Zafiro временно недоступен."));
 
             if (!response.IsSuccessStatusCode)
-                throw new ZafiroApiException(ApiFailure.Unknown, $"Сервер Zafiro вернул ошибку ({(int)response.StatusCode}).");
+                throw new ZafiroApiException(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
 
             if (await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is not { } root)
-                throw new ZafiroApiException(ApiFailure.InvalidResponse, "Сервер Zafiro вернул неожиданный ответ.");
+                throw new ZafiroApiException(ApiFailure.InvalidResponse, L.T("Сервер Zafiro вернул неожиданный ответ."));
 
             return ParseHeartbeat(root);
         }
@@ -475,6 +499,15 @@ namespace ZafiroAgent.Services
                 heartbeat.ClubReported = true;
                 if (TryGetString(club, "name", out var clubName)) heartbeat.ClubName = clubName;
                 if (TryGetString(club, "logo_url", out var logoUrl)) heartbeat.ClubLogoUrl = logoUrl;
+                if (TryGetString(club, "locale", out var clubLocale)) heartbeat.ClubLocale = clubLocale;
+                if (club.TryGetProperty("translations_version", out var version) && version.TryGetInt64(out var versionNumber)) heartbeat.TranslationsVersion = versionNumber;
+                if (club.TryGetProperty("languages", out var languages) && languages.ValueKind == JsonValueKind.Array)
+                {
+                    heartbeat.ClubLanguages = languages.EnumerateArray()
+                        .Where(item => item.ValueKind == JsonValueKind.Object && TryGetString(item, "code", out _) && TryGetString(item, "name", out _))
+                        .Select(item => new LanguageInfo(item.GetProperty("code").GetString()!, item.GetProperty("name").GetString()!))
+                        .ToList();
+                }
             }
 
             return heartbeat;

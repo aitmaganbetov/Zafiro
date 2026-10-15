@@ -1,15 +1,26 @@
 using System;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using ZafiroAgent.Models;
 using ZafiroAgent.Services;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Views
 {
     public partial class ClubSetupWindow : Window
     {
+        private enum Mode { Setup, Relogin, Connected }
+
+        private static readonly Brush CurrentLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x75, 0x54, 0xC8)));
+        private static readonly Brush OtherLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x30, 0x2D, 0x3D)));
+
         private readonly ClubSetupService _setup;
         private bool _relogin;
+        private Mode _mode;
+        private string? _connectedNumber;
+        private string? _connectedZone;
         private readonly CancellationTokenSource _cts = new();
         private bool _busy;
 
@@ -20,26 +31,86 @@ namespace ZafiroAgent.Views
             InitializeComponent();
             _setup = setup;
             _relogin = setup.IsClubConfigured;
+            _mode = _relogin ? Mode.Relogin : Mode.Setup;
+            if (_relogin) KeyPanel.Visibility = Visibility.Collapsed;
 
-            var computer = string.IsNullOrWhiteSpace(setup.ComputerNumber) ? setup.ComputerId : setup.ComputerNumber;
-            ComputerText.Text = $"ПК: {(string.IsNullOrWhiteSpace(computer) ? "не задан" : computer)}";
-            ZoneText.Text = $"Зона: {(string.IsNullOrWhiteSpace(setup.Zone) ? "не задана" : setup.Zone)}";
-
-            if (_relogin)
-            {
-                HeaderText.Text = "Повторный вход";
-                ClubText.Text = $"Клуб: {setup.ClubName}";
-                KeyPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                ClubText.Text = "Введите ключ установки клуба и данные вашей учётной записи.";
-            }
-
+            ApplyTexts();
             if (!string.IsNullOrEmpty(notice)) ErrorText.Text = notice;
 
             SubmitButton.Click += async (_, _) => await SubmitAsync();
-            Closed += (_, _) => _cts.Cancel();
+            L.Changed += OnLanguageChanged;
+            Closed += (_, _) =>
+            {
+                _cts.Cancel();
+                L.Changed -= OnLanguageChanged;
+            };
+        }
+
+        private void OnLanguageChanged() => Dispatcher.BeginInvoke(ApplyTexts);
+
+        /// <summary>Все тексты окна на текущем языке: при смене языка окно не теряет введённые данные.</summary>
+        private void ApplyTexts()
+        {
+            Title = L.T("Подключение к клубу Zafiro");
+            var computer = _connectedNumber ?? (string.IsNullOrWhiteSpace(_setup.ComputerNumber) ? _setup.ComputerId : _setup.ComputerNumber);
+            var zone = _mode == Mode.Connected ? _connectedZone : _setup.Zone;
+            ComputerText.Text = L.T("ПК: :computer", ("computer", string.IsNullOrWhiteSpace(computer) ? L.T("не задан") : computer));
+            ZoneText.Text = L.T("Зона: :zone", ("zone", string.IsNullOrWhiteSpace(zone) ? L.T("не задана") : zone));
+            (HeaderText.Text, ClubText.Text) = _mode switch
+            {
+                Mode.Relogin => (L.T("Повторный вход"), L.T("Клуб: :club", ("club", _setup.ClubName))),
+                Mode.Connected => (L.T("ПК подключён"), L.T("Клуб: :club · ПК :number. Сотрудник вышел — теперь клиент входит своей учётной записью.", ("club", _setup.ClubName), ("number", _connectedNumber))),
+                _ => (L.T("Подключение к клубу"), L.T("Введите ключ установки клуба и данные вашей учётной записи."))
+            };
+            KeyLabel.Text = L.T("Ключ установки");
+            PhoneLabel.Text = L.T("Телефон");
+            PasswordLabel.Text = L.T("Пароль");
+            SubmitButton.Content = L.T("Войти");
+            StaffHint.Text = L.T("Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.");
+            RenderLanguages();
+        }
+
+        private void RenderLanguages()
+        {
+            LanguagePanel.Children.Clear();
+            var languages = L.Languages;
+            LanguagePanel.Visibility = languages.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var language in languages)
+            {
+                var button = new Button
+                {
+                    Content = ShortName(language.Code),
+                    ToolTip = language.Name,
+                    MinWidth = 44,
+                    Height = 30,
+                    Margin = new Thickness(4, 0, 0, 0),
+                    Padding = new Thickness(10, 0, 10, 0),
+                    FontSize = 12,
+                    Background = language.Code == L.Current ? CurrentLanguageBrush : OtherLanguageBrush
+                };
+                System.Windows.Automation.AutomationProperties.SetName(button, language.Name);
+                button.Click += (_, _) =>
+                {
+                    if (_busy) return;
+                    ErrorText.Text = string.Empty;
+                    L.SetUserLocale(language.Code);
+                };
+                LanguagePanel.Children.Add(button);
+            }
+        }
+
+        private static string ShortName(string code) => code switch
+        {
+            "ru" => "RU",
+            "kk" => "ҚАЗ",
+            "en" => "EN",
+            _ => code.ToUpperInvariant()
+        };
+
+        private static Brush Freeze(Brush brush)
+        {
+            brush.Freeze();
+            return brush;
         }
 
         private async System.Threading.Tasks.Task SubmitAsync()
@@ -48,7 +119,7 @@ namespace ZafiroAgent.Views
             var phone = PhoneNumberFormatter.NormalizeKazakhstanNumber(PhoneBox.Text);
             if (phone is null)
             {
-                ErrorText.Text = "Введите 10 цифр номера после +7.";
+                ErrorText.Text = L.T("Введите 10 цифр номера после +7.");
                 return;
             }
 
@@ -96,7 +167,7 @@ namespace ZafiroAgent.Views
                         await _setup.SignOutAsync(TimeSpan.FromSeconds(3));
                         _setup.ResetClub();
                         ErrorText.Text = claim.Success || claim.Failure == ApiFailure.Forbidden
-                            ? "Подключать ПК к клубу может только сотрудник клуба: владелец, администратор, менеджер или оператор."
+                            ? L.T("Подключать ПК к клубу может только сотрудник клуба: владелец, администратор, менеджер или оператор.")
                             : claim.Message;
                         PasswordBox.Clear();
                         SubmitButton.IsEnabled = true;
@@ -123,7 +194,7 @@ namespace ZafiroAgent.Views
             {
                 // Например, настройки нельзя записать: окно остаётся, агент не падает.
                 SafeLog.Write("[Setup] sign-in failed: " + ex.Message);
-                ErrorText.Text = "Не удалось выполнить вход. Повторите попытку или обратитесь к администратору клуба.";
+                ErrorText.Text = L.T("Не удалось выполнить вход. Повторите попытку или обратитесь к администратору клуба.");
             }
             finally
             {
@@ -137,10 +208,10 @@ namespace ZafiroAgent.Views
         private void ShowCustomerSignIn(ComputerInfo computer)
         {
             _relogin = true;
-            HeaderText.Text = "ПК подключён";
-            ClubText.Text = $"Клуб: {_setup.ClubName} · ПК {computer.Number}. Сотрудник вышел — теперь клиент входит своей учётной записью.";
-            ComputerText.Text = $"ПК: {computer.Number}";
-            ZoneText.Text = $"Зона: {(string.IsNullOrWhiteSpace(computer.ZoneName) ? "не задана" : computer.ZoneName)}";
+            _mode = Mode.Connected;
+            _connectedNumber = computer.Number;
+            _connectedZone = computer.ZoneName;
+            ApplyTexts();
             KeyPanel.Visibility = Visibility.Collapsed;
             ClubKeyBox.Clear();
             PhoneBox.Clear();

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using ZafiroAgent.Models;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Views
 {
@@ -15,6 +16,11 @@ namespace ZafiroAgent.Views
         {
             InitializeComponent();
             _verify = verify;
+            Title = TitleText.Text = L.T("Выход сотрудника");
+            HintText.Text = L.T("Введите PIN-код из настроек клуба, чтобы закрыть Zafiro Agent.");
+            System.Windows.Automation.AutomationProperties.SetName(PinBox, L.T("PIN-код"));
+            CancelButton.Content = L.T("Отмена");
+            SubmitButton.Content = L.T("Закрыть агент");
             SubmitButton.Click += async (_, _) => await SubmitAsync();
             CancelButton.Click += (_, _) => DialogResult = false;
             Loaded += (_, _) =>
@@ -29,7 +35,7 @@ namespace ZafiroAgent.Views
             if (_busy) return;
             _busy = true;
             SubmitButton.IsEnabled = false;
-            ErrorText.Text = "Проверяем…";
+            ErrorText.Text = L.T("Проверяем…");
 
             try
             {

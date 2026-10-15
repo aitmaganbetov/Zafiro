@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Club;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
+use App\Services\LocaleResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AuthenticateAgentDevice
 {
-    public function __construct(private ClubComputerSessions $sessions, private CurrentClub $currentClub) {}
+    public function __construct(private ClubComputerSessions $sessions, private CurrentClub $currentClub, private LocaleResolver $locales) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -41,6 +42,8 @@ class AuthenticateAgentDevice
 
         $this->currentClub->set($club);
         $this->currentClub->useUtc();
+        // SetLocale ran before the club was known: answer in the PC's language, else the club's.
+        $this->locales->apply($this->locales->forAgentRequest($request, $club));
         $request->attributes->set('agent_computer', $computer);
 
         return $next($request);

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using ZafiroAgent.Configuration;
 using ZafiroAgent.Models;
 using ZafiroAgent.Security;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Services
 {
@@ -66,7 +67,7 @@ namespace ZafiroAgent.Services
             var config = _config.Load();
             var token = _secure.Unprotect(config.ProtectedApiToken);
             if (string.IsNullOrWhiteSpace(token))
-                throw new UnauthorizedAccessException("Выполните вход, чтобы загрузить тарифы.");
+                throw new UnauthorizedAccessException(L.T("Выполните вход, чтобы загрузить тарифы."));
 
             var tariffsUri = new Uri($"{ApiRoot(config)}/tariffs");
             using var request = new HttpRequestMessage(HttpMethod.Get, tariffsUri);
@@ -74,7 +75,7 @@ namespace ZafiroAgent.Services
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException(ExtractErrorMessage(payload) ?? "Не удалось загрузить тарифы.", null, response.StatusCode);
+                throw new HttpRequestException(ExtractErrorMessage(payload) ?? L.T("Не удалось загрузить тарифы."), null, response.StatusCode);
 
             using var document = JsonDocument.Parse(payload);
             var root = document.RootElement;
@@ -114,11 +115,11 @@ namespace ZafiroAgent.Services
             var token = _secure.Unprotect(config.ProtectedApiToken);
             if (string.IsNullOrWhiteSpace(token))
             {
-                return new PurchaseResult { Success = false, Message = "Выполните вход, чтобы купить тариф." };
+                return new PurchaseResult { Success = false, Message = L.T("Выполните вход, чтобы купить тариф.") };
             }
             if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0)
             {
-                return new PurchaseResult { Success = false, Message = "Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента." };
+                return new PurchaseResult { Success = false, Message = L.T("Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента.") };
             }
             var purchaseUri = new Uri($"{ApiRoot(config)}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
             var payload = JsonSerializer.Serialize(new { computer_id = computerId });
@@ -134,10 +135,10 @@ namespace ZafiroAgent.Services
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
-                return new PurchaseResult { Success = false, Message = ExtractErrorMessage(responseBody) ?? "Не удалось купить тариф." };
+                return new PurchaseResult { Success = false, Message = ExtractErrorMessage(responseBody) ?? L.T("Не удалось купить тариф.") };
 
             return JsonSerializer.Deserialize<PurchaseResult>(responseBody)
-                ?? new PurchaseResult { Success = false, Message = "Сервер вернул неожиданный ответ." };
+                ?? new PurchaseResult { Success = false, Message = L.T("Сервер вернул неожиданный ответ.") };
         }
 
         /// <summary>Досрочно завершает оплаченную сессию на сервере (неиспользованное время не возвращается).</summary>
@@ -210,7 +211,7 @@ namespace ZafiroAgent.Services
                 return new SessionInfo
                 {
                     SessionId = string.Empty,
-                    UserName = "Пользователь",
+                    UserName = L.T("Пользователь"),
                     Balance = 0m,
                     BonusBalance = 0m,
                     TariffName = null,
@@ -219,7 +220,7 @@ namespace ZafiroAgent.Services
                 };
 
             var userId = GetDecimal(root, "user_id");
-            var name = ExtractString(root, "name", "user_name", "full_name", "display_name") ?? "Пользователь";
+            var name = ExtractString(root, "name", "user_name", "full_name", "display_name") ?? L.T("Пользователь");
             var balance = GetDecimal(root, "balance");
             var bonusBalance = GetDecimal(root, "bonus_balance", "bonusBalance");
 

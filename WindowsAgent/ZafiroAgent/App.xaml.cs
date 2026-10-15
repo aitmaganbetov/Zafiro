@@ -8,6 +8,7 @@ using ZafiroAgent.Models;
 using ZafiroAgent.Security;
 using ZafiroAgent.Services;
 using ZafiroAgent.Views;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent
 {
@@ -52,6 +53,7 @@ namespace ZafiroAgent
             base.OnStartup(e);
 
             foreach (var name in WebViewOverrides) Environment.SetEnvironmentVariable(name, null);
+            L.LoadBuiltIn(System.IO.Path.Combine(AppContext.BaseDirectory, "Frontend", "i18n"));
 
             // Ошибка в обработчике не должна закрывать агент: закрытый агент — открытый рабочий стол.
             DispatcherUnhandledException += (_, args) =>
@@ -72,12 +74,14 @@ namespace ZafiroAgent
             _singleInstance = new Mutex(true, @"Local\ZafiroAgent", out var isFirst);
             if (!isFirst && !e.Args.Contains("--watchdog"))
             {
-                MessageBox.Show("Zafiro Agent уже запущен на этом компьютере.", "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(L.T("Zafiro Agent уже запущен на этом компьютере."), "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
             }
 
             _config = new ConfigurationService();
+            var clubLocale = _config.Load().ClubLocale;
+            L.SetClubLocale(string.IsNullOrEmpty(clubLocale) ? null : clubLocale);
             Covers.SetBranding(_config.Load().ClubName, null); // логотип придёт с первым heartbeat
             _api = new ZafiroApiClient(ZafiroApiClient.CreateHttpClient());
             var clubSetup = new ClubSetupService(_api, _config, _secure);

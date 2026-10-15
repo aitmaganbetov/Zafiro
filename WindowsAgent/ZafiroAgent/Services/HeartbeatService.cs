@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ZafiroAgent.Models;
 using ZafiroAgent.Security;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Services
 {
@@ -237,7 +238,7 @@ namespace ZafiroAgent.Services
                 {
                     if (session.ExpiresAtUtc <= _utcNow())
                     {
-                        Report(new ZafiroApiException(ApiFailure.TokenExpired, "Срок действия входа истёк. Выполните вход повторно."));
+                        Report(new ZafiroApiException(ApiFailure.TokenExpired, L.T("Срок действия входа истёк. Выполните вход повторно.")));
                         return;
                     }
 

@@ -25,5 +25,10 @@ namespace ZafiroAgent.Models
         public bool ClubReported { get; set; }
         public string? ClubName { get; set; }
         public string? ClubLogoUrl { get; set; }
+
+        // Язык клуба, включённые языки и версия переводов на сервере (агент перезагружает тексты при её смене).
+        public string? ClubLocale { get; set; }
+        public List<ZafiroAgent.Localization.LanguageInfo>? ClubLanguages { get; set; }
+        public long? TranslationsVersion { get; set; }
     }
 }

@@ -23,6 +23,7 @@ namespace ZafiroAgent.Service
         public string? Token { get; set; }
         public bool HasToken { get; set; }
         public string? ClubKey { get; set; }
+        public string? Locale { get; set; }
 
         public string? Method { get; set; }
         public string? Url { get; set; }

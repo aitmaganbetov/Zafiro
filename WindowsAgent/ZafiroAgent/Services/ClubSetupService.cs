@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ZafiroAgent.Configuration;
 using ZafiroAgent.Models;
 using ZafiroAgent.Security;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Services
 {
@@ -46,7 +47,7 @@ namespace ZafiroAgent.Services
             try
             {
                 if (IsClubConfigured)
-                    return ApiResult<ClubSession>.Fail(ApiFailure.ClubAlreadyConfigured, "Клуб уже настроен. Сбросьте настройку клуба, чтобы подключить другой.");
+                    return ApiResult<ClubSession>.Fail(ApiFailure.ClubAlreadyConfigured, L.T("Клуб уже настроен. Сбросьте настройку клуба, чтобы подключить другой."));
 
                 var key = clubKey?.Trim() ?? string.Empty;
                 SafeLog.Register(key);
@@ -86,21 +87,21 @@ namespace ZafiroAgent.Services
             {
                 var cfg = _config.Load();
                 if (!IsConfigured(cfg))
-                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Клуб не настроен. Введите ключ установки.");
+                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, L.T("Клуб не настроен. Введите ключ установки."));
 
                 var key = _secure.Unprotect(cfg.ProtectedClubKey);
                 SafeLog.Register(key);
                 if (string.IsNullOrEmpty(key))
-                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Сохранённый ключ установки недоступен. Настройте клуб заново.");
+                    return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, L.T("Сохранённый ключ установки недоступен. Настройте клуб заново."));
 
                 var keyInService = key == DeviceTokens.VaultMarker;
                 if (keyInService && DeviceTokens.Vault is null)
-                    return ApiResult<ClubSession>.Fail(ApiFailure.ServiceUnavailable, "Ключ установки хранится в службе Zafiro Agent, а она не установлена. Переустановите агент.");
+                    return ApiResult<ClubSession>.Fail(ApiFailure.ServiceUnavailable, L.T("Ключ установки хранится в службе Zafiro Agent, а она не установлена. Переустановите агент."));
 
                 if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var savedClubId) ||
                     !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase) ||
                     !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.LoginEndpoint, out var loginEndpoint))
-                    return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, "Сохранённые настройки клуба повреждены. Настройте клуб заново.");
+                    return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, L.T("Сохранённые настройки клуба повреждены. Настройте клуб заново."));
 
                 // Сначала проверяем, что ключ не отозван и по-прежнему принадлежит тому же клубу.
                 // Ключ у службы — его проверяет сервер при входе, а клуб — по club_id в ответе.
@@ -110,12 +111,12 @@ namespace ZafiroAgent.Services
                     if (!resolved.Success)
                     {
                         return resolved.Failure == ApiFailure.InvalidKey
-                            ? ApiResult<ClubSession>.Fail(ApiFailure.KeyRevoked, "Ключ установки недействителен или отозван. Обратитесь к администратору клуба.")
+                            ? ApiResult<ClubSession>.Fail(ApiFailure.KeyRevoked, L.T("Ключ установки недействителен или отозван. Обратитесь к администратору клуба."))
                             : ApiResult<ClubSession>.Fail(resolved.Failure, resolved.Message);
                     }
 
                     if (resolved.Value!.ClubId != savedClubId)
-                        return ApiResult<ClubSession>.Fail(ApiFailure.ClubMismatch, "Ключ установки теперь относится к другому клубу. Автоматическое переключение запрещено.");
+                        return ApiResult<ClubSession>.Fail(ApiFailure.ClubMismatch, L.T("Ключ установки теперь относится к другому клубу. Автоматическое переключение запрещено."));
                 }
 
                 var club = new ClubInfo(savedClubId, cfg.ClubName, apiBase, loginEndpoint);
@@ -138,16 +139,16 @@ namespace ZafiroAgent.Services
         {
             var cfg = _config.Load();
             if (!IsConfigured(cfg))
-                return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, "Клуб не настроен. Введите ключ установки.");
+                return ApiResult<ClubSession>.Fail(ApiFailure.NotConfigured, L.T("Клуб не настроен. Введите ключ установки."));
 
             if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var clubId) ||
                 !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase))
-                return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, "Сохранённые настройки клуба повреждены. Настройте клуб заново.");
+                return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, L.T("Сохранённые настройки клуба повреждены. Настройте клуб заново."));
 
             var token = _secure.Unprotect(cfg.ProtectedApiToken);
             SafeLog.Register(token);
             if (string.IsNullOrEmpty(token) || cfg.TokenExpiresAtUtc is not { } expires || expires <= _utcNow())
-                return ApiResult<ClubSession>.Fail(ApiFailure.TokenExpired, "Срок действия входа истёк. Выполните вход повторно.");
+                return ApiResult<ClubSession>.Fail(ApiFailure.TokenExpired, L.T("Срок действия входа истёк. Выполните вход повторно."));
 
             return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, token, expires));
         }
@@ -169,7 +170,7 @@ namespace ZafiroAgent.Services
             // Если установлена служба, токен уходит к ней, а у агента остаётся только метка.
             var keep = string.IsNullOrEmpty(info.AgentToken) ? null : await DeviceTokens.KeepAsync(info.AgentToken, cancellationToken).ConfigureAwait(false);
             if (keep is { Persist: false })
-                return ApiResult<ComputerInfo>.Fail(ApiFailure.ServiceUnavailable, "Служба Zafiro Agent не приняла токен ПК. Проверьте, что служба запущена, и повторите вход.");
+                return ApiResult<ComputerInfo>.Fail(ApiFailure.ServiceUnavailable, L.T("Служба Zafiro Agent не приняла токен ПК. Проверьте, что служба запущена, и повторите вход."));
 
             _config.Update(cfg =>
             {

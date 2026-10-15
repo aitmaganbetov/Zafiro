@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateClubComputerLayoutRequest;
 use App\Http\Requests\UpdateClubComputerRequest;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
+use App\Models\Language;
 use App\Services\ActivityLogger;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
@@ -17,6 +18,8 @@ use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
 use App\Services\CurrentClub;
 use App\Services\Integrations\WebhookDispatcher;
+use App\Services\LocaleResolver;
+use App\Services\TranslationCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -251,6 +254,7 @@ class ClubComputerController extends Controller
             'club' => [
                 'name' => app(CurrentClub::class)->get()?->name,
                 'logo_url' => app(CurrentClub::class)->get()?->logoUrl(),
+                ...$this->agentLanguages(),
             ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.
@@ -277,6 +281,25 @@ class ClubComputerController extends Controller
         app(ActivityLogger::class)->record('agent.staff_signin', __('Сотрудник :user вошёл на ПК :computer', ['user' => $staff->name, 'computer' => $computer->displayName()]), $staff->getKey(), $computer);
 
         return ['agent_token' => $sessions->issueAgentToken($computer)];
+    }
+
+    /**
+     * The agent shows the club language until a customer picks another one, offers the enabled
+     * languages, and refetches its texts when the translations version changes.
+     *
+     * @return array{locale: ?string, languages: list<array{code: string, name: string}>, translations_version: int}
+     */
+    private function agentLanguages(): array
+    {
+        $club = app(CurrentClub::class)->get();
+        $enabled = app(LocaleResolver::class)->enabledCodes();
+
+        return [
+            'locale' => $club === null ? null : app(LocaleResolver::class)->forClub($club),
+            'languages' => Language::query()->whereIn('code', $enabled)->orderBy('sort_order')->orderBy('id')->get(['code', 'name'])
+                ->map(fn (Language $language): array => ['code' => $language->code, 'name' => $language->name])->all(),
+            'translations_version' => app(TranslationCatalog::class)->version(),
+        ];
     }
 
     private function computerIdentity(ClubComputer $computer): array

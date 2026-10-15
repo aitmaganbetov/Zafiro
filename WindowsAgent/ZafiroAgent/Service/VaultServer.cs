@@ -437,6 +437,12 @@ namespace ZafiroAgent.Service
             }
 
             using var disposeMessage = message;
+            // Язык агента: сервер отвечает на языке, который видит клиент.
+            if (request.Locale is { Length: >= 2 and <= 8 } locale && locale.All(c => c is >= 'a' and <= 'z'))
+            {
+                message.Headers.TryAddWithoutValidation("X-Agent-Locale", locale);
+                message.Headers.TryAddWithoutValidation("Accept-Language", locale);
+            }
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (request.Authorization is { } authorization)
             {

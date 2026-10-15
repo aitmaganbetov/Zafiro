@@ -6,8 +6,8 @@
         WindowStartupLocation="CenterScreen" Background="#211F2D" BorderBrush="#4A465A" BorderThickness="1"
         FontFamily="Segoe UI" FontSize="14" TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
     <StackPanel Margin="32,28">
-        <TextBlock Text="Выход сотрудника" FontSize="24" FontWeight="SemiBold" Foreground="#F5F3FA"/>
-        <TextBlock Text="Введите PIN-код из настроек клуба, чтобы закрыть Zafiro Agent." Margin="0,8,0,20"
+        <TextBlock x:Name="TitleText" Text="Выход сотрудника" FontSize="24" FontWeight="SemiBold" Foreground="#F5F3FA"/>
+        <TextBlock x:Name="HintText" Text="Введите PIN-код из настроек клуба, чтобы закрыть Zafiro Agent." Margin="0,8,0,20"
                    Foreground="#AAA5B8" FontSize="14" TextWrapping="Wrap"/>
         <PasswordBox x:Name="PinBox" Height="44" FontSize="20" MaxLength="8" Padding="12,6"
                      Background="#302D3D" Foreground="#F5F3FA" BorderBrush="#4A465A" CaretBrush="#F5F3FA"

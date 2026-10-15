@@ -60,6 +60,22 @@ class TranslationCatalog
         return $this->state()['enabled'];
     }
 
+    /** Grows on every change of languages or translations: the PC agent refetches its texts then. */
+    public function version(): int
+    {
+        return $this->state()['version'];
+    }
+
+    /**
+     * One group of a shipped translation file (database/translations/{code}.php).
+     *
+     * @return array<string, string>
+     */
+    public function shippedGroup(string $code, string $group): array
+    {
+        return $this->shipped($code)[$group] ?? [];
+    }
+
     public function flush(): void
     {
         $previous = $this->state()['version'];

@@ -896,6 +896,22 @@ public sealed class HeartbeatTests : IDisposable
         Assert.Equal("https://zafiro.kz/club-logos/1/logo.png", beat.ClubLogoUrl);
     }
 
+    [Fact]
+    public async Task Heartbeat_ReadsTheClubLanguageAndTranslationsVersion()
+    {
+        var json = HeartbeatJson()[..^1] + ""","club":{"name":"Arena","locale":"kk","translations_version":12,"languages":[{"code":"ru","name":"Русский"},{"code":"kk","name":"Қазақша"},{"name":"broken"}]}}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        var beat = _beats.First();
+        Assert.Equal("kk", beat.ClubLocale);
+        Assert.Equal(12, beat.TranslationsVersion);
+        Assert.Equal(new[] { "ru", "kk" }, beat.ClubLanguages!.Select(l => l.Code));
+    }
+
     [Theory]
     [InlineData(""","club":{"name":"Arena","logo_url":null}}""", true)]
     [InlineData("}", false)]

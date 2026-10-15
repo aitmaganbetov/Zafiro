@@ -64,28 +64,32 @@
                 <!-- Прокрутка нужна только на маленьких экранах или при крупном масштабе Windows. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="38,28">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="420">
-                    <TextBlock Text="ZAFIRO CLUB" FontSize="13" FontWeight="Bold" Foreground="#A78BFA" Margin="0,0,0,14"/>
+                    <Grid Margin="0,0,0,14">
+                        <TextBlock Text="ZAFIRO CLUB" FontSize="13" FontWeight="Bold" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                        <!-- Язык выбирает клиент; после его выхода агент возвращает язык клуба. -->
+                        <StackPanel x:Name="LanguagePanel" Orientation="Horizontal" HorizontalAlignment="Right"/>
+                    </Grid>
                     <TextBlock x:Name="HeaderText" Text="Подключение к клубу" FontSize="30" FontWeight="SemiBold" Foreground="#F5F3FA" TextWrapping="Wrap"/>
                     <TextBlock x:Name="ClubText" Margin="0,9,0,26" Foreground="#AAA5B8" FontSize="14" TextWrapping="Wrap"/>
 
                     <StackPanel x:Name="KeyPanel" Margin="0,0,0,4">
-                        <TextBlock Text="Ключ установки" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                        <TextBlock x:Name="KeyLabel" Text="Ключ установки" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                         <PasswordBox x:Name="ClubKeyBox" Margin="0,0,0,16" MaxLength="256"/>
                     </StackPanel>
 
-                    <TextBlock Text="Телефон" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                    <TextBlock x:Name="PhoneLabel" Text="Телефон" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <Grid Margin="0,0,0,16">
                         <TextBox x:Name="PhoneBox" Padding="42,9,12,9" MaxLength="32"/>
                         <!-- Тот же шрифт и размер, что у поля ввода: «+7» и цифры стоят на одной линии. -->
                         <TextBlock Text="+7" Margin="13,0,0,0" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#AAA5B8" IsHitTestVisible="False"/>
                     </Grid>
 
-                    <TextBlock Text="Пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                    <TextBlock x:Name="PasswordLabel" Text="Пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <PasswordBox x:Name="PasswordBox" Margin="0,0,0,8" MaxLength="256"/>
 
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" FontSize="13" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
-                    <TextBlock Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#8A85A0" FontSize="13" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="StaffHint" Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#8A85A0" FontSize="13" TextWrapping="Wrap"/>
                 </StackPanel>
                 </ScrollViewer>
             </Border>

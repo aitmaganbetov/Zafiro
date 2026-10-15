@@ -89,7 +89,7 @@ class SetCurrentClub
         if ($request->is('api/*')) {
             $currentClub->useUtc();
         }
-        $this->locales->apply($this->locales->forClub($membership->club));
+        $this->locales->apply($request->is('api/*') ? $this->locales->forAgentRequest($request, $membership->club) : $this->locales->forClub($membership->club));
 
         if (! $request->is('api/*')) {
             $request->session()->put('current_club_id', $membership->club_id);

@@ -12,6 +12,9 @@ namespace ZafiroAgent.Configuration
         public string DeviceId { get; set; } = string.Empty;
 
         public string ClubName { get; set; } = string.Empty;
+
+        // Язык клуба из последнего heartbeat: окно входа после перезапуска сразу на нём.
+        public string ClubLocale { get; set; } = string.Empty;
         public string ApiBaseUrl { get; set; } = string.Empty;
         public string LoginEndpoint { get; set; } = string.Empty;
 

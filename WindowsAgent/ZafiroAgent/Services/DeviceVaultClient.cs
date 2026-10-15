@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 using ZafiroAgent.Service;
+using ZafiroAgent.Localization;
 
 namespace ZafiroAgent.Services
 {
@@ -162,11 +163,12 @@ namespace ZafiroAgent.Services
                 Method = request.Method.Method,
                 Url = request.RequestUri?.AbsoluteUri,
                 Authorization = request.Headers.Authorization?.ToString(),
+                Locale = request.Headers.TryGetValues(ZafiroAgent.Localization.LocaleHandler.Header, out var locales) ? locales.FirstOrDefault() : null,
                 Body = body
             }, cancellationToken).ConfigureAwait(false);
 
             if (reply is null || (!reply.Ok && reply.Error == "network"))
-                throw new HttpRequestException("Служба Zafiro Agent недоступна или нет связи с сервером.");
+                throw new HttpRequestException(L.T("Служба Zafiro Agent недоступна или нет связи с сервером."));
             if (!reply.Ok)
             {
                 SafeLog.Write("[Vault] request refused: " + reply.Error);
