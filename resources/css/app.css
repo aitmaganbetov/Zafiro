@@ -3666,10 +3666,34 @@ select[multiple] option {
 .admin-notifications-head {
     position: sticky;
     top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     border-bottom: 1px solid var(--line);
     background: #fff;
     padding: 12px 16px;
     font-size: 16px
+}
+
+.admin-notifications-sound {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 14px
+}
+
+.admin-notifications-sound:hover,
+.admin-notifications-sound:focus-visible {
+    background: rgba(15, 23, 42, .06);
+    color: inherit
+}
+
+.admin-notifications-sound[aria-pressed="false"] {
+    color: #dc2626
 }
 
 .admin-notifications-list {

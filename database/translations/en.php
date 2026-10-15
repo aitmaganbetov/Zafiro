@@ -970,6 +970,8 @@ return [
         'Снять объявление' => 'Remove announcement',
         'Объявление версии агента' => 'Agent version announced',
         'Снятие объявления о версии агента' => 'Agent version announcement removed',
+        'Звук уведомлений включён' => 'Notification sound is on',
+        'Звук уведомлений выключен' => 'Notification sound is off',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

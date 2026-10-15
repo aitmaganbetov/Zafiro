@@ -38,7 +38,7 @@
                         <div class="admin-notifications" data-notifications data-url="{{ route('notifications.index') }}" data-seen-url="{{ route('notifications.seen') }}" data-csrf="{{ csrf_token() }}">
                             <button type="button" id="notifications-button" class="admin-icon-button" aria-label="{{ __('Уведомления') }}" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
                             <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="{{ __('Уведомления') }}" hidden>
-                                <div class="admin-notifications-head"><strong>{{ __('Уведомления') }}</strong></div>
+                                <div class="admin-notifications-head"><strong>{{ __('Уведомления') }}</strong><button type="button" class="admin-notifications-sound" data-notifications-sound aria-pressed="true" data-label-on="{{ __('Звук уведомлений включён') }}" data-label-off="{{ __('Звук уведомлений выключен') }}"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
                                 <ul class="admin-notifications-list" data-notifications-list></ul>
                                 <p class="admin-notifications-empty" data-notifications-empty hidden>{{ __('Уведомлений нет') }}</p>
                             </div>
@@ -64,7 +64,57 @@
             const root=document.querySelector('[data-notifications]');
             if(!root)return;
             const button=root.querySelector('#notifications-button'),panel=root.querySelector('#notifications-panel'),list=root.querySelector('[data-notifications-list]'),empty=root.querySelector('[data-notifications-empty]'),dot=root.querySelector('[data-notifications-dot]');
+            const soundButton=root.querySelector('[data-notifications-sound]');
             let unread=0;
+            // Звук нового уведомления: короткий сигнал (Web Audio, без файла). Уже прозвучавшие
+            // уведомления запоминаются в браузере и не звучат снова; звук можно выключить.
+            const store={get:(key)=>{try{return localStorage.getItem(key);}catch(e){return null;}},set:(key,value)=>{try{localStorage.setItem(key,value);}catch(e){}}};
+            const heardKey='zafiro.notificationsHeard',soundKey='zafiro.notificationSound';
+            let heard;try{heard=new Set(JSON.parse(store.get(heardKey)||'[]'));}catch(e){heard=new Set();}
+            let soundOn=store.get(soundKey)!=='0',audio=null,pending=false;
+            // Браузер разрешает звук только после действия пользователя на странице: сигнал,
+            // пришедший раньше, звучит при первом нажатии.
+            const unlock=()=>{
+                const Context=window.AudioContext||window.webkitAudioContext;
+                if(!Context)return;
+                audio??=new Context();
+                (audio.state==='suspended'?audio.resume():Promise.resolve()).then(()=>{if(pending){pending=false;chime();}}).catch(()=>{});
+            };
+            ['pointerdown','keydown'].forEach((type)=>document.addEventListener(type,unlock,{once:true,capture:true}));
+            const chime=()=>{
+                if(!soundOn)return;
+                if(!audio||audio.state!=='running'){pending=true;return;}
+                const context=audio;
+                const start=context.currentTime;
+                [[880,0],[1318.5,0.15]].forEach(([frequency,delay])=>{
+                    const tone=context.createOscillator(),gain=context.createGain();
+                    tone.type='sine';tone.frequency.value=frequency;
+                    gain.gain.setValueAtTime(0.0001,start+delay);
+                    gain.gain.exponentialRampToValueAtTime(0.2,start+delay+0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001,start+delay+0.4);
+                    tone.connect(gain).connect(context.destination);
+                    tone.start(start+delay);tone.stop(start+delay+0.45);
+                });
+            };
+            const syncSound=()=>{
+                soundButton.setAttribute('aria-pressed',String(soundOn));
+                soundButton.setAttribute('aria-label',soundOn?soundButton.dataset.labelOn:soundButton.dataset.labelOff);
+                soundButton.title=soundButton.getAttribute('aria-label');
+                soundButton.querySelector('i').className='fas '+(soundOn?'fa-volume-high':'fa-volume-xmark');
+            };
+            soundButton.addEventListener('click',(event)=>{
+                event.stopPropagation();
+                soundOn=!soundOn;store.set(soundKey,soundOn?'1':'0');syncSound();
+                if(soundOn){unlock();setTimeout(chime,50);}
+            });
+            syncSound();
+            const announce=(items)=>{
+                const fresh=items.filter((item)=>item.unread&&!heard.has(item.id));
+                if(fresh.length===0)return;
+                fresh.forEach((item)=>heard.add(item.id));
+                store.set(heardKey,JSON.stringify([...heard].slice(-200)));
+                chime();
+            };
             const render=(items)=>{
                 list.replaceChildren(...items.map((item)=>{
                     const li=document.createElement('li'),link=document.createElement('a'),icon=document.createElement('i'),text=document.createElement('span'),title=document.createElement('strong'),body=document.createElement('span'),time=document.createElement('small');
@@ -77,7 +127,7 @@
             };
             const load=()=>fetch(root.dataset.url,{headers:{Accept:'application/json'},credentials:'same-origin'})
                 .then((response)=>response.ok?response.json():Promise.reject(response))
-                .then((data)=>{unread=data.unread_count;dot.hidden=unread===0;render(data.items);})
+                .then((data)=>{unread=data.unread_count;dot.hidden=unread===0;render(data.items);announce(data.items);})
                 .catch(()=>{});
             const close=()=>{panel.hidden=true;button.setAttribute('aria-expanded','false');};
             button.addEventListener('click',(event)=>{
@@ -92,6 +142,9 @@
             document.addEventListener('click',(event)=>{if(!root.contains(event.target))close();});
             document.addEventListener('keydown',(event)=>{if(event.key==='Escape')close();});
             load();
+            // Новые уведомления — раз в минуту, пока вкладка открыта, и сразу при возврате на неё.
+            setInterval(()=>{if(!document.hidden)load();},60000);
+            document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
         })();
     </script>
     @include('partials.sidebar-script')

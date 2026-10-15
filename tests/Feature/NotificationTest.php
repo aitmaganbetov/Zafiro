@@ -121,3 +121,12 @@ test('the bell renders without a permanent unread dot', function () {
         ->assertSee('data-notifications-dot hidden', false)
         ->assertSee(route('notifications.index'), false);
 });
+
+test('the notification panel has a sound switch and checks for new notifications', function () {
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->get(route('dashboard'))->assertOk()
+        ->assertSee('data-notifications-sound', false)
+        ->assertSee(__('Звук уведомлений включён'))
+        ->assertSee('setInterval(', false);
+});
