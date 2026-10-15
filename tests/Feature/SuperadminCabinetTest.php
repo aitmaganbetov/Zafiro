@@ -3,8 +3,10 @@
 use App\Http\Middleware\SetCurrentClub;
 use App\Models\ActivityLog;
 use App\Models\Club;
+use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
+use App\Models\ClubZone;
 use App\Models\PlatformLog;
 use App\Models\SaasPlan;
 use App\Models\Tariff;
@@ -214,4 +216,30 @@ test('a subscription without a paid date does not expire', function () {
     $this->artisan('subscriptions:expire')->expectsOutput('expired: 0');
     expect($subscription->fresh()->isActive())->toBeTrue()
         ->and(ClubSubscription::query()->active()->whereKey($subscription->id)->exists())->toBeTrue();
+});
+
+test('the superadmin announces a new agent version and clubs with older agents are told', function () {
+    $admin = cabinetAdmin();
+    $owner = User::factory()->create();
+    $zone = ClubZone::query()->firstOrCreate(['name' => 'Hall']);
+    ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 1])->forceFill(['agent_version' => '1.1.0'])->save();
+    $notices = fn () => collect($this->actingAs($owner)->getJson(route('notifications.index'))->json('items'))->pluck('id')->all();
+
+    expect($notices())->not->toContain('agent-update-1.2.0');
+
+    $this->actingAs($owner)->put(route('superadmin.agent-release.update'), ['latest_version' => '1.2.0', 'released_at' => '2026-10-15'])->assertForbidden();
+    $this->actingAs($admin)->put(route('superadmin.agent-release.update'), ['latest_version' => 'v1.2', 'released_at' => '2026-10-15'])->assertSessionHasErrors('latest_version');
+    $this->put(route('superadmin.agent-release.update'), ['latest_version' => '1.2.0', 'released_at' => '2026-10-15', 'download_url' => 'http://example.com/a.exe'])->assertSessionHasErrors('download_url');
+    $this->put(route('superadmin.agent-release.update'), [
+        'latest_version' => '1.2.0', 'released_at' => '2026-10-15', 'download_url' => 'https://github.com/aitmaganbetov/Zafiro/releases/tag/agent-v1.2.0',
+    ])->assertSessionHasNoErrors();
+    $this->get(route('superadmin.dashboard'))->assertOk()->assertSee('1.2.0');
+
+    expect($notices())->toContain('agent-update-1.2.0')
+        ->and(PlatformLog::query()->where('event', 'superadmin.agent_release_set')->exists())->toBeTrue();
+    $this->actingAs($owner)->get(route('club-computers.index'))->assertOk()
+        ->assertSee('https://github.com/aitmaganbetov/Zafiro/releases/tag/agent-v1.2.0');
+
+    $this->actingAs($admin)->delete(route('superadmin.agent-release.destroy'))->assertSessionHasNoErrors();
+    expect($notices())->not->toContain('agent-update-1.2.0');
 });

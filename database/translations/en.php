@@ -952,6 +952,24 @@ return [
         'Оплаченная подписка клуба :club закончилась :date' => 'The paid subscription of club :club ended on :date',
         'Истекла' => 'Expired',
         'Окончание оплаченной подписки' => 'Paid subscription ended',
+        'Версия — три числа через точку, например 1.2.0.' => 'The version is three numbers separated by dots, for example 1.2.0.',
+        'Ссылка на скачивание должна начинаться с https://.' => 'The download link must start with https://.',
+        'Объявлена версия агента :version' => 'Agent version :version announced',
+        'Версия агента :version объявлена: клубы со старыми агентами получат уведомление.' => 'Agent version :version announced: clubs with older agents will get a notice.',
+        'Объявление о версии агента снято' => 'Agent version announcement removed',
+        'Объявление снято.' => 'Announcement removed.',
+        'Объявлена версия :version: клубы, где агент старше, видят уведомление.' => 'Version :version is announced: clubs with an older agent see a notice.',
+        'Новая версия не объявлена: клубы не получают уведомлений.' => 'No new version is announced: clubs get no notices.',
+        'Ссылка на скачивание' => 'Download link',
+        'Объявить новую версию агента' => 'Announce a new agent version',
+        'Версия' => 'Version',
+        'Дата выпуска' => 'Release date',
+        'Ссылка на скачивание (https)' => 'Download link (https)',
+        'Объявить версию' => 'Announce version',
+        'Снять объявление? Клубы перестанут получать уведомление о новой версии.' => 'Remove the announcement? Clubs will stop getting the new version notice.',
+        'Снять объявление' => 'Remove announcement',
+        'Объявление версии агента' => 'Agent version announced',
+        'Снятие объявления о версии агента' => 'Agent version announcement removed',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
@@ -1035,8 +1053,6 @@ return [
             'value' => 'value',
         ],
     ],
-    // PC agent (Windows app on club PCs). `php artisan agent:translations` copies this group
-    // into WindowsAgent/Frontend/i18n; the superadmin's edits reach agents through the API.
     'agent' => [
         'Zafiro Agent — Сессия' => 'Zafiro Agent — Session',
         'Главная' => 'Home',

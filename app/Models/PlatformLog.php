@@ -23,6 +23,8 @@ class PlatformLog extends Model
         'superadmin.revoked' => 'Снятие прав суперадмина',
         'superadmin.login' => 'Вход суперадмина',
         'subscription.expired' => 'Окончание оплаченной подписки',
+        'superadmin.agent_release_set' => 'Объявление версии агента',
+        'superadmin.agent_release_cleared' => 'Снятие объявления о версии агента',
         'language.created' => 'Добавление языка',
         'language.updated' => 'Изменение языка',
         'language.deleted' => 'Удаление языка',

@@ -7,15 +7,17 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubSubscription;
 use App\Models\PlatformLog;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Models\WebhookDelivery;
+use App\Services\AgentUpdate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /** Platform overview: clubs and subscriptions, users, PCs and agent versions, background work. */
 class DashboardController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(AgentUpdate $agentUpdate): View
     {
         $users = User::query()
             ->selectRaw('COUNT(*) AS total')
@@ -38,7 +40,9 @@ class DashboardController extends Controller
                 ->selectRaw('agent_version, COUNT(*) AS aggregate')
                 ->groupBy('agent_version')->orderByDesc('aggregate')->limit(10)
                 ->pluck('aggregate', 'agent_version'),
-            'latestAgent' => config('club.agent.latest_version'),
+            'latestAgent' => $agentUpdate->latestVersion(),
+            'agentRelease' => PlatformSetting::read(PlatformSetting::AGENT_RELEASE),
+            'agentDownloadUrl' => $agentUpdate->downloadUrl(),
             'webhooks' => WebhookDelivery::query()->withoutGlobalScope('club')
                 ->where('created_at', '>=', now()->subDay())
                 ->selectRaw('status, COUNT(*) AS aggregate')->groupBy('status')

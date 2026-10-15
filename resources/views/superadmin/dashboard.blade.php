@@ -29,7 +29,10 @@
 <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
     <section class="{{ $card }}" aria-labelledby="agent-versions-title">
         <h3 id="agent-versions-title" class="mb-1 font-semibold text-gray-900 dark:text-white">{{ __('Версии агента на ПК') }}</h3>
-        <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ $latestAgent ? __('Последняя версия: :version', ['version' => $latestAgent]) : __('Последняя версия не указана (AGENT_LATEST_VERSION).') }}</p>
+        <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+            {{ $latestAgent ? __('Объявлена версия :version: клубы, где агент старше, видят уведомление.', ['version' => $latestAgent]) : __('Новая версия не объявлена: клубы не получают уведомлений.') }}
+            @if($agentDownloadUrl)<a href="{{ $agentDownloadUrl }}" target="_blank" rel="noopener noreferrer" class="text-violet-700 hover:underline">{{ __('Ссылка на скачивание') }}</a>@endif
+        </p>
         @forelse($agentVersions as $version => $count)
             <div class="flex items-center justify-between border-t border-gray-100 py-2 text-sm dark:border-gray-800">
                 <span class="font-mono {{ $latestAgent && $version !== $latestAgent ? 'text-amber-700' : 'text-gray-800 dark:text-gray-200' }}">{{ $version }}</span>
@@ -38,6 +41,25 @@
         @empty
             <p class="text-sm text-gray-500">{{ __('Агенты ещё не сообщали версию.') }}</p>
         @endforelse
+
+        {{-- Объявление новой версии: клубы со старым агентом получают уведомление в панели и на странице «Список ПК». --}}
+        @php($input = 'w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100')
+        <form method="POST" action="{{ route('superadmin.agent-release.update') }}" class="mt-4 space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">@csrf @method('PUT')
+            <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Объявить новую версию агента') }}</h4>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label class="text-sm"><span class="mb-1 block text-gray-600">{{ __('Версия') }}</span><input name="latest_version" required pattern="\d{1,4}\.\d{1,4}\.\d{1,6}" placeholder="1.2.0" value="{{ old('latest_version', $agentRelease['latest_version'] ?? '') }}" class="{{ $input }} font-mono"></label>
+                <label class="text-sm"><span class="mb-1 block text-gray-600">{{ __('Дата выпуска') }}</span><input type="date" name="released_at" required value="{{ old('released_at', isset($agentRelease['released_at']) ? substr($agentRelease['released_at'], 0, 10) : now()->toDateString()) }}" class="{{ $input }}"></label>
+            </div>
+            <label class="block text-sm"><span class="mb-1 block text-gray-600">{{ __('Ссылка на скачивание (https)') }}</span><input type="url" name="download_url" maxlength="500" placeholder="https://github.com/…/releases/tag/agent-v1.2.0" value="{{ old('download_url', $agentRelease['download_url'] ?? '') }}" class="{{ $input }}"></label>
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Объявить версию') }}</button>
+            </div>
+        </form>
+        @if($agentRelease)
+            <form method="POST" action="{{ route('superadmin.agent-release.destroy') }}" class="mt-2" onsubmit="return confirm({{ Js::from(__('Снять объявление? Клубы перестанут получать уведомление о новой версии.')) }})">@csrf @method('DELETE')
+                <button type="submit" class="rounded-lg border border-gray-300 px-4 py-2 text-sm">{{ __('Снять объявление') }}</button>
+            </form>
+        @endif
     </section>
 
     <section class="{{ $card }}" aria-labelledby="webhooks-title">

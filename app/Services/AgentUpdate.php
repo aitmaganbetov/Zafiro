@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\Models\ClubComputer;
+use App\Models\PlatformSetting;
 use Illuminate\Support\Carbon;
 use Throwable;
 
 /**
  * New PC agent release for the current club. The agent does not update itself: the club
  * installs it (on diskless systems, once in the boot image), so the panel only tells them.
+ * The superadmin announces a release in the cabinet; without one, config/club.php (.env) is used.
  */
 class AgentUpdate
 {
@@ -51,26 +53,36 @@ class AgentUpdate
         return ! preg_match('/^\d+\.\d+\.\d+/', $version, $match) || version_compare($match[0], $latest, '<');
     }
 
-    private function latestVersion(): ?string
+    public function latestVersion(): ?string
     {
-        $version = config('club.agent.latest_version');
+        $version = $this->release()['latest_version'] ?? null;
 
         return is_string($version) && preg_match('/^\d+\.\d+\.\d+$/', $version) ? $version : null;
+    }
+
+    /**
+     * The announced release: from the cabinet, otherwise from config.
+     *
+     * @return array{latest_version?: mixed, released_at?: mixed, download_url?: mixed}
+     */
+    public function release(): array
+    {
+        return PlatformSetting::read(PlatformSetting::AGENT_RELEASE) ?? (array) config('club.agent');
     }
 
     private function releasedAt(): Carbon
     {
         try {
-            return Carbon::parse((string) config('club.agent.released_at'));
+            return Carbon::parse((string) ($this->release()['released_at'] ?? ''));
         } catch (Throwable) {
             return now()->startOfDay();
         }
     }
 
     /** Only an https link is shown, so a bad config cannot put a javascript: URL in the panel. */
-    private function downloadUrl(): ?string
+    public function downloadUrl(): ?string
     {
-        $url = config('club.agent.download_url');
+        $url = $this->release()['download_url'] ?? null;
 
         return is_string($url) && str_starts_with($url, 'https://') && filter_var($url, FILTER_VALIDATE_URL) ? $url : null;
     }

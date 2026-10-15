@@ -19,6 +19,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\Superadmin\AgentReleaseController as SuperadminAgentReleaseController;
 use App\Http\Controllers\Superadmin\ClubController as SuperadminClubController;
 use App\Http\Controllers\Superadmin\DashboardController as SuperadminDashboardController;
 use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageController;
@@ -64,6 +65,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function () {
     Route::name('superadmin.')->group(function () {
         Route::get('/', SuperadminDashboardController::class)->name('dashboard');
+        Route::put('/agent-release', [SuperadminAgentReleaseController::class, 'update'])->name('agent-release.update');
+        Route::delete('/agent-release', [SuperadminAgentReleaseController::class, 'destroy'])->name('agent-release.destroy');
 
         Route::get('/clubs', [SuperadminClubController::class, 'index'])->name('clubs.index');
         Route::get('/clubs/{club}', [SuperadminClubController::class, 'show'])->name('clubs.show');
