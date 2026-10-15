@@ -569,7 +569,8 @@ public sealed class HeartbeatTests : IDisposable
 
         using (var body = Body(requests[1]))
         {
-            Assert.Equal(new[] { "device_name", "device_id", "mac_address" }, body.RootElement.EnumerateObject().Select(p => p.Name).ToArray());
+            Assert.Equal(new[] { "device_name", "claim", "device_id", "mac_address" }, body.RootElement.EnumerateObject().Select(p => p.Name).ToArray());
+            Assert.False(body.RootElement.GetProperty("claim").GetBoolean()); // регистрация из heartbeat без токена устройства
             Assert.Equal("TEST-PC", body.RootElement.GetProperty("device_name").GetString());
             Assert.Equal("device-uuid", body.RootElement.GetProperty("device_id").GetString());
             Assert.Equal("AA:BB:CC:DD:EE:FF", body.RootElement.GetProperty("mac_address").GetString());
