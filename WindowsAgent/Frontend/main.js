@@ -1058,6 +1058,7 @@
   webview?.postMessage({ type: 'requestI18n' });
   webview?.postMessage({ type: 'requestTariffs' });
   webview?.postMessage({ type: 'requestSession' });
+  webview?.postMessage({ type: 'requestGuestFeatures' });
   renderCart();
   fetchProducts();
   showProfileName();

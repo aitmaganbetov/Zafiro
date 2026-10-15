@@ -64,6 +64,10 @@ namespace ZafiroAgent
         private TimeSpan _afterSessionDelay = TimeSpan.FromSeconds(30);
         private readonly DispatcherTimer _afterSessionTimer = new();
 
+        // Последние «Гости» клуба из heartbeat: страница получает их сразу при загрузке (после
+        // входа клиента), а не через ~30 с, когда придёт следующий heartbeat.
+        private Dictionary<string, bool>? _guestFeatures;
+
         private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + _clockOffset;
 
         [DllImport("shell32.dll")]
@@ -325,7 +329,10 @@ namespace ZafiroAgent
                         ApplyAfterSessionSettings(hb);
                         // Друзья, переводы и пересадка: страница показывает только включённое клубом.
                         if (hb.GuestFeatures is { } features)
-                            SendMessageToWeb(JsonSerializer.Serialize(new { type = "guestFeatures", features }));
+                        {
+                            _guestFeatures = features;
+                            SendGuestFeatures();
+                        }
                     });
                 };
                 service.OnError += ex =>
@@ -794,6 +801,12 @@ namespace ZafiroAgent
             }
         }
 
+        private void SendGuestFeatures()
+        {
+            if (_guestFeatures is { } features)
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "guestFeatures", features }));
+        }
+
         /// <summary>Запрос /api/guest/… от имени клиента; ответ сервера уходит странице как type.</summary>
         private async Task<GuestApiResult> GuestCallAsync(string replyType, HttpMethod method, string path, object? body = null, bool fromThisComputer = false)
         {
@@ -877,6 +890,10 @@ namespace ZafiroAgent
                 if (type == "refreshBalance")
                 {
                     await RefreshBalanceAsync(manual: true);
+                }
+                else if (type == "requestGuestFeatures")
+                {
+                    SendGuestFeatures();
                 }
                 else if (type == "requestFriends")
                 {
