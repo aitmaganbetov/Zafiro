@@ -61,6 +61,26 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(100)->by('agent-exit-pin-club:'.($request->attributes->get('agent_computer')?->club_id ?? $request->ip())),
         ]);
 
+        // Without a named limiter, every `throttle:N,M` route shares one counter per IP (per user
+        // when signed in). A club's PCs share one IP: sign-in is limited per phone, the club key
+        // per key, PC requests per PC, and the IP only loosely.
+        RateLimiter::for('customer-login', fn (Request $request): array => [
+            Limit::perMinute(5)->by('customer-login:'.$request->ip().'|'.preg_replace('/\D+/', '', (string) $request->input('phone'))),
+            Limit::perMinute(300)->by('customer-login-ip:'.$request->ip()),
+        ]);
+        RateLimiter::for('club-resolve', fn (Request $request): array => [
+            Limit::perMinute(10)->by('club-resolve:'.$request->ip().'|'.hash('sha256', (string) $request->input('club_key', $request->input('key')))),
+            Limit::perMinute(300)->by('club-resolve-ip:'.$request->ip()),
+        ]);
+        RateLimiter::for('agent-qr-login', fn (Request $request): Limit => Limit::perMinute(20)
+            ->by('agent-qr-login:'.$this->agentRateLimitKey($request)));
+        RateLimiter::for('agent-qr-poll', fn (Request $request): Limit => Limit::perMinute(60)
+            ->by('agent-qr-poll:'.$this->agentRateLimitKey($request)));
+        RateLimiter::for('agent-token-rotate', fn (Request $request): Limit => Limit::perMinute(10)
+            ->by('agent-token-rotate:'.$this->agentRateLimitKey($request)));
+        RateLimiter::for('agent-translations', fn (Request $request): Limit => Limit::perMinute(600)
+            ->by('agent-translations:'.$request->ip()));
+
         RateLimiter::for('club-computer-registration', fn (Request $request): Limit => Limit::perMinute(10)
             ->by('club-computer-registration:'.$this->agentRateLimitKey($request)));
     }

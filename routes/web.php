@@ -53,13 +53,13 @@ Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
     ->name('club-logos.show');
 
 Route::get('/invitations/{token}', [ClubInvitationController::class, 'show'])->name('club-invitations.show');
-Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1')->name('club-invitations.accept');
+Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1,club-invitations.accept')->name('club-invitations.accept');
 
 // Sign-in on a PC from the phone (QR code on the PC): any club of the code, after the site sign-in.
 Route::middleware('auth')->group(function () {
     Route::get('/pc-login/done', [QrLoginController::class, 'done'])->name('pc-login.done');
     Route::get('/pc-login/{code}', [QrLoginController::class, 'show'])->where('code', '[A-Za-z0-9]{40}')->name('pc-login.show');
-    Route::post('/pc-login/{code}', [QrLoginController::class, 'approve'])->where('code', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('pc-login.approve');
+    Route::post('/pc-login/{code}', [QrLoginController::class, 'approve'])->where('code', '[A-Za-z0-9]{40}')->middleware('throttle:10,1,pc-login.approve')->name('pc-login.approve');
 });
 
 // Auth routes
@@ -102,7 +102,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function 
     // Languages and translations shared by every club (route names kept from the club settings).
     Route::post('/languages', [SuperadminLanguageController::class, 'store'])->name('languages.store');
     Route::get('/languages/export', [SuperadminLanguageController::class, 'export'])->name('languages.export');
-    Route::post('/languages/import', [SuperadminLanguageController::class, 'import'])->middleware('throttle:20,1')->name('languages.import');
+    Route::post('/languages/import', [SuperadminLanguageController::class, 'import'])->middleware('throttle:20,1,languages.import')->name('languages.import');
     Route::patch('/languages/{language}', [SuperadminLanguageController::class, 'update'])->name('languages.update');
     Route::delete('/languages/{language}', [SuperadminLanguageController::class, 'destroy'])->name('languages.destroy');
     Route::get('/languages/{language}/translations', [SuperadminLanguageController::class, 'translations'])->name('languages.translations');
@@ -186,7 +186,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
         Route::get('/reservations', [ComputerReservationController::class, 'index'])->name('reservations.index');
         Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
-        Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1')->name('reservations.customers');
+        Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1,reservations.customers')->name('reservations.customers');
         Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');
         Route::post('/reservations/{reservation}/arrive', [ComputerReservationController::class, 'arrive'])->name('reservations.arrive');
     });
