@@ -164,6 +164,27 @@
 			  <p data-i18n="Выберите подходящий пакет игрового времени.">Выберите подходящий пакет игрового времени.</p>
 			</div>
 		  </header>
+		  <!-- Время поминутно по цене часа зоны этого ПК (если клуб задал цену часа в зоне). -->
+		  <section class="minute-card" id="minuteCard" aria-labelledby="minuteTitle" hidden>
+			<div class="minute-head">
+			  <h2 id="minuteTitle" data-i18n="Поминутно">Поминутно</h2>
+			  <p id="minuteRate"></p>
+			</div>
+			<div class="minute-row">
+			  <label for="minuteInput" data-i18n="Минут">Минут</label>
+			  <input id="minuteInput" type="number" min="1" max="720" step="1" value="60" inputmode="numeric">
+			  <div class="minute-quick">
+				<button type="button" class="friend-button" data-minutes="15">15</button>
+				<button type="button" class="friend-button" data-minutes="30">30</button>
+				<button type="button" class="friend-button" data-minutes="60">60</button>
+				<button type="button" class="friend-button" data-minutes="120">120</button>
+			  </div>
+			</div>
+			<div class="minute-buy">
+			  <strong id="minutePrice"></strong>
+			  <button class="primary" id="minuteBuy" type="button" data-i18n="Купить">Купить</button>
+			</div>
+		  </section>
 		  <p class="tariff-page-status" id="tariffPageStatus" role="status" aria-live="polite">Загружаем тарифы…</p>
 		  <div class="tariff-catalog" id="tariffCatalog"></div>
 		</section>

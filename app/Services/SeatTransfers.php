@@ -127,19 +127,23 @@ class SeatTransfers
     }
 
     /**
-     * Zones where the session's last tariff is valid; null — every zone.
+     * Zones where the session's last purchase is valid; null — every zone. Time bought by the
+     * minute is priced by its zone, so it moves only within that zone.
      *
      * @return list<int>|null
      */
     private function allowedZoneIds(ClubComputer $computer): ?array
     {
-        $tariffId = ActivityLog::query()
-            ->where('event', 'tariff.purchased')
-            ->where('subject_type', (new Tariff)->getMorphClass())
+        $purchase = ActivityLog::query()
+            ->whereIn('event', ['tariff.purchased', 'time.purchased'])
             ->where('details->session_id', $computer->current_session_id)
             ->latest('id')
-            ->value('subject_id');
-        $tariff = $tariffId === null ? null : Tariff::query()->with('zones:id')->find($tariffId);
+            ->first(['event', 'subject_id']);
+        if ($purchase?->event === 'time.purchased') {
+            return [(int) $purchase->subject_id];
+        }
+
+        $tariff = $purchase === null ? null : Tariff::query()->with('zones:id')->find($purchase->subject_id);
         if ($tariff === null || $tariff->zones->isEmpty()) {
             return null;
         }

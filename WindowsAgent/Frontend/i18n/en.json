@@ -226,6 +226,12 @@
         "Не удалось загрузить операции.": "Could not load the operations.",
         "Операций пока нет": "No operations yet",
         "Показать ещё": "Show more",
-        "Покупки, пополнения, переводы и входы на ПК": "Purchases, top-ups, transfers and PC sign-ins"
+        "Покупки, пополнения, переводы и входы на ПК": "Purchases, top-ups, transfers and PC sign-ins",
+        ":minutes мин — :price": ":minutes min — :price",
+        "Введите от 1 до :max минут": "Enter 1 to :max minutes",
+        "Зона :zone · :price за час": "Zone :zone · :price per hour",
+        "Купить": "Buy",
+        "Минут": "Minutes",
+        "Поминутно": "By the minute"
     }
 }

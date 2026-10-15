@@ -16,7 +16,7 @@ class GuestHistory
     public const PAGE = 30;
 
     /** Done by the customer. */
-    private const OWN_EVENTS = ['tariff.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
+    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
     private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred'];
@@ -58,6 +58,13 @@ class GuestHistory
                 $entry['kind'] = 'purchase';
                 $entry['title'] = __('Покупка тарифа «:tariff»', ['tariff' => $names['tariffs'][$log->subject_id] ?? '—']);
                 $entry['note'] = isset($details['duration_minutes']) ? trans_choice(':count минута|:count минуты|:count минут', (int) $details['duration_minutes']) : null;
+                $entry['amount'] = self::negative($details['main_balance_amount'] ?? $details['amount'] ?? null);
+                $entry['bonus_amount'] = self::negative($details['bonus_balance_amount'] ?? null);
+                break;
+            case 'time.purchased':
+                $entry['kind'] = 'purchase';
+                $entry['title'] = __('Поминутная оплата: :count мин.', ['count' => (int) ($details['duration_minutes'] ?? 0)]);
+                $entry['note'] = isset($details['price_per_hour']) ? __(':price за час', ['price' => $details['price_per_hour']]) : null;
                 $entry['amount'] = self::negative($details['main_balance_amount'] ?? $details['amount'] ?? null);
                 $entry['bonus_amount'] = self::negative($details['bonus_balance_amount'] ?? null);
                 break;

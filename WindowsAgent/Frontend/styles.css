@@ -156,6 +156,17 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .history-list-heading{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
 .history-list-heading h2{margin:0;font-size:1.0625rem}
 .history-list-heading p{margin:5px 0 0;color:var(--muted);font-size:0.8125rem}
+.minute-card{display:grid;gap:12px;margin:18px 0 6px;padding:16px;border:1px solid rgba(139,92,246,0.35);border-radius:10px;background:rgba(139,92,246,0.06)}
+.minute-head h2{margin:0;font-size:1.0625rem}
+.minute-head p{margin:4px 0 0;color:var(--muted);font-size:0.8125rem}
+.minute-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.minute-row label{color:var(--muted);font-size:0.8125rem}
+.minute-row input{width:96px;padding:9px 12px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text);font:inherit}
+.minute-row input:focus-visible{outline:2px solid var(--accent-2);outline-offset:1px}
+.minute-quick{display:flex;flex-wrap:wrap;gap:6px}
+.minute-buy{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.minute-buy strong{font-size:1rem;font-variant-numeric:tabular-nums}
+.minute-buy .primary:disabled{opacity:0.5;cursor:default}
 .history-list{list-style:none;margin:0;padding:0}
 .history-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
 .history-item-main{display:grid;gap:3px;min-width:0}

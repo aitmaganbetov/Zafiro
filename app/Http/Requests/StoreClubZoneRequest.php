@@ -22,6 +22,8 @@ class StoreClubZoneRequest extends FormRequest
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:180'],
             'capacity' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            // Empty: no per-minute time in this zone, only tariffs.
+            'price_per_hour' => ['nullable', 'numeric', 'min:0.01', 'max:1000000', 'decimal:0,2'],
             'icon' => ['required', Rule::in(['crown', 'desktop', 'gamepad', 'mug-hot', 'couch', 'dice', 'door-open', 'bong', 'smoking'])],
             'theme' => ['required', Rule::in(['green', 'neutral', 'yellow', 'purple', 'blue'])],
             'status' => ['required', Rule::in(['available', 'busy', 'service'])],

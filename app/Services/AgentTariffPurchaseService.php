@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
+use App\Models\ClubZone;
 use App\Models\MemberBalance;
 use App\Models\Tariff;
 use App\Models\User;
@@ -54,85 +55,141 @@ class AgentTariffPurchaseService
                 throw ValidationException::withMessages(['tariff' => __('Тариф недоступен.')]);
             }
 
-            if ($computer->is_reserved) {
-                throw ValidationException::withMessages(['computer_id' => __('Забронированный компьютер нельзя использовать для сессии.')]);
-            }
-
-            $hasActiveSession = $computer->current_session_id !== null
-                && $computer->session_ends_at?->isFuture() === true
-                && $computer->current_session_user_id !== null;
-            if ($hasActiveSession && $computer->current_session_user_id !== $user->getKey()) {
-                throw ValidationException::withMessages(['computer_id' => __('На компьютере уже идёт сессия другого пользователя.')]);
-            }
+            $this->ensureComputerFor($computer, $user);
 
             if ($tariff->zones()->exists() && ! $tariff->zones()->whereKey($computer->club_zone_id)->exists()) {
                 throw ValidationException::withMessages(['tariff' => __('Тариф недоступен для этого компьютера.')]);
             }
 
-            $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
             $price = $this->priceInCents($tariff, $membership);
-            $mainBalance = self::amountToCents((string) $balance->balance);
-            $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
-            $bonusPayment = 0;
 
-            if ($tariff->payment_method === 'main_balance_only') {
-                if ($mainBalance < $price) {
-                    throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
-                }
-                $mainBalance -= $price;
-            } else {
-                $mainPayment = min($mainBalance, $price);
-                $bonusPayment = $price - $mainPayment;
-                if ($bonusBalance < $bonusPayment) {
-                    throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
-                }
-                $mainBalance -= $mainPayment;
-                $bonusBalance -= $bonusPayment;
-            }
-
-            $minutes = $this->effectiveMinutes($tariff);
-            $now = now();
-            $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
-            $sessionEndsAt = ($hasActiveSession ? $computer->session_ends_at->copy() : $now->copy())
-                ->addMinutes($minutes);
-
-            // Time that runs into someone else's booking is not sold; the booked customer may play.
-            $booking = $this->reservations->blocking($computer, $user->getKey(), $sessionEndsAt);
-            if ($booking !== null) {
-                throw ValidationException::withMessages(['computer_id' => __('ПК забронирован с :time. Выберите тариф короче или другой ПК.', ['time' => $booking->starts_at->format('H:i')])]);
-            }
-            $this->reservations->markArrivedBy($computer, $user->getKey(), $sessionEndsAt);
-
-            $balance->update([
-                'balance' => self::formatCents($mainBalance),
-                'bonus_balance' => self::formatCents($bonusBalance),
-            ]);
-            $computer->update([
-                'current_session_id' => $sessionId,
-                'current_session_user_id' => $user->getKey(),
-                'session_ends_at' => $sessionEndsAt,
-            ]);
-            $this->activity->record('tariff.purchased', __('Куплен тариф: :tariff', ['tariff' => $tariff->name]), $user->getKey(), $tariff, [
-                'amount' => self::formatCents($price),
-                'currency' => $tariff->currency,
-                'main_balance_amount' => self::formatCents($price - $bonusPayment),
-                'bonus_balance_amount' => self::formatCents($bonusPayment),
-                'duration_minutes' => $minutes,
-                'computer_id' => $computer->getKey(),
-                'session_id' => $sessionId,
-                'session_ends_at' => $sessionEndsAt->toIso8601String(),
-            ]);
-
-            return [
-                'success' => true,
-                'message' => __('Тариф подключён.'),
-                'new_balance' => self::formatCents($mainBalance),
-                'new_bonus' => self::formatCents($bonusBalance),
-                'minutes_added' => $minutes,
-                'session_id' => $sessionId,
-                'session_ends_at' => $sessionEndsAt->toIso8601String(),
-            ];
+            return $this->sell($user, $computer, $price, $tariff->payment_method, $this->effectiveMinutes($tariff), function (array $sale) use ($user, $tariff, $price, $computer): void {
+                $this->activity->record('tariff.purchased', __('Куплен тариф: :tariff', ['tariff' => $tariff->name]), $user->getKey(), $tariff, [
+                    'amount' => self::formatCents($price),
+                    'currency' => $tariff->currency,
+                    'main_balance_amount' => self::formatCents($price - $sale['bonus_payment']),
+                    'bonus_balance_amount' => self::formatCents($sale['bonus_payment']),
+                    'duration_minutes' => $sale['minutes'],
+                    'computer_id' => $computer->getKey(),
+                    'session_id' => $sale['session_id'],
+                    'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
+                ]);
+            }, __('Тариф подключён.'));
         });
+    }
+
+    /**
+     * Time by the minute at the hourly price of the PC's zone: minutes × hour price / 60, rounded
+     * to the cent; paid from the main balance, the rest from bonuses (like a tariff "main or bonus").
+     *
+     * @return array<string, mixed>
+     */
+    public function purchaseMinutes(User $user, int $computerId, int $minutes): array
+    {
+        return DB::transaction(function () use ($user, $computerId, $minutes): array {
+            $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computerId);
+            $zone = ClubZone::query()->find($computer->club_zone_id);
+            if ($zone?->price_per_hour === null) {
+                throw ValidationException::withMessages(['minutes' => __('В этой зоне время поминутно не продаётся.')]);
+            }
+
+            $this->ensureComputerFor($computer, $user);
+            $price = self::minutesPriceInCents((string) $zone->price_per_hour, $minutes);
+            $currency = data_get($this->currentClub->settings(), 'finances.currency', 'KZT');
+
+            return $this->sell($user, $computer, $price, 'main_or_bonus', $minutes, function (array $sale) use ($user, $zone, $price, $currency, $computer): void {
+                $this->activity->record('time.purchased', __('Куплено :count мин. в зоне :zone', ['count' => $sale['minutes'], 'zone' => $zone->name]), $user->getKey(), $zone, [
+                    'amount' => self::formatCents($price),
+                    'currency' => $currency,
+                    'price_per_hour' => (string) $zone->price_per_hour,
+                    'main_balance_amount' => self::formatCents($price - $sale['bonus_payment']),
+                    'bonus_balance_amount' => self::formatCents($sale['bonus_payment']),
+                    'duration_minutes' => $sale['minutes'],
+                    'computer_id' => $computer->getKey(),
+                    'session_id' => $sale['session_id'],
+                    'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
+                ]);
+            }, __('Время добавлено.'));
+        });
+    }
+
+    /** Price of the given minutes at an hourly price, in cents (rounded half up). */
+    public static function minutesPriceInCents(string $pricePerHour, int $minutes): int
+    {
+        return intdiv(self::amountToCents($pricePerHour) * $minutes + 30, 60);
+    }
+
+    /** The PC can take time for this customer: not reserved, no session of someone else. */
+    private function ensureComputerFor(ClubComputer $computer, User $user): void
+    {
+        if ($computer->is_reserved) {
+            throw ValidationException::withMessages(['computer_id' => __('Забронированный компьютер нельзя использовать для сессии.')]);
+        }
+
+        if ($computer->hasPaidSession() && $computer->current_session_user_id !== $user->getKey()) {
+            throw ValidationException::withMessages(['computer_id' => __('На компьютере уже идёт сессия другого пользователя.')]);
+        }
+    }
+
+    /**
+     * Charges the balance and starts or extends the customer's session on the locked PC.
+     *
+     * @param  callable(array{bonus_payment: int, minutes: int, session_id: string, session_ends_at: Carbon}): void  $log
+     * @return array<string, mixed>
+     */
+    private function sell(User $user, ClubComputer $computer, int $price, string $paymentMethod, int $minutes, callable $log, string $message): array
+    {
+        $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
+        $mainBalance = self::amountToCents((string) $balance->balance);
+        $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
+        $bonusPayment = 0;
+
+        if ($paymentMethod === 'main_balance_only') {
+            if ($mainBalance < $price) {
+                throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
+            }
+            $mainBalance -= $price;
+        } else {
+            $mainPayment = min($mainBalance, $price);
+            $bonusPayment = $price - $mainPayment;
+            if ($bonusBalance < $bonusPayment) {
+                throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
+            }
+            $mainBalance -= $mainPayment;
+            $bonusBalance -= $bonusPayment;
+        }
+
+        $hasActiveSession = $computer->hasPaidSession();
+        $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
+        $sessionEndsAt = ($hasActiveSession ? $computer->session_ends_at->copy() : now())->addMinutes($minutes);
+
+        // Time that runs into someone else's booking is not sold; the booked customer may play.
+        $booking = $this->reservations->blocking($computer, $user->getKey(), $sessionEndsAt);
+        if ($booking !== null) {
+            throw ValidationException::withMessages(['computer_id' => __('ПК забронирован с :time. Выберите тариф короче или другой ПК.', ['time' => $booking->starts_at->format('H:i')])]);
+        }
+        $this->reservations->markArrivedBy($computer, $user->getKey(), $sessionEndsAt);
+
+        $balance->update([
+            'balance' => self::formatCents($mainBalance),
+            'bonus_balance' => self::formatCents($bonusBalance),
+        ]);
+        $computer->update([
+            'current_session_id' => $sessionId,
+            'current_session_user_id' => $user->getKey(),
+            'session_ends_at' => $sessionEndsAt,
+        ]);
+        $log(['bonus_payment' => $bonusPayment, 'minutes' => $minutes, 'session_id' => $sessionId, 'session_ends_at' => $sessionEndsAt]);
+
+        return [
+            'success' => true,
+            'message' => $message,
+            'new_balance' => self::formatCents($mainBalance),
+            'new_bonus' => self::formatCents($bonusBalance),
+            'minutes_added' => $minutes,
+            'session_id' => $sessionId,
+            'session_ends_at' => $sessionEndsAt->toIso8601String(),
+        ];
     }
 
     private function isAvailable(Tariff $tariff, ClubMembership $membership, int $purchaseCount): bool

@@ -915,6 +915,42 @@ namespace ZafiroAgent
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
                 }
+                else if (type == "requestMinutes")
+                {
+                    await GuestCallAsync("minutes", HttpMethod.Get, "minutes", fromThisComputer: true);
+                }
+                else if (type == "purchaseMinutes")
+                {
+                    // Как с тарифом: второе нажатие, пока покупка идёт, не списывает деньги ещё раз.
+                    if (_purchaseInFlight) return;
+                    if (!doc.RootElement.TryGetProperty("minutes", out var m) || m.ValueKind != JsonValueKind.Number || !m.TryGetInt32(out var minutes) || minutes <= 0) return;
+                    _purchaseInFlight = true;
+                    try
+                    {
+                        var result = await _apiService.CallGuestApiAsync(HttpMethod.Post, "minutes/purchase", new { minutes }, true, CancellationToken.None);
+                        var data = result.Data;
+                        string? Text(string name) => data is { } d && d.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+                        var sessionId = Text("session_id");
+                        DateTimeOffset? endsAt = DateTimeOffset.TryParse(Text("session_ends_at"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var ends) ? ends.ToUniversalTime() : null;
+                        if (result.Success && !string.IsNullOrWhiteSpace(sessionId))
+                            AdoptSession(sessionId, endsAt);
+
+                        SendMessageToWeb(JsonSerializer.Serialize(new
+                        {
+                            type = "purchaseResult",
+                            success = result.Success,
+                            message = result.Message,
+                            sessionId,
+                            newBalance = Text("new_balance"),
+                            newBonus = Text("new_bonus"),
+                            sessionEndsAt = endsAt?.ToString("O")
+                        }));
+                    }
+                    finally
+                    {
+                        _purchaseInFlight = false;
+                    }
+                }
                 else if (type == "requestHistory")
                 {
                     // Страница «Показать ещё» передаёт id последней показанной записи.

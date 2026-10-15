@@ -20,6 +20,7 @@ class TariffController extends Controller
         return view('tariffs.index', [
             'tariffs' => Tariff::query()->with('zones')->orderBy('duration_minutes')->orderBy('name')->get(),
             'zones' => ClubZone::query()->whereHas('computers')->orderBy('name')->get(),
+            'currency' => data_get($this->currentClub->settings() ?: [], 'finances.currency', 'KZT'),
         ]);
     }
 

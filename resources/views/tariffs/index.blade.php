@@ -139,6 +139,36 @@
         </div>
     </dialog>
 
+    <section class="mb-8">
+        <div class="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Поминутная оплата по зонам') }}</h4>
+            <a href="{{ route('club-map.index') }}" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400">{{ __('Изменить цену часа в зонах') }}</a>
+        </div>
+        <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('В агенте клиент покупает любое число минут по цене часа своей зоны. Без цены часа в зоне продаются только тарифы.') }}</p>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[480px] text-left text-sm">
+                <thead class="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                    <tr><th class="px-3 py-3 font-semibold">{{ __('Зона') }}</th><th class="px-3 py-3 font-semibold">{{ __('Цена за час') }}</th><th class="px-3 py-3 font-semibold">{{ __('Цена за минуту') }}</th></tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @forelse ($zones as $zone)
+                        <tr>
+                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $zone->name }}</td>
+                            @if ($zone->price_per_hour !== null)
+                                <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $zone->price_per_hour, 2, ',', ' ') }} {{ $currency }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ number_format((float) $zone->price_per_hour / 60, 2, ',', ' ') }} {{ $currency }}</td>
+                            @else
+                                <td colspan="2" class="px-3 py-3 text-gray-500 dark:text-gray-400">{{ __('Не продаётся поминутно') }}</td>
+                            @endif
+                        </tr>
+                    @empty
+                        <tr><td colspan="3" class="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('Добавьте ПК в зону на карте клуба.') }}</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <section>
         <div class="mb-3 flex items-baseline justify-between gap-3">
             <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Список тарифов') }}</h4>

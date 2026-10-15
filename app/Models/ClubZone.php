@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'description', 'capacity', 'icon', 'theme', 'status', 'is_featured', 'sort_order', 'position_x', 'position_y', 'width', 'height', 'rotation'])]
+#[Fillable(['name', 'description', 'capacity', 'price_per_hour', 'icon', 'theme', 'status', 'is_featured', 'sort_order', 'position_x', 'position_y', 'width', 'height', 'rotation'])]
 class ClubZone extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -19,7 +19,7 @@ class ClubZone extends Model
 
     protected function casts(): array
     {
-        return ['capacity' => 'integer', 'is_featured' => 'boolean', 'sort_order' => 'integer', 'position_x' => 'integer', 'position_y' => 'integer', 'width' => 'integer', 'height' => 'integer', 'rotation' => 'integer'];
+        return ['capacity' => 'integer', 'price_per_hour' => 'decimal:2', 'is_featured' => 'boolean', 'sort_order' => 'integer', 'position_x' => 'integer', 'position_y' => 'integer', 'width' => 'integer', 'height' => 'integer', 'rotation' => 'integer'];
     }
 
     public function computers(): HasMany

@@ -347,7 +347,10 @@
   document.getElementById('btnReturn')?.addEventListener('click', () => {
     webview?.postMessage({ type: 'returnToDesktop' });
   });
-  document.getElementById('btnExtend')?.addEventListener('click', () => setView('tariffs'));
+  document.getElementById('btnExtend')?.addEventListener('click', () => {
+    setView('tariffs');
+    requestMinutes();
+  });
   document.getElementById('btnTopUp')?.addEventListener('click', () => {
     setStatus(actionStatus, 'Пополнить баланс можно на кассе клуба.');
   });
@@ -727,6 +730,46 @@
   };
   historyMore.addEventListener('click', () => requestHistory(true));
 
+  // Поминутно: цена часа зоны этого ПК / 60 × минуты (округление как на сервере, до тиына).
+  const minuteCard = document.getElementById('minuteCard');
+  const minuteInput = document.getElementById('minuteInput');
+  const minuteBuy = document.getElementById('minuteBuy');
+  let minuteOffer = null;
+
+  const minuteCount = () => {
+    const value = Number(minuteInput.value);
+    const max = Number(minuteOffer?.max_minutes) || 720;
+    return Number.isInteger(value) && value >= 1 && value <= max ? value : null;
+  };
+  const renderMinutes = () => {
+    minuteCard.hidden = !minuteOffer?.available;
+    if (!minuteOffer?.available) return;
+    const hourCents = Math.round(Number(minuteOffer.price_per_hour) * 100);
+    const currency = minuteOffer.currency ?? 'KZT';
+    minuteInput.max = String(Number(minuteOffer.max_minutes) || 720);
+    document.getElementById('minuteRate').textContent = t('Зона :zone · :price за час', { zone: minuteOffer.zone ?? '', price: formatPrice(hourCents / 100, currency) });
+    const minutes = minuteCount();
+    document.getElementById('minutePrice').textContent = minutes === null
+      ? t('Введите от 1 до :max минут', { max: minuteInput.max })
+      : t(':minutes мин — :price', { minutes, price: formatPrice(Math.floor((hourCents * minutes + 30) / 60) / 100, currency) });
+    minuteBuy.disabled = minutes === null;
+  };
+  const requestMinutes = () => webview?.postMessage({ type: 'requestMinutes' });
+
+  minuteInput.addEventListener('input', renderMinutes);
+  minuteCard.querySelectorAll('[data-minutes]').forEach((button) => button.addEventListener('click', () => {
+    minuteInput.value = button.dataset.minutes;
+    renderMinutes();
+  }));
+  minuteBuy.addEventListener('click', () => {
+    const minutes = minuteCount();
+    if (minutes === null || !webview) return;
+    minuteBuy.disabled = true;
+    tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => { item.disabled = true; });
+    setStatus(tariffPageStatus, 'Оформляем тариф…');
+    webview.postMessage({ type: 'purchaseMinutes', minutes });
+  });
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -768,7 +811,10 @@
   homeNavigation.addEventListener('click', () => setView('session'));
   shopNavigation.addEventListener('click', () => setView('shop'));
   historyNavigation.addEventListener('click', () => setView('history'));
-  tariffNavigation.addEventListener('click', () => setView('tariffs'));
+  tariffNavigation.addEventListener('click', () => {
+    setView('tariffs');
+    requestMinutes();
+  });
   profileNavigation.addEventListener('click', () => setView('profile'));
   friendsNavigation.addEventListener('click', () => {
     setView('friends');
@@ -836,6 +882,7 @@
     renderLanguageSwitch();
     renderFriends();
     renderHistory();
+    renderMinutes();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -854,6 +901,11 @@
       renderCart();
     }
 
+    if (event.data?.type === 'minutes') {
+      minuteOffer = event.data.ok && event.data.data ? event.data.data : null;
+      renderMinutes();
+    }
+
     if (event.data?.type === 'tariffs') {
       renderTariffs(Array.isArray(event.data.list) ? event.data.list : []);
       if (event.data.error) {
@@ -866,6 +918,7 @@
       tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => {
         item.disabled = false;
       });
+      renderMinutes();
       if (event.data.message) setServerStatus(tariffPageStatus, event.data.message);
       else setStatus(tariffPageStatus, event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.');
       // Сессию после покупки присылает агент (sessionSync); здесь — только баланс.
@@ -1057,6 +1110,7 @@
   else setStatus(tariffPageStatus, 'Запустите приложение, чтобы загрузить тарифы.');
   webview?.postMessage({ type: 'requestI18n' });
   webview?.postMessage({ type: 'requestTariffs' });
+  requestMinutes();
   webview?.postMessage({ type: 'requestSession' });
   webview?.postMessage({ type: 'requestGuestFeatures' });
   renderCart();

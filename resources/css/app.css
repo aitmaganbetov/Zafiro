@@ -1681,6 +1681,13 @@ body {
     font-weight: 700
 }
 
+.cm-field-hint {
+    display: block;
+    margin-top: 6px;
+    color: #7d867f;
+    font-size: 13px
+}
+
 .cm-form-errors {
     margin-bottom: 12px;
     color: #b42318;
