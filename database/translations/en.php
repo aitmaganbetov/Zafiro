@@ -1424,5 +1424,6 @@ return [
         'Новости клуба' => 'Club news',
         'Раньше →' => 'Older →',
         '← Новее' => '← Newer',
+        'Язык ввода: :language. Нажмите, чтобы сменить (или Alt+Shift).' => 'Input language: :language. Click to switch (or Alt+Shift).',
     ],
 ];

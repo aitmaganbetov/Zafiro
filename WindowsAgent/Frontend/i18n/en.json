@@ -236,6 +236,7 @@
         "Новости Zafiro": "Zafiro news",
         "Новости клуба": "Club news",
         "Раньше →": "Older →",
-        "← Новее": "← Newer"
+        "← Новее": "← Newer",
+        "Язык ввода: :language. Нажмите, чтобы сменить (или Alt+Shift).": "Input language: :language. Click to switch (or Alt+Shift)."
     }
 }

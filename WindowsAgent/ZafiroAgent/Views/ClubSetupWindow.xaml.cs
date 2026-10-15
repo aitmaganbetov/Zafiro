@@ -1,9 +1,11 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ZafiroAgent.Models;
@@ -43,6 +45,9 @@ namespace ZafiroAgent.Views
 
             SubmitButton.Click += async (_, _) => await SubmitAsync();
             PhoneBox.TextChanged += (_, _) => FormatPhone();
+            InputLanguageButton.Click += (_, _) => NextInputLanguage();
+            InputLanguageManager.Current.InputLanguageChanged += OnInputLanguageChanged;
+            ShowInputLanguage();
             // QR-код — только на подключённом ПК (у него есть токен устройства).
             Loaded += (_, _) => { if (_relogin) _ = RunQrLoginAsync(); };
             L.Changed += OnLanguageChanged;
@@ -50,10 +55,49 @@ namespace ZafiroAgent.Views
             {
                 _cts.Cancel();
                 L.Changed -= OnLanguageChanged;
+                InputLanguageManager.Current.InputLanguageChanged -= OnInputLanguageChanged;
             };
         }
 
         private void OnLanguageChanged() => Dispatcher.BeginInvoke(ApplyTexts);
+
+        private void OnInputLanguageChanged(object sender, InputLanguageEventArgs e) => Dispatcher.BeginInvoke(ShowInputLanguage);
+
+        /// <summary>Язык ввода Windows, как его подписывает панель задач: РУС, ENG, ҚАЗ.</summary>
+        private void ShowInputLanguage()
+        {
+            var culture = InputLanguageManager.Current.CurrentInputLanguage ?? CultureInfo.CurrentCulture;
+            InputLanguageButton.Content = InputLanguageLabel(culture);
+            InputLanguageButton.ToolTip = L.T("Язык ввода: :language. Нажмите, чтобы сменить (или Alt+Shift).", ("language", culture.NativeName));
+            System.Windows.Automation.AutomationProperties.SetName(InputLanguageButton, (string)InputLanguageButton.ToolTip);
+        }
+
+        public static string InputLanguageLabel(CultureInfo culture) => culture.TwoLetterISOLanguageName switch
+        {
+            "ru" => "РУС",
+            "kk" => "ҚАЗ",
+            "en" => "ENG",
+            _ => culture.ThreeLetterWindowsLanguageName.ToUpperInvariant()
+        };
+
+        private void NextInputLanguage()
+        {
+            try
+            {
+                var languages = InputLanguageManager.Current.AvailableInputLanguages?.Cast<CultureInfo>().ToList();
+                if (languages is not { Count: > 1 }) return;
+                var current = InputLanguageManager.Current.CurrentInputLanguage;
+                var index = languages.FindIndex(language => language.Equals(current));
+                InputLanguageManager.Current.CurrentInputLanguage = languages[(index + 1) % languages.Count];
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[InputLanguage] switch failed: " + ex.Message);
+            }
+
+            ShowInputLanguage();
+            if (PasswordBox.IsVisible) PasswordBox.Focus();
+        }
 
         private bool _formattingPhone;
         private string _phoneText = string.Empty;
