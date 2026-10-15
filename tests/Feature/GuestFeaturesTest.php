@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubZone;
+use App\Models\ComputerReservation;
 use App\Models\Friendship;
 use App\Models\MemberBalance;
 use App\Models\Tariff;
@@ -164,9 +165,19 @@ test('a customer moves the rest of the session to a free PC where the tariff is 
     app(ActivityLogger::class)->record('tariff.purchased', 'test', $customer->id, $tariff, ['session_id' => 'sess-1']);
     $deviceToken = app(ClubComputerSessions::class)->issueAgentToken($from);
 
-    $this->getJson(route('api.guest.seats.index', ['computer_id' => $from->id]), guestApi($customer))->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $free->id);
+    // Someone else's booking that starts before the rest of the session ends: grey on the map.
+    $booked = guestComputer(7, $hall);
+    ComputerReservation::query()->create(['club_computer_id' => $booked->id, 'customer_name' => 'X', 'starts_at' => now()->addHour(), 'ends_at' => now()->addHours(2)]);
+
+    $map = $this->getJson(route('api.guest.seats.index', ['computer_id' => $from->id]), guestApi($customer))->assertOk()
+        ->assertJsonPath('current_computer_id', $from->id)
+        ->assertJsonCount(2, 'zones')
+        ->assertJsonPath('zones.0.name', 'Hall');
+    $available = collect($map->json('computers'))->pluck('available', 'id');
+    expect($available->all())->toBe([
+        $from->id => false, $free->id => true, $busy->id => false, $offline->id => false, $reserved->id => false, $booked->id => false, $otherZone->id => false,
+    ]);
+    expect(collect($map->json('computers'))->firstWhere('id', $free->id))->toMatchArray(['zone_id' => $hall->id, 'number' => 2, 'x' => 5, 'y' => 5]);
 
     $this->postJson(route('api.guest.seat-transfer'), ['computer_id' => $from->id, 'target_computer_id' => $free->id], guestApi($customer))->assertForbidden();
     $this->postJson(route('api.guest.seat-transfer'), ['computer_id' => $from->id, 'target_computer_id' => $busy->id], [...guestApi($customer), 'X-Agent-Token' => $deviceToken])

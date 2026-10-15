@@ -20,12 +20,7 @@ class GuestSeatController extends Controller
         $this->features->ensure('self_transfer');
         $from = ClubComputer::query()->findOrFail((int) $request->validate(['computer_id' => ['required', 'integer']])['computer_id']);
 
-        return response()->json(['data' => $this->transfers->freeSeatsFor($request->user(), $from)->map(fn (ClubComputer $computer): array => [
-            'id' => $computer->id,
-            'number' => $computer->number,
-            'name' => $computer->displayName(),
-            'zone' => $computer->zone?->name,
-        ])]);
+        return response()->json($this->transfers->map($request->user(), $from));
     }
 
     public function store(Request $request, ClubComputerSessions $sessions): JsonResponse

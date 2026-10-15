@@ -443,9 +443,9 @@
   const seatButton = document.getElementById('btnSeat');
   const seatDialog = document.getElementById('seatDialog');
   const seatStatus = document.getElementById('seatStatus');
-  const seatList = document.getElementById('seatList');
   let transferFriend = null;
   let chosenSeat = null;
+  let seatError = null; // ошибка пересадки остаётся видна после обновления карты
 
   const openDialog = (dialog) => {
     if (typeof dialog.showModal === 'function') dialog.showModal();
@@ -567,42 +567,95 @@
     webview?.postMessage({ type: 'transferBalance', id: transferFriend.id, amount });
   });
 
-  const renderSeats = (seats) => {
-    chosenSeat = null;
-    if (seats.length === 0) {
-      setStatus(seatStatus, 'Свободных ПК, где действует ваш тариф, сейчас нет.');
-      seatList.replaceChildren();
-      return;
-    }
-    setStatus(seatStatus, 'Выберите ПК.');
-    seatList.replaceChildren(...seats.map((seat) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'seat-button';
-      const name = document.createElement('strong');
-      name.textContent = seat.name ?? `#${seat.number}`;
-      const zone = document.createElement('small');
-      zone.textContent = seat.zone ?? '';
-      button.append(name, zone);
-      button.addEventListener('click', () => {
-        // Второе нажатие на тот же ПК — подтверждение: сессия переносится сразу.
-        if (chosenSeat !== seat.id) {
-          chosenSeat = seat.id;
-          seatList.querySelectorAll('.seat-button').forEach((item) => item.classList.toggle('is-chosen', item === button));
-          setStatus(seatStatus, 'Нажмите на ПК :name ещё раз, чтобы пересесть.', { name: seat.name ?? seat.number });
-          return;
-        }
-        seatList.querySelectorAll('.seat-button').forEach((item) => { item.disabled = true; });
-        setStatus(seatStatus, 'Переносим сессию…');
-        webview?.postMessage({ type: 'transferSeat', computerId: seat.id });
-      });
-      return button;
-    }));
+  // Карта для пересадки — те же зоны и места ПК, что на карте клуба в панели (координаты оттуда же).
+  const seatMap = document.getElementById('seatMap');
+  const seatMapFrame = document.getElementById('seatMapFrame');
+  const seatMapScroll = document.getElementById('seatMapScroll');
+  const seatConfirm = document.getElementById('seatConfirm');
+  const ZONE_COMPUTERS_LEFT = 12;
+  const ZONE_COMPUTERS_TOP = 106;
+  let seatPlan = { width: 0, height: 0 };
+
+  const fitSeatMap = () => {
+    if (!seatPlan.width) return;
+    const scale = Math.min(1, (seatMapScroll.clientWidth - 2) / seatPlan.width);
+    seatMap.style.transform = `scale(${scale})`;
+    seatMapFrame.style.width = `${Math.ceil(seatPlan.width * scale)}px`;
+    seatMapFrame.style.height = `${Math.ceil(seatPlan.height * scale)}px`;
   };
+  window.addEventListener('resize', fitSeatMap);
+
+  const showChosenSeat = (name = null) => {
+    seatConfirm.disabled = chosenSeat === null;
+    seatConfirm.textContent = chosenSeat === null ? t('Выберите свободный ПК') : t('Пересесть на ПК :name', { name });
+  };
+
+  const renderSeats = (map) => {
+    chosenSeat = null;
+    showChosenSeat();
+    const zones = Array.isArray(map?.zones) ? map.zones : [];
+    const computers = Array.isArray(map?.computers) ? map.computers : [];
+    const number = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+    // Пустое поле слева и сверху не показываем: карта занимает всё окно.
+    const left = zones.length ? Math.max(0, Math.min(...zones.map((zone) => number(zone.x))) - 20) : 0;
+    const top = zones.length ? Math.max(0, Math.min(...zones.map((zone) => number(zone.y))) - 20) : 0;
+    seatPlan = {
+      width: Math.max(320, ...zones.map((zone) => number(zone.x) - left + number(zone.width) + 20)),
+      height: Math.max(200, ...zones.map((zone) => number(zone.y) - top + number(zone.height) + 20))
+    };
+    seatMap.style.width = `${seatPlan.width}px`;
+    seatMap.style.height = `${seatPlan.height}px`;
+
+    seatMap.replaceChildren(...zones.map((zone) => {
+      const box = document.createElement('section');
+      box.className = `seat-zone ${typeof zone.theme === 'string' ? zone.theme : ''}`;
+      Object.assign(box.style, { left: `${number(zone.x) - left}px`, top: `${number(zone.y) - top}px`, width: `${number(zone.width)}px`, height: `${number(zone.height)}px` });
+      const title = document.createElement('h3');
+      title.textContent = zone.name ?? '';
+      const places = document.createElement('div');
+      places.className = 'seat-zone-computers';
+      places.style.left = `${ZONE_COMPUTERS_LEFT}px`;
+      places.style.top = `${ZONE_COMPUTERS_TOP}px`;
+      computers.filter((computer) => computer.zone_id === zone.id).forEach((computer) => {
+        const current = computer.id === map.current_computer_id;
+        const pc = document.createElement('button');
+        pc.type = 'button';
+        pc.className = `seat-pc ${current ? 'current' : computer.available ? 'free' : 'busy'}`;
+        pc.disabled = !computer.available;
+        pc.textContent = String(computer.number ?? '');
+        pc.title = current ? `${computer.name ?? ''} · ${t('Вы здесь')}` : computer.name ?? '';
+        pc.setAttribute('aria-label', pc.title);
+        Object.assign(pc.style, { left: `${number(computer.x)}px`, top: `${number(computer.y)}px` });
+        if (computer.available) {
+          pc.addEventListener('click', () => {
+            chosenSeat = computer.id;
+            seatMap.querySelectorAll('.seat-pc').forEach((item) => item.classList.toggle('is-chosen', item === pc));
+            showChosenSeat(computer.name ?? computer.number);
+          });
+        }
+        places.append(pc);
+      });
+      box.append(title, places);
+      return box;
+    }));
+
+    setStatus(seatStatus, computers.some((computer) => computer.available) ? 'Выберите свободный ПК на карте.' : 'Свободных ПК, где действует ваш тариф, сейчас нет.');
+    fitSeatMap();
+  };
+
+  seatConfirm.addEventListener('click', () => {
+    if (chosenSeat === null || !webview) return;
+    seatConfirm.disabled = true;
+    seatMap.querySelectorAll('.seat-pc').forEach((item) => { item.disabled = true; });
+    setStatus(seatStatus, 'Переносим сессию…');
+    webview.postMessage({ type: 'transferSeat', computerId: chosenSeat });
+  });
 
   seatButton.addEventListener('click', () => {
     if (!webview) return;
-    seatList.replaceChildren();
+    seatMap.replaceChildren();
+    chosenSeat = null;
+    showChosenSeat();
     setStatus(seatStatus, 'Ищем свободные ПК…');
     openDialog(seatDialog);
     webview.postMessage({ type: 'requestSeats' });
@@ -822,7 +875,11 @@
     }
 
     if (event.data?.type === 'seats') {
-      if (event.data.ok) renderSeats(Array.isArray(event.data.data?.data) ? event.data.data.data : []);
+      if (event.data.ok) {
+        renderSeats(event.data.data);
+        if (seatError) setServerStatus(seatStatus, seatError);
+        seatError = null;
+      }
       else setServerStatus(seatStatus, event.data.message ?? t('Не удалось выполнить действие.'));
     }
 
@@ -831,9 +888,10 @@
         closeDialog(seatDialog);
         setServerStatus(actionStatus, event.data.message ?? '');
       } else {
-        seatList.querySelectorAll('.seat-button').forEach((item) => { item.disabled = false; });
-        chosenSeat = null;
-        setServerStatus(seatStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+        // ПК мог только что занять кто-то другой: карта загружается заново.
+        seatError = event.data.message ?? t('Не удалось выполнить действие.');
+        setServerStatus(seatStatus, seatError);
+        webview?.postMessage({ type: 'requestSeats' });
       }
     }
 

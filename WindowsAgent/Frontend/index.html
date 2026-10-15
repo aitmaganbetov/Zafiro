@@ -238,7 +238,7 @@
 		  </form>
 		</dialog>
 
-		<dialog class="cart-dialog" id="seatDialog" aria-labelledby="seatTitle">
+		<dialog class="cart-dialog seat-dialog" id="seatDialog" aria-labelledby="seatTitle">
 		  <div class="cart-dialog-heading">
 			<h2 id="seatTitle" data-i18n="Пересесть на другой ПК">Пересесть на другой ПК</h2>
 			<button class="icon-button" id="seatClose" type="button" aria-label="Закрыть" data-i18n-aria-label="Закрыть" title="Закрыть" data-i18n-title="Закрыть">
@@ -247,7 +247,14 @@
 		  </div>
 		  <p class="dialog-note" data-i18n="Оставшееся время перейдёт на выбранный ПК. Здесь вы выйдете из аккаунта, а на новом ПК войдёте снова.">Оставшееся время перейдёт на выбранный ПК. Здесь вы выйдете из аккаунта, а на новом ПК войдёте снова.</p>
 		  <p class="friends-status" id="seatStatus" role="status" aria-live="polite"></p>
-		  <div class="seat-list" id="seatList"></div>
+		  <!-- Карта клуба, как в панели на сайте: выбрать можно только свободный ПК, где действует тариф. -->
+		  <div class="seat-map-scroll" id="seatMapScroll"><div class="seat-map-frame" id="seatMapFrame"><div class="seat-map" id="seatMap"></div></div></div>
+		  <div class="seat-legend" aria-hidden="true">
+			<span><i class="seat-swatch free"></i><span data-i18n="Свободен">Свободен</span></span>
+			<span><i class="seat-swatch busy"></i><span data-i18n="Занят или недоступен">Занят или недоступен</span></span>
+			<span><i class="seat-swatch current"></i><span data-i18n="Вы здесь">Вы здесь</span></span>
+		  </div>
+		  <button class="primary seat-confirm" id="seatConfirm" type="button" disabled data-i18n="Выберите свободный ПК">Выберите свободный ПК</button>
 		</dialog>
 
 	  </main>

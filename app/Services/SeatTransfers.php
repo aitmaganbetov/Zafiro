@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\ClubComputer;
+use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -24,22 +25,59 @@ class SeatTransfers
     {
         $this->ensureOwnSession($user, $from);
         $zones = $this->allowedZoneIds($from);
-        $held = $this->reservations->heldComputerIds();
 
+        // Bookings: blocking() covers someone else's booking anywhere in the rest of the session
+        // (the customer's own booking does not block them).
         return ClubComputer::query()
-            ->with('zone:id,name')
             ->whereKeyNot($from->getKey())
             ->where('is_reserved', false)
             ->where('last_seen_at', '>=', now()->subSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS))
             ->where(fn ($query) => $query->whereNull('session_ends_at')->orWhere('session_ends_at', '<=', now()))
             ->where(fn ($query) => $query->whereNull('staff_until')->orWhere('staff_until', '<=', now()))
             ->when($zones !== null, fn ($query) => $query->whereIn('club_zone_id', $zones))
-            ->whereNotIn('id', $held)
             ->orderBy('club_zone_id')->orderBy('number')
             ->limit(200)
             ->get()
             ->reject(fn (ClubComputer $computer): bool => $this->reservations->blocking($computer, $user->getKey(), $from->session_ends_at) !== null)
             ->values();
+    }
+
+    /**
+     * The club map for choosing a seat, as on the site: zones where they stand and every PC
+     * where it stands in its zone; only free PCs where the tariff is valid can be chosen.
+     *
+     * @return array{zones: list<array<string, mixed>>, computers: list<array<string, mixed>>, current_computer_id: int}
+     */
+    public function map(User $user, ClubComputer $from): array
+    {
+        $free = $this->freeSeatsFor($user, $from)->modelKeys();
+
+        return [
+            'zones' => ClubZone::query()->orderBy('sort_order')->orderBy('id')
+                ->get(['id', 'name', 'icon', 'theme', 'position_x', 'position_y', 'width', 'height'])
+                ->map(fn (ClubZone $zone): array => [
+                    'id' => $zone->id,
+                    'name' => $zone->name,
+                    'icon' => $zone->icon,
+                    'theme' => $zone->theme,
+                    'x' => $zone->position_x,
+                    'y' => $zone->position_y,
+                    'width' => $zone->width,
+                    'height' => $zone->height,
+                ])->all(),
+            'computers' => ClubComputer::query()->orderBy('club_zone_id')->orderBy('number')->limit(500)
+                ->get(['id', 'club_zone_id', 'number', 'display_name', 'device_name', 'position_x', 'position_y'])
+                ->map(fn (ClubComputer $computer): array => [
+                    'id' => $computer->id,
+                    'zone_id' => $computer->club_zone_id,
+                    'number' => $computer->number,
+                    'name' => $computer->displayName(),
+                    'x' => $computer->position_x,
+                    'y' => $computer->position_y,
+                    'available' => in_array($computer->id, $free, true),
+                ])->all(),
+            'current_computer_id' => $from->id,
+        ];
     }
 
     public function transfer(User $user, ClubComputer $from, int $targetId): ClubComputer
@@ -58,7 +96,6 @@ class SeatTransfers
                 && $target->connectionStatus() === 'online'
                 && ! $target->hasPaidSession()
                 && ! $target->hasStaffVisit()
-                && ! in_array($target->getKey(), $this->reservations->heldComputerIds(), true)
                 && $this->reservations->blocking($target, $user->getKey(), $from->session_ends_at) === null;
             $zones = $this->allowedZoneIds($from);
             if (! $free || ($zones !== null && ! in_array((int) $target->club_zone_id, $zones, true))) {
