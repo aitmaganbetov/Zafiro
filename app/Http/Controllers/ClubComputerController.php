@@ -255,6 +255,7 @@ class ClubComputerController extends Controller
                 'name' => app(CurrentClub::class)->get()?->name,
                 'logo_url' => app(CurrentClub::class)->get()?->logoUrl(),
                 ...$this->agentLanguages(),
+                'after_session' => $this->afterSessionAction(),
             ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.
@@ -284,6 +285,24 @@ class ClubComputerController extends Controller
         app(ActivityLogger::class)->record('agent.staff_signin', __('Сотрудник :user вошёл на ПК :computer', ['user' => $staff->name, 'computer' => $computer->displayName()]), $staff->getKey(), $computer);
 
         return ['agent_token' => $sessions->issueAgentToken($computer)];
+    }
+
+    /**
+     * What the agent does with the PC once a session ends and the customer has not paid for
+     * a new one within the delay (club settings): nothing, restart or shut down.
+     *
+     * @return array{action: string, delay_seconds: int}
+     */
+    private function afterSessionAction(): array
+    {
+        $settings = app(CurrentClub::class)->settings()['club'] ?? [];
+        $action = $settings['pc_action_after_session_end'] ?? 'none';
+        $minutes = $settings['pc_restart_after_session_end'] ?? 0.5;
+
+        return [
+            'action' => in_array($action, ['restart', 'shutdown'], true) ? $action : 'none',
+            'delay_seconds' => is_numeric($minutes) ? (int) round(max(0, (float) $minutes) * 60) : 30,
+        ];
     }
 
     /**

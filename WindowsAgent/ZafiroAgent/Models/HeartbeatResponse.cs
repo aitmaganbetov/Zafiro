@@ -30,5 +30,9 @@ namespace ZafiroAgent.Models
         public string? ClubLocale { get; set; }
         public List<ZafiroAgent.Localization.LanguageInfo>? ClubLanguages { get; set; }
         public long? TranslationsVersion { get; set; }
+
+        // Что делать с ПК после конца сессии (none, restart, shutdown) и через сколько секунд — из настроек клуба.
+        public string? AfterSessionAction { get; set; }
+        public int? AfterSessionDelaySeconds { get; set; }
     }
 }

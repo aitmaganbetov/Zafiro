@@ -504,6 +504,13 @@ namespace ZafiroAgent.Services
                 if (TryGetString(club, "name", out var clubName)) heartbeat.ClubName = clubName;
                 if (TryGetString(club, "logo_url", out var logoUrl)) heartbeat.ClubLogoUrl = logoUrl;
                 if (TryGetString(club, "locale", out var clubLocale)) heartbeat.ClubLocale = clubLocale;
+                if (club.TryGetProperty("after_session", out var afterSession) && afterSession.ValueKind == JsonValueKind.Object &&
+                    TryGetString(afterSession, "action", out var afterAction))
+                {
+                    heartbeat.AfterSessionAction = afterAction;
+                    if (afterSession.TryGetProperty("delay_seconds", out var delay) && delay.TryGetInt32(out var delaySeconds))
+                        heartbeat.AfterSessionDelaySeconds = Math.Max(0, delaySeconds);
+                }
                 if (club.TryGetProperty("translations_version", out var version) && version.TryGetInt64(out var versionNumber)) heartbeat.TranslationsVersion = versionNumber;
                 if (club.TryGetProperty("languages", out var languages) && languages.ValueKind == JsonValueKind.Array)
                 {

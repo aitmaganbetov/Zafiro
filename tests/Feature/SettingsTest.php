@@ -36,6 +36,20 @@ test('club settings can be saved and reused on the next request', function () {
     expect($settings['club']['booking_interval'])->toBe(40);
 });
 
+test('the PC action after a session ends is saved and only known actions are accepted', function () {
+    $this->actingAs(User::factory()->create());
+    $fields = ['section' => 'club', 'session_idle_timeout' => 15, 'pc_restart_after_session_end' => 2, 'session_auto_terminate_when_pc_unavailable' => 5, 'booking_interval' => 30];
+
+    $this->post('/settings/save', [...$fields, 'pc_action_after_session_end' => 'shutdown'])->assertRedirect()->assertSessionHasNoErrors();
+    expect(app(CurrentClub::class)->get()->fresh()->settings['club'])
+        ->pc_action_after_session_end->toBe('shutdown')
+        ->pc_restart_after_session_end->toBe(2);
+    $this->get(route('settings.club'))->assertOk()->assertSee('value="shutdown" selected', false);
+
+    $this->post('/settings/save', [...$fields, 'pc_action_after_session_end' => 'format_c'])->assertSessionHasErrors('pc_action_after_session_end');
+    expect(app(CurrentClub::class)->get()->fresh()->settings['club']['pc_action_after_session_end'])->toBe('shutdown');
+});
+
 test('finance currency setting can be selected', function () {
     $user = User::factory()->create([
         'name' => 'Test User',
@@ -173,7 +187,7 @@ test('API settings page displays every setting with saved values', function () {
                 && $settings['guests']['allow_adding_friends'] === true
                 && $settings['guests']['allow_balance_transfer_to_friends'] === false;
         })
-        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 9)
+        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 10)
         ->assertViewHas('productEndpoint', fn (array $endpoint): bool => $endpoint['url'] === route('api.products.index'));
 });
 

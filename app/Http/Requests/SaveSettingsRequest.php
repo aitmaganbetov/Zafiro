@@ -19,6 +19,7 @@ class SaveSettingsRequest extends FormRequest
         return [
             'section' => ['required', Rule::in(['club', 'finances', 'guests'])],
             'session_idle_timeout' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
+            'pc_action_after_session_end' => ['sometimes', Rule::in(['none', 'restart', 'shutdown'])],
             'pc_restart_after_session_end' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
             'session_auto_terminate_when_pc_unavailable' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
             'booking_interval' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],

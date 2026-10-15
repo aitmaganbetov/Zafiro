@@ -914,6 +914,21 @@ public sealed class HeartbeatTests : IDisposable
         Assert.Equal(new[] { "ru", "kk" }, beat.ClubLanguages!.Select(l => l.Code));
     }
 
+    [Fact]
+    public async Task Heartbeat_ReadsTheActionAfterTheSessionEnds()
+    {
+        var json = HeartbeatJson()[..^1] + ""","club":{"name":"Arena","after_session":{"action":"shutdown","delay_seconds":90}}}""";
+        var (service, _, _) = Create((r, _) => StubHandler.Json(HttpStatusCode.OK, IsResolve(r) ? ResolveJson : json));
+
+        service.Start();
+        await WaitUntil(() => !_beats.IsEmpty);
+        await Finish(service);
+
+        var beat = _beats.First();
+        Assert.Equal("shutdown", beat.AfterSessionAction);
+        Assert.Equal(90, beat.AfterSessionDelaySeconds);
+    }
+
     [Theory]
     [InlineData(""","club":{"name":"Arena","logo_url":null}}""", true)]
     [InlineData("}", false)]

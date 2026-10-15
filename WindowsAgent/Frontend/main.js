@@ -391,6 +391,32 @@
   };
   setInterval(showSessionTime, 15000);
 
+  // После конца сессии клуб может перезагрузить или выключить ПК: клиент видит отсчёт, пока не выберет тариф.
+  const afterSessionMessages = {
+    restart: ['Если не выбрать тариф, ПК перезагрузится через :time.', 'ПК перезагружается…'],
+    shutdown: ['Если не выбрать тариф, ПК выключится через :time.', 'ПК выключается…']
+  };
+  let afterSessionTimer = null;
+  const stopAfterSessionCountdown = () => {
+    if (afterSessionTimer === null) return;
+    clearInterval(afterSessionTimer);
+    afterSessionTimer = null;
+    setStatus(actionStatus, null);
+  };
+  const startAfterSessionCountdown = (action, seconds) => {
+    const messages = afterSessionMessages[action];
+    if (!messages) return;
+    clearInterval(afterSessionTimer);
+    const deadline = Date.now() + Math.max(0, Number(seconds) || 0) * 1000;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      const time = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      setStatus(actionStatus, left > 0 ? messages[0] : messages[1], { time });
+    };
+    tick();
+    afterSessionTimer = setInterval(tick, 1000);
+  };
+
   const sessionEndMessages = {
     expired: 'Время сессии закончилось. Выберите тариф, чтобы продолжить.',
     server: 'Сессия завершена в клубе.',
@@ -568,6 +594,9 @@
       setStatus(actionStatus, sessionEndMessages[event.data.reason] === undefined ? sessionEndMessages.ended : sessionEndMessages[event.data.reason]);
     }
 
+    if (event.data?.type === 'afterSession') startAfterSessionCountdown(event.data.action, event.data.seconds);
+    if (event.data?.type === 'afterSessionCancelled') stopAfterSessionCountdown();
+
     // Клиент вышел: на экране не остаётся его баланса и корзины.
     if (event.data?.type === 'loggedOut') {
       setSessionActive(false);
@@ -575,6 +604,7 @@
       userName = null;
       showProfileName();
       applyBalances(null, null);
+      stopAfterSessionCountdown();
       cart.clear();
       renderCart();
       setStatus(actionStatus, null);

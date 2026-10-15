@@ -58,6 +58,12 @@ namespace ZafiroAgent
         private bool _balanceRefreshing;
         private DateTime _webViewRecreatedAtUtc;
 
+        // Действие с ПК после конца сессии (настройки клуба из heartbeat): перезагрузка или выключение,
+        // если за отведённое время клиент не оплатил новую сессию.
+        private string _afterSessionAction = "none";
+        private TimeSpan _afterSessionDelay = TimeSpan.FromSeconds(30);
+        private readonly DispatcherTimer _afterSessionTimer = new();
+
         private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + _clockOffset;
 
         [DllImport("shell32.dll")]
@@ -92,6 +98,7 @@ namespace ZafiroAgent
 #endif
             _sessionTimer.Tick += (_, _) => CheckSessionTime();
             _lockGuard.Tick += (_, _) => GuardLockedScreen();
+            _afterSessionTimer.Tick += async (_, _) => await RunAfterSessionActionAsync();
         }
 
         private void InitializeTrayIcon()
@@ -236,6 +243,7 @@ namespace ZafiroAgent
             L.Changed -= OnLanguageChanged;
             _sessionTimer.Stop();
             _lockGuard.Stop();
+            _afterSessionTimer.Stop();
 
             try
             {
@@ -314,6 +322,7 @@ namespace ZafiroAgent
                         _ = RefreshBalanceAsync();
                         if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
                         ApplyClubLanguage(hb);
+                        ApplyAfterSessionSettings(hb);
                     });
                 };
                 service.OnError += ex =>
@@ -363,6 +372,7 @@ namespace ZafiroAgent
             if (_activeSessionId != sessionId) _sessionAdoptedAtUtc = DateTime.UtcNow;
             _activeSessionId = sessionId;
             _activeSessionEndsAt = endsAtUtc;
+            CancelAfterSessionAction(); // клиент оплатил новую сессию
             _heartbeatService?.SetState(ComputerState.InSession, sessionId);
             _heartbeatService?.SetSessionEnd(endsAtUtc);
             ApplyKioskMode();
@@ -391,6 +401,89 @@ namespace ZafiroAgent
                 try { SHMinimizeAll(); } catch (Exception ex) { Debug.WriteLine("[Desktop] could not minimize windows: " + ex.Message); }
             }
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
+            ScheduleAfterSessionAction();
+        }
+
+        private static bool IsPowerAction(string action) => action is "restart" or "shutdown";
+
+        /// <summary>Настройки клуба из heartbeat; если клуб выключил действие, ожидающее отменяется.</summary>
+        private void ApplyAfterSessionSettings(HeartbeatResponse hb)
+        {
+            if (hb.AfterSessionAction is not { } action) return; // сервер старой версии
+            _afterSessionAction = IsPowerAction(action) ? action : "none";
+            if (hb.AfterSessionDelaySeconds is { } seconds) _afterSessionDelay = TimeSpan.FromSeconds(seconds);
+            if (_afterSessionAction == "none") CancelAfterSessionAction();
+        }
+
+        /// <summary>Сессия закончилась: через заданное время ПК перезагружается или выключается, а клиент видит отсчёт.</summary>
+        private void ScheduleAfterSessionAction()
+        {
+            _afterSessionTimer.Stop();
+            if (!IsPowerAction(_afterSessionAction)) return;
+            _afterSessionTimer.Interval = _afterSessionDelay > TimeSpan.Zero ? _afterSessionDelay : TimeSpan.FromMilliseconds(1);
+            _afterSessionTimer.Start();
+            SendMessageToWeb(JsonSerializer.Serialize(new { type = "afterSession", action = _afterSessionAction, seconds = (int)_afterSessionDelay.TotalSeconds }));
+        }
+
+        private void CancelAfterSessionAction()
+        {
+            if (!_afterSessionTimer.IsEnabled) return;
+            _afterSessionTimer.Stop();
+            SendMessageToWeb("{\"type\":\"afterSessionCancelled\"}");
+        }
+
+        private async Task RunAfterSessionActionAsync()
+        {
+            _afterSessionTimer.Stop();
+            var action = _afterSessionAction;
+            if (_activeSessionId is not null || !IsPowerAction(action)) return;
+
+            SafeLog.Write("[AfterSession] " + action + " after the session ended");
+            try
+            {
+                // Последний статус уходит на сервер, клиент выходит: после включения ПК ждёт следующего.
+                if (_heartbeatService is { } heartbeat)
+                {
+                    await heartbeat.StopAsync(ComputerState.ShuttingDown, TimeSpan.FromSeconds(2));
+                    heartbeat.Dispose();
+                    _heartbeatService = null;
+                }
+                await _clubSetup.SignOutAsync(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[AfterSession] final status failed: " + ex.Message);
+            }
+
+            if (RunShutdown(action == "restart")) return;
+
+            // Windows не дал выключить ПК: агент остаётся заблокированным и ждёт следующего входа.
+            await HandleLogoutAsync();
+        }
+
+        /// <summary>shutdown.exe с /f: открытые игры не мешают перезагрузке.</summary>
+        private static bool RunShutdown(bool restart)
+        {
+            try
+            {
+                using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = Path.Combine(Environment.SystemDirectory, "shutdown.exe"),
+                    Arguments = (restart ? "/r" : "/s") + " /f /t 0",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+                if (process is null) return false;
+                if (!process.WaitForExit(10000)) return true; // Windows уже выключается
+                if (process.ExitCode == 0) return true;
+                SafeLog.Write("[AfterSession] shutdown.exe exited with code " + process.ExitCode);
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[AfterSession] shutdown.exe failed: " + ex.Message);
+            }
+
+            return false;
         }
 
         private void CheckSessionTime()

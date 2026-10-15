@@ -211,6 +211,7 @@ class SettingsController extends Controller
         $fields = [
             'club' => [
                 'session_idle_timeout',
+                'pc_action_after_session_end',
                 'pc_restart_after_session_end',
                 'session_auto_terminate_when_pc_unavailable',
                 'booking_interval',
@@ -280,7 +281,9 @@ class SettingsController extends Controller
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {
-            $settings['club'][$field] = $this->minutes($settings['club'][$field]);
+            if ($field !== 'pc_action_after_session_end') {
+                $settings['club'][$field] = $this->minutes($settings['club'][$field]);
+            }
         }
 
         return $settings;
@@ -291,6 +294,8 @@ class SettingsController extends Controller
         return [
             'club' => [
                 'session_idle_timeout' => 15,
+                // What the agent does with the PC after a session ends (none, restart, shutdown) and after how many minutes.
+                'pc_action_after_session_end' => 'none',
                 'pc_restart_after_session_end' => 0.5,
                 'session_auto_terminate_when_pc_unavailable' => 5,
                 'booking_interval' => 30,
@@ -312,7 +317,8 @@ class SettingsController extends Controller
         return [
             'club' => [
                 'session_idle_timeout' => __('Время завершения сессии при бездействии (в минутах)'),
-                'pc_restart_after_session_end' => __('Время перезагрузки ПК после завершения сессии (в минутах)'),
+                'pc_action_after_session_end' => __('Действие с ПК после завершения сессии'),
+                'pc_restart_after_session_end' => __('Через сколько минут выполнить действие после завершения сессии'),
                 'session_auto_terminate_when_pc_unavailable' => __('Время до автоматического завершения сессии при недоступности ПК (в минутах)'),
                 'booking_interval' => __('Интервал между бронированиями (в минутах)'),
             ],

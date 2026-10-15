@@ -4,9 +4,18 @@
 <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">{{ __('Настройки клуба') }}</h4>
 @if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label for="pc_action_after_session_end" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ __('Действие с ПК после завершения сессии') }}</label>
+        <select id="pc_action_after_session_end" name="pc_action_after_session_end" class="brand-focus w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-gray-100 focus:outline-none">
+            @foreach(['none' => __('Ничего: только заблокировать ПК'), 'restart' => __('Перезагрузить ПК'), 'shutdown' => __('Выключить ПК')] as $action => $actionLabel)
+                <option value="{{ $action }}" @selected(old('pc_action_after_session_end', $settings['club']['pc_action_after_session_end'] ?? 'none') === $action)>{{ $actionLabel }}</option>
+            @endforeach
+        </select>
+        <p class="mt-1 text-xs text-gray-500">{{ __('Агент выполнит действие, если за это время клиент не оплатит новую сессию.') }}</p>
+    </div>
     @foreach([
+        'pc_restart_after_session_end' => [__('Через сколько минут выполнить действие после завершения сессии'), 0.5],
         'session_idle_timeout' => [__('Время завершения сессии при бездействии (в минутах)'), 15],
-        'pc_restart_after_session_end' => [__('Время перезагрузки ПК после завершения сессии (в минутах)'), 0.5],
         'session_auto_terminate_when_pc_unavailable' => [__('Время до автоматического завершения сессии при недоступности ПК (в минутах)'), 5],
         'booking_interval' => [__('Интервал между бронированиями (в минутах)'), 30],
     ] as $field => [$label, $default])
