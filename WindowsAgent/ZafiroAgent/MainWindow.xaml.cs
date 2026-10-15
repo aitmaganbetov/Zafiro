@@ -165,20 +165,24 @@ namespace ZafiroAgent
             Activate();
         }
 
-        /// <summary>Баланс и бонусы в агенте: пополнение на кассе видно без повторного входа.</summary>
-        private async Task RefreshBalanceAsync()
+        /// <summary>
+        /// Баланс и бонусы в агенте: пополнение на кассе видно без повторного входа. Сам — с heartbeat
+        /// (не чаще раза в 20 с), по кнопке «Обновить» (manual) — сразу.
+        /// </summary>
+        private async Task RefreshBalanceAsync(bool manual = false)
         {
-            if (_balanceRefreshing || DateTime.UtcNow - _balanceRefreshedAtUtc < BalanceRefreshInterval) return;
+            if (_balanceRefreshing || (!manual && DateTime.UtcNow - _balanceRefreshedAtUtc < BalanceRefreshInterval)) return;
             _balanceRefreshing = true;
             try
             {
                 var session = await _apiService.GetSessionInfoAsync(_activeSessionId ?? string.Empty, CancellationToken.None);
                 _balanceRefreshedAtUtc = DateTime.UtcNow;
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "balance", balance = session.Balance, bonus = session.BonusBalance }));
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "balance", balance = session.Balance, bonus = session.BonusBalance, manual }));
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("[Balance] refresh failed: " + ex.Message);
+                if (manual) SendMessageToWeb("{\"type\":\"balanceError\"}");
             }
             finally
             {
@@ -763,7 +767,11 @@ namespace ZafiroAgent
                 if (!doc.RootElement.TryGetProperty("type", out var t)) return;
                 var type = t.GetString();
                 // Вход — только в окне агента (ClubSetupWindow): страница не принимает пароль и не меняет аккаунт.
-                if (type == "requestSession")
+                if (type == "refreshBalance")
+                {
+                    await RefreshBalanceAsync(manual: true);
+                }
+                else if (type == "requestSession")
                 {
                     await SendSessionDataAsync(_activeSessionId ?? string.Empty);
                 }

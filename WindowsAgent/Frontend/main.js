@@ -346,6 +346,21 @@
   document.getElementById('btnTopUp')?.addEventListener('click', () => {
     setStatus(actionStatus, 'Пополнить баланс можно на кассе клуба.');
   });
+  // «Обновить»: баланс с сервера сразу, не дожидаясь автообновления (например, после пополнения на кассе).
+  const refreshBalanceButton = document.getElementById('btnRefreshBalance');
+  let refreshBalanceTimer = null;
+  const finishBalanceRefresh = () => {
+    clearTimeout(refreshBalanceTimer);
+    refreshBalanceButton.disabled = false;
+    refreshBalanceButton.removeAttribute('aria-busy');
+  };
+  refreshBalanceButton?.addEventListener('click', () => {
+    if (!webview) return;
+    refreshBalanceButton.disabled = true;
+    refreshBalanceButton.setAttribute('aria-busy', 'true');
+    refreshBalanceTimer = setTimeout(finishBalanceRefresh, 15000);
+    webview.postMessage({ type: 'refreshBalance' });
+  });
   const endButton = document.getElementById('btnEnd');
   const endButtonLabel = endButton.querySelector('span');
   const endButtonIcon = document.getElementById('endIconPath');
@@ -536,6 +551,15 @@
     // Баланс обновляется сам (раз в ~20 с): пополнение на кассе видно без повторного входа.
     if (event.data?.type === 'balance') {
       applyBalances(formatBalance(event.data.balance), formatBalance(event.data.bonus));
+      if (event.data.manual) {
+        finishBalanceRefresh();
+        setStatus(actionStatus, 'Баланс обновлён.');
+      }
+    }
+
+    if (event.data?.type === 'balanceError') {
+      finishBalanceRefresh();
+      setStatus(actionStatus, 'Не удалось обновить баланс. Проверьте подключение.');
     }
 
     if (event.data?.type === 'sessionEnded') {

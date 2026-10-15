@@ -69,6 +69,12 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 
 .card h3{margin:0 0 14px;font-size:1.0625rem}
 .balance-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.refresh-balance{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid rgba(255,255,255,0.14);border-radius:12px;background:transparent;color:var(--text);cursor:pointer}
+.refresh-balance:hover,.refresh-balance:focus-visible{background:rgba(255,255,255,0.06)}
+.refresh-balance:disabled{cursor:wait;opacity:0.7}
+.refresh-balance svg{width:16px;height:16px;flex:none}
+.refresh-balance[aria-busy="true"] svg{animation:refresh-spin 0.9s linear infinite}
+@keyframes refresh-spin{to{transform:rotate(360deg)}}
 /* Картинки одной высоты и не растягиваются на маленьких экранах. */
 .media-card {
   height:clamp(160px, 30vh, 320px);
