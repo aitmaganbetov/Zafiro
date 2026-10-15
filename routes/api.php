@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\Api\AgentEnrollController;
 use App\Http\Controllers\Api\AgentExitPinController;
+use App\Http\Controllers\Api\AgentQrLoginController;
 use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubInstallationController;
+use App\Http\Controllers\Api\GuestFriendController;
+use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
@@ -61,6 +64,14 @@ Route::post('/agent/enroll', AgentEnrollController::class)
     ->middleware('throttle:agent-enroll')
     ->name('api.agent.enroll');
 
+// Sign-in from the phone: the PC shows a QR code and asks whether the customer confirmed it.
+Route::post('/agent/qr-login', [AgentQrLoginController::class, 'store'])
+    ->middleware(['agent.device', 'throttle:20,1'])
+    ->name('api.agent.qr-login.store');
+Route::post('/agent/qr-login/poll', [AgentQrLoginController::class, 'poll'])
+    ->middleware(['agent.device', 'throttle:60,1'])
+    ->name('api.agent.qr-login.poll');
+
 Route::post('/agent/exit-pin', AgentExitPinController::class)
     ->middleware(['agent.device', 'throttle:agent-exit-pin'])
     ->name('api.agent.exit-pin');
@@ -90,6 +101,15 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
         ->whereNumber('tariff')
         ->middleware('throttle:10,1')
         ->name('api.tariffs.purchase');
+
+    // Customer features in the PC agent, each switched on in the club's "Guests" settings.
+    Route::get('/guest/friends', [GuestFriendController::class, 'index'])->middleware('throttle:60,1')->name('api.guest.friends.index');
+    Route::post('/guest/friends', [GuestFriendController::class, 'store'])->middleware('throttle:10,1')->name('api.guest.friends.store');
+    Route::post('/guest/friends/{friendship}/accept', [GuestFriendController::class, 'accept'])->middleware('throttle:30,1')->name('api.guest.friends.accept');
+    Route::post('/guest/friends/{friendship}/remove', [GuestFriendController::class, 'remove'])->middleware('throttle:30,1')->name('api.guest.friends.remove');
+    Route::post('/guest/friends/{friendship}/transfer', [GuestFriendController::class, 'transfer'])->middleware('throttle:10,1')->name('api.guest.friends.transfer');
+    Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1')->name('api.guest.seats.index');
+    Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1')->name('api.guest.seat-transfer');
 });
 
 Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting'])

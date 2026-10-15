@@ -18,6 +18,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
+use App\Http\Controllers\QrLoginController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\Superadmin\AgentReleaseController as SuperadminAgentReleaseController;
@@ -53,6 +54,13 @@ Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
 
 Route::get('/invitations/{token}', [ClubInvitationController::class, 'show'])->name('club-invitations.show');
 Route::post('/invitations/{token}', [ClubInvitationController::class, 'accept'])->middleware('throttle:10,1')->name('club-invitations.accept');
+
+// Sign-in on a PC from the phone (QR code on the PC): any club of the code, after the site sign-in.
+Route::middleware('auth')->group(function () {
+    Route::get('/pc-login/done', [QrLoginController::class, 'done'])->name('pc-login.done');
+    Route::get('/pc-login/{code}', [QrLoginController::class, 'show'])->where('code', '[A-Za-z0-9]{40}')->name('pc-login.show');
+    Route::post('/pc-login/{code}', [QrLoginController::class, 'approve'])->where('code', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('pc-login.approve');
+});
 
 // Auth routes
 Route::middleware('guest')->group(function () {

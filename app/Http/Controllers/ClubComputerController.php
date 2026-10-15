@@ -17,6 +17,7 @@ use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
 use App\Services\CurrentClub;
+use App\Services\GuestFeatures;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
@@ -256,6 +257,8 @@ class ClubComputerController extends Controller
                 'logo_url' => app(CurrentClub::class)->get()?->logoUrl(),
                 ...$this->agentLanguages(),
                 'after_session' => $this->afterSessionAction(),
+                // What customers may do themselves (club settings → Guests).
+                'guest_features' => app(GuestFeatures::class)->all(),
             ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.

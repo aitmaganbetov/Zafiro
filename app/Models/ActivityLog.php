@@ -72,6 +72,12 @@ class ActivityLog extends Model
         'reservation.created' => 'Бронирование ПК',
         'reservation.cancelled' => 'Отмена брони ПК',
         'reservation.arrived' => 'Клиент пришёл по брони',
+        'auth.qr_login' => 'Вход на ПК по QR-коду',
+        'session.transferred' => 'Пересадка гостя на другой ПК',
+        'friend.requested' => 'Заявка в друзья',
+        'friend.accepted' => 'Принятие заявки в друзья',
+        'friend.removed' => 'Удаление из друзей',
+        'balance.transferred' => 'Перевод баланса другу',
     ];
 
     protected function casts(): array
