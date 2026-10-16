@@ -3217,60 +3217,6 @@ body {
 
 
 /* Extracted from resources/views/partials/sidebar.blade.php */
-.sidebar-group {
-    margin: 4px 0
-}
-
-.sidebar-group>summary {
-    list-style: none;
-    cursor: pointer
-}
-
-.sidebar-group>summary::-webkit-details-marker {
-    display: none
-}
-
-.sidebar-group>summary:after {
-    content: '\f078';
-    font-family: 'Font Awesome 6 Free';
-    font-size: 14px;
-    font-weight: 700;
-    margin-left: auto;
-    transition: transform .18s
-}
-
-.sidebar-group[open]>summary:after {
-    transform: rotate(180deg)
-}
-
-.sidebar-subnav {
-    margin: 4px 0 8px 16px;
-    border-left: 1px solid #344239;
-    padding-left: 8px
-}
-
-.sidebar-subnav .sidebar-link {
-    gap: 8px;
-    margin: 4px 0;
-    padding: 8px 8px;
-    font-size: 14px
-}
-
-.sidebar-subnav .sidebar-link i {
-    width: 22px;
-    height: 22px;
-    font-size: 14px
-}
-
-.sidebar-subnav .sidebar-link.active {
-    background: #19231c;
-    box-shadow: none
-}
-
-.sidebar-subnav .sidebar-link.active:before {
-    left: -9px
-}
-
 .sidebar-brand {
     align-items: flex-start;
     flex-direction: column;
@@ -3864,25 +3810,6 @@ select[multiple] option {
 
     .admin-app.sidebar-collapsed .sidebar-link.active:before {
         left: -8px
-    }
-
-    .admin-app.sidebar-collapsed .sidebar-group > summary {
-        display: none
-    }
-
-    .admin-app.sidebar-collapsed .sidebar-subnav {
-        margin: 0;
-        border: 0;
-        padding: 0
-    }
-
-    .admin-app.sidebar-collapsed .sidebar-subnav .sidebar-link {
-        padding: 8px
-    }
-
-    .admin-app.sidebar-collapsed .sidebar-subnav .sidebar-link i {
-        width: 25px;
-        height: 25px
     }
 
     .admin-app.sidebar-collapsed .sidebar-footer {
