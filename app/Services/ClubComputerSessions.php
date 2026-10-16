@@ -22,7 +22,7 @@ class ClubComputerSessions
     /** Club roles that may set up PCs and count as staff on them. */
     public const STAFF_ROLES = ['owner', 'admin', 'manager', 'operator'];
 
-    private const SESSION_FIELDS = ['current_session_id' => null, 'current_session_user_id' => null, 'session_ends_at' => null];
+    private const SESSION_FIELDS = ['current_session_id' => null, 'current_session_user_id' => null, 'session_guest' => false, 'session_ends_at' => null];
 
     private const STAFF_FIELDS = ['staff_user_id' => null, 'staff_kind' => null, 'staff_until' => null];
 
@@ -93,7 +93,7 @@ class ClubComputerSessions
         }
 
         return $state === 'in_session'
-            ? ['current_session_id' => $sessionId, 'current_session_user_id' => null, 'session_ends_at' => null]
+            ? ['current_session_id' => $sessionId, 'current_session_user_id' => null, 'session_guest' => false, 'session_ends_at' => null]
             : self::SESSION_FIELDS;
     }
 
@@ -183,6 +183,8 @@ class ClubComputerSessions
             'id' => $computer->current_session_id,
             'ends_at' => $computer->session_ends_at?->utc()->toIso8601String(),
             'user_id' => $computer->current_session_user_id,
+            // Paid at the cash register without an account: the agent unlocks the PC without a sign-in.
+            'guest' => $computer->session_guest === true,
         ];
     }
 }

@@ -177,6 +177,7 @@ class AgentTariffPurchaseService
         $computer->update([
             'current_session_id' => $sessionId,
             'current_session_user_id' => $user->getKey(),
+            'session_guest' => false,
             'session_ends_at' => $sessionEndsAt,
         ]);
         $log(['bonus_payment' => $bonusPayment, 'minutes' => $minutes, 'session_id' => $sessionId, 'session_ends_at' => $sessionEndsAt]);
@@ -263,14 +264,14 @@ class AgentTariffPurchaseService
         return max(0, $price - intdiv($price * $discountBasisPoints + 5000, 10000));
     }
 
-    private function effectiveMinutes(Tariff $tariff): int
+    public function effectiveMinutes(Tariff $tariff): int
     {
         return $tariff->usage_limit_enabled && $tariff->usage_limit_minutes !== null
             ? min($tariff->duration_minutes, $tariff->usage_limit_minutes)
             : $tariff->duration_minutes;
     }
 
-    private static function amountToCents(string $amount): int
+    public static function amountToCents(string $amount): int
     {
         [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '00');
 
@@ -286,7 +287,7 @@ class AgentTariffPurchaseService
         return (int) $matches[1] * 60 + (int) $matches[2];
     }
 
-    private static function formatCents(int $cents): string
+    public static function formatCents(int $cents): string
     {
         return sprintf('%d.%02d', intdiv($cents, 100), $cents % 100);
     }

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'current_session_user_id', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
+#[Fillable(['club_zone_id', 'number', 'device_name', 'display_name', 'device_id', 'status', 'is_reserved', 'position_x', 'position_y', 'last_seen_at', 'agent_state', 'agent_version', 'current_session_id', 'current_session_user_id', 'session_guest', 'session_ends_at', 'mac_address', 'local_ip', 'remote_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version', 'hardware_reported_at'])]
 #[Hidden(['agent_token_hash'])]
 class ClubComputer extends Model
 {
@@ -33,6 +33,7 @@ class ClubComputer extends Model
             'position_x' => 'integer',
             'position_y' => 'integer',
             'current_session_user_id' => 'integer',
+            'session_guest' => 'boolean',
             'last_seen_at' => 'datetime',
             'session_ends_at' => 'datetime',
             'cpu_cores' => 'integer',
@@ -82,11 +83,11 @@ class ClubComputer extends Model
             : 'offline';
     }
 
-    /** A session bought for a customer that has not run out yet. */
+    /** A session bought for a customer (or for a guest at the cash register) that has not run out yet. */
     public function hasPaidSession(): bool
     {
         return $this->current_session_id !== null
-            && $this->current_session_user_id !== null
+            && ($this->current_session_user_id !== null || $this->session_guest === true)
             && $this->session_ends_at?->isFuture() === true;
     }
 

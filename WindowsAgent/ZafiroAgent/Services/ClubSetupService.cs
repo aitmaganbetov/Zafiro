@@ -287,6 +287,30 @@ namespace ZafiroAgent.Services
             return ApiResult<ClubSession?>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
         }
 
+        /// <summary>
+        /// Есть ли на ПК гостевая сессия (кассир подключил тариф без аккаунта). Пустой heartbeat
+        /// с токеном устройства: сервер отвечает текущей сессией ПК. Ok(null) — гостевой нет.
+        /// </summary>
+        public async Task<ApiResult<GuestSession?>> CheckGuestSessionAsync(CancellationToken cancellationToken)
+        {
+            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentHeartbeatEndpoint, new { }, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return ApiResult<GuestSession?>.Fail(result.Failure, result.Message);
+
+            var root = result.Value;
+            var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
+                DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
+                ? now.ToUniversalTime() - DateTimeOffset.UtcNow
+                : TimeSpan.Zero;
+            if (!root.TryGetProperty("session", out var session) || session.ValueKind != JsonValueKind.Object ||
+                !session.TryGetProperty("guest", out var guest) || guest.ValueKind != JsonValueKind.True ||
+                !session.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String ||
+                !session.TryGetProperty("ends_at", out var endsAt) || endsAt.ValueKind != JsonValueKind.String ||
+                !DateTimeOffset.TryParse(endsAt.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var ends))
+                return ApiResult<GuestSession?>.Ok(null);
+
+            return ApiResult<GuestSession?>.Ok(new GuestSession(id.GetString()!, ends.ToUniversalTime(), offset));
+        }
+
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>
             Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(_config.Load().ProtectedDeviceToken)), cancellationToken);
 

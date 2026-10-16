@@ -30,6 +30,7 @@ namespace ZafiroAgent.Services
         public static readonly Uri AgentLoginEndpoint = new("https://zafiro.kz/api/agent/user/login");
         public static readonly Uri ExitPinEndpoint = new("https://zafiro.kz/api/agent/exit-pin");
         public static readonly Uri QrLoginEndpoint = new("https://zafiro.kz/api/agent/qr-login");
+        public static readonly Uri AgentHeartbeatEndpoint = new("https://zafiro.kz/api/agent/heartbeat");
         public static readonly Uri QrLoginPollEndpoint = new("https://zafiro.kz/api/agent/qr-login/poll");
 
         private static readonly TimeSpan DefaultTokenLifetime = TimeSpan.FromDays(30);

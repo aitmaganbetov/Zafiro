@@ -29,6 +29,11 @@ namespace ZafiroAgent.Views
         private readonly CancellationTokenSource _cts = new();
         private bool _busy;
         private bool _qrRunning;
+        private bool _guestWatching;
+        private GuestSession? _guest;
+        private Window? _guestOverlay;
+        private TextBlock? _guestOverlayText;
+        private readonly System.Windows.Threading.DispatcherTimer _guestTick = new() { Interval = TimeSpan.FromSeconds(1) };
 
         public ClubSession? Session { get; private set; }
 
@@ -49,11 +54,19 @@ namespace ZafiroAgent.Views
             InputLanguageManager.Current.InputLanguageChanged += OnInputLanguageChanged;
             ShowInputLanguage();
             // QR-код — только на подключённом ПК (у него есть токен устройства).
-            Loaded += (_, _) => { if (_relogin) _ = RunQrLoginAsync(); };
+            Loaded += (_, _) =>
+            {
+                if (!_relogin) return;
+                _ = RunQrLoginAsync();
+                _ = RunGuestWatchAsync();
+            };
+            _guestTick.Tick += (_, _) => ShowGuestTime();
             L.Changed += OnLanguageChanged;
             Closed += (_, _) =>
             {
                 _cts.Cancel();
+                _guestTick.Stop();
+                _guestOverlay?.Close();
                 L.Changed -= OnLanguageChanged;
                 InputLanguageManager.Current.InputLanguageChanged -= OnInputLanguageChanged;
             };
@@ -324,7 +337,121 @@ namespace ZafiroAgent.Views
             App.Instance.RefreshKiosk();
             PhoneBox.Focus();
             _ = RunQrLoginAsync();
+            _ = RunGuestWatchAsync();
         }
+
+        /// <summary>
+        /// Гостевая сессия: кассир подключил тариф на этом ПК без аккаунта клиента. Пока она идёт,
+        /// окно входа свёрнуто и ПК открыт; в углу экрана — оставшееся время. Время вышло или
+        /// сессию завершили в клубе — ПК снова блокируется окном входа.
+        /// </summary>
+        private async Task RunGuestWatchAsync()
+        {
+            if (_guestWatching) return;
+            _guestWatching = true;
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+                    var check = await _setup.CheckGuestSessionAsync(_cts.Token);
+                    if (check.Success) ApplyGuestSession(check.Value);
+                    else if (check.Failure is ApiFailure.DeviceTokenInvalid) return; // ПК ещё не подключён
+                    await Task.Delay(_guest is null ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(15), _cts.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Guest] watch stopped: " + ex.Message);
+            }
+            finally
+            {
+                _guestWatching = false;
+            }
+        }
+
+        private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + (_guest?.ClockOffset ?? TimeSpan.Zero);
+
+        private void ApplyGuestSession(GuestSession? session)
+        {
+            if (session is not null && session.EndsAtUtc > DateTimeOffset.UtcNow + session.ClockOffset)
+            {
+                var starting = _guest is null;
+                _guest = session;
+                if (!starting) return;
+
+                SafeLog.Write("[Guest] session started");
+                App.Instance.Keyboard.Strict = false;
+                App.Instance.Covers.Update(null, false);
+                Topmost = false;
+                WindowState = WindowState.Minimized;
+                ShowGuestOverlay();
+                _guestTick.Start();
+                ShowGuestTime();
+                return;
+            }
+
+            if (_guest is not null) EndGuestSession();
+        }
+
+        private void EndGuestSession()
+        {
+            SafeLog.Write("[Guest] session over: the PC is locked again");
+            _guest = null;
+            _guestTick.Stop();
+            _guestOverlay?.Close();
+            _guestOverlay = null;
+            try { SHMinimizeAll(); } catch (Exception ex) { SafeLog.Write("[Guest] could not minimize windows: " + ex.Message); }
+            WindowState = WindowState.Maximized;
+            Topmost = App.Instance.KioskEnabled;
+            App.Instance.Keyboard.Strict = true;
+            App.Instance.Covers.Update(this, App.Instance.KioskEnabled);
+            Activate();
+            PhoneBox.Focus();
+        }
+
+        private void ShowGuestTime()
+        {
+            if (_guest is null || _guestOverlayText is null) return;
+            var left = _guest.EndsAtUtc - ServerNow;
+            if (left <= TimeSpan.Zero)
+            {
+                EndGuestSession();
+                return;
+            }
+
+            _guestOverlayText.Text = L.T("Гостевая сессия · осталось :time", ("time", left.TotalHours >= 1 ? left.ToString(@"h\:mm\:ss") : left.ToString(@"mm\:ss")));
+            _guestOverlayText.Foreground = left <= TimeSpan.FromMinutes(5) ? new SolidColorBrush(Color.FromRgb(0xFF, 0xB4, 0x54)) : Brushes.White;
+        }
+
+        /// <summary>Небольшая плашка в правом верхнем углу: не забирает фокус у игры.</summary>
+        private void ShowGuestOverlay()
+        {
+            _guestOverlayText = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, Margin = new Thickness(14, 8, 14, 8) };
+            var area = SystemParameters.WorkArea;
+            _guestOverlay = new Window
+            {
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                ResizeMode = ResizeMode.NoResize,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                Focusable = false,
+                Topmost = true,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                Content = new Border { Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x1B, 0x19, 0x25)), CornerRadius = new CornerRadius(10), Child = _guestOverlayText },
+                Left = area.Right - 300,
+                Top = area.Top + 12
+            };
+            _guestOverlay.Loaded += (_, _) => _guestOverlay.Left = area.Right - _guestOverlay.ActualWidth - 12;
+            _guestOverlay.Show();
+        }
+
+        [System.Runtime.InteropServices.DllImport("shell32.dll")]
+        private static extern void SHMinimizeAll();
 
         /// <summary>
         /// Вход с телефона: QR-код со ссылкой на сайт, пока окно открыто. Клиент входит на сайте

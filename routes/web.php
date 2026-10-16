@@ -13,6 +13,7 @@ use App\Http\Controllers\ClubLogoController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\ComputerReservationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NewsController;
@@ -209,6 +210,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {
         Route::get('/cash-register', [CashRegisterController::class, 'index'])->name('cash-register.index');
+        // Time for a guest without an account, from the club map, paid into the open shift.
+        Route::post('/club-computers/guest-session', [GuestSessionController::class, 'store'])->middleware('throttle:30,1,club-computers.guest-session')->name('club-computers.guest-session');
         Route::post('/cash-register/shifts', [CashRegisterController::class, 'open'])->name('cash-register.shifts.open');
         Route::post('/cash-register/transactions', [CashRegisterController::class, 'transaction'])->name('cash-register.transactions.store');
         Route::post('/cash-register/sales', [CashRegisterController::class, 'sale'])->name('cash-register.sales.store');

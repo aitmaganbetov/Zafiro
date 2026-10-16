@@ -2105,6 +2105,89 @@ body {
     background: #7f1d1d
 }
 
+.cm-control-button.tariff {
+    background: #1d4ed8
+}
+
+.cm-guest-form {
+    display: grid;
+    gap: 12px
+}
+
+.cm-guest-note,
+.cm-guest-total {
+    margin: 0;
+    color: #5f6961;
+    font-size: 14px
+}
+
+.cm-guest-total {
+    color: #17201b;
+    font-weight: 700
+}
+
+.cm-guest-error {
+    margin: 0;
+    color: #b42318;
+    font-size: 14px
+}
+
+.cm-guest-error:empty {
+    display: none
+}
+
+.cm-guest-options {
+    display: grid;
+    gap: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+    border: 0;
+    margin: 0;
+    padding: 0
+}
+
+.cm-guest-options legend {
+    margin-bottom: 6px;
+    color: #5f6961;
+    font-size: 14px;
+    font-weight: 700
+}
+
+.cm-guest-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #dce3dd;
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer
+}
+
+.cm-guest-option span {
+    display: grid;
+    gap: 2px
+}
+
+.cm-guest-option small {
+    color: #7d867f;
+    font-size: 13px
+}
+
+.cm-guest-minutes {
+    width: 70px;
+    border: 1px solid #dce3dd;
+    border-radius: 6px;
+    padding: 2px 6px
+}
+
+.dark .cm-guest-option {
+    border-color: #374151
+}
+
+.dark .cm-guest-total {
+    color: #f9fafb
+}
+
 .cm-control-button:disabled {
     opacity: .5;
     cursor: wait
