@@ -12,6 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -67,6 +69,55 @@ class ComputerReservationController extends Controller
 
         return redirect()->route('reservations.index', ['date' => $reservation->starts_at->format('Y-m-d')])
             ->with('status', __('ПК забронирован для клиента :name: в это время он сможет купить тариф на этом ПК.', ['name' => $customer->name]));
+    }
+
+    /**
+     * Booking from the club map: the selected PCs for one customer and one period, all or none.
+     * Errors go back as JSON for the map's dialog (a panel route would redirect).
+     */
+    public function storeMany(Request $request): JsonResponse
+    {
+        try {
+            $clubId = $this->currentClub->id();
+            $data = $request->validate([
+                'computer_ids' => ['required', 'array', 'min:1', 'max:50'],
+                'computer_ids.*' => ['required', 'integer', 'distinct', Rule::exists('club_computers', 'id')->where('club_id', $clubId)],
+                'user_id' => ['required', 'integer', Rule::exists('club_memberships', 'user_id')->where('club_id', $clubId)],
+                'starts_at' => ['required', 'date_format:Y-m-d\TH:i'],
+                'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
+                'note' => ['nullable', 'string', 'max:500'],
+            ], ['user_id.required' => __('Выберите клиента из пользователей клуба.'), 'user_id.exists' => __('Выберите клиента из пользователей клуба.')]);
+            $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['starts_at'], $this->currentClub->timezone());
+            if ($startsAt->lt(now()->subMinutes(5))) {
+                throw ValidationException::withMessages(['starts_at' => __('Нельзя забронировать ПК на прошедшее время.')]);
+            }
+            $customer = User::query()->findOrFail((int) $data['user_id'], ['id', 'name', 'phone']);
+
+            $count = DB::transaction(function () use ($data, $customer, $startsAt, $request): int {
+                foreach ($data['computer_ids'] as $computerId) {
+                    $this->reservations->create([
+                        'club_computer_id' => (int) $computerId,
+                        'user_id' => $customer->getKey(),
+                        'customer_name' => $customer->name,
+                        'customer_phone' => $customer->phone,
+                        'note' => $data['note'] ?? null,
+                        'starts_at' => $startsAt->copy(),
+                        'ends_at' => $startsAt->copy()->addMinutes((int) $data['duration_minutes']),
+                    ], $request->user());
+                }
+
+                return count($data['computer_ids']);
+            });
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422);
+        }
+
+        return response()->json(['message' => __('Забронировано ПК: :count, для :name на :from – :to.', [
+            'count' => $count,
+            'name' => $customer->name,
+            'from' => $startsAt->format('d.m H:i'),
+            'to' => $startsAt->copy()->addMinutes((int) $data['duration_minutes'])->format('H:i'),
+        ])], 201);
     }
 
     /** Club users for the customer picker, by name or phone (at most 10). */

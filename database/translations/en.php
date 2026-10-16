@@ -1251,6 +1251,10 @@ return [
         'мин.' => 'min',
         'по цене часа зоны ПК' => 'at the PC zone hourly price',
         'тариф «:tariff»' => 'tariff “:tariff”',
+        'Забронировано ПК: :count, для :name на :from – :to.' => 'PCs booked: :count, for :name, :from – :to.',
+        'Забронировать ПК' => 'Book PCs',
+        'ПК: :list' => 'PCs: :list',
+        'Снять бронь без времени' => 'Lift the hold without a period',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

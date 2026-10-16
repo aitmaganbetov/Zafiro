@@ -232,6 +232,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::patch('/users/{membership}', [UserController::class, 'update'])->name('users.update');
         Route::post('/users/{membership}/password', [UserController::class, 'resetPassword'])->middleware('throttle:20,1,users.password')->name('users.password');
         Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
+        Route::post('/reservations/many', [ComputerReservationController::class, 'storeMany'])->name('reservations.store-many');
         Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1,reservations.customers')->name('reservations.customers');
         Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');
         Route::post('/reservations/{reservation}/arrive', [ComputerReservationController::class, 'arrive'])->name('reservations.arrive');

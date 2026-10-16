@@ -255,3 +255,27 @@ test('the club map shows every booked PC, also after a PC without a booking', fu
         ->assertSee('class="cm-computer offline" data-id="'.$first->id.'"', false)
         ->assertSee('class="cm-computer reserved" data-id="'.$second->id.'"', false);
 });
+
+test('the club map books the selected PCs for a customer and a period, all or none', function () {
+    Carbon::setTestNow(Carbon::parse('2026-10-16 06:00:00', 'UTC'));
+    setBookingInterval(0);
+    $staff = User::factory()->create();
+    $customer = User::factory()->create(['name' => 'Арман']);
+    $this->actingAs($staff);
+    $first = reservationComputer(1);
+    $second = reservationComputer(2);
+
+    $this->get(route('club-map.index'))->assertOk()->assertSee('id="booking-modal"', false);
+    $this->postJson(route('reservations.store-many'), ['computer_ids' => [$first->id, $second->id], 'user_id' => $customer->id, 'starts_at' => '2026-10-16T12:00', 'duration_minutes' => 120])
+        ->assertCreated()->assertJsonPath('message', 'Забронировано ПК: 2, для Арман на 16.10 12:00 – 14:00.');
+    expect(ComputerReservation::query()->count())->toBe(2);
+
+    // One PC already booked then: nothing is booked.
+    $third = reservationComputer(3);
+    $this->postJson(route('reservations.store-many'), ['computer_ids' => [$third->id, $first->id], 'user_id' => $customer->id, 'starts_at' => '2026-10-16T13:00', 'duration_minutes' => 60])
+        ->assertStatus(422)->assertJsonValidationErrors('starts_at');
+    expect(ComputerReservation::query()->where('club_computer_id', $third->id)->exists())->toBeFalse();
+
+    $this->postJson(route('reservations.store-many'), ['computer_ids' => [$third->id], 'starts_at' => '2026-10-16T13:00', 'duration_minutes' => 60])
+        ->assertStatus(422)->assertJsonValidationErrors('user_id');
+});
