@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CashRegisterService;
 use App\Services\CurrentClub;
+use App\Services\ShiftReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -88,7 +89,7 @@ class CashRegisterController extends Controller
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->firstOrFail();
 
-        return view('cash-register.report', ['shift' => $shift, 'totals' => $this->cash->totals($shift), 'reportType' => 'X']);
+        return view('cash-register.report', ['shift' => $shift, 'totals' => $this->cash->totals($shift), 'details' => app(ShiftReport::class)->for($shift), 'reportType' => 'X']);
     }
 
     public function close(CashShift $cashShift): RedirectResponse
@@ -111,6 +112,7 @@ class CashRegisterController extends Controller
         return view('cash-register.report', [
             'shift' => $cashShift,
             'totals' => $this->cash->totals($cashShift),
+            'details' => app(ShiftReport::class)->for($cashShift),
             'reportType' => 'Z',
             'printNonce' => $nonce,
         ]);

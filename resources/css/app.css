@@ -1134,6 +1134,53 @@ body {
     gap: 12px
 }
 
+.report-section {
+    margin-top: 20px
+}
+
+.report-section h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px
+}
+
+.report-table th,
+.report-table td {
+    border-bottom: 1px solid #e5e9e6;
+    padding: 7px 8px;
+    text-align: left
+}
+
+.report-table th {
+    color: #69736c;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase
+}
+
+.report-table .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums
+}
+
+.report-table tfoot td {
+    border-bottom: 0;
+    font-weight: 700
+}
+
+.report-empty {
+    margin: 0;
+    color: #69736c;
+    font-size: 14px
+}
+
 .report-metric {
     border-radius: 14px;
     background: #f6f8f6;
