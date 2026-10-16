@@ -971,13 +971,15 @@ body {
         visibility: visible
     }
 
+    /* Xprinter 80 mm: the printable width is 72 mm. */
     .receipt {
         position: absolute;
         left: 0;
         top: 0;
-        width: 80mm;
+        width: 72mm;
         box-shadow: none;
-        padding: 7mm
+        padding: 2mm 0;
+        color: #000
     }
 
     .receipt-page {
@@ -1280,14 +1282,17 @@ body {
         visibility: visible
     }
 
+    /* Xprinter 80 mm thermal tape: 72 mm wide, black only, one column. */
     .report-paper {
         position: absolute;
         left: 0;
         top: 0;
-        width: 100%;
+        width: 72mm;
         border: 0;
         border-radius: 0;
-        box-shadow: none
+        box-shadow: none;
+        color: #000;
+        font-size: 11px
     }
 
     .report-page {
@@ -1297,21 +1302,129 @@ body {
 
     .report-toolbar,
     .report-error,
+    .report-note,
+    .report-type,
     .sidebar,
     header,
     nav {
         display: none !important
     }
 
-    .report-head {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact
+    .report-paper .report-head {
+        display: block;
+        padding: 0 0 2mm;
+        border-bottom: 1px dashed #000;
+        background: none;
+        color: #000;
+        text-align: center
+    }
+
+    .report-paper .report-head h1 {
+        margin: 0;
+        font-size: 16px
+    }
+
+    .report-paper .report-head p {
+        margin: 1mm 0 0;
+        font-size: 10px
+    }
+
+    .report-paper .report-state {
+        display: block;
+        margin-top: 1mm;
+        border: 0;
+        background: none;
+        padding: 0;
+        color: #000;
+        font-size: 10px
+    }
+
+    .report-body {
+        padding: 2mm 0 0
+    }
+
+    .report-info,
+    .report-metrics {
+        display: block;
+        margin: 0
+    }
+
+    .report-info>div,
+    .report-metric,
+    .report-total {
+        display: flex;
+        justify-content: space-between;
+        gap: 2mm;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        padding: 0.6mm 0;
+        color: #000
+    }
+
+    .report-info span,
+    .report-info strong,
+    .report-metric span,
+    .report-metric strong,
+    .report-metric.income strong,
+    .report-metric.expense strong {
+        margin: 0;
+        color: #000;
+        font-size: 11px
     }
 
     .report-total {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact
+        margin-top: 1.5mm;
+        border-top: 1px dashed #000;
+        border-bottom: 1px dashed #000;
+        padding: 1.5mm 0
     }
+
+    .report-total span,
+    .report-total strong {
+        color: #000;
+        font-size: 13px;
+        font-weight: 700
+    }
+
+    .report-section {
+        margin-top: 2.5mm;
+        break-inside: avoid
+    }
+
+    .report-section h2 {
+        margin: 0 0 1mm;
+        font-size: 12px;
+        text-align: center
+    }
+
+    .report-table {
+        font-size: 10px
+    }
+
+    .report-table th,
+    .report-table td {
+        border-bottom: 1px dotted #000;
+        padding: 0.6mm 0.5mm;
+        color: #000
+    }
+
+    .report-table th {
+        font-size: 9px
+    }
+
+    .report-empty {
+        color: #000;
+        font-size: 10px;
+        text-align: center
+    }
+}
+
+/* Thermal printer roll: no page margins, the length follows the content. */
+@page {
+    size: 80mm auto;
+    margin: 0
 }
 
 
