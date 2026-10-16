@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -133,3 +134,17 @@ test('cashiers and operators do not see the admin menu and land on their own pag
     $page->assertDontSee('href="'.route('dashboard').'"', false)->assertSee('href="'.route('chat.index').'"', false);
     $this->get(route('billing.show'))->assertForbidden();
 })->with([['cashier', 'cash-register.index'], ['operator', 'club-computers.index']]);
+
+test('cashiers and operators open the club map without the editor, the PC list and the stock', function (string $role) {
+    $staff = User::factory()->create();
+    $staff->currentMembership()->firstOrFail()->update(['role' => $role]);
+    Product::factory()->create(['name' => 'Coca Cola', 'quantity' => 7]);
+
+    $this->actingAs($staff);
+    $this->get(route('club-map.index'))->assertSuccessful()->assertSee('class="cm-editor-actions"  hidden', false);
+    $this->get(route('club-computers.index'))->assertSuccessful();
+    $this->get(route('stock.index'))->assertSuccessful()->assertSee('Coca Cola')->assertSee('7');
+    $this->get(route('club-computers.index'))->assertSee('href="'.route('stock.index').'"', false);
+    $this->get(route('warehouse'))->assertForbidden();
+    $this->post(route('club-map.store'), ['name' => 'x'])->assertForbidden();
+})->with(['cashier', 'operator']);

@@ -22,6 +22,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\QrLoginController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\Superadmin\AgentReleaseController as SuperadminAgentReleaseController;
 use App\Http\Controllers\Superadmin\ClubController as SuperadminClubController;
@@ -153,7 +154,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/warehouse', WarehouseController::class)->name('warehouse');
         Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('/club-invitations', [ClubInvitationController::class, 'store'])->name('club-invitations.store');
-        Route::resource('/club-map', ClubZoneController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('/club-map', ClubZoneController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/club-map/{clubMap}/layout', [ClubZoneController::class, 'updateLayout'])->name('club-map.layout');
         Route::post('/club-map/{clubMap}/computers', [ClubComputerController::class, 'store'])->name('club-computers.store');
         Route::patch('/club-computers/{clubComputer}', [ClubComputerController::class, 'update'])->name('club-computers.update');
@@ -233,8 +234,12 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/reservations/{reservation}/arrive', [ComputerReservationController::class, 'arrive'])->name('reservations.arrive');
     });
 
-    Route::middleware(['subscription', 'club-role:owner,admin,manager,operator'])->group(function () {
+    // The front desk works with the PCs: the club map (no editor), the PC list, power and reserving.
+    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
+        Route::get('/club-map', [ClubZoneController::class, 'index'])->name('club-map.index');
         Route::get('/club-computers', ClubComputerListController::class)->name('club-computers.index');
         Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');
+        // Stock for the front desk, read-only (the warehouse itself is for managers).
+        Route::get('/stock', StockController::class)->name('stock.index');
     });
 });

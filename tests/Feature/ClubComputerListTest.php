@@ -61,7 +61,7 @@ test('club PC list displays all computer details and hides other clubs', functio
         ->assertDontSee('SECRET-PC');
 });
 
-test('operators can view PC inventory while cashiers cannot', function () {
+test('operators and cashiers can view the PC inventory', function () {
     $operator = User::factory()->create();
     $operator->currentMembership()->firstOrFail()->update(['role' => 'operator']);
 
@@ -70,5 +70,5 @@ test('operators can view PC inventory while cashiers cannot', function () {
     $cashier = User::factory()->create();
     $cashier->currentMembership()->firstOrFail()->update(['role' => 'cashier']);
 
-    $this->actingAs($cashier)->get(route('club-computers.index'))->assertForbidden();
+    $this->actingAs($cashier)->get(route('club-computers.index'))->assertSuccessful();
 });

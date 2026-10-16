@@ -1755,6 +1755,10 @@ body {
     gap: 8px
 }
 
+.cm-editor-actions[hidden] {
+    display: none
+}
+
 .cm-editor-switch {
     display: flex;
     align-items: center;

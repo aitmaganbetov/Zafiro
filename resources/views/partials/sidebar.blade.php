@@ -16,7 +16,7 @@
             <a href="{{ route('workers.index') }}" class="sidebar-link {{ request()->routeIs('workers.*') ? 'active' : '' }}"><i class="fas fa-user-tie"></i><span>{{ __('Работники') }}</span></a>
         @endif
         <span class="sidebar-label">{{ __('Учёт') }}</span>
-        <a href="{{ route('warehouse') }}" class="sidebar-link {{ request()->routeIs('warehouse*') ? 'active' : '' }}"><i class="fas fa-boxes-stacked"></i><span>{{ __('Склад') }}</span></a>
+        <a href="{{ $frontDesk ? route('stock.index') : route('warehouse') }}" class="sidebar-link {{ request()->routeIs('warehouse*', 'stock.*') ? 'active' : '' }}"><i class="fas fa-boxes-stacked"></i><span>{{ __('Склад') }}</span></a>
         <a href="{{ route('club-computers.index') }}" class="sidebar-link {{ request()->routeIs('club-computers.index') ? 'active' : '' }}"><i class="fas fa-computer"></i><span>{{ __('Список ПК') }}</span></a>
         @unless($frontDesk)<a href="{{ route('activity-logs.index') }}" class="sidebar-link {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>{{ __('Логи') }}</span></a>@endunless
         @unless($frontDesk)<span class="sidebar-label">{{ __('Система') }}</span>@endunless

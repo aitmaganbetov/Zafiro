@@ -1219,6 +1219,11 @@ return [
         'Чтобы пароль приходил в Telegram, клиенту нужно привязать Telegram в агенте на ПК: Профиль → Telegram.' => 'For the password to come in Telegram, the customer links Telegram in the agent on a PC: Profile → Telegram.',
         'Чтобы привязать Telegram, откройте ссылку из агента на ПК клуба (Профиль → Telegram).' => 'To link Telegram, open the link from the agent on a club PC (Profile → Telegram).',
         'привязан :count клиент|привязано :count клиента|привязано :count клиентов' => 'linked by :count customer|linked by :count customers',
+        'Выберите ПК на карте, чтобы включить, перезагрузить или забронировать его.' => 'Choose a PC on the map to power it on, restart or reserve it.',
+        'Название или артикул' => 'Name or SKU',
+        'Остатки товаров клуба. Приход и списание делает менеджер; продажа — через кассу.' => 'Club stock. A manager receives and writes off goods; sales go through the cash register.',
+        'Поиск товара' => 'Search products',
+        'Товары не найдены.' => 'No products found.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
