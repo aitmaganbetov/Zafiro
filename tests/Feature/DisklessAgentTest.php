@@ -46,15 +46,31 @@ test('a registered PC gets its own token by the club key and its hardware UUID',
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $token, 'X-Agent-Device' => DISKLESS_UUID])->assertOk();
 });
 
-test('an unknown PC, a wrong key or an inactive subscription get no token', function () {
+test('an unknown PC with the club key is added to the club and gets a token', function () {
+    User::factory()->create();
+    disklessPc(1, DISKLESS_UUID);
+    $key = disklessClubKey();
+    app(CurrentClub::class)->clear();
+
+    $token = $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'OTHER-UUID', 'device_name' => 'PC-02'])
+        ->assertOk()->json('agent_token');
+
+    $computer = ClubComputer::query()->withoutGlobalScope('club')->where('device_id', 'OTHER-UUID')->firstOrFail();
+    expect($computer->zone()->withoutGlobalScope('club')->value('name'))->toBe('Не назначена')
+        ->and(app(ClubComputerSessions::class)->findByAgentToken($token)?->is($computer))->toBeTrue();
+
+    // The same PC enrolls again without creating a second card.
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'OTHER-UUID'])->assertOk();
+    expect(ClubComputer::query()->withoutGlobalScope('club')->where('device_id', 'OTHER-UUID')->count())->toBe(1);
+});
+
+test('a wrong key or an inactive subscription get no token', function () {
     User::factory()->create();
     disklessPc(1, DISKLESS_UUID);
     $key = disklessClubKey();
     $clubId = app(CurrentClub::class)->id();
     app(CurrentClub::class)->clear();
 
-    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'OTHER-UUID'])
-        ->assertNotFound()->assertJsonPath('code', 'computer_not_found');
     $this->postJson(route('api.agent.enroll'), ['club_key' => str_repeat('x', 64), 'device_id' => DISKLESS_UUID])
         ->assertUnauthorized()->assertJsonPath('code', 'invalid_club_key');
     $this->postJson(route('api.agent.enroll'), ['club_key' => $key])->assertUnprocessable();
@@ -63,7 +79,7 @@ test('an unknown PC, a wrong key or an inactive subscription get no token', func
     $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => DISKLESS_UUID])->assertStatus(402);
 });
 
-test('a PC of another club is not found by this club key', function () {
+test('a PC of another club joins this club as a new card and keeps the other card', function () {
     User::factory()->create();
     $key = disklessClubKey();
     $other = Club::query()->create(['name' => 'Other', 'slug' => 'other-club']);
@@ -71,7 +87,12 @@ test('a PC of another club is not found by this club key', function () {
     disklessPc(1, DISKLESS_UUID);
     app(CurrentClub::class)->clear();
 
-    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => DISKLESS_UUID])->assertNotFound();
+    $theirs = ClubComputer::query()->withoutGlobalScope('club')->where('club_id', $other->id)->firstOrFail();
+
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => DISKLESS_UUID])->assertOk();
+
+    expect(ClubComputer::query()->withoutGlobalScope('club')->where('device_id', DISKLESS_UUID)->pluck('club_id')->sort()->values()->all())
+        ->toHaveCount(2)->and($theirs->fresh()->club_id)->toBe($other->id);
 });
 
 test('a token copied with a boot image does not work on another PC but stays valid on its own', function () {
@@ -93,10 +114,10 @@ test('enrollment attempts are rate limited per PC', function () {
     app(CurrentClub::class)->clear();
 
     foreach (range(1, 5) as $attempt) {
-        $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'UNKNOWN'])->assertNotFound();
+        $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'UNKNOWN'])->assertOk();
     }
     $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'UNKNOWN'])->assertTooManyRequests();
-    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'ANOTHER'])->assertNotFound();
+    $this->postJson(route('api.agent.enroll'), ['club_key' => $key, 'device_id' => 'ANOTHER'])->assertOk();
 });
 
 test('a second PC with the same UUID but another MAC gets no token', function () {

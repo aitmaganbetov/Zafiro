@@ -45,6 +45,13 @@ namespace ZafiroAgent.Views
             _relogin = setup.IsClubConfigured;
             _mode = _relogin ? Mode.Relogin : Mode.Setup;
             if (_relogin) KeyPanel.Visibility = Visibility.Collapsed;
+            else MinimizeButton.Visibility = Visibility.Visible;
+            // Киоск до подключения ПК не включён: окно видно на панели задач и разворачивается оттуда.
+            MinimizeButton.Click += (_, _) =>
+            {
+                Topmost = false;
+                WindowState = WindowState.Minimized;
+            };
 
             ApplyTexts();
             if (!string.IsNullOrEmpty(notice)) ErrorText.Text = notice;
@@ -189,6 +196,7 @@ namespace ZafiroAgent.Views
             RegisterToggle.Content = _registering ? L.T("Уже есть аккаунт? Войти") : L.T("Нет аккаунта? Зарегистрироваться");
             if (_registering) HeaderText.Text = L.T("Регистрация");
             StaffHint.Text = L.T("Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.");
+            MinimizeButton.Content = L.T("Свернуть, чтобы скопировать ключ");
             QrTitle.Text = L.T("Вход с телефона");
             QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
             RenderLanguages();
@@ -340,6 +348,7 @@ namespace ZafiroAgent.Views
             _connectedZone = computer.ZoneName;
             ApplyTexts();
             KeyPanel.Visibility = Visibility.Collapsed;
+            MinimizeButton.Visibility = Visibility.Collapsed;
             ClubKeyBox.Clear();
             PhoneBox.Clear();
             PasswordBox.Clear();

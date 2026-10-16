@@ -4,22 +4,27 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClubComputer;
+use App\Models\ClubMembership;
+use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerSessions;
 use App\Services\ClubInstallationKey;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Diskless PCs lose their device token on every restart, and a PC cloned from a boot image
  * carries the token of the PC the image was made on. The agent service asks here for a token
- * of its own PC: by the club installation key and the PC's hardware UUID. Only a PC that
- * staff already registered in the club gets one; issuing it revokes that PC's previous token.
+ * of its own PC: by the club installation key and the PC's hardware UUID; issuing it revokes
+ * that PC's previous token. A PC the club does not know yet (a new PC booted from the image of
+ * a PC set up once by staff) is added to the club in the "unassigned" zone, so staff set up
+ * the image once instead of signing in on every PC.
  */
 class AgentEnrollController extends Controller
 {
-    public function __invoke(Request $request, ClubInstallationKey $keys, ClubComputerSessions $sessions, CurrentClub $currentClub): JsonResponse
+    public function __invoke(Request $request, ClubInstallationKey $keys, ClubComputerSessions $sessions, CurrentClub $currentClub, ClubComputerRegistrar $registrar): JsonResponse
     {
         $data = $request->validate([
             'club_key' => ['required', 'string', 'size:64'],
@@ -43,7 +48,17 @@ class AgentEnrollController extends Controller
             ->first();
 
         if ($computer === null) {
-            return response()->json(['code' => 'computer_not_found', 'message' => __('ПК не зарегистрирован в клубе: сотрудник должен один раз войти на нём в агенте.')], 404);
+            // Logged as the club owner: an activity entry needs a member of the club.
+            $ownerId = ClubMembership::query()->where('role', 'owner')->orderBy('id')->value('user_id');
+            try {
+                $computer = $registrar->register([
+                    'device_name' => trim((string) ($data['device_name'] ?? '')) ?: 'PC',
+                    'device_id' => trim($data['device_id']),
+                    'mac_address' => $data['mac_address'] ?? null,
+                ], (int) $ownerId)['computer'];
+            } catch (ValidationException $exception) {
+                return response()->json(['code' => 'computer_not_added', 'message' => collect($exception->errors())->flatten()->first()], 422);
+            }
         }
 
         // Two PCs can report the same UUID (a board vendor placeholder). The PC on record has

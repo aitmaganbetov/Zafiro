@@ -116,6 +116,8 @@
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" FontSize="13" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
                     <Button x:Name="RegisterToggle" Visibility="Collapsed" Margin="0,12,0,0" Height="34" Background="Transparent" Foreground="#C4B5FD" FontSize="14" FontWeight="SemiBold" Content="Нет аккаунта? Зарегистрироваться"/>
+                    <!-- Только при первой настройке: свернуть окно, открыть сайт и скопировать ключ установки. -->
+                    <Button x:Name="MinimizeButton" Visibility="Collapsed" Margin="0,12,0,0" Height="34" Background="#3D3950" Foreground="#E8E5EF" FontSize="14" FontWeight="SemiBold" Content="Свернуть, чтобы скопировать ключ"/>
                     <TextBlock x:Name="StaffHint" Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#8A85A0" FontSize="13" TextWrapping="Wrap"/>
 
                     <!-- Вход с телефона: виден, только если клуб включил QR-код в настройках «Гости». -->
