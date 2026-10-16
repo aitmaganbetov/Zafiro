@@ -240,6 +240,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/club-computers', ClubComputerListController::class)->name('club-computers.index');
         Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');
         // Stock for the front desk, read-only (the warehouse itself is for managers).
-        Route::get('/stock', StockController::class)->name('stock.index');
+        Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
+        Route::post('/stock/receive', [StockController::class, 'receive'])->name('stock.receive');
     });
 });

@@ -2,6 +2,7 @@
 
 use App\Models\ActivityLog;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -147,4 +148,20 @@ test('cashiers and operators open the club map without the editor, the PC list a
     $this->get(route('club-computers.index'))->assertSee('href="'.route('stock.index').'"', false);
     $this->get(route('warehouse'))->assertForbidden();
     $this->post(route('club-map.store'), ['name' => 'x'])->assertForbidden();
+})->with(['cashier', 'operator']);
+
+test('cashiers and operators receive goods into stock; write-offs stay with managers', function (string $role) {
+    $staff = User::factory()->create();
+    $staff->currentMembership()->firstOrFail()->update(['role' => $role]);
+    $product = Product::factory()->create(['name' => 'Coca Cola', 'quantity' => 3]);
+
+    $this->actingAs($staff)->get(route('stock.index'))->assertSee('Оприходовать');
+    $this->post(route('stock.receive'), ['product_id' => $product->id, 'quantity' => 0])->assertSessionHasErrors('quantity');
+    $this->post(route('stock.receive'), ['product_id' => $product->id, 'quantity' => 12, 'note' => 'Поставка'])->assertSessionHasNoErrors();
+
+    expect($product->fresh()->quantity)->toBe(15)
+        ->and(StockMovement::query()->latest('id')->first())
+        ->type->toBe(StockMovement::TYPE_RECEIPT)
+        ->user_id->toBe($staff->id);
+    $this->post(route('warehouse.stock-movements.store'), ['product_id' => $product->id, 'type' => 'write_off', 'quantity' => 1])->assertForbidden();
 })->with(['cashier', 'operator']);
