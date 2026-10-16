@@ -7,6 +7,7 @@ use App\Models\ClubMembership;
 use App\Models\MemberBalance;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\CurrentClub;
 use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +16,12 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
+    /** Discount and opening balance of a new customer: managers only, not the front desk. */
+    public static function canSetMoney(): bool
+    {
+        return in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin', 'manager'], true);
+    }
+
     public function index(): View
     {
         // Customers only; staff are on the Workers page.
@@ -24,12 +31,16 @@ class UserController extends Controller
             ->orderBy('user_id')
             ->paginate(25);
 
-        return view('users', ['users' => $users]);
+        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney()]);
     }
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
     {
         $data = $request->validated();
+        if (! self::canSetMoney()) {
+            abort_if(collect(['discount', 'balance', 'bonus_balance'])->contains(fn (string $field): bool => (float) ($data[$field] ?? 0) !== 0.0), 403, __('Скидку и баланс клиента задаёт менеджер; пополнение — через кассу.'));
+            $data = ['discount' => 0, 'balance' => 0, 'bonus_balance' => 0] + $data;
+        }
         $actorId = $request->user()->getKey();
         DB::transaction(function () use ($data, $actorId, $activity): void {
             $user = User::query()->create(Arr::only($data, ['name', 'phone', 'email', 'password']));

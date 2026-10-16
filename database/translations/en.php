@@ -1176,6 +1176,7 @@ return [
         'Чат с клиентами' => 'Chat with customers',
         'Что нужно сделать' => 'What needs doing',
         'Этот пользователь уже работает в клубе.' => 'This user already works in the club.',
+        'Скидку и баланс клиента задаёт менеджер; пополнение — через кассу.' => 'The customer discount and balance are set by a manager; top-ups go through the cash register.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

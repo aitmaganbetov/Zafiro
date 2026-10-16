@@ -147,8 +147,6 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::middleware(['subscription', 'club-role:owner,admin,manager'])->group(function () {
         Route::get('/warehouse', WarehouseController::class)->name('warehouse');
         Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::post('/club-invitations', [ClubInvitationController::class, 'store'])->name('club-invitations.store');
         Route::resource('/club-map', ClubZoneController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::patch('/club-map/{clubMap}/layout', [ClubZoneController::class, 'updateLayout'])->name('club-map.layout');
@@ -219,6 +217,9 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     // PC bookings: everyone who works at the front desk.
     Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
         Route::get('/reservations', [ComputerReservationController::class, 'index'])->name('reservations.index');
+        // Customers: the front desk registers them too (discount and balance only by managers).
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
         Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1,reservations.customers')->name('reservations.customers');
         Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');

@@ -100,3 +100,23 @@ test('non-staff members can still log out', function () {
 
     $this->actingAs($member)->post(route('auth.logout'))->assertRedirect('/');
 });
+
+test('cashiers and operators register customers without a discount or balance', function (string $role) {
+    $staff = User::factory()->create();
+    $staff->currentMembership()->firstOrFail()->update(['role' => $role]);
+
+    $this->actingAs($staff)->get(route('users.index'))->assertSuccessful()
+        ->assertSee('Добавить клиента')
+        ->assertDontSee('id="new-user-discount"', false)
+        ->assertDontSee('id="new-user-balance"', false);
+
+    $form = ['name' => 'Гость', 'phone' => '7005556677', 'password' => 'guest-secret', 'password_confirmation' => 'guest-secret'];
+    $this->post(route('users.store'), [...$form, 'balance' => 5000])->assertForbidden();
+    expect(User::query()->where('phone', '+77005556677')->exists())->toBeFalse();
+
+    $this->post(route('users.store'), $form)->assertRedirect(route('users.index'));
+    $membership = User::query()->where('phone', '+77005556677')->firstOrFail()->currentMembership()->firstOrFail();
+    expect($membership->role)->toBe('client')
+        ->and($membership->discount)->toBe('0.00')
+        ->and($membership->balance->balance)->toBe('0.00');
+})->with(['cashier', 'operator']);
