@@ -46,6 +46,24 @@
         </div>
     </dialog>
 
+    <dialog id="user-edit-dialog" class="user-create-dialog">
+        <div class="user-create-dialog-shell">
+            <header class="user-create-dialog-head">
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Изменить клиента') }}</h4>
+                <button type="button" data-close-edit-dialog class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" aria-label="{{ __('Закрыть') }}"><i class="fas fa-times"></i></button>
+            </header>
+            <div class="user-create-dialog-body">
+                <form method="POST" action="" class="grid grid-cols-1 gap-4 md:grid-cols-2" data-edit-form>
+                    @csrf @method('PATCH')
+                    <div><label for="edit-user-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Имя') }}</label><input id="edit-user-name" name="name" required maxlength="255" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
+                    <div><label for="edit-user-email" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Email <span class="font-normal text-gray-500">{{ __('необязательно') }}</span></label><input id="edit-user-email" name="email" type="email" maxlength="255" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>
+                    @if($canSetMoney)<div><label for="edit-user-discount" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Скидка, %') }}</label><input id="edit-user-discount" name="discount" type="number" min="0" max="100" step="0.01" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></div>@endif
+                    <div class="flex items-end justify-end gap-3 md:col-span-2"><button type="button" data-close-edit-dialog class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-300">{{ __('Отмена') }}</button><button type="submit" class="brand-button min-h-10 px-5">{{ __('Сохранить') }}</button></div>
+                </form>
+            </div>
+        </div>
+    </dialog>
+
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div class="overflow-x-auto">
             <table class="w-full min-w-[760px] text-left text-sm">
@@ -56,6 +74,7 @@
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Скидка') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Баланс') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Бонусный баланс') }}</th>
+                        <th scope="col" class="px-5 py-3"><span class="sr-only">{{ __('Действия') }}</span></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -66,10 +85,17 @@
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->discount, 2, '.', ' ') }}%</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->balance, 2, '.', ' ') }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 text-right">
+                                <button type="button" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400" data-edit-user data-action="{{ route('users.update', $membership) }}" data-name="{{ $membership->user->name }}" data-email="{{ $membership->user->email }}" data-discount="{{ $membership->discount }}">{{ __('Изменить') }}</button>
+                                <form method="POST" action="{{ route('users.password', $membership) }}" class="ml-3 inline" onsubmit="return confirm(@js($membership->user->telegram_chat_id ? __('Сбросить пароль? Новый пароль придёт клиенту в Telegram.') : __('Сбросить пароль? Новый пароль покажется на экране один раз.')))">@csrf
+                                    <button type="submit" class="text-sm font-medium text-gray-600 hover:underline dark:text-gray-300">{{ __('Сбросить пароль') }}</button>
+                                </form>
+                                @if($membership->user->telegram_chat_id)<i class="fab fa-telegram ml-2 text-sky-500" title="{{ __('Telegram привязан') }}" aria-label="{{ __('Telegram привязан') }}"></i>@endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
+                            <td colspan="6" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -87,6 +113,6 @@
 
 @push('scripts')
 <script>
-(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal()})();
+(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();const edit=document.getElementById('user-edit-dialog'),editForm=edit.querySelector('[data-edit-form]');document.querySelectorAll('[data-edit-user]').forEach(button=>button.addEventListener('click',()=>{editForm.action=button.dataset.action;editForm.elements.name.value=button.dataset.name;editForm.elements.email.value=button.dataset.email;if(editForm.elements.discount)editForm.elements.discount.value=button.dataset.discount;edit.showModal()}));edit.querySelectorAll('[data-close-edit-dialog]').forEach(button=>button.addEventListener('click',()=>edit.close()));edit.addEventListener('click',event=>{if(event.target===edit)edit.close()})})();
 </script>
 @endpush

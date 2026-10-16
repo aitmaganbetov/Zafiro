@@ -53,6 +53,8 @@ class ActivityLog extends Model
         'auth.api_logout' => 'Выход через API',
         'user.created' => 'Создание пользователя',
         'user.balance_topped_up' => 'Пополнение баланса пользователя',
+        'user.updated' => 'Изменение клиента',
+        'user.password_reset' => 'Сброс пароля клиента',
         'auth.login_failed' => 'Неудачный вход',
         'auth.api_login_failed' => 'Неудачный вход через API',
         'invitation.created' => 'Создание приглашения',

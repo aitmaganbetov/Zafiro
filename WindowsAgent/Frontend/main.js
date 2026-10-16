@@ -923,6 +923,27 @@
     }
   });
 
+  // Telegram в профиле: привязка по QR-коду (ссылка на бота Zafiro), чтобы новый пароль приходил туда.
+  const telegramSection = document.getElementById('telegramSection');
+  const telegramConnect = document.getElementById('telegramConnect');
+  const telegramUnlink = document.getElementById('telegramUnlink');
+  let telegramState = null;
+  const renderTelegram = () => {
+    telegramSection.hidden = !telegramState?.available;
+    if (!telegramState?.available) return;
+    document.getElementById('telegramState').textContent = telegramState.linked
+      ? t('Telegram привязан: новый пароль придёт туда, если его сбросят в клубе.')
+      : t('Привяжите Telegram, чтобы получить новый пароль, если вы его забудете.');
+    telegramUnlink.hidden = !telegramState.linked;
+    telegramConnect.textContent = telegramState.linked ? t('Привязать другой Telegram') : t('Привязать Telegram');
+  };
+  const requestTelegram = () => webview?.postMessage({ type: 'requestTelegram' });
+  telegramConnect.addEventListener('click', () => {
+    telegramConnect.disabled = true;
+    webview?.postMessage({ type: 'linkTelegram' });
+  });
+  telegramUnlink.addEventListener('click', () => webview?.postMessage({ type: 'unlinkTelegram' }));
+
   const setSessionActive = (active) => {
     hasActiveSession = active;
     endButton.disabled = false;
@@ -971,7 +992,10 @@
     setView('tariffs');
     requestMinutes();
   });
-  profileNavigation.addEventListener('click', () => setView('profile'));
+  profileNavigation.addEventListener('click', () => {
+    setView('profile');
+    requestTelegram();
+  });
   chatNavigation.addEventListener('click', () => {
     setView('chat');
     chatUnread = 0;
@@ -1048,6 +1072,7 @@
     renderMinutes();
     renderNewsCards();
     if (newsDialog.open) showNews();
+    renderTelegram();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -1065,6 +1090,21 @@
       productsFailed = Boolean(event.data.error);
       renderCategories();
       renderCart();
+    }
+
+    if (event.data?.type === 'telegram') {
+      telegramConnect.disabled = false;
+      if (event.data.ok && event.data.data) {
+        telegramState = event.data.data;
+        const link = document.getElementById('telegramLink');
+        link.hidden = !event.data.data.url;
+        if (event.data.data.url) {
+          document.getElementById('telegramUrl').textContent = event.data.data.url;
+          if (event.data.qr) document.getElementById('telegramQr').src = event.data.qr;
+        }
+        if (telegramState.linked && !event.data.data.url) link.hidden = true;
+        renderTelegram();
+      }
     }
 
     if (event.data?.type === 'chat') {
@@ -1236,6 +1276,9 @@
       historyBefore = null;
       renderHistory();
       closeDialog(newsDialog);
+      telegramState = null;
+      document.getElementById('telegramLink').hidden = true;
+      renderTelegram();
       chatThread.replaceChildren();
       chatAfter = 0;
       chatUnread = 0;

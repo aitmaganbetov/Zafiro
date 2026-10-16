@@ -915,6 +915,25 @@ namespace ZafiroAgent
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
                 }
+                else if (type is "requestTelegram" or "linkTelegram" or "unlinkTelegram")
+                {
+                    var result = type switch
+                    {
+                        "linkTelegram" => await _apiService.CallGuestApiAsync(HttpMethod.Post, "telegram/link", null, false, CancellationToken.None),
+                        "unlinkTelegram" => await _apiService.CallGuestApiAsync(HttpMethod.Post, "telegram/unlink", null, false, CancellationToken.None),
+                        _ => await _apiService.CallGuestApiAsync(HttpMethod.Get, "telegram", null, false, CancellationToken.None)
+                    };
+                    // Ссылку на бота показываем QR-кодом: клиент сканирует его телефоном.
+                    string? qr = null;
+                    if (result.Data is { } data && data.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String &&
+                        Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link) && link.Scheme == Uri.UriSchemeHttps && link.Host == "t.me")
+                    {
+                        using var generator = new QRCoder.QRCodeGenerator();
+                        using var code = generator.CreateQrCode(link.AbsoluteUri, QRCoder.QRCodeGenerator.ECCLevel.M);
+                        qr = "data:image/png;base64," + Convert.ToBase64String(new QRCoder.PngByteQRCode(code).GetGraphic(6));
+                    }
+                    SendMessageToWeb(JsonSerializer.Serialize(new { type = "telegram", ok = result.Success, message = result.Message, data = result.Data, qr }));
+                }
                 else if (type == "requestChat")
                 {
                     var after = doc.RootElement.TryGetProperty("after", out var a) && a.ValueKind == JsonValueKind.Number && a.TryGetInt64(out var id) && id > 0 ? id : 0;

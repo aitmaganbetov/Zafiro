@@ -13,10 +13,17 @@ use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestMinutesController;
 use App\Http\Controllers\Api\GuestNewsController;
 use App\Http\Controllers\Api\GuestSeatController;
+use App\Http\Controllers\Api\GuestTelegramController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
+
+// Updates of the Zafiro Telegram bot (signed with the webhook secret).
+Route::post('/telegram/webhook', TelegramWebhookController::class)
+    ->middleware('throttle:120,1,telegram.webhook')
+    ->name('telegram.webhook');
 
 Route::post('/clubs/resolve', ClubInstallationController::class)
     ->middleware('throttle:club-resolve')
@@ -117,6 +124,9 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::post('/guest/minutes/purchase', [GuestMinutesController::class, 'purchase'])->middleware('throttle:10,1,api.guest.minutes.purchase')->name('api.guest.minutes.purchase');
     Route::get('/guest/chat', [GuestChatController::class, 'index'])->middleware('throttle:60,1,api.guest.chat')->name('api.guest.chat');
     Route::post('/guest/chat', [GuestChatController::class, 'store'])->middleware('throttle:20,1,api.guest.chat.store')->name('api.guest.chat.store');
+    Route::get('/guest/telegram', [GuestTelegramController::class, 'show'])->middleware('throttle:30,1,api.guest.telegram')->name('api.guest.telegram');
+    Route::post('/guest/telegram/link', [GuestTelegramController::class, 'link'])->middleware('throttle:10,1,api.guest.telegram.link')->name('api.guest.telegram.link');
+    Route::post('/guest/telegram/unlink', [GuestTelegramController::class, 'unlink'])->middleware('throttle:10,1,api.guest.telegram.unlink')->name('api.guest.telegram.unlink');
     Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');

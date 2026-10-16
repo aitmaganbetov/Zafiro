@@ -30,6 +30,7 @@ use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageCont
 use App\Http\Controllers\Superadmin\LogController as SuperadminLogController;
 use App\Http\Controllers\Superadmin\NewsController as SuperadminNewsController;
 use App\Http\Controllers\Superadmin\PlanController as SuperadminPlanController;
+use App\Http\Controllers\Superadmin\TelegramController as SuperadminTelegramController;
 use App\Http\Controllers\Superadmin\UserController as SuperadminUserController;
 use App\Http\Controllers\TariffController;
 use App\Http\Controllers\TodoController;
@@ -107,6 +108,10 @@ Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->group(function 
 
         Route::get('/logs', SuperadminLogController::class)->name('logs.index');
         Route::get('/languages', [SuperadminLanguageController::class, 'index'])->name('languages');
+
+        Route::get('/telegram', [SuperadminTelegramController::class, 'show'])->name('telegram.show');
+        Route::post('/telegram', [SuperadminTelegramController::class, 'update'])->name('telegram.update');
+        Route::delete('/telegram', [SuperadminTelegramController::class, 'destroy'])->name('telegram.destroy');
 
         Route::get('/news', [SuperadminNewsController::class, 'index'])->name('news.index');
         Route::post('/news', [SuperadminNewsController::class, 'store'])->name('news.store');
@@ -220,6 +225,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         // Customers: the front desk registers them too (discount and balance only by managers).
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::patch('/users/{membership}', [UserController::class, 'update'])->name('users.update');
+        Route::post('/users/{membership}/password', [UserController::class, 'resetPassword'])->middleware('throttle:20,1,users.password')->name('users.password');
         Route::post('/reservations', [ComputerReservationController::class, 'store'])->name('reservations.store');
         Route::get('/reservations/customers', [ComputerReservationController::class, 'customers'])->middleware('throttle:60,1,reservations.customers')->name('reservations.customers');
         Route::post('/reservations/{reservation}/cancel', [ComputerReservationController::class, 'cancel'])->name('reservations.cancel');

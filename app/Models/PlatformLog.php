@@ -17,6 +17,8 @@ class PlatformLog extends Model
         'superadmin.subscription_plan_changed' => 'Смена тарифа клуба',
         'superadmin.plan_created' => 'Создание тарифа платформы',
         'superadmin.plan_updated' => 'Изменение тарифа платформы',
+        'superadmin.telegram_set' => 'Подключение Telegram-бота',
+        'superadmin.telegram_cleared' => 'Отключение Telegram-бота',
         'superadmin.news_created' => 'Добавление новости Zafiro',
         'superadmin.news_updated' => 'Изменение новости Zafiro',
         'superadmin.news_deleted' => 'Удаление новости Zafiro',

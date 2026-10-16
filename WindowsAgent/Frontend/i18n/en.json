@@ -243,6 +243,13 @@
         "Отправить": "Send",
         "СВЯЗЬ С КЛУБОМ": "CONTACT THE CLUB",
         "Сообщение": "Message",
-        "Чат с клубом": "Chat with the club"
+        "Чат с клубом": "Chat with the club",
+        "Telegram": "Telegram",
+        "Telegram привязан: новый пароль придёт туда, если его сбросят в клубе.": "Telegram is linked: a new password comes there if the club resets it.",
+        "Отвязать": "Unlink",
+        "Отсканируйте QR-код телефоном или откройте ссылку и нажмите «Старт» в боте. Ссылка действует 15 минут.": "Scan the QR code with your phone or open the link and press “Start” in the bot. The link works for 15 minutes.",
+        "Привяжите Telegram, чтобы получить новый пароль, если вы его забудете.": "Link Telegram to get a new password if you forget yours.",
+        "Привязать Telegram": "Link Telegram",
+        "Привязать другой Telegram": "Link another Telegram"
     }
 }

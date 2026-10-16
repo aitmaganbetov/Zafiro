@@ -225,6 +225,20 @@
 			  <div><dt data-i18n="Осталось времени">Осталось времени</dt><dd id="profileRemaining">—</dd></div>
 			</dl>
 		  </section>
+		  <!-- Telegram: сюда придёт новый пароль, если его сбросят в клубе. Виден, если бот Zafiro подключён. -->
+		  <section class="profile-session profile-telegram" id="telegramSection" aria-labelledby="telegramTitle" hidden>
+			<h2 id="telegramTitle" data-i18n="Telegram">Telegram</h2>
+			<p class="dialog-note" id="telegramState"></p>
+			<div class="telegram-link" id="telegramLink" hidden>
+			  <img id="telegramQr" alt="" width="160" height="160">
+			  <p class="dialog-note" data-i18n="Отсканируйте QR-код телефоном или откройте ссылку и нажмите «Старт» в боте. Ссылка действует 15 минут.">Отсканируйте QR-код телефоном или откройте ссылку и нажмите «Старт» в боте. Ссылка действует 15 минут.</p>
+			  <p class="telegram-url" id="telegramUrl"></p>
+			</div>
+			<div class="friend-actions telegram-actions">
+			  <button class="primary" id="telegramConnect" type="button" data-i18n="Привязать Telegram">Привязать Telegram</button>
+			  <button class="friend-button" id="telegramUnlink" type="button" data-i18n="Отвязать" hidden>Отвязать</button>
+			</div>
+		  </section>
 		</section>
 
 		<section class="friends-page chat-page" id="chatPage" aria-labelledby="chatTitle" hidden>
