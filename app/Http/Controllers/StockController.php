@@ -45,7 +45,7 @@ class StockController extends Controller
         return view('stock.index', [
             'products' => $products,
             'search' => $search,
-            'images' => $products->getCollection()->mapWithKeys(fn (Product $product): array => [$product->id => (new ProductResource($product))->toArray($request)['image_url']]),
+            'images' => $products->getCollection()->mapWithKeys(fn (Product $product): array => [$product->id => ProductResource::imageUrl($product, $request)]),
         ]);
     }
 }

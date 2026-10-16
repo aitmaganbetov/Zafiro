@@ -6,6 +6,7 @@ use App\Http\Requests\OpenCashShiftRequest;
 use App\Http\Requests\StoreBalanceTopUpRequest;
 use App\Http\Requests\StoreCashTransactionRequest;
 use App\Http\Requests\StorePosSaleRequest;
+use App\Http\Resources\ProductResource;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
 use App\Models\Product;
@@ -27,7 +28,9 @@ class CashRegisterController extends Controller
     public function index(CurrentClub $currentClub): View
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->first();
-        $products = Product::query()->select(['id', 'name', 'category', 'price', 'quantity'])->where('quantity', '>', 0)->orderBy('name')->get();
+        // All columns: the photo path too, where the products table has it.
+        $products = Product::query()->where('quantity', '>', 0)->orderBy('name')->get()
+            ->each(fn (Product $product) => $product->setAttribute('photo_url', ProductResource::imageUrl($product, request())));
         $clubId = $currentClub->id();
         $users = User::query()
             ->join('club_memberships', fn ($join) => $join->on('club_memberships.user_id', '=', 'users.id')

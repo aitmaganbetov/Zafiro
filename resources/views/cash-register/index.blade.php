@@ -34,11 +34,11 @@
                     <div class="pos-products">
                         @foreach($products as $product)
                             <article class="pos-product" data-product-id="{{ $product->id }}" data-category="{{ $product->category }}">
-                                <img src="{{ asset('images/product-placeholder.svg') }}" alt="{{ $product->name }}">
+                                <img src="{{ $product->photo_url }}" alt="{{ $product->name }}" loading="lazy">
                                 <h4>{{ $product->name }}</h4>
                                 <p class="pos-product-meta">{{ $product->category ?: __('Без категории') }}</p>
                                 <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: :count шт.', ['count' => $product->quantity]) : __('Нет в наличии · 0 шт.') }}</span></div>
-                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>{{ __('Добавить в заказ') }}</button>
+                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" data-image="{{ $product->photo_url }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>{{ __('Добавить в заказ') }}</button>
                             </article>
                         @endforeach
                     </div>
@@ -183,7 +183,7 @@
         let total = 0;
         cart.forEach((item, id) => {
             total += item.price * item.qty;
-            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${placeholder}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">${escapeHtml(@json(__('Без модификаторов')))}</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-id="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-id="${id}">+</button></div></div></div></div>`);
+            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${escapeHtml(item.image || placeholder)}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">${escapeHtml(@json(__('Без модификаторов')))}</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-id="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-id="${id}">+</button></div></div></div></div>`);
         });
         if (!cart.size) box.innerHTML = '<div class="pos-empty">' + escapeHtml(@json(__('Добавьте товары в заказ'))) + '</div>';
         document.getElementById('subtotal').textContent = money(total);
@@ -197,7 +197,7 @@
     }
 
     box.addEventListener('click', event => { const button = event.target.closest('[data-change]'); if (!button) return; const id = Number(button.dataset.id); const item = cart.get(id); if (!item) return; item.qty += Number(button.dataset.change); if (item.qty < 1) cart.delete(id); else item.qty = Math.min(item.qty, item.stock); render(); });
-    document.querySelectorAll('.add-product').forEach(button => button.addEventListener('click', () => { const id = Number(button.dataset.id); const item = cart.get(id) || {name: button.dataset.name, price: Number(button.dataset.price), stock: Number(button.dataset.stock), qty: 0}; item.qty = Math.min(item.qty + 1, item.stock); cart.set(id, item); render(); }));
+    document.querySelectorAll('.add-product').forEach(button => button.addEventListener('click', () => { const id = Number(button.dataset.id); const item = cart.get(id) || {name: button.dataset.name, price: Number(button.dataset.price), stock: Number(button.dataset.stock), image: button.dataset.image, qty: 0}; item.qty = Math.min(item.qty + 1, item.stock); cart.set(id, item); render(); }));
     document.querySelectorAll('.pos-category').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-category').forEach(item => item.classList.remove('active')); button.classList.add('active'); document.querySelectorAll('.pos-product').forEach(card => card.style.display = button.dataset.category === 'all' || card.dataset.category === button.dataset.category ? '' : 'none'); }));
     document.querySelectorAll('.pos-mode').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-mode').forEach(item => item.classList.remove('active')); button.classList.add('active'); }));
     document.querySelectorAll('.pos-payment').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-payment').forEach(item => item.classList.remove('active')); button.classList.add('active'); }));
