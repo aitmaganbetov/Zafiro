@@ -134,8 +134,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
     // Staff only: customers sign in on the site just to confirm a PC sign-in (QR code).
+    Route::middleware('club-role:owner,admin,manager')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
     Route::middleware('club-role:owner,admin,manager,cashier,operator')->group(function () {
-        Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
     });

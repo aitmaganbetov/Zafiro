@@ -8,14 +8,21 @@ use App\Models\ClubMembership;
 use App\Models\ClubZone;
 use App\Models\Product;
 use App\Services\CurrentClub;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function __construct(private CurrentClub $currentClub) {}
 
-    public function __invoke(): View
+    public function __invoke(): View|RedirectResponse
     {
+        // The front desk has no admin panel: a cashier starts at the cash register, an operator at the PCs.
+        $landing = ['cashier' => 'cash-register.index', 'operator' => 'club-computers.index'][$this->currentClub->membership()?->role] ?? null;
+        if ($landing !== null) {
+            return redirect()->route($landing);
+        }
+
         // Days are the club's local days; stored times are UTC, so each local day becomes
         // a UTC range and the sums are made in one SQL query.
         $today = now($this->currentClub->timezone())->startOfDay();

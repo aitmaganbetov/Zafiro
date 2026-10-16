@@ -120,3 +120,16 @@ test('cashiers and operators register customers without a discount or balance', 
         ->and($membership->discount)->toBe('0.00')
         ->and($membership->balance->balance)->toBe('0.00');
 })->with(['cashier', 'operator']);
+
+test('cashiers and operators do not see the admin menu and land on their own page', function (string $role, string $landing) {
+    $staff = User::factory()->create();
+    $staff->currentMembership()->firstOrFail()->update(['role' => $role]);
+
+    $this->actingAs($staff)->get(route('dashboard'))->assertRedirect(route($landing));
+    $page = $this->get(route($landing))->assertSuccessful();
+    foreach (['settings', 'tariffs.index', 'news.index', 'billing.show', 'activity-logs.index'] as $hidden) {
+        $page->assertDontSee('href="'.route($hidden).'"', false);
+    }
+    $page->assertDontSee('href="'.route('dashboard').'"', false)->assertSee('href="'.route('chat.index').'"', false);
+    $this->get(route('billing.show'))->assertForbidden();
+})->with([['cashier', 'cash-register.index'], ['operator', 'club-computers.index']]);
