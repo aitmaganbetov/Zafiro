@@ -251,6 +251,17 @@
         "Привяжите Telegram, чтобы получить новый пароль, если вы его забудете.": "Link Telegram to get a new password if you forget yours.",
         "Привязать Telegram": "Link Telegram",
         "Привязать другой Telegram": "Link another Telegram",
-        "Гостевая сессия · осталось :time": "Guest session · :time left"
+        "Гостевая сессия · осталось :time": "Guest session · :time left",
+        "Введите имя.": "Enter your name.",
+        "Зарегистрироваться": "Sign up",
+        "Имя": "Name",
+        "Не удалось зарегистрироваться. Повторите попытку или обратитесь к администратору клуба.": "Could not sign up. Try again or ask the club staff.",
+        "Нет аккаунта? Зарегистрироваться": "No account? Sign up",
+        "Пароли не совпадают.": "The passwords do not match.",
+        "Пароль — не короче 6 символов.": "The password must be at least 6 characters.",
+        "Повторите пароль": "Repeat the password",
+        "Регистрация": "Sign up",
+        "Слишком много попыток. Подождите несколько минут.": "Too many attempts. Wait a few minutes.",
+        "Уже есть аккаунт? Войти": "Already have an account? Sign in"
     }
 }

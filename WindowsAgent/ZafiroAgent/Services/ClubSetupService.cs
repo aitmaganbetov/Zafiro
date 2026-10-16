@@ -311,6 +311,28 @@ namespace ZafiroAgent.Services
             return ApiResult<GuestSession?>.Ok(new GuestSession(id.GetString()!, ends.ToUniversalTime(), offset));
         }
 
+        /// <summary>
+        /// Регистрация клиента на этом ПК (по токену устройства): новый аккаунт клиента клуба,
+        /// сразу вошедший здесь — токен сохраняется, как после входа по паролю.
+        /// </summary>
+        public async Task<ApiResult<ClubSession>> RegisterAsync(string name, string phone, string password, CancellationToken cancellationToken)
+        {
+            var payload = new Dictionary<string, object?> { ["name"] = name, ["phone"] = phone, ["password"] = password, ["device_name"] = _deviceName };
+            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentRegisterEndpoint, payload, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return ApiResult<ClubSession>.Fail(result.Failure, result.Message);
+
+            var cfg = _config.Load();
+            if (!long.TryParse(cfg.ClubId, NumberStyles.None, CultureInfo.InvariantCulture, out var clubId) ||
+                !ZafiroApiClient.TryValidateHttpsEndpoint(cfg.ApiBaseUrl, out var apiBase))
+                return ApiResult<ClubSession>.Fail(ApiFailure.InvalidEndpoint, L.T("Сохранённые настройки клуба повреждены. Настройте клуб заново."));
+
+            var login = _api.ReadQrLogin(result.Value, clubId, cfg.ClubName);
+            if (!login.Success) return ApiResult<ClubSession>.Fail(login.Failure, login.Message);
+
+            _config.Update(current => ApplyToken(current, login.Value!));
+            return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
+        }
+
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>
             Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(_config.Load().ProtectedDeviceToken)), cancellationToken);
 

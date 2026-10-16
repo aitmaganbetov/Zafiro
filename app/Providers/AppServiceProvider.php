@@ -72,6 +72,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('club-resolve:'.$request->ip().'|'.hash('sha256', (string) $request->input('club_key', $request->input('key')))),
             Limit::perMinute(300)->by('club-resolve-ip:'.$request->ip()),
         ]);
+        // Registration on a PC: a few accounts per PC, the club's shared IP loosely.
+        RateLimiter::for('agent-register', fn (Request $request): array => [
+            Limit::perMinutes(10, 5)->by('agent-register:'.$this->agentRateLimitKey($request)),
+            Limit::perMinutes(10, 60)->by('agent-register-ip:'.$request->ip()),
+        ]);
         RateLimiter::for('agent-qr-login', fn (Request $request): Limit => Limit::perMinute(20)
             ->by('agent-qr-login:'.$this->agentRateLimitKey($request)));
         RateLimiter::for('agent-qr-poll', fn (Request $request): Limit => Limit::perMinute(60)

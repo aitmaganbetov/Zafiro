@@ -29,6 +29,7 @@ namespace ZafiroAgent.Views
         private readonly CancellationTokenSource _cts = new();
         private bool _busy;
         private bool _qrRunning;
+        private bool _registering;
         private bool _guestWatching;
         private GuestSession? _guest;
         private Window? _guestOverlay;
@@ -48,7 +49,12 @@ namespace ZafiroAgent.Views
             ApplyTexts();
             if (!string.IsNullOrEmpty(notice)) ErrorText.Text = notice;
 
-            SubmitButton.Click += async (_, _) => await SubmitAsync();
+            SubmitButton.Click += async (_, _) =>
+            {
+                if (_registering) await RegisterAsync();
+                else await SubmitAsync();
+            };
+            RegisterToggle.Click += (_, _) => SetRegistering(!_registering);
             PhoneBox.TextChanged += (_, _) => FormatPhone();
             InputLanguageButton.Click += (_, _) => NextInputLanguage();
             InputLanguageManager.Current.InputLanguageChanged += OnInputLanguageChanged;
@@ -57,6 +63,7 @@ namespace ZafiroAgent.Views
             Loaded += (_, _) =>
             {
                 if (!_relogin) return;
+                RegisterToggle.Visibility = Visibility.Visible;
                 _ = RunQrLoginAsync();
                 _ = RunGuestWatchAsync();
             };
@@ -176,7 +183,11 @@ namespace ZafiroAgent.Views
             KeyLabel.Text = L.T("Ключ установки");
             PhoneLabel.Text = L.T("Телефон");
             PasswordLabel.Text = L.T("Пароль");
-            SubmitButton.Content = L.T("Войти");
+            SubmitButton.Content = _registering ? L.T("Зарегистрироваться") : L.T("Войти");
+            NameLabel.Text = L.T("Имя");
+            ConfirmLabel.Text = L.T("Повторите пароль");
+            RegisterToggle.Content = _registering ? L.T("Уже есть аккаунт? Войти") : L.T("Нет аккаунта? Зарегистрироваться");
+            if (_registering) HeaderText.Text = L.T("Регистрация");
             StaffHint.Text = L.T("Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.");
             QrTitle.Text = L.T("Вход с телефона");
             QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
@@ -336,8 +347,62 @@ namespace ZafiroAgent.Views
             SubmitButton.IsEnabled = true;
             App.Instance.RefreshKiosk();
             PhoneBox.Focus();
+            RegisterToggle.Visibility = Visibility.Visible;
             _ = RunQrLoginAsync();
             _ = RunGuestWatchAsync();
+        }
+
+        /// <summary>Регистрация на этом ПК вместо входа: только на подключённом ПК (у клиента).</summary>
+        private void SetRegistering(bool registering)
+        {
+            if (_busy) return;
+            _registering = registering;
+            NamePanel.Visibility = registering ? Visibility.Visible : Visibility.Collapsed;
+            ConfirmPanel.Visibility = registering ? Visibility.Visible : Visibility.Collapsed;
+            ErrorText.Text = string.Empty;
+            ApplyTexts();
+            if (registering) NameBox.Focus(); else PhoneBox.Focus();
+        }
+
+        private async Task RegisterAsync()
+        {
+            if (_busy) return;
+            var name = NameBox.Text.Trim();
+            var phone = PhoneNumberFormatter.NormalizeKazakhstanNumber(PhoneBox.Text);
+            if (name.Length < 2) { ErrorText.Text = L.T("Введите имя."); return; }
+            if (phone is null) { ErrorText.Text = L.T("Введите 10 цифр номера после +7."); return; }
+            if (PasswordBox.Password.Length < 6) { ErrorText.Text = L.T("Пароль — не короче 6 символов."); return; }
+            if (PasswordBox.Password != ConfirmBox.Password) { ErrorText.Text = L.T("Пароли не совпадают."); return; }
+
+            _busy = true;
+            SubmitButton.IsEnabled = false;
+            ErrorText.Text = string.Empty;
+            try
+            {
+                var result = await _setup.RegisterAsync(name, phone, PasswordBox.Password, _cts.Token);
+                if (result.Success)
+                {
+                    Session = result.Value;
+                    DialogResult = true;
+                    return;
+                }
+
+                ErrorText.Text = result.Message;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Register] failed: " + ex.Message);
+                ErrorText.Text = L.T("Не удалось зарегистрироваться. Повторите попытку или обратитесь к администратору клуба.");
+            }
+            finally
+            {
+                _busy = false;
+                SubmitButton.IsEnabled = true;
+            }
         }
 
         /// <summary>

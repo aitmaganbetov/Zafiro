@@ -48,7 +48,7 @@ namespace ZafiroAgent.Service
         public const string DeviceHeader = "X-Agent-Device";
 
         // Служба подставляет токен ПК только в эти запросы и только к zafiro.kz.
-        private static readonly Regex RelayPath = new(@"^/api/(agent/heartbeat|agent/exit-pin|agent/user/login|agent/qr-login|agent/qr-login/poll|guest/seat-transfer|guest/minutes/purchase|guest/chat|tariffs/[0-9]{1,18}/purchase)$", RegexOptions.CultureInvariant);
+        private static readonly Regex RelayPath = new(@"^/api/(agent/heartbeat|agent/exit-pin|agent/user/login|agent/register|agent/qr-login|agent/qr-login/poll|guest/seat-transfer|guest/minutes/purchase|guest/chat|tariffs/[0-9]{1,18}/purchase)$", RegexOptions.CultureInvariant);
         private static readonly Regex TokenFormat = new("^zag_[A-Za-z0-9]{48}$", RegexOptions.CultureInvariant);
         private static readonly Regex ClubKeyFormat = new("^[A-Za-z0-9]{64}$", RegexOptions.CultureInvariant);
 

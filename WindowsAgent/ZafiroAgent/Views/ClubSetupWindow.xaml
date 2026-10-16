@@ -83,6 +83,12 @@
                         <PasswordBox x:Name="ClubKeyBox" Margin="0,0,0,16" MaxLength="256"/>
                     </StackPanel>
 
+                    <!-- Регистрация клиента: имя и повтор пароля видны только в этом режиме. -->
+                    <StackPanel x:Name="NamePanel" Visibility="Collapsed">
+                        <TextBlock x:Name="NameLabel" Text="Имя" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                        <TextBox x:Name="NameBox" Margin="0,0,0,16" MaxLength="255"/>
+                    </StackPanel>
+
                     <TextBlock x:Name="PhoneLabel" Text="Телефон" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <Grid Margin="0,0,0,16">
                         <TextBox x:Name="PhoneBox" Padding="42,9,12,9" MaxLength="16" InputScope="TelephoneNumber"/>
@@ -102,8 +108,14 @@
                                 Background="#3D3950" Foreground="#E8E5EF" Focusable="False" Cursor="Hand"/>
                     </Grid>
 
+                    <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock x:Name="ConfirmLabel" Text="Повторите пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                        <PasswordBox x:Name="ConfirmBox" MaxLength="256"/>
+                    </StackPanel>
+
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" FontSize="13" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
+                    <Button x:Name="RegisterToggle" Visibility="Collapsed" Margin="0,12,0,0" Height="34" Background="Transparent" Foreground="#C4B5FD" FontSize="14" FontWeight="SemiBold" Content="Нет аккаунта? Зарегистрироваться"/>
                     <TextBlock x:Name="StaffHint" Text="Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду." Margin="0,14,0,0" Foreground="#8A85A0" FontSize="13" TextWrapping="Wrap"/>
 
                     <!-- Вход с телефона: виден, только если клуб включил QR-код в настройках «Гости». -->

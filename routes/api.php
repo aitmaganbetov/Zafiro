@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AgentEnrollController;
 use App\Http\Controllers\Api\AgentExitPinController;
 use App\Http\Controllers\Api\AgentQrLoginController;
+use App\Http\Controllers\Api\AgentRegisterController;
 use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
@@ -82,6 +83,11 @@ Route::post('/agent/qr-login', [AgentQrLoginController::class, 'store'])
 Route::post('/agent/qr-login/poll', [AgentQrLoginController::class, 'poll'])
     ->middleware(['agent.device', 'throttle:agent-qr-poll'])
     ->name('api.agent.qr-login.poll');
+
+// A customer registers on a club PC (sign-in window): a few per PC, then a pause.
+Route::post('/agent/register', AgentRegisterController::class)
+    ->middleware(['agent.device', 'throttle:agent-register'])
+    ->name('api.agent.register');
 
 Route::post('/agent/exit-pin', AgentExitPinController::class)
     ->middleware(['agent.device', 'throttle:agent-exit-pin'])

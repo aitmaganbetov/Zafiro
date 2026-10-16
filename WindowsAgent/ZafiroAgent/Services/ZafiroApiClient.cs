@@ -31,6 +31,7 @@ namespace ZafiroAgent.Services
         public static readonly Uri ExitPinEndpoint = new("https://zafiro.kz/api/agent/exit-pin");
         public static readonly Uri QrLoginEndpoint = new("https://zafiro.kz/api/agent/qr-login");
         public static readonly Uri AgentHeartbeatEndpoint = new("https://zafiro.kz/api/agent/heartbeat");
+        public static readonly Uri AgentRegisterEndpoint = new("https://zafiro.kz/api/agent/register");
         public static readonly Uri QrLoginPollEndpoint = new("https://zafiro.kz/api/agent/qr-login/poll");
 
         private static readonly TimeSpan DefaultTokenLifetime = TimeSpan.FromDays(30);
@@ -216,6 +217,13 @@ namespace ZafiroAgent.Services
                     return ApiResult<JsonElement>.Fail(ApiFailure.Forbidden, L.T("Доступ запрещён."));
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                     return ApiResult<JsonElement>.Fail(ApiFailure.DeviceTokenInvalid, L.T("Токен устройства недействителен: сотрудник должен заново войти на этом ПК."));
+                // 422: the server explains what is wrong (e.g. the phone is taken): show its message.
+                if (response.StatusCode == HttpStatusCode.UnprocessableEntity &&
+                    await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } invalid &&
+                    TryGetString(invalid, "message", out var reason))
+                    return ApiResult<JsonElement>.Fail(ApiFailure.InvalidInput, reason);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.Forbidden, L.T("Слишком много попыток. Подождите несколько минут."));
                 if (!response.IsSuccessStatusCode)
                     return ApiResult<JsonElement>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
 
