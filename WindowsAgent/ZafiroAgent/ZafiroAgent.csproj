@@ -11,6 +11,8 @@
     <Company>Zafiro</Company>
     <!-- Program.Main выбирает режим: агент или служба Windows (ключ service). -->
     <StartupObject>ZafiroAgent.Program</StartupObject>
+    <!-- Логотип Zafiro: значок exe, ярлыка на рабочем столе и значка в трее. -->
+    <ApplicationIcon>Assets\zafiro.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Размер сборки: без Windows Forms (значок в трее — через Win32), системные сообщения .NET

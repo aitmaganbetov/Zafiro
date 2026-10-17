@@ -26,13 +26,33 @@ namespace ZafiroAgent.Service
         protected override void OnStart(string[] args)
         {
             var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Agent path is unknown.");
-            _watchdog = new Watchdog(exe);
+            var forAdministrators = LaunchForAdministrators();
+            _watchdog = new Watchdog(exe, forAdministrators);
+            SafeLog.Write("[Service] agent starts for administrators too: " + (forAdministrators ? "yes" : "no"));
             var server = new VaultServer(VaultProtocol.PipeName, new DeviceVaultStore(), ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive, () => DeviceInfo.MacAddress);
             _work = Task.WhenAll(
                 Task.Run(() => server.RunAsync(_stop.Token)),
                 Task.Run(() => server.KeepOnlineAsync(TimeSpan.FromSeconds(60), _stop.Token)),
                 Task.Run(() => _watchdog.RunAsync(_stop.Token)));
             SafeLog.Write("[Service] started");
+        }
+
+        /// <summary>
+        /// Галочка установщика «Запускать агент и под администратором»: значение пишет установщик в
+        /// HKLM (клиент без прав администратора его не изменит), служба читает его при запуске.
+        /// </summary>
+        private static bool LaunchForAdministrators()
+        {
+            try
+            {
+                using var key = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)
+                    .OpenSubKey(VaultProtocol.SettingsKey);
+                return key?.GetValue("LaunchForAdministrators") is int value && value == 1;
+            }
+            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+            {
+                return false;
+            }
         }
 
         protected override void OnSessionChange(SessionChangeDescription change)

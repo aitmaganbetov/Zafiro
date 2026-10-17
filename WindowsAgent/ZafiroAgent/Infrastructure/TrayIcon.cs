@@ -26,6 +26,7 @@ namespace ZafiroAgent.Infrastructure
         private readonly string _tip;
         private readonly ContextMenu _menu = new();
         private bool _added;
+        private IntPtr _icon;
 
         public event Action? Open;
 
@@ -52,7 +53,9 @@ namespace ZafiroAgent.Infrastructure
             var data = Data();
             data.uFlags = NifMessage | NifIcon | NifTip;
             data.uCallbackMessage = CallbackMessage;
-            data.hIcon = LoadIcon(IntPtr.Zero, (IntPtr)IdiApplication);
+            // Значок самого exe (логотип Zafiro); если его нет — стандартный значок Windows.
+            if (_icon == IntPtr.Zero && Environment.ProcessPath is { } exe) _icon = ExtractIcon(IntPtr.Zero, exe, 0);
+            data.hIcon = _icon > 1 ? _icon : LoadIcon(IntPtr.Zero, (IntPtr)IdiApplication);
             data.szTip = _tip;
             _added = Shell_NotifyIcon(NimAdd, ref data);
         }
@@ -101,6 +104,8 @@ namespace ZafiroAgent.Infrastructure
                 _added = false;
             }
 
+            if (_icon > 1) DestroyIcon(_icon);
+            _icon = IntPtr.Zero;
             _window.RemoveHook(WndProc);
             _window.Dispose();
         }
@@ -133,6 +138,12 @@ namespace ZafiroAgent.Infrastructure
 
         [DllImport("user32.dll")]
         private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr ExtractIcon(IntPtr hInstance, string exeFileName, int iconIndex);
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr icon);
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);

@@ -37,6 +37,9 @@ namespace ZafiroAgent.Service
     public static class VaultProtocol
     {
         public const string ServiceName = "ZafiroAgent";
+
+        /// <summary>Настройки службы в HKLM (пишет установщик).</summary>
+        public const string SettingsKey = @"SOFTWARE\Zafiro\Agent";
         public const string PipeName = "ZafiroAgent.Vault";
         public const string NoToken = "no_token";
         public const int MaxMessageBytes = 256 * 1024;

@@ -18,7 +18,8 @@ namespace ZafiroAgent.Service
     /// агент запускается снова через несколько секунд. Агентом считается только процесс из
     /// папки установки, который каждые несколько секунд сообщает службе, что жив: программа
     /// с тем же именем или приостановленный агент не подходят — такой агент перезапускается.
-    /// Учётные записи администраторов не трогает (обслуживание ПК), а после выхода сотрудника
+    /// Учётные записи администраторов не трогает (обслуживание ПК), если при установке не выбран
+    /// запуск и в них (клуб, где ПК входит в Windows под администратором), а после выхода сотрудника
     /// по PIN-коду ждёт до выхода из Windows, но не дольше времени обслуживания из настроек клуба
     /// (на сервере): сотрудник мог уйти, не выйдя.
     /// </summary>
@@ -37,14 +38,16 @@ namespace ZafiroAgent.Service
         public static readonly TimeSpan DefaultStaffPause = TimeSpan.FromMinutes(15);
 
         private readonly string _agentExe;
+        private readonly bool _launchForAdministrators;
         private readonly object _gate = new();
         private readonly Dictionary<uint, DateTime> _paused = new();
         private readonly Dictionary<uint, (int Failures, DateTime NextAttemptUtc)> _launches = new();
         private readonly Dictionary<uint, DateTime> _alive = new();
 
-        public Watchdog(string agentExe)
+        public Watchdog(string agentExe, bool launchForAdministrators = false)
         {
             _agentExe = agentExe;
+            _launchForAdministrators = launchForAdministrators;
         }
 
         /// <summary>Сотрудник закрыл агент по PIN-коду: в этом сеансе агент не запускается duration.</summary>
@@ -152,7 +155,7 @@ namespace ZafiroAgent.Service
             if (!WTSQueryUserToken(session, out var userToken)) return; // никто не вошёл
             try
             {
-                if (IsAdministrator(userToken)) return;
+                if (!_launchForAdministrators && IsAdministrator(userToken)) return;
                 Launch(userToken);
                 SafeLog.Write("[Watchdog] agent started in session " + session);
             }
