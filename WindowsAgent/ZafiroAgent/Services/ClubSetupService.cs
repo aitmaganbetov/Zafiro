@@ -380,7 +380,7 @@ namespace ZafiroAgent.Services
                     }
                     if (result.Failure is ApiFailure.DeviceTokenInvalid) return;
                 }
-                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidOperationException)
                 {
                     SafeLog.Write("[Boot] report failed: " + ex.GetType().Name);
                 }
