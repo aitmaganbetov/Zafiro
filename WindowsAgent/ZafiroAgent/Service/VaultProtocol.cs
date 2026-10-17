@@ -112,11 +112,12 @@ namespace ZafiroAgent.Service
             GetNamedPipeClientProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var id) ? id : 0;
 
         /// <summary>Канал создан процессом в сеансе 0 (службой), а не программой пользователя, занявшей имя канала.</summary>
-        public static bool IsServedFromSession0(NamedPipeClientStream pipe)
-        {
-            if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var pid)) return false;
-            return ProcessIdToSessionId(pid, out var session) && session == 0;
-        }
+        /// <remarks>
+        /// Сеанс берётся у самого канала: открыть процесс службы (SYSTEM) ограниченная учётная запись
+        /// клиента не может, поэтому проверка через его PID всегда отказывала.
+        /// </remarks>
+        public static bool IsServedFromSession0(NamedPipeClientStream pipe) =>
+            GetNamedPipeServerSessionId(pipe.SafePipeHandle.DangerousGetHandle(), out var session) && session == 0;
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetNamedPipeClientSessionId(IntPtr pipe, out uint sessionId);
@@ -125,9 +126,6 @@ namespace ZafiroAgent.Service
         private static extern bool GetNamedPipeClientProcessId(IntPtr pipe, out uint processId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GetNamedPipeServerProcessId(IntPtr pipe, out uint processId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ProcessIdToSessionId(uint processId, out uint sessionId);
+        private static extern bool GetNamedPipeServerSessionId(IntPtr pipe, out uint sessionId);
     }
 }
