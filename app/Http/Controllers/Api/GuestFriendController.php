@@ -8,6 +8,8 @@ use App\Services\Friends;
 use App\Services\GuestFeatures;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 /** Friends and balance transfers of the signed-in customer (PC agent). */
 class GuestFriendController extends Controller
@@ -58,7 +60,15 @@ class GuestFriendController extends Controller
     public function transfer(Request $request, Friendship $friendship): JsonResponse
     {
         $this->features->ensure('balance_transfer');
-        $amount = (string) $request->validate(['amount' => ['required', 'string', 'max:20']])['amount'];
+        $data = $request->validate([
+            'amount' => ['required', 'string', 'max:20'],
+            'password' => ['required', 'string', 'max:256'],
+        ], ['password.required' => __('Введите пароль от аккаунта, чтобы подтвердить перевод.')]);
+        // Money leaves the account only with its password: not by someone at a PC left signed in.
+        if (! Hash::check($data['password'], (string) $request->user()->password)) {
+            throw ValidationException::withMessages(['password' => __('Неверный пароль. Перевод не выполнен.')]);
+        }
+        $amount = (string) $data['amount'];
         $result = $this->friends->transfer($friendship, $request->user(), $amount);
 
         return response()->json([

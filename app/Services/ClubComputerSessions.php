@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Club;
 use App\Models\ClubComputer;
+use App\Models\ClubMembership;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,9 @@ class ClubComputerSessions
         return DB::transaction(function () use ($computer, $data, $ip): array {
             $computer = ClubComputer::query()->withoutGlobalScope('club')->lockForUpdate()->findOrFail($computer->getKey());
             $expired = $this->expireIfDue($computer);
+            if (filter_var($data['fresh_boot'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $this->resetGuestSession($computer);
+            }
             $updates = ['last_seen_at' => now(), 'status' => 'online', 'remote_ip' => $ip];
 
             if (array_key_exists('state', $data)) {
@@ -108,6 +112,24 @@ class ClubComputerSessions
         return $state === 'in_session'
             ? ['current_session_id' => $sessionId, 'current_session_user_id' => null, 'session_guest' => false, 'session_ends_at' => null]
             : self::SESSION_FIELDS;
+    }
+
+    /**
+     * The agent's first report after Windows started (or the user signed in again): time sold to a
+     * guest without an account does not survive a restart of the PC.
+     */
+    private function resetGuestSession(ClubComputer $computer): void
+    {
+        if (! $computer->session_guest || ! $computer->hasPaidSession()) {
+            return;
+        }
+
+        $computer->forceFill(self::SESSION_FIELDS)->save();
+        // Logged as the club owner: an activity entry needs a member of the club.
+        $ownerId = ClubMembership::query()->withoutGlobalScope('club')->where('club_id', $computer->club_id)->where('role', 'owner')->orderBy('id')->value('user_id');
+        if ($ownerId !== null) {
+            $this->activity->record('computer.guest_session_reset', __('Гостевая сессия на ПК :computer сброшена: ПК перезагружен.', ['computer' => $computer->displayName()]), (int) $ownerId, $computer, [], $computer->club_id);
+        }
     }
 
     /** Ends a paid session whose time is over. Returns true when one was ended. */

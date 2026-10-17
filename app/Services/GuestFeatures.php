@@ -14,6 +14,8 @@ class GuestFeatures
         'balance_transfer' => 'allow_balance_transfer_to_friends',
     ];
 
+    public const DEFAULT_IDLE_LOGOUT_MINUTES = 5;
+
     public function __construct(private CurrentClub $currentClub) {}
 
     public function enabled(string $feature): bool
@@ -25,6 +27,26 @@ class GuestFeatures
     public function all(): array
     {
         return array_map(fn (string $setting): bool => $this->enabled(array_search($setting, self::SETTINGS, true)), self::SETTINGS);
+    }
+
+    /** The club shop in the agent (club settings, on by default). */
+    public function shopEnabled(): bool
+    {
+        return filter_var($this->currentClub->settings()['club']['agent_shop_enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Time sold at the cash register to a guest without an account (club settings → Guests, on by default). */
+    public function guestModeEnabled(): bool
+    {
+        return filter_var($this->currentClub->settings()['guests']['guest_mode_enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Minutes a customer may stay signed in on a PC without a paid session; 0 — no limit. */
+    public function idleLogoutMinutes(): int
+    {
+        $minutes = $this->currentClub->settings()['club']['agent_idle_logout_minutes'] ?? self::DEFAULT_IDLE_LOGOUT_MINUTES;
+
+        return is_numeric($minutes) ? max(0, (int) ceil((float) $minutes)) : self::DEFAULT_IDLE_LOGOUT_MINUTES;
     }
 
     /** Stops the request when the club has turned the feature off. */

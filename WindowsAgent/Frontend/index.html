@@ -24,14 +24,14 @@
 		  <button class="nav-item" id="tariffNavigation" type="button" aria-label="Тарифы" data-i18n-aria-label="Тарифы" title="Тарифы" data-i18n-title="Тарифы">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2m-3-10v1m0 12v1m9-4h-1M4 12H3"/></svg>
 		  </button>
-		  <button class="nav-item" id="historyNavigation" type="button" aria-label="История баланса" data-i18n-aria-label="История баланса" title="История баланса" data-i18n-title="История баланса">
+		  <button class="nav-item" id="historyNavigation" type="button" aria-label="История" data-i18n-aria-label="История" title="История" data-i18n-title="История">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
 		  </button>
 		  <button class="nav-item" id="friendsNavigation" type="button" aria-label="Друзья" data-i18n-aria-label="Друзья" title="Друзья" data-i18n-title="Друзья" hidden>
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5 5 0 0 1 6 4.8"/></svg>
 			<span class="nav-badge" id="friendsBadge" hidden></span>
 		  </button>
-		  <button class="nav-item" id="chatNavigation" type="button" aria-label="Чат с клубом" data-i18n-aria-label="Чат с клубом" title="Чат с клубом" data-i18n-title="Чат с клубом">
+		  <button class="nav-item" id="chatNavigation" type="button" aria-label="Помощь" data-i18n-aria-label="Помощь" title="Помощь" data-i18n-title="Помощь">
 			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg>
 			<span class="nav-badge" id="chatBadge" hidden></span>
 		  </button>
@@ -60,8 +60,8 @@
 		  <div class="card">
 			<h3 data-i18n="Информация о текущей сессии">Информация о текущей сессии</h3>
 			<div class="small muted" data-i18n="Осталось времени">Осталось времени</div>
-			<div id="remainingBig" class="large">—</div>
-			<div class="muted small"><span data-i18n="Сессия истекает:">Сессия истекает:</span> <span id="sessionExpires">—</span></div>
+			<div id="remainingBig" class="large">Нет активной сессии</div>
+			<div class="muted small" id="sessionExpiresRow" hidden><span data-i18n="Сессия истекает:">Сессия истекает:</span> <span id="sessionExpires"></span></div>
 		  </div>
 
 		  <div class="card">
@@ -93,8 +93,8 @@
 		<section class="shop-page" id="shopPage" aria-labelledby="shopTitle" hidden>
 		  <header class="shop-heading">
 			<div>
-			  <p class="shop-kicker" data-i18n="МАГАЗИН КЛУБА">МАГАЗИН КЛУБА</p>
-			  <h1 id="shopTitle" data-i18n="Товары для игры">Товары для игры</h1>
+			  <p class="shop-kicker" data-i18n="ПРИНЕСЁМ К ВАШЕМУ ПК">ПРИНЕСЁМ К ВАШЕМУ ПК</p>
+			  <h1 id="shopTitle" data-i18n="Магазин клуба">Магазин клуба</h1>
 			  <p class="shop-intro" data-i18n="Напитки, перекус и полезное для игрового места.">Напитки, перекус и полезное для игрового места.</p>
 			</div>
 			<button class="cart-toggle" id="cartToggle" type="button" aria-label="Открыть корзину" data-i18n-aria-label="Открыть корзину">
@@ -120,7 +120,8 @@
 			  <div class="cart-items" id="cartItems"></div>
 			  <div class="cart-empty" id="cartEmpty" data-i18n="Добавьте товары из каталога">Добавьте товары из каталога</div>
 			  <div class="cart-total"><span data-i18n="Итого">Итого</span><strong id="cartTotal">0 KZT</strong></div>
-			  <p class="cart-note" data-i18n="Покажите заказ администратору для оформления.">Покажите заказ администратору для оформления.</p>
+			  <button class="primary cart-pay" type="button" data-cart-pay data-i18n="Оплатить с баланса">Оплатить с баланса</button>
+			  <p class="cart-note" data-i18n="Оплата с основного счёта. Сотрудник клуба принесёт заказ к вашему ПК.">Оплата с основного счёта. Сотрудник клуба принесёт заказ к вашему ПК.</p>
 			</aside>
 		  </div>
 		</section>
@@ -129,7 +130,7 @@
 		  <header class="history-heading">
 			<div>
 			  <p class="history-kicker" data-i18n="СЧЁТ И ОПЕРАЦИИ">СЧЁТ И ОПЕРАЦИИ</p>
-			  <h1 id="historyTitle" data-i18n="История баланса">История баланса</h1>
+			  <h1 id="historyTitle" data-i18n="История">История</h1>
 			  <p data-i18n="Пополнения, списания и движение бонусных средств.">Пополнения, списания и движение бонусных средств.</p>
 			</div>
 		  </header>
@@ -149,6 +150,13 @@
 				<h2 id="historyListTitle" data-i18n="Операции">Операции</h2>
 				<p data-i18n="Покупки, пополнения, переводы и входы на ПК">Покупки, пополнения, переводы и входы на ПК</p>
 			  </div>
+			</div>
+			<div class="history-filters" id="historyFilters" role="group" aria-label="Фильтр операций" data-i18n-aria-label="Фильтр операций">
+			  <button class="category-button is-active" type="button" data-history-filter="" aria-pressed="true" data-i18n="Все">Все</button>
+			  <button class="category-button" type="button" data-history-filter="purchases" aria-pressed="false" data-i18n="Покупки">Покупки</button>
+			  <button class="category-button" type="button" data-history-filter="top_ups" aria-pressed="false" data-i18n="Пополнения">Пополнения</button>
+			  <button class="category-button" type="button" data-history-filter="transfers" aria-pressed="false" data-i18n="Переводы">Переводы</button>
+			  <button class="category-button" type="button" data-history-filter="visits" aria-pressed="false" data-i18n="Входы и пересадки">Входы и пересадки</button>
 			</div>
 			<ol class="history-list" id="historyList"></ol>
 			<div class="history-empty" id="historyEmpty" hidden>
@@ -219,7 +227,8 @@
 		  </section>
 		  <section class="profile-session" aria-labelledby="profileSessionTitle">
 			<h2 id="profileSessionTitle" data-i18n="Текущая сессия">Текущая сессия</h2>
-			<dl class="profile-details">
+			<p class="profile-no-session" id="profileNoSession" data-i18n="Нет активной сессии">Нет активной сессии</p>
+			<dl class="profile-details" id="profileDetails" hidden>
 			  <div><dt data-i18n="Тариф">Тариф</dt><dd id="profileTariff">—</dd></div>
 			  <div><dt data-i18n="Начало">Начало</dt><dd id="profileStartedAt">—</dd></div>
 			  <div><dt data-i18n="Осталось времени">Осталось времени</dt><dd id="profileRemaining">—</dd></div>
@@ -244,7 +253,7 @@
 		<section class="friends-page chat-page" id="chatPage" aria-labelledby="chatTitle" hidden>
 		  <header class="profile-heading">
 			<p class="profile-kicker" data-i18n="СВЯЗЬ С КЛУБОМ">СВЯЗЬ С КЛУБОМ</p>
-			<h1 id="chatTitle" data-i18n="Чат с клубом">Чат с клубом</h1>
+			<h1 id="chatTitle" data-i18n="Помощь">Помощь</h1>
 			<p data-i18n="Напишите кассиру или оператору клуба: ответ придёт сюда.">Напишите кассиру или оператору клуба: ответ придёт сюда.</p>
 		  </header>
 		  <ol class="chat-thread" id="chatThread"></ol>
@@ -286,7 +295,8 @@
 		  <div class="dialog-cart-items" id="dialogCartItems"></div>
 		  <div class="dialog-cart-empty" id="dialogCartEmpty" data-i18n="Корзина пока пуста">Корзина пока пуста</div>
 		  <div class="cart-total"><span data-i18n="Итого">Итого</span><strong id="dialogCartTotal">0 KZT</strong></div>
-		  <p class="cart-note" data-i18n="Покажите заказ администратору для оформления.">Покажите заказ администратору для оформления.</p>
+		  <button class="primary cart-pay" type="button" data-cart-pay data-i18n="Оплатить с баланса">Оплатить с баланса</button>
+		  <p class="cart-note" data-i18n="Оплата с основного счёта. Сотрудник клуба принесёт заказ к вашему ПК.">Оплата с основного счёта. Сотрудник клуба принесёт заказ к вашему ПК.</p>
 		  <button class="clear-cart" id="clearCart" type="button" data-i18n="Очистить корзину">Очистить корзину</button>
 		</dialog>
 
@@ -319,6 +329,8 @@
 		  <form class="transfer-form" id="transferForm">
 			<label for="transferAmount" data-i18n="Сумма с основного счёта">Сумма с основного счёта</label>
 			<input id="transferAmount" inputmode="decimal" maxlength="13" autocomplete="off" required>
+			<label for="transferPassword" data-i18n="Пароль от аккаунта">Пароль от аккаунта</label>
+			<input id="transferPassword" type="password" maxlength="256" autocomplete="current-password" required>
 			<p class="friends-status" id="transferStatus" role="status" aria-live="polite"></p>
 			<button class="primary" id="transferSubmit" type="submit" data-i18n="Перевести">Перевести</button>
 		  </form>
@@ -341,6 +353,16 @@
 			<span><i class="seat-swatch current"></i><span data-i18n="Вы здесь">Вы здесь</span></span>
 		  </div>
 		  <button class="primary seat-confirm" id="seatConfirm" type="button" disabled data-i18n="Выберите свободный ПК">Выберите свободный ПК</button>
+		</dialog>
+
+		<!-- Подтверждение: выход, завершение сессии, оплата заказа. -->
+		<dialog class="cart-dialog confirm-dialog" id="confirmDialog" aria-labelledby="confirmTitle">
+		  <h2 id="confirmTitle"></h2>
+		  <p class="dialog-note" id="confirmText"></p>
+		  <div class="confirm-actions">
+			<button class="friend-button" id="confirmCancel" type="button" data-i18n="Отмена">Отмена</button>
+			<button class="primary" id="confirmOk" type="button"></button>
+		  </div>
 		</dialog>
 
 	  </main>
@@ -372,6 +394,9 @@
 		</div>
 	  </aside>
 	</div>
+
+	<!-- Ошибки и предупреждения: всплывающие сообщения цвета по смыслу. -->
+	<div class="toasts" id="toasts" aria-live="assertive"></div>
 
 	<script src="main.js"></script>
   </body>

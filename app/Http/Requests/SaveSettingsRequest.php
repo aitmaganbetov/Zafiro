@@ -30,6 +30,9 @@ class SaveSettingsRequest extends FormRequest
             'allow_guest_self_transfer' => ['nullable', 'boolean'],
             'allow_adding_friends' => ['nullable', 'boolean'],
             'allow_balance_transfer_to_friends' => ['nullable', 'boolean'],
+            'agent_idle_logout_minutes' => ['sometimes', 'numeric', 'min:0', 'max:1440'],
+            'agent_shop_enabled' => ['nullable', 'boolean'],
+            'guest_mode_enabled' => ['nullable', 'boolean'],
         ];
     }
 }

@@ -570,6 +570,8 @@ namespace ZafiroAgent.Services
                         .Where(feature => feature.Value.ValueKind is JsonValueKind.True or JsonValueKind.False)
                         .ToDictionary(feature => feature.Name, feature => feature.Value.GetBoolean());
                 }
+                if (club.TryGetProperty("idle_logout_minutes", out var idleLogout) && idleLogout.ValueKind == JsonValueKind.Number && idleLogout.TryGetInt32(out var idleMinutes))
+                    heartbeat.IdleLogoutMinutes = Math.Max(0, idleMinutes);
                 if (club.TryGetProperty("after_session", out var afterSession) && afterSession.ValueKind == JsonValueKind.Object &&
                     TryGetString(afterSession, "action", out var afterAction))
                 {

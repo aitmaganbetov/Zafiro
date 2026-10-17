@@ -93,6 +93,8 @@ class ActivityLog extends Model
         'friend.accepted' => 'Принятие заявки в друзья',
         'friend.removed' => 'Удаление из друзей',
         'balance.transferred' => 'Перевод баланса другу',
+        'shop.purchased' => 'Заказ товаров из агента',
+        'computer.guest_session_reset' => 'Гостевая сессия сброшена после перезагрузки',
     ];
 
     protected function casts(): array

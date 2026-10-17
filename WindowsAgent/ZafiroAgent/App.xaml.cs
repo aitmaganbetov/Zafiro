@@ -87,6 +87,9 @@ namespace ZafiroAgent
             var clubSetup = new ClubSetupService(_api, _config, _secure);
             clubSetup.ForgetAnotherPc(Task.Run(() => DeviceInfo.StableId).GetAwaiter().GetResult());
             AttachToService();
+            // После перезагрузки гостевое время ПК сбрасывается: сервер узнаёт о новой загрузке сразу.
+            Infrastructure.FreshBoot.Detect();
+            if (Infrastructure.FreshBoot.Pending) _ = clubSetup.ReportFreshBootAsync(CancellationToken.None);
 
             Keyboard.StaffShortcut += () => Dispatcher.BeginInvoke(RequestStaffExit);
             Keyboard.Install();

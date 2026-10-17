@@ -8,6 +8,7 @@ use App\Models\Translation;
 use App\Services\ActivityLogger;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
+use App\Services\GuestFeatures;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
 use Illuminate\Http\RedirectResponse;
@@ -217,6 +218,8 @@ class SettingsController extends Controller
                 'booking_interval',
                 'max_cashiers_on_shift',
                 'max_operators_on_shift',
+                'agent_idle_logout_minutes',
+                'agent_shop_enabled',
             ],
             'finances' => [
                 'currency',
@@ -226,6 +229,7 @@ class SettingsController extends Controller
                 'allow_guest_self_transfer',
                 'allow_adding_friends',
                 'allow_balance_transfer_to_friends',
+                'guest_mode_enabled',
             ],
         ];
 
@@ -234,6 +238,8 @@ class SettingsController extends Controller
             'allow_guest_self_transfer',
             'allow_adding_friends',
             'allow_balance_transfer_to_friends',
+            'agent_shop_enabled',
+            'guest_mode_enabled',
         ];
 
         $minuteFields = [
@@ -243,6 +249,7 @@ class SettingsController extends Controller
             'booking_interval',
             'max_cashiers_on_shift',
             'max_operators_on_shift',
+            'agent_idle_logout_minutes',
         ];
 
         foreach ($fields[$section] ?? [] as $field) {
@@ -285,7 +292,7 @@ class SettingsController extends Controller
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {
-            if ($field !== 'pc_action_after_session_end') {
+            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled'], true)) {
                 $settings['club'][$field] = $this->minutes($settings['club'][$field]);
             }
         }
@@ -306,6 +313,9 @@ class SettingsController extends Controller
                 // How many cashiers / operators may be signed in to the panel at once; 0 — no limit.
                 'max_cashiers_on_shift' => 0,
                 'max_operators_on_shift' => 0,
+                // A customer signed in on a PC without a paid session is signed out after these minutes; 0 — never.
+                'agent_idle_logout_minutes' => GuestFeatures::DEFAULT_IDLE_LOGOUT_MINUTES,
+                'agent_shop_enabled' => true,
             ],
             'finances' => [
                 'currency' => 'KZT',
@@ -315,6 +325,7 @@ class SettingsController extends Controller
                 'allow_guest_self_transfer' => false,
                 'allow_adding_friends' => false,
                 'allow_balance_transfer_to_friends' => false,
+                'guest_mode_enabled' => true,
             ],
         ];
     }
@@ -330,6 +341,8 @@ class SettingsController extends Controller
                 'booking_interval' => __('Интервал между бронированиями (в минутах)'),
                 'max_cashiers_on_shift' => __('Сколько кассиров может быть на смене'),
                 'max_operators_on_shift' => __('Сколько операторов может быть на смене'),
+                'agent_idle_logout_minutes' => __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)'),
+                'agent_shop_enabled' => __('Включить магазин в агенте'),
             ],
             'finances' => [
                 'currency' => __('Валюта'),
@@ -339,6 +352,7 @@ class SettingsController extends Controller
                 'allow_guest_self_transfer' => __('Разрешить самостоятельную пересадку гостя'),
                 'allow_adding_friends' => __('Возможность добавления в друзья'),
                 'allow_balance_transfer_to_friends' => __('Разрешить перевод баланса друзьям'),
+                'guest_mode_enabled' => __('Включить гостевой режим'),
             ],
         ];
     }

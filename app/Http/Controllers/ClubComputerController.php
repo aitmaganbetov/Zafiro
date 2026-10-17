@@ -201,7 +201,7 @@ class ClubComputerController extends Controller
             $data = array_intersect_key($data, array_flip(['state', 'session_id', 'session_ends_at', 'agent_version']));
         }
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), $request->validated() === []);
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true]) === []);
     }
 
     /** New device token for this PC; the one in the request stops working. */
@@ -215,7 +215,7 @@ class ClubComputerController extends Controller
     {
         $computer = $request->attributes->get('agent_computer');
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), $request->validated() === []);
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true]) === []);
     }
 
     /** Ends the paid session early: its owner or club staff. */
@@ -259,7 +259,9 @@ class ClubComputerController extends Controller
                 ...$this->agentLanguages(),
                 'after_session' => $this->afterSessionAction(),
                 // What customers may do themselves (club settings → Guests).
-                'guest_features' => app(GuestFeatures::class)->all(),
+                'guest_features' => [...app(GuestFeatures::class)->all(), 'shop' => app(GuestFeatures::class)->shopEnabled()],
+                // A customer signed in without a paid session is signed out after this many minutes.
+                'idle_logout_minutes' => app(GuestFeatures::class)->idleLogoutMinutes(),
             ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.

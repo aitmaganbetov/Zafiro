@@ -26,6 +26,22 @@
     @endforeach
 </div>
 
+<section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="agent-settings-title">
+    <h5 id="agent-settings-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Агент на ПК') }}</h5>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+            <label for="agent_idle_logout_minutes" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)') }}</label>
+            <input id="agent_idle_logout_minutes" type="number" min="0" max="1440" step="1" name="agent_idle_logout_minutes" value="{{ old('agent_idle_logout_minutes', $settings['club']['agent_idle_logout_minutes'] ?? 5) }}" class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+            <p class="mt-1 text-xs text-gray-500">{{ __('Клиент вошёл и не купил тариф или сессия закончилась, а он не вышел: агент сам выйдет из аккаунта и освободит ПК. 0 — не выходить.') }}</p>
+        </div>
+        <div class="flex items-center gap-3 self-start rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+            <label for="agent_shop_enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Включить магазин в агенте') }}</label>
+            <input type="hidden" name="agent_shop_enabled" value="0">
+            <input id="agent_shop_enabled" type="checkbox" role="switch" name="agent_shop_enabled" value="1" class="settings-switch" @checked(old('agent_shop_enabled', $settings['club']['agent_shop_enabled'] ?? true))>
+        </div>
+    </div>
+</section>
+
 <section class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="shift-limits-title">
     <h5 id="shift-limits-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Сотрудники на смене') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Столько кассиров и операторов могут одновременно быть в панели. Следующий войдёт, когда кто-то выйдет (или через 2 часа без действий). 0 — без ограничения.') }}</p>

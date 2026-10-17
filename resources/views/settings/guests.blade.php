@@ -8,6 +8,23 @@
 <h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Гости') }}</h4>
 <div class="flex flex-col items-start gap-3">
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <label for="guest_mode_enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ __('Включить гостевой режим') }}
+        </label>
+        <input type="hidden" name="guest_mode_enabled" value="0">
+        <input
+            id="guest_mode_enabled"
+            type="checkbox"
+            role="switch"
+            name="guest_mode_enabled"
+            value="1"
+            class="settings-switch"
+            @checked($settings['guests']['guest_mode_enabled'] ?? true)
+        >
+    </div>
+    <p class="-mt-1 max-w-xl text-xs text-gray-500">{{ __('На карте клуба у выбранных ПК появится кнопка «Подключить тариф»: время для гостя без аккаунта, оплата на кассе. После перезагрузки ПК гостевое время сбрасывается.') }}</p>
+
+    <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="show_qr_code_on_login" class="text-sm font-medium text-gray-700 dark:text-gray-300">
             {{ __('Отображать QR-код на странице авторизации') }}
         </label>

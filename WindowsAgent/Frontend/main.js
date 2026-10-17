@@ -42,6 +42,8 @@
   const productName = (product) => product.name ?? t('Товар');
 
   const cart = new Map();
+  let shopPaying = false;
+  let cartTotalPrice = 0;
   const shopCatalog = document.getElementById('shopCatalog');
   const sessionPage = document.getElementById('sessionPage');
   const shopPage = document.getElementById('shopPage');
@@ -84,6 +86,64 @@
     element.textContent = text;
   };
 
+  // Ошибки и предупреждения — всплывающим сообщением: красное (error), жёлтое (warning),
+  // зелёное (success), синее (info). Одно и то же сообщение — не чаще раза в 45 с (heartbeat).
+  const toasts = document.getElementById('toasts');
+  const toastShown = new Map();
+  const toast = (text, level = 'error') => {
+    if (!text) return;
+    const now = Date.now();
+    if (now - (toastShown.get(text) ?? 0) < 45000) return;
+    toastShown.set(text, now);
+    const item = document.createElement('div');
+    item.className = `toast ${level}`;
+    item.setAttribute('role', level === 'error' || level === 'warning' ? 'alert' : 'status');
+    const message = document.createElement('p');
+    message.textContent = text;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.textContent = '×';
+    close.setAttribute('aria-label', t('Закрыть'));
+    const remove = () => item.remove();
+    close.addEventListener('click', remove);
+    item.append(message, close);
+    toasts.append(item);
+    while (toasts.children.length > 4) toasts.firstElementChild.remove();
+    setTimeout(remove, level === 'error' ? 8000 : 5000);
+  };
+  const toastKey = (key, level = 'error', params = {}) => toast(t(key, params), level);
+
+  // Подтверждение действия в окне агента (не системное окно браузера).
+  const confirmDialog = document.getElementById('confirmDialog');
+  let confirmResolve = null;
+  const askConfirm = (title, text, okLabel) => new Promise((resolve) => {
+    if (confirmResolve) confirmResolve(false);
+    confirmResolve = resolve;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmText').textContent = text;
+    document.getElementById('confirmOk').textContent = okLabel;
+    if (typeof confirmDialog.showModal === 'function') confirmDialog.showModal();
+    else confirmDialog.setAttribute('open', '');
+    document.getElementById('confirmCancel').focus();
+  });
+  const finishConfirm = (answer) => {
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    if (typeof confirmDialog.close === 'function') confirmDialog.close();
+    else confirmDialog.removeAttribute('open');
+    resolve?.(answer);
+  };
+  document.getElementById('confirmOk').addEventListener('click', () => finishConfirm(true));
+  document.getElementById('confirmCancel').addEventListener('click', () => finishConfirm(false));
+  confirmDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    finishConfirm(false);
+  });
+  confirmDialog.addEventListener('click', (event) => {
+    if (event.target === confirmDialog) finishConfirm(false);
+  });
+
   const fetchProducts = () => {
     setStatus(shopCount, 'Загружаем товары…');
     if (webview) webview.postMessage({ type: 'requestProducts' });
@@ -107,7 +167,10 @@
     });
   };
 
+  // Магазин в агенте клуб может выключить (настройки клуба).
+  let shopEnabled = true;
   const setView = (view) => {
+    if (view === 'shop' && !shopEnabled) view = 'session';
     currentView = view;
     const showShop = view === 'shop';
     const showHistory = view === 'history';
@@ -124,6 +187,8 @@
     historyPage.hidden = !showHistory;
     tariffPage.hidden = !showTariffs;
     profilePage.hidden = !showProfile;
+    shopNavigation.hidden = !shopEnabled;
+    pageToggle.hidden = !shopEnabled && view === 'session';
     pageToggle.querySelector('span').textContent = view === 'session' ? t('Магазин') : t('К сессии');
     pageToggle.setAttribute('aria-label', view === 'session' ? t('Открыть магазин') : t('Вернуться к сессии'));
     homeNavigation.setAttribute('aria-current', view === 'session' ? 'page' : 'false');
@@ -270,6 +335,10 @@
     document.getElementById('cartPanelCount').textContent = String(totalQuantity);
     document.getElementById('cartTotal').textContent = formatPrice(totalPrice);
     document.getElementById('dialogCartTotal').textContent = formatPrice(totalPrice);
+    document.querySelectorAll('[data-cart-pay]').forEach((button) => {
+      button.disabled = totalQuantity === 0 || shopPaying;
+    });
+    cartTotalPrice = totalPrice;
     renderCartItems(document.getElementById('cartItems'), document.getElementById('cartEmpty'));
     renderCartItems(document.getElementById('dialogCartItems'), document.getElementById('dialogCartEmpty'));
     renderProducts();
@@ -327,7 +396,7 @@
       button.addEventListener('click', () => {
         const tariffId = tariffValue(tariff, 'id');
         if (tariffId === undefined || !webview) {
-          setStatus(tariffPageStatus, 'Покупка доступна в приложении.');
+          toastKey('Покупка доступна в приложении.', 'warning');
           return;
         }
 
@@ -366,6 +435,21 @@
     cart.clear();
     renderCart();
   });
+
+  // Оплата заказа с основного счёта: сервер списывает деньги и товар, кассир получает заказ в чат.
+  document.querySelectorAll('[data-cart-pay]').forEach((button) => button.addEventListener('click', async () => {
+    if (!webview || cart.size === 0 || shopPaying) return;
+    const items = [...cart.entries()].map(([id, quantity]) => ({ id: Number(id), quantity }));
+    if (items.some((item) => !Number.isInteger(item.id) || item.id <= 0)) {
+      toastKey('Не удалось оформить заказ. Обновите магазин.');
+      return;
+    }
+    const confirmed = await askConfirm(t('Оплатить заказ'), t('С основного счёта будет списано :amount. Сотрудник клуба принесёт заказ к вашему ПК.', { amount: formatPrice(cartTotalPrice) }), t('Оплатить'));
+    if (!confirmed) return;
+    shopPaying = true;
+    renderCart();
+    webview.postMessage({ type: 'purchaseProducts', items });
+  }));
   cartDialog.addEventListener('click', (event) => {
     if (event.target === cartDialog) cartDialog.close();
   });
@@ -379,7 +463,7 @@
     requestMinutes();
   });
   document.getElementById('btnTopUp')?.addEventListener('click', () => {
-    setStatus(actionStatus, 'Пополнить баланс можно на кассе клуба.');
+    toastKey('Пополнить баланс можно на кассе клуба.', 'info');
   });
   // «Обновить»: баланс с сервера сразу, не дожидаясь автообновления (например, после пополнения на кассе).
   const refreshBalanceButton = document.getElementById('btnRefreshBalance');
@@ -423,6 +507,7 @@
     document.getElementById('remainingBig').textContent = formatMinutes(remainingMinutes);
     document.getElementById('profileRemaining').textContent = formatMinutes(remainingMinutes);
     document.getElementById('sessionExpires').textContent = formatDateTime(sessionEndsAt);
+    document.getElementById('sessionExpiresRow').hidden = false;
   };
   setInterval(showSessionTime, 15000);
 
@@ -443,6 +528,10 @@
     if (!messages) return;
     clearInterval(afterSessionTimer);
     const deadline = Date.now() + Math.max(0, Number(seconds) || 0) * 1000;
+    if (afterSessionTimer === null) {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      toast(t(messages[0], { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` }), 'warning');
+    }
     const tick = () => {
       const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       const time = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
@@ -461,10 +550,18 @@
 
   const showProfileStatus = () => {
     document.getElementById('profileStatus').textContent = hasActiveSession ? t('Активная сессия') : t('Нет активной сессии');
+    // Без сессии в профиле — только «Нет активной сессии», без пустых строк тарифа и времени.
+    document.getElementById('profileNoSession').hidden = hasActiveSession;
+    document.getElementById('profileDetails').hidden = !hasActiveSession;
   };
 
   // Друзья, переводы и пересадка: только то, что клуб включил в настройках «Гости» (приходит с heartbeat).
   let guestFeatures = { friends: false, balance_transfer: false, self_transfer: false };
+  // Вошёл, но без оплаченной сессии (не купил тариф или время кончилось): через столько минут
+  // агент сам выходит из аккаунта и освобождает ПК (настройки клуба; 0 или null — не выходит).
+  let idleLogoutMinutes = null;
+  let idleSince = null;
+  let idleWarned = false;
   let friendsData = { friends: [], incoming: [], outgoing: [] };
   const friendsBadge = document.getElementById('friendsBadge');
   const friendAddForm = document.getElementById('friendAddForm');
@@ -475,6 +572,7 @@
   const transferAmount = document.getElementById('transferAmount');
   const transferStatus = document.getElementById('transferStatus');
   const transferSubmit = document.getElementById('transferSubmit');
+  const transferPassword = document.getElementById('transferPassword');
   const seatButton = document.getElementById('btnSeat');
   const seatDialog = document.getElementById('seatDialog');
   const seatStatus = document.getElementById('seatStatus');
@@ -559,6 +657,7 @@
         transferFriend = friend;
         document.getElementById('transferFriend').textContent = `${friend.name ?? ''} · ${friend.phone ?? ''}`;
         transferAmount.value = '';
+        transferPassword.value = '';
         setStatus(transferStatus, null);
         transferSubmit.disabled = false;
         openDialog(transferDialog);
@@ -590,7 +689,7 @@
     event.preventDefault();
     const phone = friendPhone.value.replace(/\D+/g, '');
     if (phone.length < 10) {
-      setStatus(friendsStatus, 'Введите 10 цифр номера после +7.');
+      toastKey('Введите 10 цифр номера после +7.', 'warning');
       return;
     }
     setStatus(friendsStatus, 'Отправляем…');
@@ -601,12 +700,18 @@
     event.preventDefault();
     const amount = transferAmount.value.trim().replace(',', '.');
     if (!transferFriend || !/^\d{1,10}(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
-      setStatus(transferStatus, 'Введите сумму, например 500 или 250.50.');
+      toastKey('Введите сумму, например 500 или 250.50.', 'warning');
+      return;
+    }
+    if (!transferPassword.value) {
+      toastKey('Введите пароль от аккаунта, чтобы подтвердить перевод.', 'warning');
+      transferPassword.focus();
       return;
     }
     transferSubmit.disabled = true;
     setStatus(transferStatus, 'Переводим…');
-    webview?.postMessage({ type: 'transferBalance', id: transferFriend.id, amount });
+    webview?.postMessage({ type: 'transferBalance', id: transferFriend.id, amount, password: transferPassword.value });
+    transferPassword.value = '';
   });
 
   // Карта для пересадки — те же зоны и места ПК, что на карте клуба в панели (координаты оттуда же).
@@ -711,6 +816,7 @@
   let historyEntries = [];
   let historyBefore = null;
   let historyLoading = false;
+  let historyFilter = '';
 
   const historyAmount = (value, bonus) => {
     if (value === null || value === undefined) return null;
@@ -753,8 +859,19 @@
     historyLoading = true;
     setStatus(historyStatus, 'Загружаем операции…');
     renderHistory();
-    webview.postMessage({ type: 'requestHistory', before: more ? historyBefore : null });
+    webview.postMessage({ type: 'requestHistory', before: more ? historyBefore : null, filter: historyFilter || null });
   };
+  document.getElementById('historyFilters').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-history-filter]');
+    if (!button || historyLoading) return;
+    historyFilter = button.dataset.historyFilter;
+    document.querySelectorAll('[data-history-filter]').forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('is-active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+    requestHistory();
+  });
   historyMore.addEventListener('click', () => requestHistory(true));
 
   // Поминутно: цена часа зоны этого ПК / 60 × минуты (округление как на сервере, до тиына).
@@ -961,8 +1078,9 @@
   const clearSessionDetails = () => {
     sessionEndsAt = null;
     sessionStartedAt = null;
-    document.getElementById('remainingBig').textContent = '—';
-    document.getElementById('sessionExpires').textContent = '—';
+    document.getElementById('remainingBig').textContent = t('Нет активной сессии');
+    document.getElementById('sessionExpires').textContent = '';
+    document.getElementById('sessionExpiresRow').hidden = true;
     document.getElementById('profileTariff').textContent = '—';
     document.getElementById('profileRemaining').textContent = '—';
     delete document.getElementById('profileRemaining').dataset.minutes;
@@ -970,17 +1088,46 @@
     showProfileStatus();
   };
 
-  endButton.addEventListener('click', () => {
+  endButton.addEventListener('click', async () => {
     if (!webview) {
-      setStatus(actionStatus, 'Действие доступно только в приложении.');
+      toastKey('Действие доступно только в приложении.', 'warning');
       return;
     }
+
+    const ending = hasActiveSession;
+    const confirmed = ending
+      ? await askConfirm(t('Завершить сессию?'), t('Оставшееся время не возвращается на счёт.'), t('Завершить сессию'))
+      : await askConfirm(t('Выйти из аккаунта?'), t('Чтобы снова играть на этом ПК, нужно будет войти заново.'), t('Выйти'));
+    // Пока окно было открыто, сессия могла закончиться: действие — то, что клиент подтвердил.
+    if (!confirmed || ending !== hasActiveSession) return;
 
     endButton.disabled = true;
     setStatus(actionStatus, hasActiveSession ? 'Завершаем сессию…' : 'Выходим…');
     // endSession не разлогинивает пользователя, logout — разлогинивает.
     webview.postMessage({ type: hasActiveSession ? 'endSession' : 'logout' });
   });
+
+  const idleLogoutTick = () => {
+    const minutes = Number(idleLogoutMinutes);
+    if (!webview || userName === null || hasActiveSession || !Number.isFinite(minutes) || minutes <= 0) {
+      idleSince = null;
+      idleWarned = false;
+      return;
+    }
+    idleSince ??= Date.now();
+    const left = idleSince + minutes * 60000 - Date.now();
+    if (left <= 0) {
+      idleSince = null;
+      idleWarned = false;
+      webview.postMessage({ type: 'logout' });
+      return;
+    }
+    if (!idleWarned && left <= 60000) {
+      idleWarned = true;
+      toastKey('Нет активной сессии: через минуту вы выйдете из аккаунта. Выберите тариф, чтобы остаться.', 'warning');
+    }
+  };
+  setInterval(idleLogoutTick, 5000);
 
   homeNavigation.addEventListener('click', () => {
     setView('session');
@@ -1073,6 +1220,7 @@
     renderNewsCards();
     if (newsDialog.open) showNews();
     renderTelegram();
+    if (!sessionEndsAt && !hasActiveSession) clearSessionDetails();
   };
 
   webview?.addEventListener('message', (event) => {
@@ -1122,11 +1270,24 @@
     }
 
     if (event.data?.type === 'chatSent') {
+      setStatus(chatStatus, null);
       if (event.data.ok) {
         chatInput.value = '';
-        setStatus(chatStatus, null);
         appendChat(event.data.data?.message);
-      } else setServerStatus(chatStatus, event.data.message ?? t('Не удалось отправить сообщение.'));
+      } else toast(event.data.message ?? t('Не удалось отправить сообщение.'));
+    }
+
+    if (event.data?.type === 'shopResult') {
+      shopPaying = false;
+      if (event.data.ok) {
+        cart.clear();
+        closeDialog(cartDialog);
+        if (event.data.data?.balance !== undefined) applyBalances(event.data.data.balance, balances[1]);
+        toast(event.data.data?.message ?? t('Заказ оплачен.'), 'success');
+        fetchProducts();
+        requestChat();
+      } else toast(event.data.message ?? t('Не удалось оформить заказ.'));
+      renderCart();
     }
 
     if (event.data?.type === 'news') {
@@ -1148,8 +1309,8 @@
     if (event.data?.type === 'tariffs') {
       renderTariffs(Array.isArray(event.data.list) ? event.data.list : []);
       if (event.data.error) {
-        if (event.data.message) setServerStatus(tariffPageStatus, event.data.message);
-        else setStatus(tariffPageStatus, 'Не удалось загрузить тарифы. Проверьте подключение.');
+        setStatus(tariffPageStatus, 'Не удалось загрузить тарифы. Проверьте подключение.');
+        toast(event.data.message ?? t('Не удалось загрузить тарифы. Проверьте подключение.'));
       }
     }
 
@@ -1158,8 +1319,8 @@
         item.disabled = false;
       });
       renderMinutes();
-      if (event.data.message) setServerStatus(tariffPageStatus, event.data.message);
-      else setStatus(tariffPageStatus, event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.');
+      setStatus(tariffPageStatus, null);
+      toast(event.data.message ?? t(event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.'), event.data.success ? 'success' : 'error');
       // Сессию после покупки присылает агент (sessionSync); здесь — только баланс.
       if (event.data.success) applyBalances(event.data.newBalance, event.data.newBonus);
     }
@@ -1184,13 +1345,15 @@
 
     if (event.data?.type === 'balanceError') {
       finishBalanceRefresh();
-      setStatus(actionStatus, 'Не удалось обновить баланс. Проверьте подключение.');
+      toastKey('Не удалось обновить баланс. Проверьте подключение.');
     }
 
     if (event.data?.type === 'sessionEnded') {
       setSessionActive(false);
       clearSessionDetails();
-      setStatus(actionStatus, sessionEndMessages[event.data.reason] === undefined ? sessionEndMessages.ended : sessionEndMessages[event.data.reason]);
+      const ended = sessionEndMessages[event.data.reason] === undefined ? sessionEndMessages.ended : sessionEndMessages[event.data.reason];
+      setStatus(actionStatus, ended);
+      if (ended) toastKey(ended, 'warning');
     }
 
     if (event.data?.type === 'afterSession') startAfterSessionCountdown(event.data.action, event.data.seconds);
@@ -1203,6 +1366,10 @@
         balance_transfer: event.data.features.balance_transfer === true,
         self_transfer: event.data.features.self_transfer === true
       };
+      // Старый сервер не присылает флаг магазина: магазин тогда виден, как раньше.
+      shopEnabled = event.data.features.shop !== false;
+      setView(currentView);
+      idleLogoutMinutes = Number.isFinite(event.data.idleLogoutMinutes) ? event.data.idleLogoutMinutes : null;
       updateSeatButton();
       renderFriends();
       // Пока ПК не определился в клубе (сразу после запуска), поминутная цена не загружается:
@@ -1220,12 +1387,16 @@
           incoming: Array.isArray(data.incoming) ? data.incoming : [],
           outgoing: Array.isArray(data.outgoing) ? data.outgoing : []
         };
+        setStatus(friendsStatus, null);
         if (typeof data.message === 'string') {
-          setServerStatus(friendsStatus, data.message);
+          toast(data.message, 'success');
           friendPhone.value = '';
-        } else setStatus(friendsStatus, null);
+        }
         renderFriends();
-      } else setServerStatus(friendsStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+      } else {
+        setStatus(friendsStatus, null);
+        toast(event.data.message ?? t('Не удалось выполнить действие.'));
+      }
     }
 
     if (event.data?.type === 'transferResult') {
@@ -1234,8 +1405,11 @@
         // Бонусы не переводятся: меняется только основной счёт.
         if (event.data.data?.balance !== undefined) applyBalances(event.data.data.balance, balances[1]);
         closeDialog(transferDialog);
-        setServerStatus(friendsStatus, event.data.message ?? '');
-      } else setServerStatus(transferStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+        toast(event.data.message ?? '', 'success');
+      } else {
+        setStatus(transferStatus, null);
+        toast(event.data.message ?? t('Не удалось выполнить действие.'));
+      }
     }
 
     if (event.data?.type === 'history') {
@@ -1244,7 +1418,10 @@
         historyEntries = historyEntries.concat(event.data.data.data);
         historyBefore = Number.isInteger(event.data.data.next_before) ? event.data.data.next_before : null;
         setStatus(historyStatus, null);
-      } else setServerStatus(historyStatus, event.data.message ?? t('Не удалось загрузить операции.'));
+      } else {
+        setStatus(historyStatus, null);
+        toast(event.data.message ?? t('Не удалось загрузить операции.'));
+      }
       renderHistory();
     }
 
@@ -1254,17 +1431,18 @@
         if (seatError) setServerStatus(seatStatus, seatError);
         seatError = null;
       }
-      else setServerStatus(seatStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+      else toast(event.data.message ?? t('Не удалось выполнить действие.'));
     }
 
     if (event.data?.type === 'seatResult') {
       if (event.data.ok) {
         closeDialog(seatDialog);
-        setServerStatus(actionStatus, event.data.message ?? '');
+        toast(event.data.message ?? '', 'success');
       } else {
         // ПК мог только что занять кто-то другой: карта загружается заново.
         seatError = event.data.message ?? t('Не удалось выполнить действие.');
         setServerStatus(seatStatus, seatError);
+        toast(seatError);
         webview?.postMessage({ type: 'requestSeats' });
       }
     }
@@ -1292,19 +1470,34 @@
       applyBalances(null, null);
       stopAfterSessionCountdown();
       cart.clear();
+      shopPaying = false;
       renderCart();
       setStatus(actionStatus, null);
+      transferPassword.value = '';
+      if (confirmResolve) finishConfirm(false);
+      historyFilter = '';
+      document.querySelectorAll('[data-history-filter]').forEach((item) => {
+        const active = item.dataset.historyFilter === '';
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
     }
 
     if (event.data?.type === 'actionFailed' || event.data?.type === 'error') {
       endButton.disabled = false;
-      if (event.data.type === 'actionFailed' && event.data.message) setServerStatus(actionStatus, event.data.message);
-      else setStatus(actionStatus, 'Не удалось выполнить действие.');
+      setStatus(actionStatus, null);
+      if (event.data.type === 'actionFailed' && event.data.message) toast(event.data.message);
+      else toastKey('Не удалось выполнить действие.');
+      // Заказ мог не уйти (ошибка до ответа сервера): кнопка оплаты снова доступна.
+      if (shopPaying) {
+        shopPaying = false;
+        renderCart();
+      }
     }
 
     // Ошибки связи с сервером (401, 402, 403, 404) показываются пользователю без повторных запросов.
     if (event.data?.type === 'heartbeatError' && event.data.message) {
-      setServerStatus(actionStatus, event.data.message);
+      toast(event.data.message);
     }
 
     // Название клуба и номер ПК: от агента при запуске и с каждым heartbeat.
@@ -1326,8 +1519,7 @@
 
     if (event.data?.type === 'sessionData' && event.data.error) {
       applyBalances(null, null);
-      if (event.data.message) setServerStatus(actionStatus, event.data.message);
-      else setStatus(actionStatus, 'Не удалось загрузить баланс.');
+      toast(event.data.message ?? t('Не удалось загрузить баланс.'));
       return;
     }
 

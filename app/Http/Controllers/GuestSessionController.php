@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CurrentClub;
+use App\Services\GuestFeatures;
 use App\Services\GuestSessions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,8 +13,12 @@ use Illuminate\Validation\ValidationException;
 /** "Start tariff" on the club map: time for a guest without an account, paid at the cash register. */
 class GuestSessionController extends Controller
 {
-    public function store(Request $request, GuestSessions $sessions, CurrentClub $currentClub): JsonResponse
+    public function store(Request $request, GuestSessions $sessions, CurrentClub $currentClub, GuestFeatures $features): JsonResponse
     {
+        if (! $features->guestModeEnabled()) {
+            return response()->json(['message' => __('Гостевой режим отключён в настройках клуба.')], 403);
+        }
+
         // A panel route: errors go back as JSON for the map's dialog, not as a redirect.
         try {
             return $this->sell($request, $sessions, $currentClub);

@@ -16,24 +16,33 @@ class GuestHistory
     public const PAGE = 30;
 
     /** Done by the customer. */
-    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
+    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
     private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred'];
 
+    /** Filters of the history page in the agent: [own events, received events]. */
+    public const FILTERS = [
+        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased'], []],
+        'top_ups' => [[], ['user.balance_topped_up']],
+        'transfers' => [['balance.transferred'], ['balance.transferred']],
+        'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
+    ];
+
     /** @return array{data: list<array<string, mixed>>, next_before: ?int} */
-    public function page(User $user, ?int $before = null): array
+    public function page(User $user, ?int $before = null, ?string $filter = null): array
     {
+        [$ownEvents, $receivedEvents] = self::FILTERS[$filter] ?? [self::OWN_EVENTS, self::RECEIVED_EVENTS];
         $userId = $user->getKey();
         $columns = ['id', 'user_id', 'event', 'subject_type', 'subject_id', 'details', 'created_at'];
         // Two indexed queries (author; subject) instead of one OR across both.
-        $own = ActivityLog::query()->where('user_id', $userId)->whereIn('event', self::OWN_EVENTS)
+        $own = $ownEvents === [] ? collect() : ActivityLog::query()->where('user_id', $userId)->whereIn('event', $ownEvents)
             ->when($before, fn ($query) => $query->where('id', '<', $before))
             ->orderByDesc('id')->limit(self::PAGE + 1)->get($columns);
-        $received = ActivityLog::query()
+        $received = $receivedEvents === [] ? collect() : ActivityLog::query()
             ->where('subject_type', $user->getMorphClass())->where('subject_id', $userId)
             ->where('user_id', '!=', $userId)
-            ->whereIn('event', self::RECEIVED_EVENTS)
+            ->whereIn('event', $receivedEvents)
             ->when($before, fn ($query) => $query->where('id', '<', $before))
             ->orderByDesc('id')->limit(self::PAGE + 1)->get($columns);
 
@@ -67,6 +76,15 @@ class GuestHistory
                 $entry['note'] = isset($details['price_per_hour']) ? __(':price за час', ['price' => $details['price_per_hour']]) : null;
                 $entry['amount'] = self::negative($details['main_balance_amount'] ?? $details['amount'] ?? null);
                 $entry['bonus_amount'] = self::negative($details['bonus_balance_amount'] ?? null);
+                break;
+            case 'shop.purchased':
+                $entry['kind'] = 'shop';
+                $entry['title'] = __('Заказ в магазине клуба');
+                $entry['note'] = collect($details['items'] ?? [])
+                    ->filter(fn (mixed $line): bool => is_array($line))
+                    ->map(fn (array $line): string => ($line['name'] ?? '—').' × '.(int) ($line['quantity'] ?? 0))
+                    ->implode(', ') ?: null;
+                $entry['amount'] = self::negative($details['amount'] ?? null);
                 break;
             case 'user.balance_topped_up':
                 $entry['kind'] = 'top_up';

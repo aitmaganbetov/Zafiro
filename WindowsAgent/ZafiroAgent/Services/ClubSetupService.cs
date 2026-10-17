@@ -315,8 +315,13 @@ namespace ZafiroAgent.Services
         /// </summary>
         public async Task<ApiResult<GuestSession?>> CheckGuestSessionAsync(CancellationToken cancellationToken)
         {
-            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentHeartbeatEndpoint, new { }, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            // Пока сервер не знает о новой загрузке Windows, запрос несёт этот сигнал: старая гостевая
+            // сессия сбрасывается раньше, чем окно входа успело бы её показать.
+            var freshBoot = Infrastructure.FreshBoot.Pending;
+            object body = freshBoot ? new { fresh_boot = true } : new { };
+            var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentHeartbeatEndpoint, body, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
             if (!result.Success) return ApiResult<GuestSession?>.Fail(result.Failure, result.Message);
+            if (freshBoot) Infrastructure.FreshBoot.Reported();
 
             var root = result.Value;
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
@@ -353,6 +358,35 @@ namespace ZafiroAgent.Services
 
             _config.Update(current => ApplyToken(current, login.Value!));
             return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
+        }
+
+        /// <summary>
+        /// Сообщает серверу о новой загрузке Windows (гостевая сессия ПК сбрасывается). Повтор каждые
+        /// 15 с, пока сервер недоступен, но не дольше 10 минут; ПК без токена устройства не сообщает.
+        /// </summary>
+        public async Task ReportFreshBootAsync(CancellationToken cancellationToken)
+        {
+            for (var attempt = 0; attempt < 40 && Infrastructure.FreshBoot.Pending; attempt++)
+            {
+                try
+                {
+                    var token = await DeviceTokenAsync(cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrEmpty(token)) return;
+                    var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentHeartbeatEndpoint, new { fresh_boot = true }, token, cancellationToken).ConfigureAwait(false);
+                    if (result.Success)
+                    {
+                        Infrastructure.FreshBoot.Reported();
+                        return;
+                    }
+                    if (result.Failure is ApiFailure.DeviceTokenInvalid) return;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                {
+                    SafeLog.Write("[Boot] report failed: " + ex.GetType().Name);
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+            }
         }
 
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>

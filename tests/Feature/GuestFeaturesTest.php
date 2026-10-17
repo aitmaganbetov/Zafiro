@@ -62,7 +62,8 @@ test('the agent heartbeat reports the guest features of the club', function () {
     app(CurrentClub::class)->clear();
 
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $token])->assertOk()
-        ->assertJsonPath('club.guest_features', ['qr_login' => false, 'self_transfer' => false, 'friends' => true, 'balance_transfer' => false]);
+        ->assertJsonPath('club.guest_features', ['qr_login' => false, 'self_transfer' => false, 'friends' => true, 'balance_transfer' => false, 'shop' => true])
+        ->assertJsonPath('club.idle_logout_minutes', 5);
 });
 
 test('customers add friends by phone, the other one accepts, and phones stay masked', function () {
@@ -126,13 +127,13 @@ test('friends transfer money from the main balance only, within the balance', fu
     $friendship = Friendship::query()->create(['requester_id' => $arman->id, 'addressee_id' => $dana->id, 'accepted_at' => now()]);
     $pending = Friendship::query()->create(['requester_id' => $arman->id, 'addressee_id' => $stranger->id]);
 
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '100.01'], guestApi($arman))->assertJsonValidationErrors('amount');
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '0'], guestApi($arman))->assertJsonValidationErrors('amount');
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '-5'], guestApi($arman))->assertJsonValidationErrors('amount');
-    $this->postJson(route('api.guest.friends.transfer', $pending), ['amount' => '5'], guestApi($arman))->assertJsonValidationErrors('friendship');
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '5'], guestApi($stranger))->assertJsonValidationErrors('friendship');
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '100.01', 'password' => 'password'], guestApi($arman))->assertJsonValidationErrors('amount');
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '0', 'password' => 'password'], guestApi($arman))->assertJsonValidationErrors('amount');
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '-5', 'password' => 'password'], guestApi($arman))->assertJsonValidationErrors('amount');
+    $this->postJson(route('api.guest.friends.transfer', $pending), ['amount' => '5', 'password' => 'password'], guestApi($arman))->assertJsonValidationErrors('friendship');
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '5', 'password' => 'password'], guestApi($stranger))->assertJsonValidationErrors('friendship');
 
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '40,50'], guestApi($arman))->assertOk()
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '40,50', 'password' => 'password'], guestApi($arman))->assertOk()
         ->assertJsonPath('balance', '59.50');
 
     expect(MemberBalance::query()->where('user_id', $arman->id)->first())
@@ -142,7 +143,7 @@ test('friends transfer money from the main balance only, within the balance', fu
         ->and(ActivityLog::query()->where('event', 'balance.transferred')->sole()->details)->toBe(['amount' => '40.50', 'to_user_id' => $dana->id, 'friendship_id' => $friendship->id]);
 
     guestSettings(['allow_balance_transfer_to_friends' => false]);
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '1'], guestApi($arman))->assertForbidden();
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '1', 'password' => 'password'], guestApi($arman))->assertForbidden();
 });
 
 test('a customer moves the rest of the session to a free PC where the tariff is valid', function () {
@@ -288,7 +289,7 @@ test('the agent shows the customer their own log: purchases, top-ups, transfers,
     $activity->record('user.balance_topped_up', 'x', $staff->id, $dana, ['amount' => 999, 'balance_type' => 'основной баланс', 'payment_method' => 'наличные', 'new_balance' => 999]);
     MemberBalance::query()->whereIn('user_id', [$arman->id, $dana->id])->update(['balance' => 500]);
     $friendship = Friendship::query()->create(['requester_id' => $arman->id, 'addressee_id' => $dana->id, 'accepted_at' => now()]);
-    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '50'], guestApi($dana))->assertOk();
+    $this->postJson(route('api.guest.friends.transfer', $friendship), ['amount' => '50', 'password' => 'password'], guestApi($dana))->assertOk();
 
     $entries = $this->getJson(route('api.guest.history'), guestApi($arman))->assertOk()
         ->assertJsonPath('next_before', null)

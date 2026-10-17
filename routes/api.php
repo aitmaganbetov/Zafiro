@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestMinutesController;
 use App\Http\Controllers\Api\GuestNewsController;
 use App\Http\Controllers\Api\GuestSeatController;
+use App\Http\Controllers\Api\GuestShopController;
 use App\Http\Controllers\Api\GuestTelegramController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\TelegramWebhookController;
@@ -134,6 +135,7 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::post('/guest/telegram/link', [GuestTelegramController::class, 'link'])->middleware('throttle:10,1,api.guest.telegram.link')->name('api.guest.telegram.link');
     Route::post('/guest/telegram/unlink', [GuestTelegramController::class, 'unlink'])->middleware('throttle:10,1,api.guest.telegram.unlink')->name('api.guest.telegram.unlink');
     Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
+    Route::post('/guest/shop/purchase', [GuestShopController::class, 'purchase'])->middleware('throttle:10,1,api.guest.shop.purchase')->name('api.guest.shop.purchase');
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');
     Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1,api.guest.seat-transfer')->name('api.guest.seat-transfer');

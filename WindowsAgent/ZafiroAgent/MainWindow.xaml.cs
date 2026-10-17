@@ -67,6 +67,7 @@ namespace ZafiroAgent
         // Последние «Гости» клуба из heartbeat: страница получает их сразу при загрузке (после
         // входа клиента), а не через ~30 с, когда придёт следующий heartbeat.
         private Dictionary<string, bool>? _guestFeatures;
+        private int? _idleLogoutMinutes;
 
         private DateTimeOffset ServerNow => DateTimeOffset.UtcNow + _clockOffset;
 
@@ -331,6 +332,7 @@ namespace ZafiroAgent
                         if (hb.GuestFeatures is { } features)
                         {
                             _guestFeatures = features;
+                            _idleLogoutMinutes = hb.IdleLogoutMinutes;
                             SendGuestFeatures();
                         }
                     });
@@ -804,7 +806,7 @@ namespace ZafiroAgent
         private void SendGuestFeatures()
         {
             if (_guestFeatures is { } features)
-                SendMessageToWeb(JsonSerializer.Serialize(new { type = "guestFeatures", features }));
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "guestFeatures", features, idleLogoutMinutes = _idleLogoutMinutes }));
         }
 
         /// <summary>Запрос /api/guest/… от имени клиента; ответ сервера уходит странице как type.</summary>
@@ -913,7 +915,10 @@ namespace ZafiroAgent
                 {
                     if (FriendshipId(doc.RootElement) is not { } id) return;
                     var amount = doc.RootElement.TryGetProperty("amount", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
-                    await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty });
+                    // Пароль подтверждает перевод: только в теле запроса к серверу, не в журнал и не в настройки.
+                    var password = doc.RootElement.TryGetProperty("password", out var pw) && pw.ValueKind == JsonValueKind.String ? pw.GetString() : null;
+                    if (!string.IsNullOrEmpty(password)) SafeLog.Register(password);
+                    await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty, password = password ?? string.Empty });
                 }
                 else if (type is "requestTelegram" or "linkTelegram" or "unlinkTelegram")
                 {
@@ -989,7 +994,37 @@ namespace ZafiroAgent
                 {
                     // Страница «Показать ещё» передаёт id последней показанной записи.
                     var before = doc.RootElement.TryGetProperty("before", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetInt64(out var id) && id > 0 ? id : (long?)null;
-                    await GuestCallAsync("history", HttpMethod.Get, before is { } from ? $"history?before={from.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "history");
+                    // Фильтр — только из известного списка: значение попадает в адрес запроса.
+                    var filter = doc.RootElement.TryGetProperty("filter", out var f) && f.ValueKind == JsonValueKind.String && f.GetString() is "purchases" or "top_ups" or "transfers" or "visits" ? f.GetString() : null;
+                    var query = new List<string>();
+                    if (before is { } from) query.Add("before=" + from.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    if (filter is not null) query.Add("filter=" + filter);
+                    await GuestCallAsync("history", HttpMethod.Get, query.Count > 0 ? "history?" + string.Join("&", query) : "history");
+                }
+                else if (type == "purchaseProducts")
+                {
+                    // Как с тарифом: второе нажатие, пока заказ оформляется, не списывает деньги ещё раз.
+                    if (_purchaseInFlight) return;
+                    if (!doc.RootElement.TryGetProperty("items", out var list) || list.ValueKind != JsonValueKind.Array) return;
+                    var items = new List<object>();
+                    foreach (var item in list.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.Object ||
+                            !item.TryGetProperty("id", out var pid) || !pid.TryGetInt64(out var productId) || productId <= 0 ||
+                            !item.TryGetProperty("quantity", out var q) || !q.TryGetInt32(out var quantity) || quantity <= 0)
+                            return;
+                        items.Add(new { id = productId, quantity });
+                    }
+                    if (items.Count == 0) return;
+                    _purchaseInFlight = true;
+                    try
+                    {
+                        await GuestCallAsync("shopResult", HttpMethod.Post, "shop/purchase", new { items }, fromThisComputer: true);
+                    }
+                    finally
+                    {
+                        _purchaseInFlight = false;
+                    }
                 }
                 else if (type == "requestSeats")
                 {

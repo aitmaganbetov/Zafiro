@@ -40,6 +40,8 @@ class HeartbeatClubComputerRequest extends FormRequest
             'ram_total_mb' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:16777216'],
             'gpu_model' => ['sometimes', 'nullable', 'string', 'max:255'],
             'os_version' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // First report of the agent since Windows started: a guest session is reset.
+            'fresh_boot' => ['sometimes', 'boolean'],
         ];
     }
 }

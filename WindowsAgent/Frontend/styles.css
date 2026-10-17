@@ -350,3 +350,24 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
   .shop-heading h1,.history-heading h1,.tariff-heading h1,.profile-heading h1{font-size:1.625rem}
   .action{min-height:52px;padding:10px 12px}
 }
+/* Всплывающие сообщения: ошибки — красные, предупреждения — жёлтые, успех — зелёные. */
+.toasts{position:fixed;top:18px;right:18px;z-index:1000;display:grid;gap:10px;width:min(420px,calc(100vw - 36px));pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:12px 12px 12px 16px;border-radius:10px;border:1px solid transparent;box-shadow:0 18px 48px rgba(0,0,0,0.5);pointer-events:auto;animation:toast-in .18s ease-out}
+.toast p{flex:1;margin:0;font-size:0.875rem;line-height:1.45;overflow-wrap:anywhere}
+.toast.error{background:#4a1418;border-color:#ff6b6b;color:#ffe3e3}
+.toast.warning{background:#4a3710;border-color:#f5b83d;color:#fff1cf}
+.toast.success{background:#123d26;border-color:#3ecf7a;color:#dcfbe8}
+.toast.info{background:#12304a;border-color:var(--accent-2);color:#dff0ff}
+.toast-close{flex:none;width:26px;height:26px;padding:0;border:0;border-radius:6px;background:transparent;color:inherit;font-size:1.125rem;line-height:1;cursor:pointer;opacity:.75}
+.toast-close:hover,.toast-close:focus-visible{opacity:1;background:rgba(255,255,255,0.1);outline:none}
+@keyframes toast-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+.confirm-dialog{width:min(420px,calc(100vw - 28px))}
+.confirm-dialog h2{margin:0;font-size:1.125rem}
+.confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.confirm-actions .friend-button{padding:10px 16px}
+
+.cart-pay{width:100%;margin-top:14px}
+.cart-pay:disabled{opacity:.5;cursor:default;box-shadow:none}
+.history-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.profile-no-session{margin:14px 0 0;color:var(--muted);font-size:0.9375rem}

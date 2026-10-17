@@ -37,5 +37,8 @@ namespace ZafiroAgent.Models
 
         // Что клиент может делать сам (настройки клуба «Гости»): qr_login, self_transfer, friends, balance_transfer.
         public Dictionary<string, bool>? GuestFeatures { get; set; }
+
+        // Через сколько минут без оплаченной сессии вошедший клиент выходит из аккаунта (0 — не выходит).
+        public int? IdleLogoutMinutes { get; set; }
     }
 }
