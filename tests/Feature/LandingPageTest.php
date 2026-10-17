@@ -16,3 +16,9 @@ test('the home page presents Zafiro with sign-up for guests and the panel for si
         ->assertSee(route('dashboard'), false)
         ->assertSee('Открыть панель');
 });
+
+test('the wiki opens at /wiki', function () {
+    $this->get(route('wiki'))->assertOk()->assertHeader('Content-Type', 'text/html; charset=utf-8');
+
+    expect(file_get_contents(resource_path('wiki/index.html')))->toContain('<title>Zafiro Wiki</title>')->toContain('Быстрый старт');
+});

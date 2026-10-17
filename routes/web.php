@@ -52,6 +52,8 @@ Route::get('/offline', [PwaController::class, 'offline'])->name('pwa.offline');
 
 // Integration API v1 reference (public: it describes the API, it contains no club data).
 Route::view('/docs/api', 'api-docs')->name('api-docs');
+// Zafiro wiki: the whole documentation as one static page (later on its own subdomain).
+Route::get('/wiki', fn () => response()->file(resource_path('wiki/index.html'), ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'public, max-age=300']))->name('wiki');
 Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('api/openapi-v1.yaml'), ['Content-Type' => 'application/yaml; charset=utf-8']))
     ->name('api-docs.spec');
 
