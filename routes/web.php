@@ -15,6 +15,7 @@ use App\Http\Controllers\ComputerReservationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\IntegrationController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\NotificationController;
@@ -43,9 +44,7 @@ use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', LandingController::class)->name('home');
 
 // Installable app: manifest and the page shown without a connection.
 Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
