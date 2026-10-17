@@ -49,7 +49,7 @@ namespace ZafiroAgent.Service
                     .OpenSubKey(VaultProtocol.SettingsKey);
                 return key?.GetValue("LaunchForAdministrators") is int value && value == 1;
             }
-            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.IO.IOException)
             {
                 return false;
             }
