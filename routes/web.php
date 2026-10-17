@@ -161,6 +161,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('/club-invitations', [ClubInvitationController::class, 'store'])->name('club-invitations.store');
         Route::resource('/club-map', ClubZoneController::class)->only(['store', 'update', 'destroy']);
+        Route::delete('/club-computers/{clubComputer}', [ClubComputerController::class, 'destroy'])->name('club-computers.destroy');
         Route::patch('/club-map/{clubMap}/layout', [ClubZoneController::class, 'updateLayout'])->name('club-map.layout');
         Route::post('/club-map/{clubMap}/computers', [ClubComputerController::class, 'store'])->name('club-computers.store');
         Route::patch('/club-computers/{clubComputer}', [ClubComputerController::class, 'update'])->name('club-computers.update');

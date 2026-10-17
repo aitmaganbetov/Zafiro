@@ -66,6 +66,7 @@ class ActivityLog extends Model
         'zone.updated' => 'Изменение зоны',
         'zone.deleted' => 'Удаление зоны',
         'computer.created' => 'Добавление ПК',
+        'computer.deleted' => 'Удаление ПК',
         'computer.registered' => 'Регистрация ПК агентом',
         'computer.controlled' => 'Управление ПК',
         'computer.guest_session' => 'Гостевая сессия с кассы',

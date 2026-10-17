@@ -1890,6 +1890,13 @@ body {
     cursor: pointer
 }
 
+/* Удаление ПК — слева, отдельно от «Отмена» и «Сохранить». */
+.cm-delete-computer {
+    margin-right: auto;
+    border-color: #f3b4b4;
+    color: #b42318
+}
+
 @media(max-width:560px) {
     .cm-page {
         padding: 12px

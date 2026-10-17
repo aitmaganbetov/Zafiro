@@ -1317,6 +1317,12 @@ return [
         'Заказ №:id отменён, деньги возвращены на счёт клиента.' => 'Order #:id cancelled, the money was returned to the customer.',
         'Новые заказы: :count' => 'New orders: :count',
         'Последний — на ПК :computer' => 'The latest — to PC :computer',
+        'На ПК :computer идёт сессия: удалить его можно после её окончания.' => 'A session is running on PC :computer: delete it after the session ends.',
+        'Удалён ПК :computer' => 'PC :computer deleted',
+        'ПК :computer удалён.' => 'PC :computer deleted.',
+        'Удаление ПК' => 'PC deleted',
+        'Удалить ПК' => 'Delete PC',
+        'Удалить ПК :computer с карты клуба? Брони этого ПК тоже удалятся.' => 'Delete PC :computer from the club map? Its bookings will be deleted too.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

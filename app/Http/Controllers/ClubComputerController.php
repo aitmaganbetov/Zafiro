@@ -107,6 +107,32 @@ class ClubComputerController extends Controller
         return back()->with('status', __('Данные компьютера обновлены.'))->with('edit_mode', true);
     }
 
+    /**
+     * Removes the PC from the club map. Not while a paid session runs on it; its bookings and
+     * QR codes go with it, its token stops working.
+     */
+    public function destroy(Request $request, ClubComputer $clubComputer, ActivityLogger $activity): RedirectResponse
+    {
+        $name = DB::transaction(function () use ($request, $clubComputer, $activity): string {
+            $computer = ClubComputer::query()->lockForUpdate()->findOrFail($clubComputer->getKey());
+            if ($computer->hasPaidSession()) {
+                throw ValidationException::withMessages(['computer' => __('На ПК :computer идёт сессия: удалить его можно после её окончания.', ['computer' => $computer->displayName()])]);
+            }
+
+            $name = $computer->displayName();
+            $activity->record('computer.deleted', __('Удалён ПК :computer', ['computer' => $name]), $request->user()->getKey(), null, [
+                'computer' => $name,
+                'number' => $computer->number,
+                'mac_address' => $computer->mac_address,
+            ]);
+            $computer->delete();
+
+            return $name;
+        });
+
+        return back()->with('status', __('ПК :computer удалён.', ['computer' => $name]))->with('edit_mode', true);
+    }
+
     public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
     {
         $data = $request->validated();
