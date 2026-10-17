@@ -306,7 +306,12 @@ namespace ZafiroAgent.Services
                 using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
+                {
+                    // Конфликт (например, клиент уже вошёл на другом ПК): причину объясняет сервер.
+                    if (response.StatusCode == HttpStatusCode.Conflict && await ServerMessageAsync(response, cancellationToken).ConfigureAwait(false) is { } reason)
+                        return ApiResult<JsonElement>.Fail(ApiFailure.InvalidRequest, reason);
                     return MapError(response.StatusCode, isLogin);
+                }
 
                 var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 using var document = JsonDocument.Parse(text);
@@ -321,6 +326,22 @@ namespace ZafiroAgent.Services
             catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
             {
                 return ApiResult<JsonElement>.Fail(ApiFailure.Network, L.T("Не удалось связаться с сервером Zafiro. Проверьте подключение и повторите попытку."));
+            }
+        }
+
+        private static async Task<string?> ServerMessageAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("message", out var message) &&
+                       message.ValueKind == JsonValueKind.String && message.GetString() is { Length: > 0 and <= 500 } text
+                    ? text
+                    : null;
+            }
+            catch (JsonException)
+            {
+                return null;
             }
         }
 

@@ -97,10 +97,15 @@ class QrLogins
         if ($user->isBlocked()) {
             throw ValidationException::withMessages(['code' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')]);
         }
-        $member = ClubMembership::query()->withoutGlobalScope('club')
-            ->where('club_id', $login->club_id)->where('user_id', $user->getKey())->exists();
-        if (! $member) {
+        $role = ClubMembership::query()->withoutGlobalScope('club')
+            ->where('club_id', $login->club_id)->where('user_id', $user->getKey())->value('role');
+        if ($role === null) {
             throw ValidationException::withMessages(['code' => __('Ваш аккаунт не состоит в этом клубе.')]);
+        }
+        // One PC at a time, as with the password sign-in.
+        $elsewhere = app(AgentSignIns::class)->elsewhere($user, $login->computer?->device_name, $role);
+        if ($elsewhere !== null) {
+            throw ValidationException::withMessages(['code' => AgentSignIns::message($elsewhere)]);
         }
         if ($login->club?->subscription?->isActive() !== true) {
             throw ValidationException::withMessages(['code' => __('Подписка клуба не активна.')]);

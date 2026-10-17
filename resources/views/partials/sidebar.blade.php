@@ -11,6 +11,8 @@
         <a href="{{ route('todos.index') }}" class="sidebar-link {{ request()->routeIs('todos.*') ? 'active' : '' }}"><i class="fas fa-list-check"></i><span>{{ __('To Do List') }}</span></a>
         @php($chatUnread = \App\Http\Controllers\ChatController::unreadTotal())
         <a href="{{ route('chat.index') }}" class="sidebar-link {{ request()->routeIs('chat.*') ? 'active' : '' }}"><i class="fas fa-comments"></i><span>{{ __('Чат') }}</span>@if($chatUnread > 0)<span class="ml-auto rounded-full bg-red-600 px-2 text-xs font-bold text-white">{{ $chatUnread }}</span>@endif</a>
+        @php($ordersNew = \App\Models\ShopOrder::newCount())
+        <a href="{{ route('shop-orders.index') }}" class="sidebar-link {{ request()->routeIs('shop-orders.*') ? 'active' : '' }}"><i class="fas fa-bag-shopping"></i><span>{{ __('Заказы') }}</span>@if($ordersNew > 0)<span class="ml-auto rounded-full bg-red-600 px-2 text-xs font-bold text-white">{{ $ordersNew }}</span>@endif</a>
         <a href="{{ route('users.index') }}" class="sidebar-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="fas fa-users"></i><span>{{ __('Пользователи') }}</span></a>
         @if(in_array($currentMembership->role, ['owner', 'admin'], true))
             <a href="{{ route('workers.index') }}" class="sidebar-link {{ request()->routeIs('workers.*') ? 'active' : '' }}"><i class="fas fa-user-tie"></i><span>{{ __('Работники') }}</span></a>

@@ -19,11 +19,11 @@ class GuestHistory
     private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
-    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred'];
+    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred', 'shop.order_cancelled'];
 
     /** Filters of the history page in the agent: [own events, received events]. */
     public const FILTERS = [
-        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased'], []],
+        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased'], ['shop.order_cancelled']],
         'top_ups' => [[], ['user.balance_topped_up']],
         'transfers' => [['balance.transferred'], ['balance.transferred']],
         'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
@@ -85,6 +85,11 @@ class GuestHistory
                     ->map(fn (array $line): string => ($line['name'] ?? '—').' × '.(int) ($line['quantity'] ?? 0))
                     ->implode(', ') ?: null;
                 $entry['amount'] = self::negative($details['amount'] ?? null);
+                break;
+            case 'shop.order_cancelled':
+                $entry['kind'] = 'refund';
+                $entry['title'] = __('Возврат за отменённый заказ');
+                $entry['amount'] = self::positive($details['amount'] ?? null);
                 break;
             case 'user.balance_topped_up':
                 $entry['kind'] = 'top_up';

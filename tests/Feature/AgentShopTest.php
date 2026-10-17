@@ -9,12 +9,14 @@ use App\Models\ClubZone;
 use App\Models\Friendship;
 use App\Models\MemberBalance;
 use App\Models\Product;
+use App\Models\ShopOrder;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\PersonalAccessToken;
 
 uses(RefreshDatabase::class);
 
@@ -63,11 +65,13 @@ test('a customer pays for goods in the agent from the main balance and the staff
         ->and($cola->fresh()->quantity)->toBe(8)
         ->and($chips->fresh()->quantity)->toBe(0)
         ->and(StockMovement::query()->where('note', 'Заказ из агента')->count())->toBe(2)
-        ->and(ChatMessage::query()->sole())
-        ->customer_id->toBe($customer->id)
-        ->from_staff->toBeFalse()
+        ->and(ChatMessage::query()->count())->toBe(0)
+        ->and(ShopOrder::query()->sole())
+        ->user_id->toBe($customer->id)
         ->club_computer_id->toBe($computer->id)
-        ->body->toContain('Cola × 2')
+        ->computer_name->toBe($computer->displayName())
+        ->status->toBe('new')
+        ->amount->toBe('950.50')
         ->and(ActivityLog::query()->where('event', 'shop.purchased')->sole()->details['amount'])->toBe('950.50');
 
     // The order is in the customer's history, also under the "purchases" filter.
@@ -93,7 +97,7 @@ test('goods are not sold beyond the stock or the main balance, and nothing is ch
 
     expect(MemberBalance::query()->where('user_id', $customer->id)->value('balance'))->toBe('1000.00')
         ->and($cola->fresh()->quantity)->toBe(10)
-        ->and(ChatMessage::query()->count())->toBe(0);
+        ->and(ShopOrder::query()->count())->toBe(0);
 });
 
 test('the club can turn the shop in the agent off', function () {
@@ -203,4 +207,63 @@ test('the club sets the shop, the sign-out without a session and guest mode, and
     $this->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $token])->assertOk()
         ->assertJsonPath('club.idle_logout_minutes', 10)
         ->assertJsonPath('club.guest_features.shop', false);
+});
+
+test('the front desk sees new orders, hands them over or cancels them with a refund', function () {
+    [$customer, $computer, $token, $cola, $chips] = shopSetup();
+    $cashier = User::factory()->create(['name' => 'Кассир']);
+    ClubMembership::query()->where('user_id', $cashier->id)->update(['role' => 'cashier']);
+    $order = fn (int $quantity) => $this->postJson(route('api.guest.shop.purchase'), ['computer_id' => $computer->id, 'items' => [['id' => $cola->id, 'quantity' => $quantity]]], shopRequest($customer, $token))->assertOk();
+    $order(1);
+    $order(1);
+    [$first, $second] = ShopOrder::query()->orderBy('id')->get()->all();
+    app('auth')->forgetGuards();
+
+    $this->actingAs($cashier)->get(route('shop-orders.index'))->assertOk()
+        ->assertSee(__('Заказ №:id', ['id' => $first->id]))
+        ->assertSee('Cola');
+    $this->actingAs($cashier)->getJson(route('shop-orders.state'))->assertOk()->assertJson(['new' => 2, 'latest' => $second->id]);
+
+    $this->actingAs($cashier)->post(route('shop-orders.done', $first))->assertRedirect();
+    expect($first->fresh())->status->toBe('done')->handled_by->toBe($cashier->id);
+    // Handled once: neither done nor cancelled again.
+    $this->actingAs($cashier)->post(route('shop-orders.cancel', $first))->assertSessionHasErrors('order');
+
+    $this->actingAs($cashier)->post(route('shop-orders.cancel', $second))->assertRedirect();
+    expect($second->fresh()->status)->toBe('cancelled')
+        ->and(MemberBalance::query()->where('user_id', $customer->id)->value('balance'))->toBe('650.00')
+        ->and($cola->fresh()->quantity)->toBe(9);
+
+    // The customer sees the refund in the history.
+    $this->getJson(route('api.guest.history'), shopRequest($customer, $token))->assertOk()
+        ->assertJsonPath('data.0.kind', 'refund')
+        ->assertJsonPath('data.0.amount', '350.00');
+
+    $this->actingAs($cashier)->get(route('shop-orders.index', ['status' => 'all']))->assertOk()->assertSee('Кассир');
+});
+
+test('a customer signed in on one PC cannot sign in on another until signing out there', function () {
+    $clubId = app(CurrentClub::class)->id();
+    $customer = User::factory()->create(['phone' => '+77015550011']);
+    ClubMembership::query()->where('user_id', $customer->id)->update(['role' => 'client']);
+    $login = fn (string $pc) => $this->postJson(route('api.agent.user.login'), ['phone' => '+77015550011', 'password' => 'password', 'club_id' => $clubId, 'device_name' => $pc]);
+
+    $token = $login('PC-01')->assertOk()->json('access_token');
+    PersonalAccessToken::findToken($token)->forceFill(['last_used_at' => now()])->save();
+
+    $login('PC-02')->assertStatus(409)
+        ->assertJsonPath('code', 'signed_in_elsewhere')
+        ->assertJsonPath('message', 'Вы уже вошли на другом ПК (PC-01). Выйдите там, чтобы войти здесь.');
+    // Signing in again on the same PC is fine.
+    $login('PC-01')->assertOk();
+
+    // A PC switched off without signing out frees the account after a few minutes.
+    $customer->tokens()->update(['last_used_at' => now()->subMinutes(5)]);
+    $login('PC-02')->assertOk();
+
+    // Staff are not limited.
+    $operator = User::factory()->create(['phone' => '+77015550022']);
+    ClubMembership::query()->where('user_id', $operator->id)->update(['role' => 'operator']);
+    $operator->createToken('PC-03', ['club:'.$clubId])->accessToken->forceFill(['last_used_at' => now()])->save();
+    $this->postJson(route('api.agent.user.login'), ['phone' => '+77015550022', 'password' => 'password', 'club_id' => $clubId, 'device_name' => 'PC-04'])->assertOk();
 });

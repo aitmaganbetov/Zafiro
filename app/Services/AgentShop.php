@@ -2,20 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\ChatMessage;
 use App\Models\ClubComputer;
 use App\Models\MemberBalance;
 use App\Models\Product;
+use App\Models\ShopOrder;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\Integrations\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Goods ordered by the customer in the PC agent: paid from the main balance, written off the
- * club stock and sent to the staff as a chat message, so the cashier brings them to the PC.
+ * club stock and listed for the staff on the "Orders" page, so the cashier brings them to the PC.
+ * Staff mark an order handed over, or cancel it: the money and the goods come back.
  */
 class AgentShop
 {
@@ -25,6 +25,8 @@ class AgentShop
 
     /** Note of the stock movement (a marker, not translated). */
     private const STOCK_NOTE = 'Заказ из агента';
+
+    private const CANCEL_NOTE = 'Отмена заказа из агента';
 
     public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
 
@@ -85,13 +87,14 @@ class AgentShop
                 'computer' => $computer->displayName(),
             ]);
 
-            // The staff see the order like any customer message (chat and the bell).
-            ChatMessage::query()->create([
-                'customer_id' => $user->getKey(),
-                'author_id' => $user->getKey(),
-                'from_staff' => false,
-                'body' => Str::limit(__('Заказ на ПК :computer: :items. Итого :amount, оплачено с баланса.', ['computer' => $computer->displayName(), 'items' => $items, 'amount' => $amount]), ChatMessage::MAX_LENGTH),
+            // The staff see it on the "Orders" page (and in the menu badge and the bell).
+            ShopOrder::query()->create([
+                'user_id' => $user->getKey(),
                 'club_computer_id' => $computer->getKey(),
+                'computer_name' => $computer->displayName(),
+                'items' => $lines,
+                'amount' => $amount,
+                'status' => ShopOrder::STATUS_NEW,
             ]);
 
             return [
@@ -101,5 +104,59 @@ class AgentShop
                 'stock' => $stock,
             ];
         });
+    }
+
+    /** The staff brought the order to the PC. */
+    public function handOver(ShopOrder $order, int $staffId): ShopOrder
+    {
+        return DB::transaction(function () use ($order, $staffId): ShopOrder {
+            $order = $this->lockNew($order);
+            $order->forceFill(['status' => ShopOrder::STATUS_DONE, 'handled_by' => $staffId, 'handled_at' => now()])->save();
+            $this->activity->record('shop.order_done', __('Заказ №:id выдан на ПК :computer', ['id' => $order->id, 'computer' => $order->computer_name ?? '—']), $staffId, $order, ['amount' => (string) $order->amount]);
+
+            return $order;
+        });
+    }
+
+    /** The order cannot be served: the money goes back to the main balance and the goods to the stock. */
+    public function cancel(ShopOrder $order, int $staffId): ShopOrder
+    {
+        return DB::transaction(function () use ($order, $staffId): ShopOrder {
+            $order = $this->lockNew($order);
+            $lines = collect($order->items)->filter(fn (mixed $line): bool => is_array($line) && isset($line['product_id'], $line['quantity']));
+            // Products that still exist get their quantity back (in id order, as when ordering).
+            $products = Product::query()->whereKey($lines->pluck('product_id')->all())->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            foreach ($lines as $line) {
+                $product = $products->get((int) $line['product_id']);
+                if ($product === null) {
+                    continue;
+                }
+                $product->increment('quantity', (int) $line['quantity']);
+                StockMovement::create(['product_id' => $product->id, 'user_id' => $staffId, 'type' => StockMovement::TYPE_RECEIPT, 'quantity' => (int) $line['quantity'], 'balance_after' => $product->quantity, 'note' => self::CANCEL_NOTE]);
+                $this->webhooks->dispatch('stock.changed', ['product_id' => $product->id, 'sku' => $product->sku, 'change' => (int) $line['quantity'], 'quantity' => (int) $product->quantity, 'reason' => 'receipt']);
+            }
+
+            $balance = MemberBalance::query()->where('user_id', $order->user_id)->lockForUpdate()->first();
+            if ($balance !== null) {
+                $balance->update(['balance' => AgentTariffPurchaseService::formatCents(
+                    AgentTariffPurchaseService::amountToCents((string) $balance->balance) + AgentTariffPurchaseService::amountToCents((string) $order->amount)
+                )]);
+            }
+            $order->forceFill(['status' => ShopOrder::STATUS_CANCELLED, 'handled_by' => $staffId, 'handled_at' => now()])->save();
+            // The customer is the subject: the refund shows in their history in the agent.
+            $this->activity->record('shop.order_cancelled', __('Заказ №:id отменён, :amount возвращено на счёт клиента', ['id' => $order->id, 'amount' => (string) $order->amount]), $staffId, User::query()->find($order->user_id), ['amount' => (string) $order->amount, 'order_id' => $order->id]);
+
+            return $order;
+        });
+    }
+
+    private function lockNew(ShopOrder $order): ShopOrder
+    {
+        $order = ShopOrder::query()->lockForUpdate()->findOrFail($order->getKey());
+        if ($order->status !== ShopOrder::STATUS_NEW) {
+            throw ValidationException::withMessages(['order' => __('Заказ уже обработан.')]);
+        }
+
+        return $order;
     }
 }

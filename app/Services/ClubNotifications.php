@@ -9,6 +9,7 @@ use App\Models\ClubInvitation;
 use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
 use App\Models\Product;
+use App\Models\ShopOrder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -52,8 +53,8 @@ class ClubNotifications
                 ->merge($this->agentUpdate());
         }
 
-        // Unread customer messages: to everybody who works with the chat.
-        $items = $items->merge($this->chat());
+        // Unread customer messages and new shop orders: to everybody who works at the front desk.
+        $items = $items->merge($this->chat())->merge($this->orders());
 
         if (in_array($role, [...self::MANAGERS, 'cashier'], true)) {
             $items = $items->merge($this->lowStock());
@@ -93,6 +94,25 @@ class ClubNotifications
                 'at' => $log->created_at,
             ])
             ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function orders(): array
+    {
+        $new = ShopOrder::query()->where('status', ShopOrder::STATUS_NEW);
+        $latest = (clone $new)->latest('id')->first(['id', 'computer_name', 'created_at']);
+        if ($latest === null) {
+            return [];
+        }
+
+        return [[
+            'id' => 'order-'.$latest->id,
+            'icon' => 'fa-bag-shopping',
+            'title' => __('Новые заказы: :count', ['count' => $new->count()]),
+            'body' => __('Последний — на ПК :computer', ['computer' => $latest->computer_name ?? '—']),
+            'url' => route('shop-orders.index'),
+            'at' => $latest->created_at,
+        ]];
     }
 
     /** @return list<array<string, mixed>> */

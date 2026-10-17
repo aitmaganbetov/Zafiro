@@ -9,6 +9,7 @@ use App\Models\ClubSubscription;
 use App\Models\MemberBalance;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\AgentSignIns;
 use App\Services\ClubInstallationKey;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
@@ -92,6 +93,14 @@ class AuthController extends Controller
 
         $expiresAt = now()->addDays(30);
         $deviceName = $request->validated('device_name') ?: 'mobile';
+
+        // One PC at a time: a customer signed in on another PC signs out there first.
+        if ($agentContract && $request->filled('device_name')
+            && ($elsewhere = app(AgentSignIns::class)->elsewhere($user, $deviceName, $membership->role)) !== null) {
+            $failed('signed_in_elsewhere');
+
+            return response()->json(['message' => AgentSignIns::message($elsewhere), 'code' => 'signed_in_elsewhere'], 409);
+        }
 
         // A PC agent keeps one token per PC: signing in again revokes the previous ones,
         // so tokens left on a PC (or copied from it) stop working.

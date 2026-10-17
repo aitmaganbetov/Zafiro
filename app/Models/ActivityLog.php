@@ -94,6 +94,8 @@ class ActivityLog extends Model
         'friend.removed' => 'Удаление из друзей',
         'balance.transferred' => 'Перевод баланса другу',
         'shop.purchased' => 'Заказ товаров из агента',
+        'shop.order_done' => 'Заказ выдан',
+        'shop.order_cancelled' => 'Заказ отменён',
         'computer.guest_session_reset' => 'Гостевая сессия сброшена после перезагрузки',
     ];
 

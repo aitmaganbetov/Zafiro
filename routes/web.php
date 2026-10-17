@@ -23,6 +23,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\QrLoginController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ShopOrderController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\Superadmin\AgentReleaseController as SuperadminAgentReleaseController;
@@ -149,6 +150,10 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
         Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
         Route::post('/chat/{customer}', [ChatController::class, 'reply'])->middleware('throttle:60,1,chat.reply')->name('chat.reply');
+        Route::get('/shop-orders', [ShopOrderController::class, 'index'])->name('shop-orders.index');
+        Route::get('/shop-orders/state', [ShopOrderController::class, 'state'])->name('shop-orders.state');
+        Route::post('/shop-orders/{order}/done', [ShopOrderController::class, 'done'])->name('shop-orders.done');
+        Route::post('/shop-orders/{order}/cancel', [ShopOrderController::class, 'cancel'])->name('shop-orders.cancel');
     });
 
     Route::middleware(['subscription', 'club-role:owner,admin,manager'])->group(function () {
