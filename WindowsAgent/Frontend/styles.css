@@ -185,12 +185,14 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .news-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;color:var(--muted);font-size:0.8125rem}
 .news-nav .friend-button:disabled{opacity:0.4;cursor:default}
 .chat-page{display:flex;flex-direction:column}
-.chat-thread{flex:1;min-height:200px;max-height:calc(100vh - 330px);overflow-y:auto;list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+/* «Помощь» во всю высоту окна: сообщения прокручиваются, форма ответа всегда прижата к низу. */
+.friends-page.chat-page{flex:1;min-height:0;overflow:hidden;padding-bottom:0}
+.chat-thread{flex:1;min-height:120px;overflow-y:auto;list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .chat-message{max-width:72%;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,0.05)}
 .chat-message.mine{align-self:flex-end;background:rgba(139,92,246,0.22)}
 .chat-message p{margin:0;white-space:pre-line;overflow-wrap:anywhere;font-size:0.9375rem;line-height:1.45}
 .chat-message small{display:block;margin-top:4px;color:var(--muted);font-size:0.75rem}
-.chat-form{display:flex;gap:8px;align-items:flex-end}
+.chat-form{flex:none;display:flex;gap:8px;align-items:flex-end;padding:12px 0 4px;border-top:1px solid rgba(255,255,255,0.06);background:inherit}
 .chat-form textarea{flex:1;min-width:0;resize:none;padding:9px 12px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text);font:inherit}
 .chat-form textarea:focus-visible{outline:2px solid var(--accent-2);outline-offset:1px}
 .profile-telegram{padding-bottom:16px}
