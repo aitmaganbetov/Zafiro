@@ -324,6 +324,7 @@ namespace ZafiroAgent.Services
             if (freshBoot) Infrastructure.FreshBoot.Reported();
 
             var root = result.Value;
+            RememberComputer(root);
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
                 ? now.ToUniversalTime() - DateTimeOffset.UtcNow
@@ -376,6 +377,7 @@ namespace ZafiroAgent.Services
                     if (result.Success)
                     {
                         Infrastructure.FreshBoot.Reported();
+                        RememberComputer(result.Value);
                         return;
                     }
                     if (result.Failure is ApiFailure.DeviceTokenInvalid) return;
@@ -387,6 +389,32 @@ namespace ZafiroAgent.Services
 
                 await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Номер, id и зона ПК — по токену устройства, от сервера: ПК, получивший токен сам (бездисковый,
+        /// с образа суперклиента), иначе показал бы «не задан» или номер суперклиента и покупал бы на чужой ПК.
+        /// </summary>
+        private void RememberComputer(JsonElement root)
+        {
+            if (!root.TryGetProperty("computer_id", out var id) || !id.TryGetInt64(out var computerId) || computerId <= 0) return;
+            var number = root.TryGetProperty("number", out var n)
+                ? n.ValueKind switch { JsonValueKind.String => n.GetString(), JsonValueKind.Number => n.GetRawText(), _ => null }
+                : null;
+            var zone = root.TryGetProperty("zone", out var z) && z.ValueKind == JsonValueKind.Object && z.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String
+                ? name.GetString()
+                : null;
+            var idText = computerId.ToString(CultureInfo.InvariantCulture);
+            var cfg = _config.Load();
+            if (cfg.ComputerId == idText && cfg.ComputerNumber == (number ?? string.Empty) && cfg.Zone == (zone ?? string.Empty)) return;
+
+            _config.Update(c =>
+            {
+                c.ComputerId = idText;
+                c.ComputerNumber = number ?? string.Empty;
+                c.Zone = zone ?? string.Empty;
+            });
+            SafeLog.Write("[Setup] computer identity updated from the server");
         }
 
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>

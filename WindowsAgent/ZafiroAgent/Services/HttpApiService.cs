@@ -192,7 +192,9 @@ namespace ZafiroAgent.Services
                 request.Content = new StringContent(JsonSerializer.Serialize(fields), Encoding.UTF8, "application/json");
             }
 
-            if (fromThisComputer)
+            // Только для записи (покупка, заказ, пересадка): чтение по токену ПК серверу не нужно, а служба
+            // пересылает запросы с токеном только без параметров в адресе.
+            if (fromThisComputer && method != HttpMethod.Get)
             {
                 // Как при покупке тарифа: токен устройства подтверждает, что запрос идёт с этого ПК.
                 var deviceToken = await Task.Run(() => DeviceTokens.Resolve(_secure.Unprotect(config.ProtectedDeviceToken)), cancellationToken).ConfigureAwait(false);

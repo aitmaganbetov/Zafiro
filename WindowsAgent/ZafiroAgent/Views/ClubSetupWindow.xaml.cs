@@ -86,6 +86,15 @@ namespace ZafiroAgent.Views
             };
         }
 
+        /// <summary>Номер ПК и зона: после подключения — от сервера (окно обновляет их с каждой проверкой).</summary>
+        private void ShowComputer()
+        {
+            var computer = _connectedNumber ?? (string.IsNullOrWhiteSpace(_setup.ComputerNumber) ? _setup.ComputerId : _setup.ComputerNumber);
+            var zone = _mode == Mode.Connected ? _connectedZone : _setup.Zone;
+            ComputerText.Text = L.T("ПК: :computer", ("computer", string.IsNullOrWhiteSpace(computer) ? L.T("не задан") : computer));
+            ZoneText.Text = L.T("Зона: :zone", ("zone", string.IsNullOrWhiteSpace(zone) ? L.T("не задана") : zone));
+        }
+
         private void OnLanguageChanged() => Dispatcher.BeginInvoke(ApplyTexts);
 
         private void OnInputLanguageChanged(object sender, InputLanguageEventArgs e) => Dispatcher.BeginInvoke(ShowInputLanguage);
@@ -177,10 +186,7 @@ namespace ZafiroAgent.Views
         private void ApplyTexts()
         {
             Title = L.T("Подключение к клубу Zafiro");
-            var computer = _connectedNumber ?? (string.IsNullOrWhiteSpace(_setup.ComputerNumber) ? _setup.ComputerId : _setup.ComputerNumber);
-            var zone = _mode == Mode.Connected ? _connectedZone : _setup.Zone;
-            ComputerText.Text = L.T("ПК: :computer", ("computer", string.IsNullOrWhiteSpace(computer) ? L.T("не задан") : computer));
-            ZoneText.Text = L.T("Зона: :zone", ("zone", string.IsNullOrWhiteSpace(zone) ? L.T("не задана") : zone));
+            ShowComputer();
             (HeaderText.Text, ClubText.Text) = _mode switch
             {
                 Mode.Relogin => (L.T("Повторный вход"), L.T("Клуб: :club", ("club", _setup.ClubName))),
@@ -195,7 +201,6 @@ namespace ZafiroAgent.Views
             ConfirmLabel.Text = L.T("Повторите пароль");
             RegisterToggle.Content = _registering ? L.T("Уже есть аккаунт? Войти") : L.T("Нет аккаунта? Зарегистрироваться");
             if (_registering) HeaderText.Text = L.T("Регистрация");
-            StaffHint.Text = L.T("Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.");
             MinimizeButton.Content = L.T("Свернуть, чтобы скопировать ключ");
             QrTitle.Text = L.T("Вход с телефона");
             QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
@@ -428,9 +433,14 @@ namespace ZafiroAgent.Views
                 while (!_cts.IsCancellationRequested)
                 {
                     var check = await _setup.CheckGuestSessionAsync(_cts.Token);
-                    if (check.Success) ApplyGuestSession(check.Value);
-                    else if (check.Failure is ApiFailure.DeviceTokenInvalid) return; // ПК ещё не подключён
-                    await Task.Delay(_guest is null ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(15), _cts.Token);
+                    if (check.Success)
+                    {
+                        ShowComputer();
+                        ApplyGuestSession(check.Value);
+                    }
+                    // Токена ПК ещё нет (служба получает его по ключу клуба после загрузки): проверка позже.
+                    var delay = check.Failure is ApiFailure.DeviceTokenInvalid || _guest is not null ? TimeSpan.FromSeconds(15) : TimeSpan.FromSeconds(5);
+                    await Task.Delay(delay, _cts.Token);
                 }
             }
             catch (OperationCanceledException)

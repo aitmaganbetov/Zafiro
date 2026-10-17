@@ -120,7 +120,6 @@
         "Телефон": "Phone",
         "Пароль": "Password",
         "Войти": "Sign in",
-        "Сотрудник клуба: Ctrl+Alt+P — выход из агента по PIN-коду.": "Club staff: Ctrl+Alt+P to exit the agent with a PIN.",
         "Свернуть, чтобы скопировать ключ": "Minimize to copy the key",
         "Zafiro Agent уже запущен на этом компьютере.": "Zafiro Agent is already running on this computer.",
         "Интерфейс агента не загрузился. Обратитесь к администратору клуба.": "The agent interface did not load. Contact the club administrator.",
