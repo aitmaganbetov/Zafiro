@@ -8,8 +8,10 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
 - **GitHub Actions** (`.github/workflows/windows-agent.yml`): при каждом изменении `WindowsAgent/`
   в `main` или в pull request собираются установщик и zip-архивы — их можно скачать
   на странице запуска (Artifacts, хранится 30 дней). Запуск вручную — вкладка Actions → Windows agent → Run workflow.
-- **Релиз**: `git tag agent-v1.0.0 && git push origin agent-v1.0.0` — создаётся GitHub Release с установщиком,
-  zip и файлами `.sha256`.
+- **Релиз**: каждая сборка `main` (версия `0.0.<номер запуска>`) и тег `agent-v1.0.0` дают GitHub Release
+  с установщиком отдельным файлом и `.sha256` (zip-архивы — только в Artifacts). Последний установщик
+  всегда по ссылке https://github.com/aitmaganbetov/Zafiro/releases/latest/download/ZafiroAgentSetup.exe —
+  её можно указать суперадмину как ссылку на скачивание агента.
 - **Локально** (Windows, .NET 10 SDK):
   `dotnet publish WindowsAgent/ZafiroAgent/ZafiroAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:EnableCompressionInSingleFile=true -o publish` (для маленькой сборки — `--self-contained false` без сжатия)
 
@@ -26,6 +28,10 @@ WPF + WebView2, .NET 10 (`net10.0-windows`).
 папку целиком.
 
 ## Установка на ПК клуба
+
+Обновление: скачайте новый установщик и запустите его на ПК, где агент уже стоит, — установщик сам
+находит установленную версию и сразу показывает кнопку «Обновить» (задачи берутся из прошлой установки,
+ключ клуба и токен ПК сохраняются).
 
 Скачайте `ZafiroAgentSetup-<версия>.exe` (артефакт сборки или релиз) и запустите его
 **от имени администратора**, отметив «Защитить учётную запись клиента». Установщик:

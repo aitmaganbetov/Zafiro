@@ -64,6 +64,47 @@ Filename: "{sys}\sc.exe"; Parameters: "delete ZafiroAgent"; Flags: runhidden; Ru
 Type: filesandordirs; Name: "{commonappdata}\ZafiroAgent"
 
 [Code]
+var
+  // Версия, которая уже стоит на ПК; пусто — первая установка.
+  InstalledVersion: String;
+
+function InitializeSetup(): Boolean;
+begin
+  InstalledVersion := '';
+  RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B8C1E-3D2A-4E57-9B61-2C8A4F7D1E30}_is1', 'DisplayVersion', InstalledVersion);
+  Result := True;
+end;
+
+function IsUpdate(): Boolean;
+begin
+  Result := InstalledVersion <> '';
+end;
+
+// Обновление: задачи берутся из прошлой установки (UsePreviousTasks), сразу страница с кнопкой «Обновить».
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := IsUpdate() and (PageID = wpSelectTasks);
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if (CurPageID <> wpReady) or not IsUpdate() then Exit;
+  if InstalledVersion = '{#AppVersion}' then
+  begin
+    WizardForm.PageNameLabel.Caption := 'Переустановка Zafiro Agent';
+    WizardForm.PageDescriptionLabel.Caption := 'Эта версия уже установлена.';
+    WizardForm.ReadyLabel.Caption := 'Установлена версия {#AppVersion}. Нажмите «Переустановить», чтобы заменить файлы агента. Ключ клуба и токен ПК сохранятся.';
+    WizardForm.NextButton.Caption := 'Переустановить';
+  end
+  else
+  begin
+    WizardForm.PageNameLabel.Caption := 'Обновление Zafiro Agent';
+    WizardForm.PageDescriptionLabel.Caption := 'Агент уже установлен на этом ПК.';
+    WizardForm.ReadyLabel.Caption := 'Установлена версия ' + InstalledVersion + ', будет установлена {#AppVersion}. Нажмите «Обновить». Ключ клуба и токен ПК сохранятся, служба запустится снова.';
+    WizardForm.NextButton.Caption := 'Обновить';
+  end;
+end;
+
 // Перед обновлением файлов останавливаем службу (иначе она сразу перезапустит агент) и сам агент.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
