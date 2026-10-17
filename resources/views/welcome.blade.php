@@ -63,8 +63,10 @@
                 <a href="#agent" class="hover:text-white">{{ __('Агент') }}</a>
                 <a href="#start" class="hover:text-white">{{ __('Как начать') }}</a>
                 <a href="#faq" class="hover:text-white">{{ __('Вопросы') }}</a>
+                <a href="{{ route('wiki') }}" class="hover:text-white">{{ __('Wiki') }}</a>
             </div>
             <div class="flex items-center gap-2">
+                <a href="{{ route('wiki') }}" class="rounded-lg px-3 py-2 text-sm text-white/80 hover:text-white md:hidden">{{ __('Wiki') }}</a>
                 @auth
                     <a href="{{ route('dashboard') }}" class="rounded-lg bg-[#ff0169] px-4 py-2 text-sm font-semibold shadow-lg shadow-[#ff0169]/30 hover:bg-[#e6005e]">{{ __('Открыть панель') }}</a>
                 @else
@@ -220,6 +222,7 @@
             <div class="flex gap-5">
                 <a href="#features" class="hover:text-white">{{ __('Возможности') }}</a>
                 <a href="#faq" class="hover:text-white">{{ __('Вопросы') }}</a>
+                <a href="{{ route('wiki') }}" class="hover:text-white">{{ __('Wiki') }}</a>
                 <a href="{{ route('auth.show-login') }}" class="hover:text-white">{{ __('Войти') }}</a>
             </div>
         </div>

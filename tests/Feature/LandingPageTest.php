@@ -10,7 +10,8 @@ test('the home page presents Zafiro with sign-up for guests and the panel for si
     $this->get(route('home'))->assertOk()
         ->assertSee('Весь клуб — в одном окне')
         ->assertSee(route('auth.show-register'), false)
-        ->assertSee(LandingController::AGENT_DOWNLOAD, false);
+        ->assertSee(LandingController::AGENT_DOWNLOAD, false)
+        ->assertSee(route('wiki'), false);
 
     $this->actingAs(User::factory()->create())->get(route('home'))->assertOk()
         ->assertSee(route('dashboard'), false)

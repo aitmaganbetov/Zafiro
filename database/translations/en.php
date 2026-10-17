@@ -1388,6 +1388,7 @@ return [
         'Установите агент' => 'Install the agent',
         'Частые вопросы' => 'Frequently asked questions',
         'Что если пропадёт интернет?' => 'What if the internet goes down?',
+        'Wiki' => 'Wiki',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
