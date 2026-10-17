@@ -319,7 +319,15 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .action span{max-width:100%;line-height:1.35}
 .action-icon{width:24px;height:24px;flex:none}
 .action.danger{margin-top:auto}
-.action:hover,.action:focus-visible{background:rgba(255,255,255,0.06);outline:2px solid var(--accent-2);outline-offset:2px}
+/* Наведение — мягкая подсветка без рамки; рамка только при выборе с клавиатуры (Tab). */
+.action{transition:background .15s,color .15s}
+.action .action-icon{transition:color .15s}
+.action:hover{background:rgba(139,92,246,0.14)}
+.action:hover .action-icon{color:var(--accent-2)}
+.action:focus{outline:none}
+.action:focus-visible{outline:2px solid var(--accent-2);outline-offset:-2px}
+.action.danger:hover{background:rgba(255,107,107,0.16)}
+.action.danger:hover .action-icon{color:var(--danger)}
 .action.danger{background:linear-gradient(180deg, rgba(255,107,107,0.08), transparent);color:var(--danger);box-shadow:0 6px 18px rgba(200,30,30,0.12)}
 
 .rightpanel{width:clamp(260px, 19vw, 330px);flex:none;display:flex;flex-direction:column;padding:20px 12px;background:linear-gradient(180deg, rgba(0,0,0,0.25), transparent);border-left:1px solid rgba(255,255,255,0.02)}
