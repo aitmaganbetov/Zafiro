@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -54,9 +55,21 @@ class ClubComputerSessions
                 }
             }
 
-            foreach (['agent_version', 'mac_address', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'] as $field) {
+            foreach (['agent_version', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'] as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[$field] = $data[$field];
+                }
+            }
+
+            // The MAC is the key of the card: a heartbeat only fills it in. Another MAC means
+            // another PC (one booted from this PC's image with its token): it does not take the card.
+            if (($data['mac_address'] ?? null) !== null) {
+                $taken = $computer->mac_address === null && ClubComputer::query()->withoutGlobalScope('club')
+                    ->where('club_id', $computer->club_id)->where('mac_address', $data['mac_address'])->exists();
+                if ($computer->mac_address === null && ! $taken) {
+                    $updates['mac_address'] = $data['mac_address'];
+                } elseif ($computer->mac_address !== $data['mac_address']) {
+                    Log::warning('Agent heartbeat with another MAC ignored', ['club_id' => $computer->club_id, 'computer_id' => $computer->getKey()]);
                 }
             }
 

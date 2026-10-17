@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
+use App\Support\MacAddress;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -25,11 +26,19 @@ class ClubComputerRegistrar
                     ->lockForUpdate()
                     ->findOrFail($this->currentClub->id());
                 $deviceId = $data['device_id'] ?? null;
+                $mac = MacAddress::normalize($data['mac_address'] ?? null);
 
-                $existing = $this->findExisting($data);
+                $existing = $this->find($data);
 
                 if ($existing !== null) {
-                    return ['computer' => $existing->load('zone'), 'created' => false];
+                    return ['computer' => $this->adoptMac($existing, $mac)->load('zone'), 'created' => false];
+                }
+
+                // A new MAC is a new PC even if its UUID is on another card (PCs of one image,
+                // a board vendor placeholder): the UUID stays with that card, this one is known by its MAC.
+                if ($mac !== null && $deviceId !== null && $deviceId !== ''
+                    && ClubComputer::query()->where('device_id', $deviceId)->exists()) {
+                    $deviceId = MacAddress::deviceId($mac);
                 }
 
                 $computerLimit = data_get($club->subscription?->plan?->features, 'max_computers');
@@ -49,7 +58,7 @@ class ClubComputerRegistrar
                     'number' => ((int) $zone->computers()->max('number')) + 1,
                     'device_name' => $data['device_name'],
                     'device_id' => $deviceId,
-                    'mac_address' => $data['mac_address'] ?? null,
+                    'mac_address' => $mac,
                     'status' => 'available',
                 ]);
                 $this->activity->record('computer.registered', __('Агент зарегистрировал ПК :computer в зоне :zone', ['computer' => $computer->displayName(), 'zone' => $zone->name]), $actorId, $computer, [
@@ -66,7 +75,7 @@ class ClubComputerRegistrar
                 throw $exception;
             }
 
-            $existing = $this->findExisting($data);
+            $existing = $this->find($data);
 
             if ($existing !== null) {
                 return ['computer' => $existing->load('zone'), 'created' => false];
@@ -76,16 +85,43 @@ class ClubComputerRegistrar
         }
     }
 
-    /** @param array{device_name:string, device_id?:?string} $data */
-    private function findExisting(array $data): ?ClubComputer
+    /**
+     * The card of the PC that sends this request. With a MAC only the card of that MAC is
+     * this PC: the hostname, Windows ids and often the UUID come from the boot image and are
+     * the same on every PC of the club. A card with a UUID and no MAC yet (registered by an
+     * older agent) is taken over by the first PC that reports that UUID with its MAC.
+     * Without a MAC (older agents): by device_id, then by the PC name.
+     *
+     * @param  array{device_name:string, device_id?:?string, mac_address?:?string}  $data
+     */
+    public function find(array $data): ?ClubComputer
     {
-        $deviceId = $data['device_id'] ?? null;
+        $deviceId = trim((string) ($data['device_id'] ?? ''));
+        $mac = MacAddress::normalize($data['mac_address'] ?? null);
 
-        return $deviceId !== null && $deviceId !== ''
-            ? ClubComputer::query()->where('device_id', $deviceId)->first()
+        if ($mac !== null) {
+            return ClubComputer::query()->where('mac_address', $mac)->first()
+                ?? ($deviceId === '' ? null : ClubComputer::query()
+                    ->whereRaw('LOWER(device_id) = ?', [mb_strtolower($deviceId)])
+                    ->whereNull('mac_address')
+                    ->first());
+        }
+
+        return $deviceId !== ''
+            ? ClubComputer::query()->whereRaw('LOWER(device_id) = ?', [mb_strtolower($deviceId)])->first()
             : ClubComputer::query()
                 ->whereRaw('LOWER(device_name) = ?', [mb_strtolower($data['device_name'])])
                 ->first();
+    }
+
+    /** A card found without a MAC gets the MAC of its PC; a MAC already on the card is never changed here. */
+    public function adoptMac(ClubComputer $computer, ?string $mac): ClubComputer
+    {
+        if ($mac !== null && $computer->mac_address === null) {
+            $computer->forceFill(['mac_address' => $mac])->save();
+        }
+
+        return $computer;
     }
 
     private function defaultZone(): ClubZone

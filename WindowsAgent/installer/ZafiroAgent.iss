@@ -2,6 +2,9 @@
 ;   ISCC.exe /DAppVersion=1.2.3 /DSourceDir=<папка полной сборки> ZafiroAgent.iss
 ; Ставит агент в Program Files и службу Windows «Zafiro Agent» (SYSTEM): служба хранит
 ; токен ПК и перезапускает агент в учётной записи клиента, если его закрыли.
+; Учётные записи Windows установщик не создаёт (на супер-рабочей станции бездисковой системы
+; они попали бы в образ всех ПК): защита применяется к существующей учётной записи клиента —
+; ZafiroAgentSetup.exe /CLIENTUSER=Имя (по умолчанию Client).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -36,7 +39,7 @@ SetupLogging=yes
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "protect"; Description: "Защитить учётную запись клиента: без прав администратора, без диспетчера задач, реестра, командной строки и PowerShell"
+Name: "protect"; Description: "Защитить существующую учётную запись клиента ({param:CLIENTUSER|Client}): без прав администратора, без диспетчера задач, реестра, командной строки и PowerShell. Новая учётная запись не создаётся"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -48,7 +51,7 @@ Filename: "{sys}\sc.exe"; Parameters: "config ZafiroAgent binPath= ""\""{app}\Za
 Filename: "{sys}\sc.exe"; Parameters: "description ZafiroAgent ""Хранит токен ПК клуба и перезапускает Zafiro Agent, если его закрыли."""; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "failure ZafiroAgent reset= 86400 actions= restart/5000/restart/5000/restart/5000"; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "start ZafiroAgent"; Flags: runhidden; StatusMsg: "Запуск службы Zafiro Agent..."
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\Protect-ClubPc.ps1"""; Tasks: protect; Flags: waituntilterminated; StatusMsg: "Защита учётной записи клиента..."
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\Protect-ClubPc.ps1"" -ClientUser ""{param:CLIENTUSER|Client}"""; Tasks: protect; Flags: waituntilterminated; StatusMsg: "Защита учётной записи клиента..."
 
 [UninstallRun]
 ; net stop ждёт, пока служба остановится (sc stop возвращается сразу).

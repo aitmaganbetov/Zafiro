@@ -6,7 +6,9 @@
 .DESCRIPTION
     Запускать от имени администратора, один раз на каждом ПК (и повторно после обновления агента).
     1. Копирует агент в "C:\Program Files\Zafiro Agent": обычный пользователь не может подменить exe.
-    2. Создаёт ограниченную учётную запись клиента (или проверяет существующую): без прав администратора.
+    2. Проверяет существующую учётную запись клиента (-ClientUser): без прав администратора.
+       Учётные записи Windows скрипт не создаёт: на супер-рабочей станции бездисковой системы новая
+       учётная запись попала бы в образ всех ПК клуба. Нет такой учётной записи — запреты пропускаются.
     3. Для этой учётной записи запрещает: диспетчер задач, редактор реестра, командную строку и
        скрипты, PowerShell, окно «Выполнить», панель управления, MMC, msconfig, mshta, wscript/cscript,
        а также лазейки мимо агента: Game Bar (кнопка Xbox), окна залипания и фильтрации клавиш
@@ -17,7 +19,8 @@
        не трогает.
     С ключом -Undo снимает все запреты и удаляет службу (файлы агента и учётная запись остаются).
 
-    Обычно скрипт запускает установщик ZafiroAgentSetup (галочка «Защитить учётную запись клиента»).
+    Обычно скрипт запускает установщик ZafiroAgentSetup (галочка «Защитить учётную запись клиента»;
+    имя учётной записи — параметр установщика /CLIENTUSER=Имя, по умолчанию Client).
     Windows применяет запреты к программам, запущенным из проводника; агент защищает служба.
 
 .EXAMPLE
@@ -29,7 +32,7 @@
 param(
     # Папка с распакованным архивом агента (ZafiroAgent.exe и папка Frontend).
     [string] $AgentPath,
-    # Учётная запись Windows, под которой играют клиенты.
+    # Существующая учётная запись Windows, под которой играют клиенты (скрипт её не создаёт).
     [string] $ClientUser = 'Client',
     [switch] $Undo
 )
@@ -104,13 +107,13 @@ function Remove-AgentService {
     Write-Host 'Служба Zafiro Agent удалена.'
 }
 
-function Ensure-ClientUser {
+# Учётная запись клиента должна уже быть на ПК: скрипт её не создаёт (в бездисковой системе она
+# попала бы в образ всех ПК клуба). Служба агента работает от SYSTEM и без неё.
+function Assert-ClientUser {
     $user = Get-LocalUser -Name $ClientUser -ErrorAction SilentlyContinue
     if (-not $user) {
-        $password = Read-Host "Пароль для новой учётной записи $ClientUser" -AsSecureString
-        New-LocalUser -Name $ClientUser -Password $password -PasswordNeverExpires -UserMayNotChangePassword -Description 'Клиенты клуба (Zafiro)' | Out-Null
-        Add-LocalGroupMember -Group (Get-LocalGroup -SID 'S-1-5-32-545') -Member $ClientUser
-        Write-Host "Создана учётная запись $ClientUser. Войдите в неё один раз и снова запустите скрипт." -ForegroundColor Yellow
+        $existing = (Get-LocalUser | Where-Object { $_.Enabled } | ForEach-Object { $_.Name }) -join ', '
+        Write-Warning "Учётной записи $ClientUser нет: запреты не применены, новая учётная запись не создаётся. Служба Zafiro Agent работает. Укажите существующую учётную запись клиента: -ClientUser <имя> (на этом ПК: $existing)."
         return $false
     }
 
@@ -244,7 +247,7 @@ else {
     Install-Agent
     Install-AgentService
     Set-EdgeSwipe $false
-    if (-not (Ensure-ClientUser)) { return }
+    if (-not (Assert-ClientUser)) { return }
 }
 
 $hive = Open-ClientHive

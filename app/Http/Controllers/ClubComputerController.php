@@ -159,6 +159,7 @@ class ClubComputerController extends Controller
         $computer = $computers->resolve(
             $request->validated('device_name'),
             $request->validated('device_id'),
+            $request->validated('mac_address'),
         );
 
         if ($computer === null) {

@@ -150,14 +150,18 @@ public sealed class DisklessVaultTests : IDisposable
         Assert.Equal(MasterUuid, sentUuid);
     }
     [Theory]
-    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", "AA:BB:CC:00:11:22", "4C4C4544-0042-3510-8051-B4C04F4A3132")]
+    // MAC — у каждого ПК свой, даже если UUID одинаковый у всех ПК образа.
+    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
+    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", "AA:BB:CC:00:11:23", "MAC-AABBCC001123")]
     [InlineData("03000200-0400-0500-0006-000700080009", "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
     [InlineData("11111111-1111-1111-1111-111111111111", "aa-bb-cc-00-11-22", "MAC-AABBCC001122")]
-    [InlineData("00000000-0000-0000-0000-000000000000", "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
     [InlineData(null, "AA:BB:CC:00:11:22", "MAC-AABBCC001122")]
+    // Без MAC — UUID, если это не заглушка.
+    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", null, "4C4C4544-0042-3510-8051-B4C04F4A3132")]
+    [InlineData("4C4C4544-0042-3510-8051-B4C04F4A3132", "00:00:00:00:00:00", "4C4C4544-0042-3510-8051-B4C04F4A3132")]
     [InlineData("03000200-0400-0500-0006-000700080009", null, null)]
     [InlineData(null, "00:00:00:00:00:00", null)]
-    public void PlaceholderUuid_IsReplacedWithTheMac(string? uuid, string? mac, string? expected)
+    public void DeviceId_IsTheMac_UuidOnlyWithoutIt(string? uuid, string? mac, string? expected)
     {
         Assert.Equal(expected, DeviceIdentity.Choose(uuid, mac));
     }

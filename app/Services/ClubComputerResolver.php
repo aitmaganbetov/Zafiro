@@ -3,14 +3,23 @@
 namespace App\Services;
 
 use App\Models\ClubComputer;
+use App\Support\MacAddress;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class ClubComputerResolver
 {
-    public function __construct(private CurrentClub $currentClub) {}
+    public function __construct(private CurrentClub $currentClub, private ClubComputerRegistrar $registrar) {}
 
-    public function resolve(string $deviceName, ?string $deviceId): ?ClubComputer
+    public function resolve(string $deviceName, ?string $deviceId, ?string $macAddress = null): ?ClubComputer
     {
+        // With a MAC the PC is found only by it: the name and the UUID come from the boot image.
+        $mac = MacAddress::normalize($macAddress);
+        if ($mac !== null) {
+            $computer = $this->registrar->find(['device_name' => $deviceName, 'device_id' => $deviceId, 'mac_address' => $mac]);
+
+            return $computer === null ? null : $this->registrar->adoptMac($computer, $mac)->load('zone');
+        }
+
         $query = ClubComputer::query()->with('zone');
 
         if ($deviceId !== null && $deviceId !== '') {

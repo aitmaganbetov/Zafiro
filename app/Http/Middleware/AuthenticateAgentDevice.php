@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\Club;
+use App\Models\ClubComputer;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use App\Services\LocaleResolver;
+use App\Support\MacAddress;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,9 +30,10 @@ class AuthenticateAgentDevice
 
         // A PC cloned from a boot image carries the token of the PC the image was made on.
         // The token is kept: it still belongs to that PC; the clone asks for its own (agent/enroll).
+        // Agents identify the PC by its MAC (MAC-AABBCCDDEEFF); a card registered by an older
+        // agent keeps its UUID in device_id and is matched by its MAC too.
         $device = $request->header('X-Agent-Device');
-        if (is_string($device) && trim($device) !== '' && $computer->device_id !== null
-            && mb_strtolower(trim($device)) !== mb_strtolower($computer->device_id)) {
+        if (is_string($device) && trim($device) !== '' && ! $this->samePc(trim($device), $computer)) {
             return response()->json(['message' => __('Токен устройства принадлежит другому ПК.'), 'code' => 'device_mismatch'], 401);
         }
 
@@ -47,5 +50,15 @@ class AuthenticateAgentDevice
         $request->attributes->set('agent_computer', $computer);
 
         return $next($request);
+    }
+
+    private function samePc(string $device, ClubComputer $computer): bool
+    {
+        if ($computer->device_id === null && $computer->mac_address === null) {
+            return true;
+        }
+
+        return ($computer->device_id !== null && mb_strtolower($device) === mb_strtolower($computer->device_id))
+            || ($computer->mac_address !== null && strcasecmp($device, MacAddress::deviceId($computer->mac_address)) === 0);
     }
 }

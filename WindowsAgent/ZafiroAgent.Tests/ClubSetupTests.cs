@@ -434,4 +434,28 @@ public sealed class ClubSetupTests : IDisposable
         Assert.Single(handler.Requests);
         Assert.DoesNotContain(Key, result.Message);
     }
+
+    [Fact]
+    public void BindingFromTheImageOfAnotherPc_IsReset_OwnBindingIsKept()
+    {
+        var (setup, handler, _, config) = Create((_, _) => StubHandler.Json(HttpStatusCode.OK, "{}"));
+        config.Update(c =>
+        {
+            c.ComputerId = "41";
+            c.ComputerNumber = "1";
+            c.Zone = "Hall";
+            c.DeviceId = "MAC-AABBCC000001";
+        });
+
+        setup.ForgetAnotherPc("mac-aabbcc000001");
+        Assert.Equal("41", config.Load().ComputerId);
+
+        // ПК №2 загрузился из образа ПК №1: карточка ПК №1 ему не принадлежит.
+        setup.ForgetAnotherPc("MAC-AABBCC000002");
+        var cfg = config.Load();
+        Assert.Equal(string.Empty, cfg.ComputerId);
+        Assert.Equal(string.Empty, cfg.ComputerNumber);
+        Assert.Equal(string.Empty, cfg.DeviceId);
+        Assert.Empty(handler.Requests);
+    }
 }

@@ -85,6 +85,7 @@ namespace ZafiroAgent
             Covers.SetBranding(_config.Load().ClubName, null); // логотип придёт с первым heartbeat
             _api = new ZafiroApiClient(ZafiroApiClient.CreateHttpClient());
             var clubSetup = new ClubSetupService(_api, _config, _secure);
+            clubSetup.ForgetAnotherPc(Task.Run(() => DeviceInfo.StableId).GetAwaiter().GetResult());
             AttachToService();
 
             Keyboard.StaffShortcut += () => Dispatcher.BeginInvoke(RequestStaffExit);

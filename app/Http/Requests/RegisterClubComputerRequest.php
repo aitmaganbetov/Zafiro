@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\ClubZone;
 use App\Services\CurrentClub;
+use App\Support\MacAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,7 @@ class RegisterClubComputerRequest extends FormRequest
             }
         }
         if (is_string($this->input('mac_address'))) {
-            $this->merge(['mac_address' => strtoupper($this->input('mac_address'))]);
+            $this->merge(['mac_address' => MacAddress::normalize($this->input('mac_address')) ?? $this->input('mac_address')]);
         }
     }
 

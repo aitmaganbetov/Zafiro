@@ -330,16 +330,17 @@ namespace ZafiroAgent.Services
 
         private async Task<long> ResolveComputerAsync(ClubSession session, CancellationToken cancellationToken)
         {
-            // device_id необязателен: если UUID недоступен, поле не отправляется.
+            // device_id необязателен: если ни MAC, ни UUID недоступны, поле не отправляется.
             var deviceId = _deviceIdProvider();
+            // ПК опознаётся по MAC: имя ПК и UUID у ПК одного образа одинаковые.
+            var mac = _hardware.GetSnapshot().MacAddress;
 
             // Без claim: токен устройства выдаётся только при подключении ПК в окне входа.
-            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken).ConfigureAwait(false);
+            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken, macAddress: mac).ConfigureAwait(false);
 
             // ПК нет в клубе: регистрируем его. Backend идемпотентен, а при ошибках цикл ждёт backoff.
             if (!result.Success && result.Failure == ApiFailure.ComputerNotFound)
             {
-                var mac = _hardware.GetSnapshot().MacAddress;
                 result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, mac, cancellationToken).ConfigureAwait(false);
                 if (result.Success) SafeLog.Write("[Heartbeat] computer registered in club");
             }

@@ -272,9 +272,9 @@ namespace ZafiroAgent.Views
                     // Подключение ПК — только пока у него нет токена устройства: сервер выдаёт токен
                     // сотруднику, так агент узнаёт, что ПК подключил сотрудник, и выходит из его
                     // аккаунта. Когда ПК уже подключён, вход сотрудника или клиента — обычный вход.
-                    var deviceId = await System.Threading.Tasks.Task.Run(() => DeviceInfo.Id);
+                    var (deviceId, mac) = await System.Threading.Tasks.Task.Run(() => (DeviceInfo.Id, DeviceInfo.MacAddress));
                     var connect = firstSetup || !await System.Threading.Tasks.Task.Run(() => _setup.HasDeviceToken);
-                    var claim = await _setup.ClaimComputerAsync(result.Value!, deviceId, _cts.Token, connect);
+                    var claim = await _setup.ClaimComputerAsync(result.Value!, deviceId, _cts.Token, connect, mac);
                     var isStaff = connect && claim.Success && !string.IsNullOrEmpty(claim.Value!.AgentToken);
 
                     // ПК не подтверждён (нет связи, служба не приняла токен): никто не остаётся

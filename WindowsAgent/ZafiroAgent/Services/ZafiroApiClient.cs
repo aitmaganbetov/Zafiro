@@ -352,15 +352,17 @@ namespace ZafiroAgent.Services
             return _utcNow().Add(DefaultTokenLifetime);
         }
 
-        /// <summary>Определяет этот ПК в клубе по имени и идентификатору устройства.</summary>
+        /// <summary>Определяет этот ПК в клубе: по MAC, а у старых серверов — по имени и идентификатору устройства.</summary>
         /// <param name="claim">
         /// true — получить токен устройства, если вошёл сотрудник (подключение ПК). Агент просит его,
         /// только пока токена нет: иначе каждый вход сотрудника выдавал бы новый токен.
         /// </param>
-        public async Task<ApiResult<ComputerInfo>> ResolveComputerAsync(ClubSession session, string deviceName, string? deviceId, CancellationToken cancellationToken, bool claim = false)
+        /// <param name="macAddress">MAC активного адаптера: имя ПК и UUID у ПК одного образа одинаковые.</param>
+        public async Task<ApiResult<ComputerInfo>> ResolveComputerAsync(ClubSession session, string deviceName, string? deviceId, CancellationToken cancellationToken, bool claim = false, string? macAddress = null)
         {
             var payload = new Dictionary<string, object?> { ["device_name"] = deviceName, ["claim"] = claim };
             if (!string.IsNullOrWhiteSpace(deviceId)) payload["device_id"] = deviceId;
+            if (!string.IsNullOrWhiteSpace(macAddress)) payload["mac_address"] = macAddress;
             using var content = JsonBody(payload);
 
             HttpResponseMessage response;

@@ -43,9 +43,10 @@ namespace ZafiroAgent.Services
     }
 
     /// <summary>
-    /// Идентификатор ПК для сервера. Обычно — UUID из SMBIOS. У дешёвых плат UUID бывает
-    /// заглушкой, одинаковой на всех ПК клуба: тогда идентификатором служит MAC основного адаптера
-    /// (в бездисковой системе ПК и так различаются по MAC).
+    /// Идентификатор ПК для сервера — MAC активного сетевого адаптера («MAC-AABBCCDDEEFF»).
+    /// В бездисковом клубе все ПК грузятся из одного образа: имя ПК, идентификаторы Windows и
+    /// часто UUID платы у них одинаковые, а MAC — свой у каждого. UUID из SMBIOS — только если MAC
+    /// не определён (и если это не заглушка производителя).
     /// </summary>
     public static class DeviceIdentity
     {
@@ -71,10 +72,10 @@ namespace ZafiroAgent.Services
 
         public static string? Choose(string? uuid, string? mac)
         {
-            if (IsUsableUuid(uuid)) return uuid!.Trim();
-
             var hex = new string((mac ?? string.Empty).Where(Uri.IsHexDigit).ToArray()).ToUpperInvariant();
-            return hex.Length == 12 && hex.Distinct().Count() > 1 ? "MAC-" + hex : null;
+            if (hex.Length == 12 && hex.Distinct().Count() > 1) return "MAC-" + hex;
+
+            return IsUsableUuid(uuid) ? uuid!.Trim() : null;
         }
     }
 

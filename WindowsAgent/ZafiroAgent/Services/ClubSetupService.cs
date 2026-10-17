@@ -43,6 +43,27 @@ namespace ZafiroAgent.Services
 
         public string Zone => _config.Load().Zone;
 
+        /// <summary>
+        /// Профиль клиента в бездисковом образе снят с другого ПК: номер и карточка ПК в нём — того ПК.
+        /// Если сохранённый идентификатор (MAC) не этого ПК, привязка к карточке сбрасывается,
+        /// а heartbeat заново определяет ПК по его MAC.
+        /// </summary>
+        public void ForgetAnotherPc(string? deviceId)
+        {
+            if (string.IsNullOrEmpty(deviceId)) return;
+            var cfg = _config.Load();
+            if (string.IsNullOrEmpty(cfg.DeviceId) || string.Equals(cfg.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase)) return;
+
+            _config.Update(c =>
+            {
+                c.ComputerId = string.Empty;
+                c.ComputerNumber = string.Empty;
+                c.Zone = string.Empty;
+                c.DeviceId = string.Empty;
+            });
+            SafeLog.Write("[Setup] saved computer belongs to another PC (boot image): binding reset");
+        }
+
         public async Task<ApiResult<ClubSession>> SetupAsync(string clubKey, string phone, string password, CancellationToken cancellationToken)
         {
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -161,11 +182,12 @@ namespace ZafiroAgent.Services
         /// дальше, а сам сотрудник выходит. Клиенту токен не выдаётся: AgentToken = null.
         /// </summary>
         /// <param name="claim">false — ПК уже подключён: только определить его, токен не нужен.</param>
-        public async Task<ApiResult<ComputerInfo>> ClaimComputerAsync(ClubSession session, string? deviceId, CancellationToken cancellationToken, bool claim = true)
+        /// <param name="macAddress">MAC активного адаптера — по нему сервер отличает ПК одного образа.</param>
+        public async Task<ApiResult<ComputerInfo>> ClaimComputerAsync(ClubSession session, string? deviceId, CancellationToken cancellationToken, bool claim = true, string? macAddress = null)
         {
-            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken, claim).ConfigureAwait(false);
+            var result = await _api.ResolveComputerAsync(session, _deviceName, deviceId, cancellationToken, claim, macAddress).ConfigureAwait(false);
             if (!result.Success && result.Failure == ApiFailure.ComputerNotFound)
-                result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, null, cancellationToken, claim).ConfigureAwait(false);
+                result = await _api.RegisterComputerAsync(session, _deviceName, deviceId, macAddress, cancellationToken, claim).ConfigureAwait(false);
             if (!result.Success) return result;
 
             var info = result.Value!;

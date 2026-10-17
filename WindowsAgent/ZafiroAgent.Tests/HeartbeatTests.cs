@@ -132,6 +132,8 @@ public sealed class HeartbeatTests : IDisposable
         {
             Assert.Equal("TEST-PC", body.RootElement.GetProperty("device_name").GetString());
             Assert.Equal("device-uuid", body.RootElement.GetProperty("device_id").GetString());
+            // ПК опознаётся по MAC: имя и UUID у ПК одного образа одинаковые.
+            Assert.Equal("AA:BB:CC:DD:EE:FF", body.RootElement.GetProperty("mac_address").GetString());
         }
 
         var heartbeat = requests[1];
