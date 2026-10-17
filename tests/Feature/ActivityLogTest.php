@@ -4,6 +4,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -117,4 +118,16 @@ test('activity log entries always name the acting user and the client ip', funct
 
     expect(fn () => ActivityLog::query()->create(['event' => 'auth.login', 'description' => 'Без IP', 'user_id' => $user->id]))
         ->toThrow(QueryException::class);
+});
+
+test('the activity log shows nested details such as the goods of an agent order', function () {
+    $owner = User::factory()->create();
+    app(ActivityLogger::class)->record('shop.purchased', 'Заказ из агента', $owner->id, null, [
+        'amount' => '950.50',
+        'items' => [['product_id' => 1, 'name' => 'Cola', 'quantity' => 2, 'total' => '700.00'], ['product_id' => 2, 'name' => 'Чипсы', 'quantity' => 1, 'total' => '250.50']],
+        'flags' => ['a' => ['b' => 1]],
+    ]);
+
+    $this->actingAs($owner)->get(route('activity-logs.index'))->assertOk()
+        ->assertSee('items: Cola × 2, Чипсы × 1');
 });

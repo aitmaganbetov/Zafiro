@@ -100,6 +100,20 @@ class ActivityLog extends Model
         'computer.guest_session_reset' => 'Гостевая сессия сброшена после перезагрузки',
     ];
 
+    /** A detail value as text: lists of goods read «Cola × 2, Чипсы × 1», other lists are joined. */
+    public static function detailText(mixed $value): string
+    {
+        if (! is_array($value)) {
+            return is_bool($value) ? ($value ? __('да') : __('нет')) : (string) ($value ?? '—');
+        }
+
+        return collect($value)->map(fn (mixed $item): string => match (true) {
+            is_array($item) && isset($item['name'], $item['quantity']) => $item['name'].' × '.$item['quantity'],
+            is_array($item) => (string) json_encode($item, JSON_UNESCAPED_UNICODE),
+            default => self::detailText($item),
+        })->implode(', ');
+    }
+
     protected function casts(): array
     {
         return ['details' => 'array'];

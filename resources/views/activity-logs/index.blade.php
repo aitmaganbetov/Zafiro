@@ -56,7 +56,7 @@
                         <td class="px-4 py-3 text-gray-800 dark:text-gray-200">{{ $log->user?->name ?? __('Система') }}</td>
                         <td class="px-4 py-3"><span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $eventLabels[$log->event] ?? $log->event }}</span></td>
                         <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $log->description }}
-                            @if($log->details)<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">@foreach($log->details as $key => $value)<span>{{ $key }}: {{ is_array($value) ? implode(', ', $value) : $value }}</span>@endforeach</div>@endif
+                            @if($log->details)<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">@foreach($log->details as $key => $value)<span>{{ $key }}: {{ \App\Models\ActivityLog::detailText($value) }}</span>@endforeach</div>@endif
                         </td>
                         <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">{{ $log->ip_address ?? '—' }}</td>
                     </tr>
