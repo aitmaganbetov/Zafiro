@@ -1405,6 +1405,8 @@ return [
         'Добавить уровень' => 'Add level',
         'Потрачено' => 'Spent',
         'накопительная' => 'cumulative',
+        'Сессии и ПК' => 'Sessions and PCs',
+        'Разделы страницы' => 'Page sections',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

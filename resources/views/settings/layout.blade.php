@@ -10,18 +10,21 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6">
-        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 h-fit animate-slide shadow-sm">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 h-fit animate-slide shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto">
             <div class="space-y-2">
                 @if (in_array($currentMembership?->role, ['owner', 'admin', 'manager'], true))
                 <a href="{{ route('settings.club') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.club') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-building w-4"></i>{{ __('Настройка клуба') }}
                 </a>
+                @includeWhen(request()->routeIs('settings.club'), 'settings.anchors')
                 <a href="{{ route('settings.languages') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.languages') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-language w-4"></i>{{ __('Языки') }}
                 </a>
+                @includeWhen(request()->routeIs('settings.languages'), 'settings.anchors')
                 <a href="{{ route('settings.finances') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.finances') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-coins w-4"></i>{{ __('Финансы') }}
                 </a>
+                @includeWhen(request()->routeIs('settings.finances'), 'settings.anchors')
                 <a href="{{ route('settings.guests') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.guests') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-users w-4"></i>{{ __('Гости') }}
                 </a>
@@ -63,3 +66,21 @@
     </div>
 </div>
 @endsection
+
+@if (! empty($settingsAnchors))
+@push('scripts')
+<script>
+// Left menu: the anchor of the section at the top of the screen is marked as current.
+(() => {
+    const links = [...document.querySelectorAll('[data-settings-anchors] a')];
+    const sections = links.map(link => document.getElementById(link.hash.slice(1))).filter(Boolean);
+    const mark = () => {
+        const current = sections.filter(section => section.getBoundingClientRect().top <= 120).pop() ?? sections[0];
+        links.forEach(link => link.setAttribute('aria-current', String(link.hash === '#' + current?.id)));
+    };
+    document.addEventListener('scroll', mark, { capture: true, passive: true });
+    mark();
+})();
+</script>
+@endpush
+@endif

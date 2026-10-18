@@ -3,6 +3,8 @@
 @section('settings-section', 'finances')
 
 @php
+    // Подразделы страницы: якоря в левом меню настроек.
+    $settingsAnchors = ['currency-settings' => __('Валюта'), 'loyalty' => __('Накопительная скидка')];
     $currency = $settings['finances']['currency'] ?? 'KZT';
     $loyaltyLevels = old('loyalty_levels', $settings['finances']['loyalty_levels'] ?? []);
     $loyaltyLevels = is_array($loyaltyLevels) ? array_values($loyaltyLevels) : [];
@@ -12,7 +14,7 @@
 
 @section('settings-content')
 <h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Финансы') }}</h4>
-<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+<div id="currency-settings" class="grid scroll-mt-6 grid-cols-1 gap-4 md:grid-cols-2">
     <div>
         <label for="currency" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Валюта') }}</label>
         <select id="currency" name="currency" class="{{ $inputClass }}">
@@ -23,7 +25,7 @@
     </div>
 </div>
 
-<div class="border-t border-gray-200 pt-6 dark:border-gray-800">
+<div id="loyalty" class="scroll-mt-6 border-t border-gray-200 pt-6 dark:border-gray-800">
     <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Накопительная скидка') }}</h5>
     <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Клиент получает скидку, когда его траты в клубе достигают порога. Считаются тарифы, поминутное время и заказы в агенте, оплаченные с основного баланса. Скидка действует на тарифы с отметкой «Применять скидку»; если у клиента есть персональная скидка, применяется большая.') }}</p>
 
