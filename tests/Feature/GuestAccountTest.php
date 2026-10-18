@@ -85,7 +85,6 @@ test('with Telegram linked the new password goes to Telegram and is not shown', 
 
 test('a customer links Telegram from the agent with a one-time link the bot confirms', function () {
     withBot();
-    Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []])]);
     $guest = guestWithRole('client', ['name' => 'Арман']);
     $clubId = membershipOf($guest)->club_id;
     app(CurrentClub::class)->clear();
@@ -96,24 +95,33 @@ test('a customer links Telegram from the agent with a one-time link the bot conf
     expect($url)->toStartWith('https://t.me/ZafiroBot?start=');
     $code = substr($url, strlen('https://t.me/ZafiroBot?start='));
 
-    $secret = app(Telegram::class)->webhookSecret();
-    $update = ['message' => ['chat' => ['id' => 777], 'text' => '/start '.$code]];
-    $this->postJson(route('telegram.webhook'), $update)->assertForbidden();
-    $this->postJson(route('telegram.webhook'), $update, ['X-Telegram-Bot-Api-Secret-Token' => $secret])->assertOk();
+    // The bot's messages come by long polling (telegram:poll), in the order Telegram gives them.
+    Http::fake(['api.telegram.org/*/getUpdates' => Http::sequence()
+        ->push(['ok' => false, 'error_code' => 409, 'description' => 'Conflict: can\'t use getUpdates method while webhook is active'], 409)
+        ->push(['ok' => true, 'result' => [['update_id' => 41, 'message' => ['chat' => ['id' => 777], 'text' => '/start '.$code]]]])
+        ->push(['ok' => true, 'result' => [['update_id' => 42, 'message' => ['chat' => ['id' => 888], 'text' => '/start '.$code]]]])
+        ->push(['ok' => true, 'result' => [['update_id' => 43, 'message' => ['chat' => ['id' => 777], 'text' => '/stop']]]]),
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => true])]);
+
+    // A webhook left from before is removed, then the first message links the chat.
+    $this->artisan('telegram:poll', ['--seconds' => 0])->assertSuccessful();
     expect($guest->fresh()->telegram_chat_id)->toBe('777');
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/deleteWebhook'));
 
     // The link works once.
-    $this->postJson(route('telegram.webhook'), ['message' => ['chat' => ['id' => 888], 'text' => '/start '.$code]], ['X-Telegram-Bot-Api-Secret-Token' => $secret])->assertOk();
+    $this->artisan('telegram:poll', ['--seconds' => 0])->assertSuccessful();
     expect(User::query()->where('telegram_chat_id', '888')->exists())->toBeFalse();
 
-    $this->postJson(route('telegram.webhook'), ['message' => ['chat' => ['id' => 777], 'text' => '/stop']], ['X-Telegram-Bot-Api-Secret-Token' => $secret])->assertOk();
+    // Each message is taken once: the next request asks for the following update.
+    $this->artisan('telegram:poll', ['--seconds' => 0])->assertSuccessful();
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/getUpdates') && $request['offset'] === 43);
     expect($guest->fresh()->telegram_chat_id)->toBeNull();
 });
 
-test('the superadmin connects the bot: token checked, webhook set, token stored encrypted', function () {
+test('the superadmin connects the bot: token checked, no webhook (messages are polled), token stored encrypted', function () {
     Http::fake([
         'api.telegram.org/*/getMe' => Http::response(['ok' => true, 'result' => ['username' => 'ZafiroBot']]),
-        'api.telegram.org/*/setWebhook' => Http::response(['ok' => true, 'result' => true]),
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
     ]);
     $admin = User::factory()->create();
     $admin->forceFill(['is_superadmin' => true])->save();
@@ -123,5 +131,6 @@ test('the superadmin connects the bot: token checked, webhook set, token stored 
 
     $stored = PlatformSetting::query()->find(Telegram::SETTING)->getRawOriginal('value');
     expect($stored)->not->toContain(BOT_TOKEN);
-    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === route('telegram.webhook') && $request['secret_token'] === app(Telegram::class)->webhookSecret());
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/deleteWebhook'));
+    Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/setWebhook'));
 });

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformSetting;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -14,12 +15,18 @@ use Throwable;
  * The Zafiro Telegram bot (one for the platform, set up in the superadmin cabinet). A customer
  * links Telegram from the PC agent (t.me/<bot>?start=<one-time code>); then a new password
  * after a reset is sent there. The bot token is stored encrypted and is never cached or logged.
+ *
+ * Messages to the bot are taken by long polling (telegram:poll, every minute): the server only
+ * connects out to Telegram, so it works where Telegram cannot reach the server (no webhook).
  */
 class Telegram
 {
     public const SETTING = 'telegram_bot';
 
     public const LINK_MINUTES = 15;
+
+    /** The next update to ask Telegram for (not a secret). */
+    public const OFFSET_CACHE = 'telegram:update-offset';
 
     /** @return array{token: string, username: string}|null */
     public function bot(): ?array
@@ -42,7 +49,7 @@ class Telegram
         return $this->bot() !== null;
     }
 
-    /** Checks the token with Telegram, points the bot's webhook here and saves it. Returns the bot username. */
+    /** Checks the token with Telegram and saves it; messages are then polled. Returns the bot username. */
     public function configure(string $token, ?User $by): string
     {
         $me = $this->call($token, 'getMe');
@@ -51,14 +58,9 @@ class Telegram
             throw new \RuntimeException(__('Telegram не принял токен бота.'));
         }
 
-        $hook = $this->call($token, 'setWebhook', [
-            'url' => route('telegram.webhook'),
-            'secret_token' => $this->webhookSecret($token),
-            'allowed_updates' => ['message'],
-        ]);
-        if (! ($hook['ok'] ?? false)) {
-            throw new \RuntimeException(__('Telegram не принял адрес вебхука.'));
-        }
+        // Updates are polled: a webhook would make Telegram refuse getUpdates.
+        $this->call($token, 'deleteWebhook');
+        Cache::forget(self::OFFSET_CACHE);
 
         PlatformSetting::write(self::SETTING, ['token' => Crypt::encryptString($token), 'username' => $username], $by);
 
@@ -73,12 +75,47 @@ class Telegram
         PlatformSetting::write(self::SETTING, null, $by);
     }
 
-    /** Telegram sends it back in X-Telegram-Bot-Api-Secret-Token: derived from the token, not stored. */
-    public function webhookSecret(?string $token = null): ?string
+    /**
+     * Takes the bot's new messages from Telegram and handles them, waiting for new ones (long
+     * polling) for up to $seconds. Returns how many were handled.
+     */
+    public function poll(int $seconds): int
     {
-        $token ??= $this->bot()['token'] ?? null;
+        $bot = $this->bot();
+        $handled = 0;
+        $webhookRemoved = false;
+        $until = time() + $seconds;
+        while ($bot !== null) {
+            $wait = max(0, min(25, $until - time()));
+            $response = $this->call($bot['token'], 'getUpdates', [
+                'offset' => (int) Cache::get(self::OFFSET_CACHE, 0),
+                'timeout' => $wait,
+                'allowed_updates' => ['message'],
+            ], $wait + 10);
 
-        return $token === null ? null : hash_hmac('sha256', 'telegram-webhook', $token.config('app.key'));
+            // A webhook is still set (a bot saved before polling): remove it and ask again.
+            if (($response['error_code'] ?? null) === 409 && ! $webhookRemoved) {
+                $this->call($bot['token'], 'deleteWebhook');
+                $webhookRemoved = true;
+
+                continue;
+            }
+            if (! ($response['ok'] ?? false)) {
+                break;
+            }
+
+            foreach ($response['result'] ?? [] as $update) {
+                // Moved on first: a message that fails is not taken again and again.
+                Cache::forever(self::OFFSET_CACHE, (int) ($update['update_id'] ?? 0) + 1);
+                $this->handle(is_array($update) ? $update : []);
+                $handled++;
+            }
+            if ($wait === 0 || time() >= $until) {
+                break;
+            }
+        }
+
+        return $handled;
     }
 
     /** A fresh one-time link for the customer to open in Telegram. */
@@ -95,7 +132,7 @@ class Telegram
         return 'https://t.me/'.$bot['username'].'?start='.$code;
     }
 
-    /** An update from the webhook: /start <code> links the chat to the customer, /stop unlinks it. */
+    /** An update from Telegram: /start <code> links the chat to the customer, /stop unlinks it. */
     public function handle(array $update): void
     {
         $chatId = $update['message']['chat']['id'] ?? null;
@@ -141,10 +178,10 @@ class Telegram
     }
 
     /** @return array<string, mixed> */
-    private function call(string $token, string $method, array $payload = []): array
+    private function call(string $token, string $method, array $payload = [], int $timeout = 10): array
     {
         try {
-            $response = Http::timeout(10)->asJson()->post("https://api.telegram.org/bot{$token}/{$method}", $payload);
+            $response = Http::timeout($timeout)->asJson()->post("https://api.telegram.org/bot{$token}/{$method}", $payload);
 
             return is_array($response->json()) ? $response->json() : [];
         } catch (Throwable $exception) {

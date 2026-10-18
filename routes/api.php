@@ -17,15 +17,9 @@ use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\GuestShopController;
 use App\Http\Controllers\Api\GuestTelegramController;
 use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
-
-// Updates of the Zafiro Telegram bot (signed with the webhook secret).
-Route::post('/telegram/webhook', TelegramWebhookController::class)
-    ->middleware('throttle:120,1,telegram.webhook')
-    ->name('telegram.webhook');
 
 Route::post('/clubs/resolve', ClubInstallationController::class)
     ->middleware('throttle:club-resolve')
