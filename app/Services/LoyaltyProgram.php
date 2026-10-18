@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ClubMembership;
+use App\Support\PercentLevels;
 
 /**
  * Cumulative discount set up by the club (Settings → Finances): a customer who has spent at least
@@ -31,15 +32,7 @@ class LoyaltyProgram
     /** The percent of the highest level the customer's spending has reached; 0 — none. */
     public function percentFor(ClubMembership $membership): float
     {
-        $spent = AgentTariffPurchaseService::amountToCents((string) ($membership->total_spent ?? '0'));
-        $percent = 0.0;
-        foreach ($this->levels() as $level) {
-            if ($spent >= (int) round($level['spent'] * 100)) {
-                $percent = max($percent, (float) $level['percent']);
-            }
-        }
-
-        return $percent;
+        return PercentLevels::percentAt($this->levels(), 'spent', AgentTariffPurchaseService::amountToCents((string) ($membership->total_spent ?? '0')));
     }
 
     /** The customer's discount: the personal one or the cumulative one, whichever is larger. */
@@ -69,25 +62,9 @@ class LoyaltyProgram
         }
     }
 
-    /**
-     * Levels as stored: rows with both fields empty dropped, numbers rounded to the cent,
-     * sorted by spent.
-     *
-     * @return list<array{spent: int|float, percent: int|float}>
-     */
+    /** @return list<array{spent: int|float, percent: int|float}> */
     public static function normalize(mixed $levels): array
     {
-        if (! is_array($levels)) {
-            return [];
-        }
-
-        $number = fn (mixed $value): int|float => floor($rounded = round((float) $value, 2)) === $rounded ? (int) $rounded : $rounded;
-
-        return collect($levels)
-            ->filter(fn (mixed $level): bool => is_array($level) && is_numeric($level['spent'] ?? null) && is_numeric($level['percent'] ?? null))
-            ->map(fn (array $level): array => ['spent' => $number($level['spent']), 'percent' => $number($level['percent'])])
-            ->sortBy('spent')
-            ->values()
-            ->all();
+        return PercentLevels::normalize($levels, 'spent');
     }
 }

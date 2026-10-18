@@ -97,6 +97,10 @@ class GuestHistory
                 $entry['note'] = $details['payment_method'] ?? null;
                 $bonus = in_array($details['balance_type'] ?? null, array_map(fn (string $locale): string => __('бонусный баланс', [], $locale), ['ru', 'kk', 'en']), true);
                 $entry[$bonus ? 'bonus_amount' : 'amount'] = self::positive($details['amount'] ?? null);
+                // A bonus for topping up the main balance (Settings → Finances).
+                if (! $bonus && isset($details['bonus_amount'])) {
+                    $entry['bonus_amount'] = self::positive($details['bonus_amount']);
+                }
                 break;
             case 'balance.transferred':
                 $outgoing = (int) $log->user_id === $userId;

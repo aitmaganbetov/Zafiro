@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class CashRegisterService
 {
-    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
+    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks, private TopUpBonus $topUpBonus) {}
 
     public function sale(array $items, int $userId): CashTransaction
     {
@@ -92,6 +92,11 @@ class CashRegisterService
             $balanceLabel = $balanceType === 'balance' ? __('основной баланс') : __('бонусный баланс');
             $paymentLabels = ['cash' => __('наличные'), 'card' => __('карта'), 'qr' => __('QR-код')];
             $balance->increment($balanceType, $amount);
+            // Topping up the main balance may add a bonus (Settings → Finances); it is not cash income.
+            $bonus = $balanceType === 'balance' ? $this->topUpBonus->for($amount) : ['percent' => 0.0, 'cents' => 0];
+            if ($bonus['cents'] > 0) {
+                $balance->increment('bonus_balance', $bonus['cents'] / 100);
+            }
             $balance->refresh();
 
             $transaction = $shift->transactions()->create([
@@ -107,6 +112,9 @@ class CashRegisterService
                 'payment_method' => $paymentLabels[$paymentMethod],
                 'new_balance' => (float) $balance->{$balanceType},
             ];
+            if ($bonus['cents'] > 0) {
+                $details += ['bonus_amount' => $bonus['cents'] / 100, 'bonus_percent' => $bonus['percent'], 'new_bonus_balance' => (float) $balance->bonus_balance];
+            }
             $this->activity->record('cash.income', $transaction->description, $operatorId, $transaction, $details);
             $this->activity->record('user.balance_topped_up', $transaction->description, $operatorId, $user, $details);
 

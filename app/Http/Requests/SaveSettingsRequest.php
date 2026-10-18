@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\LoyaltyProgram;
+use App\Services\TopUpBonus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -32,6 +33,11 @@ class SaveSettingsRequest extends FormRequest
             'loyalty_levels.*' => ['array:spent,percent'],
             'loyalty_levels.*.spent' => ['required', 'numeric', 'min:0.01', 'max:999999999', 'distinct'],
             'loyalty_levels.*.percent' => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'topup_bonus_enabled' => ['nullable', 'boolean'],
+            'topup_bonus_levels' => ['nullable', 'array', 'max:'.TopUpBonus::MAX_LEVELS],
+            'topup_bonus_levels.*' => ['array:amount,percent'],
+            'topup_bonus_levels.*.amount' => ['required', 'numeric', 'min:0.01', 'max:999999999', 'distinct'],
+            'topup_bonus_levels.*.percent' => ['required', 'numeric', 'min:0.01', 'max:100'],
             'show_qr_code_on_login' => ['nullable', 'boolean'],
             'allow_guest_self_transfer' => ['nullable', 'boolean'],
             'allow_adding_friends' => ['nullable', 'boolean'],
@@ -52,15 +58,23 @@ class SaveSettingsRequest extends FormRequest
             'loyalty_levels.*.spent.*' => __('Сумма трат — число больше нуля.'),
             'loyalty_levels.*.percent.required' => __('Укажите скидку для каждого уровня.'),
             'loyalty_levels.*.percent.*' => __('Скидка — от 0,01 до 100%.'),
+            'topup_bonus_levels.max' => __('Уровней бонуса — не больше :max.', ['max' => TopUpBonus::MAX_LEVELS]),
+            'topup_bonus_levels.*.amount.required' => __('Укажите сумму пополнения для каждого уровня.'),
+            'topup_bonus_levels.*.amount.distinct' => __('Суммы пополнения у уровней не должны повторяться.'),
+            'topup_bonus_levels.*.amount.*' => __('Сумма пополнения — число больше нуля.'),
+            'topup_bonus_levels.*.percent.required' => __('Укажите бонус для каждого уровня.'),
+            'topup_bonus_levels.*.percent.*' => __('Бонус — от 0,01 до 100%.'),
         ];
     }
 
     /** Rows of the levels table left empty are not levels. */
     protected function prepareForValidation(): void
     {
-        $levels = $this->input('loyalty_levels');
-        if (is_array($levels)) {
-            $this->merge(['loyalty_levels' => array_values(array_filter($levels, fn (mixed $level): bool => ! is_array($level) || ($level['spent'] ?? null) !== null || ($level['percent'] ?? null) !== null))]);
+        foreach (['loyalty_levels' => 'spent', 'topup_bonus_levels' => 'amount'] as $field => $threshold) {
+            $levels = $this->input($field);
+            if (is_array($levels)) {
+                $this->merge([$field => array_values(array_filter($levels, fn (mixed $level): bool => ! is_array($level) || ($level[$threshold] ?? null) !== null || ($level['percent'] ?? null) !== null))]);
+            }
         }
     }
 }

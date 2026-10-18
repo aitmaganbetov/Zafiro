@@ -15,6 +15,7 @@ use App\Services\ActivityLogger;
 use App\Services\CashRegisterService;
 use App\Services\CurrentClub;
 use App\Services\ShiftReport;
+use App\Services\TopUpBonus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,9 +66,10 @@ class CashRegisterController extends Controller
             ->with('status', __('Продажа проведена. Распечатайте чек.'));
     }
 
-    public function topUpBalance(StoreBalanceTopUpRequest $request): RedirectResponse
+    public function topUpBalance(StoreBalanceTopUpRequest $request, TopUpBonus $topUpBonus): RedirectResponse
     {
         $data = $request->validated();
+        $bonus = $data['balance_type'] === 'balance' ? $topUpBonus->for((float) $data['amount'])['cents'] : 0;
         $this->cash->topUpBalance(
             (int) $data['user_id'],
             (float) $data['amount'],
@@ -76,7 +78,11 @@ class CashRegisterController extends Controller
             $request->user()->getKey(),
         );
 
-        return back()->with('status', __('Баланс пользователя пополнен.'))->with('cash_view', 'balance');
+        $status = $bonus > 0
+            ? __('Баланс пользователя пополнен. Бонус за пополнение: :amount.', ['amount' => number_format($bonus / 100, 2, '.', ' ')])
+            : __('Баланс пользователя пополнен.');
+
+        return back()->with('status', $status)->with('cash_view', 'balance');
     }
 
     public function receipt(CashTransaction $cashTransaction): View
