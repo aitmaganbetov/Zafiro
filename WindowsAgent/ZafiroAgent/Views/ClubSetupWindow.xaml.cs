@@ -19,6 +19,9 @@ namespace ZafiroAgent.Views
     {
         private enum Mode { Setup, Relogin, Connected }
 
+        // «Забыли пароль?»: None — обычный вход, Phone — номер для кода, Code — код из Telegram и новый пароль.
+        private enum Recovery { None, Phone, Code }
+
         private static readonly Brush CurrentLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x75, 0x54, 0xC8)));
         private static readonly Brush OtherLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x30, 0x2D, 0x3D)));
 
@@ -31,6 +34,8 @@ namespace ZafiroAgent.Views
         private bool _busy;
         private bool _qrRunning;
         private bool _registering;
+        private Recovery _recovery;
+        private string? _recoveryPhone;
         private bool _guestWatching;
         private GuestSession? _guest;
         private Window? _guestOverlay;
@@ -62,10 +67,13 @@ namespace ZafiroAgent.Views
 
             SubmitButton.Click += async (_, _) =>
             {
-                if (_registering) await RegisterAsync();
+                if (_recovery != Recovery.None) await RecoverAsync();
+                else if (_registering) await RegisterAsync();
                 else await SubmitAsync();
             };
             RegisterToggle.Click += (_, _) => SetRegistering(!_registering);
+            // Со входа — к номеру для кода; с номера — обратно ко входу; с кода — заново к номеру.
+            ForgotToggle.Click += (_, _) => SetRecovery(_recovery == Recovery.Phone ? Recovery.None : Recovery.Phone);
             PhoneBox.TextChanged += (_, _) => FormatPhone();
             InputLanguageButton.Click += (_, _) => NextInputLanguage();
             ShutdownButton.Click += (_, _) => PowerClicked(restart: false);
@@ -78,6 +86,7 @@ namespace ZafiroAgent.Views
             {
                 if (!_relogin) return;
                 RegisterToggle.Visibility = Visibility.Visible;
+                ForgotToggle.Visibility = Visibility.Visible;
                 _ = RunQrLoginAsync();
                 _ = RunGuestWatchAsync();
             };
@@ -212,6 +221,22 @@ namespace ZafiroAgent.Views
             MinimizeButton.Content = L.T("Свернуть, чтобы скопировать ключ");
             QrTitle.Text = L.T("Вход с телефона");
             QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
+            CodeLabel.Text = L.T("Код из Telegram");
+            ForgotToggle.Content = _recovery switch
+            {
+                Recovery.Phone => L.T("Вернуться ко входу"),
+                Recovery.Code => L.T("Запросить новый код"),
+                _ => L.T("Забыли пароль?")
+            };
+            if (_recovery != Recovery.None)
+            {
+                HeaderText.Text = L.T("Восстановление пароля");
+                ClubText.Text = _recovery == Recovery.Phone
+                    ? L.T("Пришлём код в Telegram на номер вашего аккаунта.")
+                    : L.T("Введите код из Telegram и придумайте новый пароль.");
+                PasswordLabel.Text = L.T("Новый пароль");
+                SubmitButton.Content = _recovery == Recovery.Phone ? L.T("Получить код в Telegram") : L.T("Сменить пароль");
+            }
             ShowPowerButtons();
             RenderLanguages();
         }
@@ -424,8 +449,105 @@ namespace ZafiroAgent.Views
             NamePanel.Visibility = registering ? Visibility.Visible : Visibility.Collapsed;
             ConfirmPanel.Visibility = registering ? Visibility.Visible : Visibility.Collapsed;
             ErrorText.Text = string.Empty;
+            NoticeText.Visibility = Visibility.Collapsed;
             ApplyTexts();
             if (registering) NameBox.Focus(); else PhoneBox.Focus();
+        }
+
+        private void SetRecovery(Recovery step)
+        {
+            if (_busy) return;
+            _recovery = step;
+            _registering = false;
+            NamePanel.Visibility = Visibility.Collapsed;
+            CodePanel.Visibility = step == Recovery.Code ? Visibility.Visible : Visibility.Collapsed;
+            PasswordPanel.Visibility = step == Recovery.Phone ? Visibility.Collapsed : Visibility.Visible;
+            ConfirmPanel.Visibility = step == Recovery.Code ? Visibility.Visible : Visibility.Collapsed;
+            // На шаге кода номер уже выбран: код пришёл именно на него.
+            PhoneBox.IsReadOnly = step == Recovery.Code;
+            RegisterToggle.Visibility = step == Recovery.None && _relogin ? Visibility.Visible : Visibility.Collapsed;
+            CodeBox.Clear();
+            PasswordBox.Clear();
+            ConfirmBox.Clear();
+            ErrorText.Text = string.Empty;
+            NoticeText.Visibility = Visibility.Collapsed;
+            ApplyTexts();
+            if (step == Recovery.Code) CodeBox.Focus();
+            else if (step == Recovery.Phone) PhoneBox.Focus();
+            else PasswordBox.Focus();
+        }
+
+        private void ShowNotice(string text)
+        {
+            NoticeText.Text = text;
+            NoticeText.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>Шаг восстановления: запросить код в Telegram или сменить пароль по коду.</summary>
+        private async Task RecoverAsync()
+        {
+            if (_busy) return;
+            var step = _recovery;
+            var phone = step == Recovery.Code ? _recoveryPhone : PhoneNumberFormatter.NormalizeKazakhstanNumber(PhoneBox.Text);
+            if (phone is null) { ErrorText.Text = L.T("Введите 10 цифр номера после +7."); return; }
+            var code = CodeBox.Text.Trim();
+            if (step == Recovery.Code)
+            {
+                if (code.Length != 6 || !code.All(char.IsAsciiDigit)) { ErrorText.Text = L.T("Код — 6 цифр из сообщения в Telegram."); return; }
+                if (PasswordBox.Password.Length < 6) { ErrorText.Text = L.T("Пароль — не короче 6 символов."); return; }
+                if (PasswordBox.Password != ConfirmBox.Password) { ErrorText.Text = L.T("Пароли не совпадают."); return; }
+            }
+
+            _busy = true;
+            SubmitButton.IsEnabled = false;
+            ErrorText.Text = string.Empty;
+            NoticeText.Visibility = Visibility.Collapsed;
+            string? message = null;
+            var done = false;
+            try
+            {
+                var result = step == Recovery.Phone
+                    ? await _setup.RequestPasswordCodeAsync(phone, _cts.Token)
+                    : await _setup.ResetPasswordAsync(phone, code, PasswordBox.Password, _cts.Token);
+                if (!result.Success)
+                {
+                    ErrorText.Text = result.Message;
+                    return;
+                }
+
+                if (result.Value.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    result.Value.TryGetProperty("message", out var text) && text.ValueKind == System.Text.Json.JsonValueKind.String)
+                    message = text.GetString();
+                done = true;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Recovery] failed: " + ex.GetType().Name);
+                ErrorText.Text = L.T("Не удалось восстановить пароль. Повторите попытку или обратитесь к администратору клуба.");
+            }
+            finally
+            {
+                _busy = false;
+                SubmitButton.IsEnabled = true;
+            }
+
+            if (!done) return;
+            if (step == Recovery.Phone)
+            {
+                _recoveryPhone = phone;
+                SetRecovery(Recovery.Code);
+                ShowNotice(message ?? L.T("Код отправлен в Telegram."));
+            }
+            else
+            {
+                // Пароль сменён: снова вход, номер уже введён — остаётся новый пароль.
+                SetRecovery(Recovery.None);
+                ShowNotice(message ?? L.T("Пароль изменён. Войдите с новым паролем."));
+            }
         }
 
         private async Task RegisterAsync()

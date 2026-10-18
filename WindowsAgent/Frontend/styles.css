@@ -195,12 +195,6 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .chat-form{flex:none;display:flex;gap:8px;align-items:flex-end;padding:12px 0 4px;border-top:1px solid rgba(255,255,255,0.06);background:inherit}
 .chat-form textarea{flex:1;min-width:0;resize:none;padding:9px 12px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text);font:inherit}
 .chat-form textarea:focus-visible{outline:2px solid var(--accent-2);outline-offset:1px}
-.profile-telegram{padding-bottom:16px}
-.telegram-link{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin:8px 0 12px}
-.telegram-link img{border-radius:8px;background:#fff;padding:6px}
-.telegram-link .dialog-note{max-width:360px;margin:0}
-.telegram-url{flex-basis:100%;margin:0;color:var(--accent-2);font-size:0.8125rem;overflow-wrap:anywhere}
-.telegram-actions{justify-content:flex-start}
 .history-list{list-style:none;margin:0;padding:0}
 .history-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
 .history-item-main{display:grid;gap:3px;min-width:0}

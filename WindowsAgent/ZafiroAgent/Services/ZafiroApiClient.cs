@@ -33,6 +33,9 @@ namespace ZafiroAgent.Services
         public static readonly Uri AgentHeartbeatEndpoint = new("https://zafiro.kz/api/agent/heartbeat");
         public static readonly Uri AgentRegisterEndpoint = new("https://zafiro.kz/api/agent/register");
         public static readonly Uri QrLoginPollEndpoint = new("https://zafiro.kz/api/agent/qr-login/poll");
+        // «Забыли пароль?»: код в Telegram на номер аккаунта, затем код и новый пароль.
+        public static readonly Uri PasswordCodeEndpoint = new("https://zafiro.kz/api/auth/password/code");
+        public static readonly Uri PasswordResetEndpoint = new("https://zafiro.kz/api/auth/password/reset");
 
         private static readonly TimeSpan DefaultTokenLifetime = TimeSpan.FromDays(30);
         private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -218,6 +221,37 @@ namespace ZafiroAgent.Services
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                     return ApiResult<JsonElement>.Fail(ApiFailure.DeviceTokenInvalid, L.T("Токен устройства недействителен: сотрудник должен заново войти на этом ПК."));
                 // 422: the server explains what is wrong (e.g. the phone is taken): show its message.
+                if (response.StatusCode == HttpStatusCode.UnprocessableEntity &&
+                    await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } invalid &&
+                    TryGetString(invalid, "message", out var reason))
+                    return ApiResult<JsonElement>.Fail(ApiFailure.InvalidInput, reason);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.Forbidden, L.T("Слишком много попыток. Подождите несколько минут."));
+                if (!response.IsSuccessStatusCode)
+                    return ApiResult<JsonElement>.Fail(ApiFailure.Unknown, L.T("Сервер Zafiro вернул ошибку (:code).", ("code", (int)response.StatusCode)));
+
+                return await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } root
+                    ? ApiResult<JsonElement>.Ok(root)
+                    : InvalidResponse<JsonElement>();
+            }
+            catch (Exception ex) when (ex is HttpRequestException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                return ApiResult<JsonElement>.Fail(ApiFailure.Network, L.T("Не удалось связаться с сервером Zafiro."));
+            }
+        }
+
+        /// <summary>
+        /// POST без токенов (восстановление пароля). 422 и 429 — с объяснением сервера: что не так
+        /// с номером или кодом, через сколько можно запросить новый код.
+        /// </summary>
+        public async Task<ApiResult<JsonElement>> PostPublicAsync(Uri url, object payload, CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonBody(payload) };
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
                 if (response.StatusCode == HttpStatusCode.UnprocessableEntity &&
                     await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false) is { } invalid &&
                     TryGetString(invalid, "message", out var reason))

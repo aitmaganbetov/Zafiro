@@ -136,6 +136,13 @@
                         <TextBlock x:Name="PhoneHint" Text="700 123-45-67" Margin="43,0,0,0" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#5F5A6E" IsHitTestVisible="False"/>
                     </Grid>
 
+                    <!-- Восстановление пароля: код из Telegram (второй шаг), затем новый пароль и его повтор. -->
+                    <StackPanel x:Name="CodePanel" Visibility="Collapsed">
+                        <TextBlock x:Name="CodeLabel" Text="Код из Telegram" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
+                        <TextBox x:Name="CodeBox" Margin="0,0,0,16" MaxLength="6" InputScope="Number"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PasswordPanel">
                     <TextBlock x:Name="PasswordLabel" Text="Пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <Grid Margin="0,0,0,8">
                         <PasswordBox x:Name="PasswordBox" Padding="12,9,64,9" MaxLength="256"/>
@@ -145,15 +152,18 @@
                                 MinWidth="48" Height="26" Padding="8,0" FontSize="12" FontWeight="SemiBold"
                                 Background="#3D3950" Foreground="#E8E5EF" Focusable="False" Cursor="Hand"/>
                     </Grid>
+                    </StackPanel>
 
                     <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed" Margin="0,8,0,0">
                         <TextBlock x:Name="ConfirmLabel" Text="Повторите пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                         <PasswordBox x:Name="ConfirmBox" MaxLength="256"/>
                     </StackPanel>
 
+                    <TextBlock x:Name="NoticeText" Visibility="Collapsed" Foreground="#86EFAC" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0"/>
                     <TextBlock x:Name="ErrorText" Foreground="#FF7B83" FontSize="13" TextWrapping="Wrap" MinHeight="44" Margin="0,6,0,8"/>
                     <Button x:Name="SubmitButton" Content="Войти" Height="46" IsDefault="True"/>
                     <Button x:Name="RegisterToggle" Visibility="Collapsed" Margin="0,12,0,0" Height="34" Background="Transparent" Foreground="#C4B5FD" FontSize="14" FontWeight="SemiBold" Content="Нет аккаунта? Зарегистрироваться"/>
+                    <Button x:Name="ForgotToggle" Visibility="Collapsed" Margin="0,4,0,0" Height="34" Background="Transparent" Foreground="#C4B5FD" FontSize="14" FontWeight="SemiBold" Content="Забыли пароль?"/>
                     <!-- Только при первой настройке: свернуть окно, открыть сайт и скопировать ключ установки. -->
                     <Button x:Name="MinimizeButton" Visibility="Collapsed" Margin="0,12,0,0" Height="34" Background="#3D3950" Foreground="#E8E5EF" FontSize="14" FontWeight="SemiBold" Content="Свернуть, чтобы скопировать ключ"/>
 

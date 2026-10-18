@@ -361,6 +361,23 @@ namespace ZafiroAgent.Services
             return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
         }
 
+        /// <summary>«Забыли пароль?»: сервер отправляет код в Telegram на номер аккаунта (Telegram Gateway).</summary>
+        public Task<ApiResult<JsonElement>> RequestPasswordCodeAsync(string phone, CancellationToken cancellationToken) =>
+            _api.PostPublicAsync(ZafiroApiClient.PasswordCodeEndpoint, new Dictionary<string, object?> { ["phone"] = phone }, cancellationToken);
+
+        /// <summary>Код из Telegram и новый пароль; после этого клиент входит с новым паролем.</summary>
+        public Task<ApiResult<JsonElement>> ResetPasswordAsync(string phone, string code, string password, CancellationToken cancellationToken)
+        {
+            SafeLog.Register(password);
+            return _api.PostPublicAsync(ZafiroApiClient.PasswordResetEndpoint, new Dictionary<string, object?>
+            {
+                ["phone"] = phone,
+                ["code"] = code,
+                ["password"] = password,
+                ["password_confirmation"] = password
+            }, cancellationToken);
+        }
+
         /// <summary>
         /// Сообщает серверу о новой загрузке Windows (гостевая сессия ПК сбрасывается). Повтор каждые
         /// 15 с, пока сервер недоступен, но не дольше 10 минут; ПК без токена устройства не сообщает.
