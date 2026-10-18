@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ZafiroAgent.Infrastructure;
 using ZafiroAgent.Models;
 using ZafiroAgent.Services;
 using ZafiroAgent.Localization;
@@ -35,6 +36,9 @@ namespace ZafiroAgent.Views
         private Window? _guestOverlay;
         private TextBlock? _guestOverlayText;
         private readonly System.Windows.Threading.DispatcherTimer _guestTick = new() { Interval = TimeSpan.FromSeconds(1) };
+        // Выключение/перезагрузка ждёт второго нажатия: null — ничего, true — перезагрузка, false — выключение.
+        private bool? _powerArmed;
+        private readonly System.Windows.Threading.DispatcherTimer _powerArmTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
         public ClubSession? Session { get; private set; }
 
@@ -64,6 +68,9 @@ namespace ZafiroAgent.Views
             RegisterToggle.Click += (_, _) => SetRegistering(!_registering);
             PhoneBox.TextChanged += (_, _) => FormatPhone();
             InputLanguageButton.Click += (_, _) => NextInputLanguage();
+            ShutdownButton.Click += (_, _) => PowerClicked(restart: false);
+            RestartButton.Click += (_, _) => PowerClicked(restart: true);
+            _powerArmTimer.Tick += (_, _) => SetPowerArmed(null);
             InputLanguageManager.Current.InputLanguageChanged += OnInputLanguageChanged;
             ShowInputLanguage();
             // QR-код — только на подключённом ПК (у него есть токен устройства).
@@ -80,6 +87,7 @@ namespace ZafiroAgent.Views
             {
                 _cts.Cancel();
                 _guestTick.Stop();
+                _powerArmTimer.Stop();
                 _guestOverlay?.Close();
                 L.Changed -= OnLanguageChanged;
                 InputLanguageManager.Current.InputLanguageChanged -= OnInputLanguageChanged;
@@ -204,7 +212,49 @@ namespace ZafiroAgent.Views
             MinimizeButton.Content = L.T("Свернуть, чтобы скопировать ключ");
             QrTitle.Text = L.T("Вход с телефона");
             QrHint.Text = L.T("Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход.");
+            ShowPowerButtons();
             RenderLanguages();
+        }
+
+        /// <summary>Первое нажатие — подсказка «нажмите ещё раз» на 5 секунд, второе — выключение или перезагрузка.</summary>
+        private void PowerClicked(bool restart)
+        {
+            if (_powerArmed != restart)
+            {
+                SetPowerArmed(restart);
+                return;
+            }
+
+            SetPowerArmed(null);
+            SafeLog.Write("[Power] " + (restart ? "restart" : "shutdown") + " from the sign-in screen");
+            if (!PowerControl.Run(restart))
+                ErrorText.Text = L.T("Windows не дал выключить ПК. Обратитесь к администратору клуба.");
+        }
+
+        private void SetPowerArmed(bool? restart)
+        {
+            _powerArmed = restart;
+            _powerArmTimer.Stop();
+            if (restart is not null) _powerArmTimer.Start();
+            ShowPowerButtons();
+        }
+
+        private void ShowPowerButtons()
+        {
+            foreach (var (button, restart, name) in new[] { (ShutdownButton, false, L.T("Выключить ПК")), (RestartButton, true, L.T("Перезагрузить ПК")) })
+            {
+                button.Tag = _powerArmed == restart ? "armed" : null;
+                button.ToolTip = name;
+                System.Windows.Automation.AutomationProperties.SetName(button, name);
+            }
+
+            PowerHint.Text = _powerArmed switch
+            {
+                true => L.T("Нажмите ещё раз, чтобы перезагрузить ПК."),
+                false => L.T("Нажмите ещё раз, чтобы выключить ПК."),
+                null => string.Empty
+            };
+            PowerHint.Visibility = _powerArmed is null ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private void RenderLanguages()

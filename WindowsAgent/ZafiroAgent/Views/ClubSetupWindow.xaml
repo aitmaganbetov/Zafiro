@@ -31,6 +31,37 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
+        <!-- Круглая кнопка-иконка поверх картинки; Tag="armed" — ждёт второго нажатия (красная). -->
+        <Style x:Key="PowerButton" TargetType="Button">
+            <Setter Property="Width" Value="52"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="Background" Value="#73100E1A"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="26">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#CC7554C8"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="armed">
+                                <Setter TargetName="Chrome" Property="Background" Value="#D90058"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#D90058"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Margin="20" Background="#1B1925" CornerRadius="12" ClipToBounds="True">
@@ -64,17 +95,24 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Слева внизу: выключение и перезагрузка ПК (второе нажатие подтверждает) и язык интерфейса. -->
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="34,24,24,30">
+                    <TextBlock x:Name="PowerHint" Visibility="Collapsed" Margin="0,0,0,12" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#FFFFFF" TextWrapping="Wrap" MaxWidth="360"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ShutdownButton" Style="{StaticResource PowerButton}" Content="&#xE7E8;"/>
+                        <Button x:Name="RestartButton" Style="{StaticResource PowerButton}" Content="&#xE777;" Margin="12,0,0,0"/>
+                        <!-- Язык выбирает клиент; после его выхода агент возвращает язык клуба. -->
+                        <StackPanel x:Name="LanguagePanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
             </Grid>
 
             <Border Grid.Column="1" Background="#211F2D">
                 <!-- Прокрутка нужна только на маленьких экранах или при крупном масштабе Windows. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="38,28">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="420">
-                    <Grid Margin="0,0,0,14">
-                        <TextBlock Text="ZAFIRO CLUB" FontSize="13" FontWeight="Bold" Foreground="#A78BFA" VerticalAlignment="Center"/>
-                        <!-- Язык выбирает клиент; после его выхода агент возвращает язык клуба. -->
-                        <StackPanel x:Name="LanguagePanel" Orientation="Horizontal" HorizontalAlignment="Right"/>
-                    </Grid>
+                    <TextBlock Text="ZAFIRO CLUB" Margin="0,0,0,14" FontSize="13" FontWeight="Bold" Foreground="#A78BFA"/>
                     <TextBlock x:Name="HeaderText" Text="Подключение к клубу" FontSize="30" FontWeight="SemiBold" Foreground="#F5F3FA" TextWrapping="Wrap"/>
                     <TextBlock x:Name="ClubText" Margin="0,9,0,26" Foreground="#AAA5B8" FontSize="14" TextWrapping="Wrap"/>
 

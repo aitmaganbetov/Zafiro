@@ -1770,5 +1770,10 @@ return [
         'Нет активной сессии: через минуту вы выйдете из аккаунта. Выберите тариф, чтобы остаться.' => 'No active session: you will be signed out in a minute. Choose a tariff to stay.',
         'Заказ оплачен.' => 'Order paid.',
         'Не удалось оформить заказ.' => 'Could not place the order.',
+        'Выключить ПК' => 'Shut down the PC',
+        'Перезагрузить ПК' => 'Restart the PC',
+        'Нажмите ещё раз, чтобы выключить ПК.' => 'Press again to shut down the PC.',
+        'Нажмите ещё раз, чтобы перезагрузить ПК.' => 'Press again to restart the PC.',
+        'Windows не дал выключить ПК. Обратитесь к администратору клуба.' => 'Windows did not let the PC shut down. Contact the club administrator.',
     ],
 ];
