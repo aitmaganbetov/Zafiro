@@ -10,7 +10,7 @@
         <span class="sidebar-label">{{ __('Система') }}</span>
         <a href="{{ route('superadmin.logs.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>{{ __('Журнал') }}</span></a>
         <a href="{{ route('superadmin.languages') }}" class="sidebar-link {{ request()->routeIs('superadmin.languages', 'languages.*') ? 'active' : '' }}"><i class="fas fa-language"></i><span>{{ __('Языки и переводы') }}</span></a>
-        <a href="{{ route('superadmin.telegram.show') }}" class="sidebar-link {{ request()->routeIs('superadmin.telegram.*') ? 'active' : '' }}"><i class="fab fa-telegram"></i><span>{{ __('Telegram-бот') }}</span></a>
+        <a href="{{ route('superadmin.telegram.show') }}" class="sidebar-link {{ request()->routeIs('superadmin.telegram.*') ? 'active' : '' }}"><i class="fab fa-telegram"></i><span>{{ __('Telegram Gateway') }}</span></a>
         @if(Auth::user()->memberships()->withoutGlobalScope('club')->exists())
             <a href="{{ route('dashboard') }}" class="sidebar-link"><i class="fas fa-arrow-left"></i><span>{{ __('Панель своего клуба') }}</span></a>
         @endif

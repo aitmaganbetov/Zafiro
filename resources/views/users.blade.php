@@ -93,10 +93,9 @@
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-right">
                                 <button type="button" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400" data-edit-user data-action="{{ route('users.update', $membership) }}" data-name="{{ $membership->user->name }}" data-email="{{ $membership->user->email }}" data-discount="{{ $membership->discount }}">{{ __('Изменить') }}</button>
-                                <form method="POST" action="{{ route('users.password', $membership) }}" class="ml-3 inline" onsubmit="return confirm(@js($membership->user->telegram_chat_id ? __('Сбросить пароль? Новый пароль придёт клиенту в Telegram.') : __('Сбросить пароль? Новый пароль покажется на экране один раз.')))">@csrf
+                                <form method="POST" action="{{ route('users.password', $membership) }}" class="ml-3 inline" onsubmit="return confirm(@js(__('Сбросить пароль? Новый пароль покажется на экране один раз.')))">@csrf
                                     <button type="submit" class="text-sm font-medium text-gray-600 hover:underline dark:text-gray-300">{{ __('Сбросить пароль') }}</button>
                                 </form>
-                                @if($membership->user->telegram_chat_id)<i class="fab fa-telegram ml-2 text-sky-500" title="{{ __('Telegram привязан') }}" aria-label="{{ __('Telegram привязан') }}"></i>@endif
                             </td>
                         </tr>
                     @empty

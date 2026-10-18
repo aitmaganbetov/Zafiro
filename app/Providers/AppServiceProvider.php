@@ -68,6 +68,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(5)->by('customer-login:'.$request->ip().'|'.preg_replace('/\D+/', '', (string) $request->input('phone'))),
             Limit::perMinute(300)->by('customer-login-ip:'.$request->ip()),
         ]);
+        // Password recovery codes cost money (Telegram Gateway) and guess attempts are limited too.
+        RateLimiter::for('password-recovery', fn (Request $request): array => [
+            Limit::perMinute(10)->by('password-recovery:'.$request->ip().'|'.preg_replace('/\D+/', '', (string) $request->input('phone'))),
+            Limit::perMinute(30)->by('password-recovery-ip:'.$request->ip()),
+        ]);
         RateLimiter::for('club-resolve', fn (Request $request): array => [
             Limit::perMinute(10)->by('club-resolve:'.$request->ip().'|'.hash('sha256', (string) $request->input('club_key', $request->input('key')))),
             Limit::perMinute(300)->by('club-resolve-ip:'.$request->ip()),

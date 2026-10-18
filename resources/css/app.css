@@ -3130,6 +3130,16 @@ body {
     font-size: 14px
 }
 
+.auth-status {
+    margin-bottom: 16px;
+    border: 1px solid #b9e3c8;
+    border-radius: 11px;
+    background: #eefaf2;
+    padding: 12px 12px;
+    color: #116b34;
+    font-size: 14px
+}
+
 .auth-form {
     display: flex;
     flex-direction: column;
@@ -3185,6 +3195,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between
+}
+
+.auth-row a {
+    color: #078338;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none
 }
 
 .auth-check {

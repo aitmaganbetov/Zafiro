@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\GuestNewsController;
 use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\GuestShopController;
 use App\Http\Controllers\Api\GuestTelegramController;
+use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
@@ -37,6 +38,13 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])
         ->middleware('throttle:customer-login')
         ->name('login');
+    // Forgot password in the PC agent: a code to the phone in Telegram (Telegram Gateway).
+    Route::post('/password/code', [PasswordRecoveryController::class, 'code'])
+        ->middleware('throttle:password-recovery')
+        ->name('password.code');
+    Route::post('/password/reset', [PasswordRecoveryController::class, 'reset'])
+        ->middleware('throttle:password-recovery')
+        ->name('password.reset');
 
     Route::middleware(['auth:sanctum', 'current-club'])->group(function () {
         Route::middleware('subscription')
@@ -126,8 +134,6 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::get('/guest/chat', [GuestChatController::class, 'index'])->middleware('throttle:60,1,api.guest.chat')->name('api.guest.chat');
     Route::post('/guest/chat', [GuestChatController::class, 'store'])->middleware('throttle:20,1,api.guest.chat.store')->name('api.guest.chat.store');
     Route::get('/guest/telegram', [GuestTelegramController::class, 'show'])->middleware('throttle:30,1,api.guest.telegram')->name('api.guest.telegram');
-    Route::post('/guest/telegram/link', [GuestTelegramController::class, 'link'])->middleware('throttle:10,1,api.guest.telegram.link')->name('api.guest.telegram.link');
-    Route::post('/guest/telegram/unlink', [GuestTelegramController::class, 'unlink'])->middleware('throttle:10,1,api.guest.telegram.unlink')->name('api.guest.telegram.unlink');
     Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
     Route::post('/guest/shop/purchase', [GuestShopController::class, 'purchase'])->middleware('throttle:10,1,api.guest.shop.purchase')->name('api.guest.shop.purchase');
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');

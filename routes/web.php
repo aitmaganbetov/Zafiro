@@ -19,6 +19,7 @@ use App\Http\Controllers\LandingController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PasswordRecoveryController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
@@ -144,6 +145,11 @@ Route::middleware('auth')->group(function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('auth.show-login');
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+    // Forgot password: a code to the account's phone in Telegram (Telegram Gateway), then a new password.
+    Route::get('/forgot-password', [PasswordRecoveryController::class, 'show'])->name('auth.password.forgot');
+    Route::post('/forgot-password', [PasswordRecoveryController::class, 'send'])->middleware('throttle:password-recovery')->name('auth.password.send');
+    Route::get('/reset-password', [PasswordRecoveryController::class, 'edit'])->name('auth.password.reset');
+    Route::post('/reset-password', [PasswordRecoveryController::class, 'update'])->middleware('throttle:password-recovery')->name('auth.password.update');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('auth.show-register');
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
 });

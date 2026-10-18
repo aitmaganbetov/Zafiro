@@ -2,11 +2,12 @@
 @section('title',__('Вход'))
 @section('content')
 <div class="auth-card-head"><h2>{{ __('Добро пожаловать') }}</h2><p>{{ __('Войдите, чтобы продолжить работу в Zafiro') }}</p></div>
+@if(session('status'))<div class="auth-status">{{ session('status') }}</div>@endif
 @if($errors->any())<div class="auth-errors">{{ $errors->first() }}</div>@endif
 <form action="{{ route('auth.login') }}" method="POST" class="auth-form">@csrf
 <div class="auth-field"><label for="phone">{{ __('Номер телефона') }}</label><div class="auth-input-wrap"><i class="fas fa-phone"></i><span class="auth-phone-prefix">+7</span><input class="auth-phone-local" type="tel" id="phone" name="phone" value="{{ substr(preg_replace('/\D+/', '', (string) old('phone', '')), -10) }}" required inputmode="numeric" pattern="[0-9]{3} [0-9]{3}-[0-9]{2}-[0-9]{2}" maxlength="13" placeholder="700 123-45-67" autocomplete="tel-national"></div>@error('phone')<p class="auth-error-text">{{ $message }}</p>@enderror</div>
 <div class="auth-field"><label for="password">{{ __('Пароль') }}</label><div class="auth-input-wrap"><i class="fas fa-lock"></i><input type="password" id="password" name="password" required placeholder="{{ __('Введите пароль') }}"></div></div>
-<div class="auth-row"><label class="auth-check"><input type="checkbox" name="remember"> {{ __('Запомнить меня') }}</label></div>
+<div class="auth-row"><label class="auth-check"><input type="checkbox" name="remember"> {{ __('Запомнить меня') }}</label><a href="{{ route('auth.password.forgot') }}">{{ __('Забыли пароль?') }}</a></div>
 <button class="auth-submit">{{ __('Войти в систему') }}</button>
 </form><p class="auth-footer">{{ __('Нет аккаунта?') }} <a href="{{ route('auth.show-register') }}">{{ __('Зарегистрироваться') }}</a></p>
 @endsection

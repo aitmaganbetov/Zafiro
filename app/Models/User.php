@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'phone', 'email', 'password'])]
-#[Hidden(['password', 'remember_token', 'telegram_chat_id', 'telegram_link_hash'])]
+#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -36,8 +36,6 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_superadmin' => 'boolean',
             'blocked_at' => 'datetime',
-            'telegram_linked_at' => 'datetime',
-            'telegram_link_expires_at' => 'datetime',
         ];
     }
 

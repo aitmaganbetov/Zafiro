@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use App\Services\LoyaltyProgram;
-use App\Services\Telegram;
 use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +32,7 @@ class UserController extends Controller
         // Customers only; staff are on the Workers page.
         $users = ClubMembership::query()
             ->whereNotIn('role', ClubRoles::STAFF)
-            ->with(['user:id,name,phone,email,telegram_chat_id', 'balance'])
+            ->with(['user:id,name,phone,email', 'balance'])
             ->orderBy('user_id')
             ->paginate(25);
 
@@ -97,11 +96,11 @@ class UserController extends Controller
     }
 
     /**
-     * A new random password for a customer: sent to their Telegram when it is linked, otherwise
-     * shown once to the staff member (in this response only, never stored in the session).
-     * The customer is signed out on every PC.
+     * A new random password for a customer, shown once to the staff member (in this response only,
+     * never stored in the session). The customer is signed out on every PC. Customers can also
+     * recover it themselves with a code in Telegram (PasswordRecovery).
      */
-    public function resetPassword(Request $request, ClubMembership $membership, ActivityLogger $activity, Telegram $telegram): Response
+    public function resetPassword(Request $request, ClubMembership $membership, ActivityLogger $activity): Response
     {
         $user = $this->customer($membership);
         $password = Str::password(8, symbols: false);
@@ -111,14 +110,11 @@ class UserController extends Controller
             $user->tokens()->delete();
         });
 
-        $club = $this->currentClub()->name;
-        $sent = $user->telegram_chat_id !== null
-            && $telegram->send($user->telegram_chat_id, __('Новый пароль для входа в Zafiro (клуб :club): :password', ['club' => $club, 'password' => $password]));
         $activity->record('user.password_reset', __('Сброшен пароль клиента :user', ['user' => $user->name]), $request->user()->getKey(), $user, [
-            'delivery' => $sent ? 'telegram' : 'screen',
+            'delivery' => 'screen',
         ]);
 
-        return response()->view('users-password', ['customer' => $user, 'password' => $sent ? null : $password, 'sentToTelegram' => $sent])
+        return response()->view('users-password', ['customer' => $user, 'password' => $password])
             ->header('Cache-Control', 'no-store, private');
     }
 
@@ -130,10 +126,5 @@ class UserController extends Controller
         abort_if(ClubRoles::isStaff($membership->role) || $isStaffSomewhere || $user->isSuperadmin(), 403, __('Сотрудников меняют на странице «Работники».'));
 
         return $user;
-    }
-
-    private function currentClub()
-    {
-        return app(CurrentClub::class)->get();
     }
 }

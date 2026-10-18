@@ -22,8 +22,6 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily();
 
 // Paid PC sessions end on time even when the PC is offline.
 Schedule::command('club-computers:expire-sessions')->everyMinute();
-// Messages to the Telegram bot: long polling for ~50 s, in the background so other tasks run on time.
-Schedule::command('telegram:poll')->everyMinute()->withoutOverlapping(2)->runInBackground();
 
 Schedule::command('integrations:prune')->hourly()->withoutOverlapping();
 
