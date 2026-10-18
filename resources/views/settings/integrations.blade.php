@@ -12,8 +12,8 @@
 @endphp
 
 @section('settings-after')
-<div class="space-y-8">
-    <section>
+<div class="space-y-6">
+    <x-settings.card>
         <h4 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{{ __('API и интеграции') }}</h4>
         <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('Ключи API дают внешним системам доступ только к данным этого клуба и только к выбранным операциям.') }}</p>
         <div class="mt-3 flex flex-wrap gap-2 text-sm">
@@ -21,7 +21,7 @@
             <a href="{{ route('api-docs') }}" target="_blank" rel="noopener" class="rounded-lg border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"><i class="fas fa-book mr-1"></i>{{ __('Документация API') }}</a>
         </div>
         <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ __('Не встраивайте ключи в мобильные приложения и сайты: мобильные приложения входят через аккаунт пользователя.') }}</p>
-    </section>
+    </x-settings.card>
 
     @if ($errors->any())
         <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300" role="alert">
@@ -43,7 +43,7 @@
     @endif
 
     {{-- API keys --}}
-    <section>
+    <x-settings.card>
         <h5 class="mb-3 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Ключи API') }}</h5>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[680px] text-sm">
@@ -119,10 +119,10 @@
             </fieldset>
             <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Создать ключ') }}</button>
         </form>
-    </section>
+    </x-settings.card>
 
     {{-- Webhooks --}}
-    <section>
+    <x-settings.card>
         <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Вебхуки') }}</h5>
         <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Zafiro отправляет POST-запрос с подписью HMAC-SHA256 в заголовке X-Zafiro-Signature. Неудачные отправки повторяются.') }}</p>
         <div class="space-y-3">
@@ -206,11 +206,11 @@
                 </table>
             </div>
         @endif
-    </section>
+    </x-settings.card>
 
     {{-- Who may manage integrations --}}
     @if ($isOwner)
-        <section>
+        <x-settings.card>
             <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Доступ к интеграциям') }}</h5>
             <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Владелец управляет интеграциями всегда. Ключи сотрудника перестают работать, когда у него снимают доступ.') }}</p>
             <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
@@ -227,11 +227,11 @@
                     <p class="px-4 py-3 text-sm text-gray-500">{{ __('В клубе нет сотрудников.') }}</p>
                 @endforelse
             </div>
-        </section>
+        </x-settings.card>
     @endif
 
     {{-- Recent API calls --}}
-    <section>
+    <x-settings.card>
         <h5 class="mb-3 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Последние запросы к API') }}</h5>
         @if ($requests->isEmpty())
             <p class="text-sm text-gray-500">{{ __('Запросов пока не было.') }}</p>
@@ -254,7 +254,7 @@
                 </table>
             </div>
         @endif
-    </section>
+    </x-settings.card>
 </div>
 @endsection
 

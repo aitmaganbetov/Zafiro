@@ -12,9 +12,8 @@
 ])
 
 @section('settings-content')
-<h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">{{ __('Настройки клуба') }}</h4>
-@if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
-<section id="club-sessions" class="scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="club-sessions-title">
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white">{{ __('Настройки клуба') }}</h4>
+<x-settings.card id="club-sessions" aria-labelledby="club-sessions-title">
 <h5 id="club-sessions-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Сессии и ПК') }}</h5>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
@@ -38,9 +37,9 @@
         </div>
     @endforeach
 </div>
-</section>
+</x-settings.card>
 
-<section id="agent-settings" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="agent-settings-title">
+<x-settings.card id="agent-settings" aria-labelledby="agent-settings-title">
     <h5 id="agent-settings-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Агент на ПК') }}</h5>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
@@ -54,9 +53,9 @@
             <input id="agent_shop_enabled" type="checkbox" role="switch" name="agent_shop_enabled" value="1" class="settings-switch" @checked(old('agent_shop_enabled', $settings['club']['agent_shop_enabled'] ?? true))>
         </div>
     </div>
-</section>
+</x-settings.card>
 
-<section id="shift-limits" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="shift-limits-title">
+<x-settings.card id="shift-limits" aria-labelledby="shift-limits-title">
     <h5 id="shift-limits-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Сотрудники на смене') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Столько кассиров и операторов могут одновременно быть в панели. Следующий войдёт, когда кто-то выйдет (или через 2 часа без действий). 0 — без ограничения.') }}</p>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -67,9 +66,9 @@
             </div>
         @endforeach
     </div>
-</section>
+</x-settings.card>
 
-<section id="club-key" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="club-key-title">
+<x-settings.card id="club-key" aria-labelledby="club-key-title">
     <h5 id="club-key-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Ключ установки клуба') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Укажите этот ключ в установленном ПО. По нему система определит клуб.') }}</p>
     @if(in_array($currentMembership->role, ['owner', 'admin'], true))
@@ -79,12 +78,12 @@
         <p class="font-mono text-sm text-gray-700 dark:text-gray-300">{{ __('Активен') }} · {{ $currentClub->installation_key_prefix }}••••••••</p>
     @endif
     <p class="mt-2 text-xs text-gray-500">{{ __('Ключ постоянный: изменить или отозвать его нельзя. Он перестанет действовать только после удаления клуба.') }}</p>
-</section>
+</x-settings.card>
 @endsection
 
 
 @section('settings-after')
-<section id="club-logo" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="club-logo-title">
+<x-settings.card id="club-logo" aria-labelledby="club-logo-title">
     <h5 id="club-logo-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Логотип клуба') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Логотип и название клуба показываются на свободных мониторах ПК, пока сессия не оплачена. PNG или JPG, до 1 МБ.') }}</p>
     @error('logo')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
@@ -111,9 +110,9 @@
             @endif
         </div>
     </div>
-</section>
+</x-settings.card>
 
-<section id="timezone" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="timezone-title">
+<x-settings.card id="timezone" aria-labelledby="timezone-title">
     <h5 id="timezone-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Часовой пояс') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Все время в системе, отчёты «за сегодня» и часы в верхней панели показываются в этом поясе.') }}</p>
     @error('timezone')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
@@ -134,9 +133,9 @@
         <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Сохранить') }}</button>
     </form>
     <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Сейчас в клубе: :time', ['time' => now($clubTimezone)->translatedFormat('d.m.Y H:i')]) }}</p>
-</section>
+</x-settings.card>
 
-<section id="agent-pin" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="agent-pin-title">
+<x-settings.card id="agent-pin" aria-labelledby="agent-pin-title">
     <h5 id="agent-pin-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('PIN-код для выхода из агента') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('На ПК клуба сотрудник нажимает Ctrl+Alt+P и вводит этот PIN, чтобы закрыть агент. PIN проверяется на сервере, поэтому ПК должен быть в сети.') }}</p>
     <p class="mb-3 text-sm font-medium {{ $agentPinSetAt ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400' }}">
@@ -168,7 +167,7 @@
     @else
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ trans_choice(':count минута|:count минуты|:count минут', $agentStaffMinutes) }}</p>
     @endif
-</section>
+</x-settings.card>
 @endsection
 
 @push('scripts')

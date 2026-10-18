@@ -4,12 +4,12 @@
 @php($settingsAnchors = ['interface-language' => __('Язык интерфейса'), 'club-languages' => __('Языки')])
 
 @section('settings-after')
-<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Языки') }}</h4>
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white">{{ __('Языки') }}</h4>
 @if($errors->has('language') || $errors->has('locale') || $errors->has('code') || $errors->has('name'))
-    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first('language') ?: $errors->first('locale') ?: $errors->first('code') ?: $errors->first('name') }}</div>
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first('language') ?: $errors->first('locale') ?: $errors->first('code') ?: $errors->first('name') }}</div>
 @endif
 
-<section id="interface-language" class="scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="interface-language-title">
+<x-settings.card id="interface-language" aria-labelledby="interface-language-title">
     <h5 id="interface-language-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Язык интерфейса') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Все пользователи клуба видят систему на этом языке.') }}</p>
     <form method="POST" action="{{ route('settings.language') }}" class="flex flex-wrap items-end gap-3">
@@ -24,9 +24,9 @@
         </label>
         <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Применить') }}</button>
     </form>
-</section>
+</x-settings.card>
 
-<section id="club-languages" class="mt-6 scroll-mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700" aria-labelledby="languages-title">
+<x-settings.card id="club-languages" aria-labelledby="languages-title">
     <h5 id="languages-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Языки') }}</h5>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Список языков и переводы общие для всех клубов, их ведёт администрация Zafiro. Выключенные языки нельзя выбрать.') }}</p>
     <ul class="flex flex-wrap gap-2 text-sm">
@@ -37,5 +37,5 @@
     @if(auth()->user()?->isSuperadmin())
         <a href="{{ route('superadmin.languages') }}" class="mt-3 inline-block text-sm font-medium text-violet-700 hover:underline">{{ __('Управлять языками и переводами в кабинете суперадмина') }}</a>
     @endif
-</section>
+</x-settings.card>
 @endsection

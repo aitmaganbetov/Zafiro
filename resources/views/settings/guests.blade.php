@@ -5,8 +5,8 @@
 @section('settings-content')
 
 
-<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Гости') }}</h4>
-<div class="flex flex-col items-start gap-3">
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white">{{ __('Гости') }}</h4>
+<x-settings.card class="flex flex-col items-start gap-3">
     <div class="inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="guest_mode_enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">
             {{ __('Включить гостевой режим') }}
@@ -87,5 +87,5 @@
             @checked($settings['guests']['allow_balance_transfer_to_friends'] ?? false)
         >
     </div>
-</div>
+</x-settings.card>
 @endsection

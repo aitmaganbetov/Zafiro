@@ -40,9 +40,10 @@
             </div>
         </div>
 
-        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide shadow-sm animation-delay-100">
+        {{-- Each section of a page is its own card (<x-settings.card>). --}}
+        <div class="min-w-0 space-y-6">
             @if (session('status'))
-                <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+                <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
                     {{ session('status') }}
                 </div>
             @endif
@@ -53,7 +54,7 @@
                 <input type="hidden" name="section" value="@yield('settings-section', 'club')">
                 @yield('settings-content')
 
-                <div class="mt-6 flex justify-end">
+                <div class="flex justify-end">
                     <button type="submit" class="brand-button rounded-xl px-5 py-2 text-sm transition">
                         {{ __('Сохранить') }}
                     </button>

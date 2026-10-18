@@ -3,21 +3,21 @@
 @section('settings-section', 'api')
 
 @section('settings-content')
-<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">API</h4>
-<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Каждая настройка доступна через отдельный GET API.') }}</p>
-<p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">IP: {{ $ip }}</p>
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white">API</h4>
 
-@if(session('status'))<div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
-
-<section class="mb-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+<x-settings.card>
     <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Установка ПО') }}</h5>
     <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Разрешить ключ и получить идентификатор клуба:') }}</p>
     <p class="mb-3 break-all rounded-lg bg-gray-100 px-3 py-2 font-mono text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">POST {{ route('api.clubs.resolve') }}</p>
     <pre class="overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-gray-200"><code>{{ json_encode(['club_key' => __('КЛЮЧ_КЛУБА')], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</code></pre>
     <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">{!! str_replace(':key', '<code>club_key</code>', e(__('Для входа отправляйте тот же :key вместе с телефоном и паролем на :url.', ['url' => route('api.auth.login')]))) !!}</p>
-</section>
+</x-settings.card>
 
-<div class="flex flex-col gap-4">
+<x-settings.card class="flex flex-col gap-4">
+    <div>
+        <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Каждая настройка доступна через отдельный GET API.') }}</p>
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">IP: {{ $ip }}</p>
+    </div>
     <div class="brand-note rounded-xl border p-4">
         <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">
             {{ $productEndpoint['name'] }}
@@ -48,7 +48,7 @@
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
         </div>
     @endforeach
-</div>
+</x-settings.card>
 @endsection
 
 @push('scripts')

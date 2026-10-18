@@ -216,8 +216,10 @@ test('each setting has its own public JSON API endpoint', function () {
 test('the settings menu lists the sections of the open page as anchors', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get(route('settings.club'))->assertOk()
-        ->assertSee('data-settings-anchors', false)
+    $club = $this->get(route('settings.club'))->assertOk();
+    // Each section is its own card.
+    expect(substr_count($club->getContent(), 'rounded-2xl border border-gray-200 dark:border-gray-800 p-6'))->toBe(7);
+    $club->assertSee('data-settings-anchors', false)
         ->assertSeeInOrder(['href="#club-sessions"', 'href="#agent-settings"', 'href="#agent-pin"', 'id="club-sessions"', 'id="agent-pin"'], false);
     $this->get(route('settings.finances'))->assertOk()->assertSee('href="#loyalty"', false)->assertSee('id="loyalty"', false)
         ->assertDontSee('href="#club-sessions"', false);

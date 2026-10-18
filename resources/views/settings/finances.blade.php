@@ -13,8 +13,8 @@
 @endphp
 
 @section('settings-content')
-<h4 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{{ __('Финансы') }}</h4>
-<div id="currency-settings" class="grid scroll-mt-6 grid-cols-1 gap-4 md:grid-cols-2">
+<h4 class="text-xl font-semibold text-gray-900 dark:text-white">{{ __('Финансы') }}</h4>
+<x-settings.card id="currency-settings" class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div>
         <label for="currency" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Валюта') }}</label>
         <select id="currency" name="currency" class="{{ $inputClass }}">
@@ -23,9 +23,9 @@
             <option value="$" @selected($currency === '$')>$</option>
         </select>
     </div>
-</div>
+</x-settings.card>
 
-<div id="loyalty" class="scroll-mt-6 border-t border-gray-200 pt-6 dark:border-gray-800">
+<x-settings.card id="loyalty">
     <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Накопительная скидка') }}</h5>
     <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Клиент получает скидку, когда его траты в клубе достигают порога. Считаются тарифы, поминутное время и заказы в агенте, оплаченные с основного баланса. Скидка действует на тарифы с отметкой «Применять скидку»; если у клиента есть персональная скидка, применяется большая.') }}</p>
 
@@ -66,7 +66,7 @@
             <button type="button" data-remove-loyalty-level class="h-10 w-10 rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="{{ __('Удалить уровень') }}" aria-label="{{ __('Удалить уровень') }}"><i class="fas fa-trash"></i></button>
         </div>
     </template>
-</div>
+</x-settings.card>
 @endsection
 
 @push('scripts')
