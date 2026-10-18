@@ -58,10 +58,45 @@ test('a superadmin without a club signs in to the cabinet, club pages send them 
     cabinetAdmin();
     app(CurrentClub::class)->clear();
 
-    $this->post(route('auth.login'), ['phone' => '+77009990001', 'password' => 'secret-pass'])
-        ->assertRedirect(route('superadmin.dashboard'));
-    $this->get(route('dashboard'))->assertRedirect(route('superadmin.dashboard'));
+    $credentials = ['phone' => '+77009990001', 'password' => 'secret-pass'];
+
+    // The club site sends them to the cabinet host and does not sign them in.
+    $this->post(route('auth.login'), $credentials)->assertRedirect(route('superadmin.dashboard'));
+    $this->assertGuest();
+
+    // The cabinet host signs them in; its club pages send them to the cabinet.
+    $cabinet = 'http://'.config('app.superadmin_domain');
+    $this->post($cabinet.'/login', $credentials)->assertRedirect(route('superadmin.dashboard'));
+    $this->assertAuthenticated();
+    $this->get($cabinet.'/dashboard')->assertRedirect(route('superadmin.dashboard'));
     expect(PlatformLog::query()->where('event', 'superadmin.login')->exists())->toBeTrue();
+});
+
+test('the cabinet is on its own host: not on the club site, and no club panel there except a viewed club', function () {
+    $admin = cabinetAdmin();
+    $cabinet = 'http://'.config('app.superadmin_domain');
+    expect(route('superadmin.users.index'))->toBe($cabinet.'/accounts');
+
+    // The club site has no cabinet pages and no link to them, even for a superadmin with a club.
+    $this->actingAs($admin)->get('/superadmin')->assertNotFound();
+    $this->get('/superadmin/clubs')->assertNotFound();
+    $this->actingAs(User::factory()->superadmin()->create())->get(route('dashboard'))
+        ->assertOk()->assertDontSee($cabinet);
+
+    // On the cabinet host the club panel only opens while the superadmin is viewing a club.
+    $this->actingAs($admin)->get($cabinet.'/users')->assertRedirect(route('superadmin.dashboard'));
+    $this->post(route('superadmin.clubs.view', cabinetClub()))->assertRedirect();
+    $this->get($cabinet.'/users')->assertOk();
+    $this->get($cabinet.'/dashboard')->assertOk()->assertSee(__('Вернуться в кабинет'));
+    $this->post(route('superadmin.clubs.leave'))->assertRedirect();
+    $this->get($cabinet.'/users')->assertRedirect(route('superadmin.dashboard'));
+
+    // Only superadmins sign in there; a guest opening it is asked to sign in.
+    auth()->logout();
+    $this->get($cabinet.'/')->assertRedirect();
+    User::factory()->create(['phone' => '+77009990003', 'password' => Hash::make('owner-pass')]);
+    $this->post($cabinet.'/login', ['phone' => '+77009990003', 'password' => 'owner-pass'])->assertSessionHasErrors('phone');
+    $this->assertGuest();
 });
 
 test('the superadmin extends, suspends and moves a club to another plan', function () {

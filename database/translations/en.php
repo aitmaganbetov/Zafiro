@@ -1407,6 +1407,7 @@ return [
         'накопительная' => 'cumulative',
         'Сессии и ПК' => 'Sessions and PCs',
         'Разделы страницы' => 'Page sections',
+        'Здесь входят только суперадмины Zafiro.' => 'Only Zafiro superadmins sign in here.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

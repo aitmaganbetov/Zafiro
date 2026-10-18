@@ -117,11 +117,11 @@ test('languages have their own settings tab', function () {
         ->assertOk()
         ->assertSee(__('Язык интерфейса'))
         ->assertDontSee(__('Добавить язык'));
-    // The superadmin sees a link to the cabinet, where languages are managed.
+    // The club panel does not lead to the cabinet (it is on its own host), even for a superadmin.
     $this->actingAs(User::factory()->superadmin()->create())->get(route('settings.languages'))
         ->assertOk()
         ->assertDontSee(__('Добавить язык'))
-        ->assertSee(route('superadmin.languages'));
+        ->assertDontSee(route('superadmin.languages'));
     $this->get(route('superadmin.languages'))->assertOk()->assertSee(__('Добавить язык'));
     $this->get(route('settings.club'))
         ->assertOk()

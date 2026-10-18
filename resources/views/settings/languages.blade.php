@@ -34,8 +34,5 @@
             <li class="rounded-full border border-gray-200 px-3 py-1 {{ $language->is_enabled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 line-through' }}">{{ $language->name }} <span class="font-mono text-xs text-gray-500">{{ $language->code }}</span></li>
         @endforeach
     </ul>
-    @if(auth()->user()?->isSuperadmin())
-        <a href="{{ route('superadmin.languages') }}" class="mt-3 inline-block text-sm font-medium text-violet-700 hover:underline">{{ __('Управлять языками и переводами в кабинете суперадмина') }}</a>
-    @endif
 </x-settings.card>
 @endsection

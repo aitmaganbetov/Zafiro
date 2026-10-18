@@ -11,6 +11,7 @@ use App\Services\CurrentClub;
 use App\Services\PlatformLogger;
 use App\Services\StaffShifts;
 use App\Support\ClubRoles;
+use App\Support\SuperadminHost;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -53,13 +54,34 @@ class AuthController extends Controller
                 return back()->withErrors(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')])->onlyInput('phone');
             }
 
+            // The cabinet host: superadmins only, straight to the cabinet.
+            if (SuperadminHost::is($request)) {
+                if (! $user->isSuperadmin()) {
+                    Auth::logout();
+                    $request->session()->regenerateToken();
+                    $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'not_superadmin');
+
+                    return back()->withErrors(['phone' => __('Здесь входят только суперадмины Zafiro.')])->onlyInput('phone');
+                }
+                $platformLog->record('superadmin.login', __('Вход суперадмина: :user', ['user' => $user->name]), $user);
+
+                return redirect()->intended(route('superadmin.dashboard'));
+            }
+
             // A staff membership first: a cashier who is also a customer of another club works.
             $staffRoles = "'".implode("','", ClubRoles::STAFF)."'";
             $membership = $user->memberships()->withoutGlobalScope('club')->with('club')
                 ->orderByRaw("CASE WHEN role IN ({$staffRoles}) THEN 0 ELSE 1 END")->orderBy('id')->first();
 
-            // A superadmin without a club of their own works from the platform cabinet.
+            // A superadmin without a club of their own works from the platform cabinet (on its own
+            // host it is signed in there separately).
             if ($membership === null && $user->isSuperadmin()) {
+                if (SuperadminHost::domain() !== null) {
+                    Auth::logout();
+                    $request->session()->regenerateToken();
+
+                    return redirect()->away(route('superadmin.dashboard'));
+                }
                 $platformLog->record('superadmin.login', __('Вход суперадмина: :user', ['user' => $user->name]), $user);
 
                 return redirect()->intended(route('superadmin.dashboard'));

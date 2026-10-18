@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Host of the platform superadmin cabinet (superadmin.zafiro.kz). Empty: the cabinet is at /superadmin.
+    'superadmin_domain' => env('SUPERADMIN_DOMAIN') ?: null,
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
