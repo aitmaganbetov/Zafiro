@@ -11,6 +11,7 @@ use App\Http\Middleware\RequireActiveSubscription;
 use App\Http\Middleware\RequireClubRole;
 use App\Http\Middleware\RequireSuperadmin;
 use App\Http\Middleware\RestrictSuperadminHost;
+use App\Http\Middleware\RestrictWikiHost;
 use App\Http\Middleware\SetCurrentClub;
 use App\Http\Middleware\SetLocale;
 use App\Support\ApiError;
@@ -50,7 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(ThrottleRequests::class, LimitApiRequestSize::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, AuthenticateApiKey::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, ApiRateLimit::class);
-        $middleware->web(append: [SetLocale::class, RestrictSuperadminHost::class]);
+        $middleware->web(append: [SetLocale::class, RestrictSuperadminHost::class, RestrictWikiHost::class]);
         $middleware->api(append: [SetLocale::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

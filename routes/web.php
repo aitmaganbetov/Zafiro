@@ -97,6 +97,17 @@ $superadminDomain = SuperadminHost::domain();
     Route::put('/languages/{language}/translations', [SuperadminLanguageController::class, 'saveTranslations'])->name('languages.translations.save');
 });
 
+// Zafiro wiki: the whole documentation as one static page. On its own host (WIKI_DOMAIN) from the
+// root, before the landing page's "/"; the old /wiki address of the site leads there.
+$wiki = fn () => response()->file(resource_path('wiki/index.html'), ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'public, max-age=300']);
+$wikiDomain = config('app.wiki_domain');
+if ($wikiDomain === null) {
+    Route::get('/wiki', $wiki)->name('wiki');
+} else {
+    Route::domain($wikiDomain)->get('/', $wiki)->name('wiki');
+    Route::get('/wiki', fn () => redirect()->route('wiki', status: 301))->name('wiki.moved');
+}
+
 // Public routes
 Route::get('/', LandingController::class)->name('home');
 
@@ -106,8 +117,6 @@ Route::get('/offline', [PwaController::class, 'offline'])->name('pwa.offline');
 
 // Integration API v1 reference (public: it describes the API, it contains no club data).
 Route::view('/docs/api', 'api-docs')->name('api-docs');
-// Zafiro wiki: the whole documentation as one static page (later on its own subdomain).
-Route::get('/wiki', fn () => response()->file(resource_path('wiki/index.html'), ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'public, max-age=300']))->name('wiki');
 Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('api/openapi-v1.yaml'), ['Content-Type' => 'application/yaml; charset=utf-8']))
     ->name('api-docs.spec');
 
