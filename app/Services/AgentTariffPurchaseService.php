@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 class AgentTariffPurchaseService
 {
-    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations) {}
+    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations, private LoyaltyProgram $loyalty) {}
 
     /** @return Collection<int, array<string, mixed>> */
     public function availableFor(User $user): Collection
@@ -174,6 +174,7 @@ class AgentTariffPurchaseService
             'balance' => self::formatCents($mainBalance),
             'bonus_balance' => self::formatCents($bonusBalance),
         ]);
+        $this->loyalty->addSpending($user->getKey(), $price - $bonusPayment);
         $computer->update([
             'current_session_id' => $sessionId,
             'current_session_user_id' => $user->getKey(),
@@ -258,7 +259,7 @@ class AgentTariffPurchaseService
     {
         $price = self::amountToCents((string) $tariff->price);
         $discountBasisPoints = $tariff->discount_enabled
-            ? min(10000, max(0, (int) round((float) $membership->discount * 100)))
+            ? min(10000, max(0, (int) round($this->loyalty->discountFor($membership) * 100)))
             : 0;
 
         return max(0, $price - intdiv($price * $discountBasisPoints + 5000, 10000));

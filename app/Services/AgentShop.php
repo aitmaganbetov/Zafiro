@@ -28,7 +28,7 @@ class AgentShop
 
     private const CANCEL_NOTE = 'Отмена заказа из агента';
 
-    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks) {}
+    public function __construct(private ActivityLogger $activity, private WebhookDispatcher $webhooks, private LoyaltyProgram $loyalty) {}
 
     /**
      * @param  array<int, int>  $quantities  product id => quantity
@@ -69,6 +69,7 @@ class AgentShop
                 throw ValidationException::withMessages(['balance' => __('Недостаточно средств на основном счёте.')]);
             }
             $balance->update(['balance' => AgentTariffPurchaseService::formatCents($main - $total)]);
+            $this->loyalty->addSpending($user->getKey(), $total);
 
             $stock = [];
             foreach ($lines as $line) {
@@ -142,6 +143,7 @@ class AgentShop
                     AgentTariffPurchaseService::amountToCents((string) $balance->balance) + AgentTariffPurchaseService::amountToCents((string) $order->amount)
                 )]);
             }
+            $this->loyalty->subtractSpending($order->user_id, AgentTariffPurchaseService::amountToCents((string) $order->amount));
             $order->forceFill(['status' => ShopOrder::STATUS_CANCELLED, 'handled_by' => $staffId, 'handled_at' => now()])->save();
             // The customer is the subject: the refund shows in their history in the agent.
             $this->activity->record('shop.order_cancelled', __('Заказ №:id отменён, :amount возвращено на счёт клиента', ['id' => $order->id, 'amount' => (string) $order->amount]), $staffId, User::query()->find($order->user_id), ['amount' => (string) $order->amount, 'order_id' => $order->id]);

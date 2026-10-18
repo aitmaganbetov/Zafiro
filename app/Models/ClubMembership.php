@@ -16,7 +16,7 @@ class ClubMembership extends Model
 
     protected function casts(): array
     {
-        return ['discount' => 'decimal:2', 'notifications_seen_at' => 'datetime', 'can_manage_integrations' => 'boolean'];
+        return ['discount' => 'decimal:2', 'total_spent' => 'decimal:2', 'notifications_seen_at' => 'datetime', 'can_manage_integrations' => 'boolean'];
     }
 
     public function user(): BelongsTo

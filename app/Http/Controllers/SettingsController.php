@@ -10,6 +10,7 @@ use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use App\Services\GuestFeatures;
 use App\Services\LocaleResolver;
+use App\Services\LoyaltyProgram;
 use App\Services\TranslationCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -223,6 +224,8 @@ class SettingsController extends Controller
             ],
             'finances' => [
                 'currency',
+                'loyalty_enabled',
+                'loyalty_levels',
             ],
             'guests' => [
                 'show_qr_code_on_login',
@@ -234,6 +237,7 @@ class SettingsController extends Controller
         ];
 
         $booleanFields = [
+            'loyalty_enabled',
             'show_qr_code_on_login',
             'allow_guest_self_transfer',
             'allow_adding_friends',
@@ -257,12 +261,18 @@ class SettingsController extends Controller
                 $settings[$section][$field] = match (true) {
                     in_array($field, $booleanFields, true) => $request->boolean($field),
                     in_array($field, $minuteFields, true) => $this->number((float) $request->input($field)),
+                    $field === 'loyalty_levels' => LoyaltyProgram::normalize($request->input($field) ?? []),
                     default => $request->input($field),
                 };
             }
         }
 
-        $readable = fn (mixed $value): string => is_bool($value) ? ($value ? __('да') : __('нет')) : (string) ($value ?? '—');
+        $readable = fn (mixed $value): string => match (true) {
+            is_bool($value) => $value ? __('да') : __('нет'),
+            // Loyalty levels: "spent: percent%" each.
+            is_array($value) => implode('; ', array_map(fn (array $level): string => $level['spent'].': '.$level['percent'].'%', $value)) ?: '—',
+            default => (string) ($value ?? '—'),
+        };
         $changes = collect($settings[$section])
             ->filter(fn (mixed $value, string $field): bool => ($before[$field] ?? null) !== $value)
             ->map(fn (mixed $value, string $field): string => $readable($before[$field] ?? null).' → '.$readable($value))
@@ -319,6 +329,9 @@ class SettingsController extends Controller
             ],
             'finances' => [
                 'currency' => 'KZT',
+                // Cumulative discount: [{spent, percent}] — see LoyaltyProgram.
+                'loyalty_enabled' => false,
+                'loyalty_levels' => [],
             ],
             'guests' => [
                 'show_qr_code_on_login' => false,
@@ -346,6 +359,8 @@ class SettingsController extends Controller
             ],
             'finances' => [
                 'currency' => __('Валюта'),
+                'loyalty_enabled' => __('Включить накопительную скидку'),
+                'loyalty_levels' => __('Уровни накопительной скидки'),
             ],
             'guests' => [
                 'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),

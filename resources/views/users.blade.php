@@ -72,6 +72,7 @@
                         <th scope="col" class="px-5 py-3 font-semibold">{{ __('Логин') }}</th>
                         <th scope="col" class="px-5 py-3 font-semibold">{{ __('Номер') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Скидка') }}</th>
+                        <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Потрачено') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Баланс') }}</th>
                         <th scope="col" class="px-5 py-3 text-right font-semibold">{{ __('Бонусный баланс') }}</th>
                         <th scope="col" class="px-5 py-3"><span class="sr-only">{{ __('Действия') }}</span></th>
@@ -82,7 +83,12 @@
                         <tr class="text-gray-700 dark:text-gray-300">
                             <td class="px-5 py-4 font-medium text-gray-900 dark:text-white">{{ $membership->user->name }}</td>
                             <td class="px-5 py-4 whitespace-nowrap">{{ $membership->user->phone }}</td>
-                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->discount, 2, '.', ' ') }}%</td>
+                            @php($loyaltyPercent = $loyalty->percentFor($membership))
+                            <td class="px-5 py-4 text-right tabular-nums">
+                                {{ number_format(max((float) $membership->discount, $loyaltyPercent), 2, '.', ' ') }}%
+                                @if ($loyaltyPercent > (float) $membership->discount)<span class="block text-xs text-gray-500 dark:text-gray-400">{{ __('накопительная') }}</span>@endif
+                            </td>
+                            <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->total_spent, 2, '.', ' ') }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->balance, 2, '.', ' ') }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-right">
@@ -95,7 +101,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
+                            <td colspan="7" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

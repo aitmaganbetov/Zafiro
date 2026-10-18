@@ -8,6 +8,7 @@ use App\Models\MemberBalance;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\LoyaltyProgram;
 use App\Services\Telegram;
 use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
@@ -27,7 +28,7 @@ class UserController extends Controller
         return in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin', 'manager'], true);
     }
 
-    public function index(): View
+    public function index(LoyaltyProgram $loyalty): View
     {
         // Customers only; staff are on the Workers page.
         $users = ClubMembership::query()
@@ -36,7 +37,7 @@ class UserController extends Controller
             ->orderBy('user_id')
             ->paginate(25);
 
-        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney()]);
+        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney(), 'loyalty' => $loyalty]);
     }
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse

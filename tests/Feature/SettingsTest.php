@@ -187,7 +187,7 @@ test('API settings page displays every setting with saved values', function () {
                 && $settings['guests']['allow_adding_friends'] === true
                 && $settings['guests']['allow_balance_transfer_to_friends'] === false;
         })
-        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 15)
+        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 17)
         ->assertViewHas('productEndpoint', fn (array $endpoint): bool => $endpoint['url'] === route('api.products.index'));
 });
 
