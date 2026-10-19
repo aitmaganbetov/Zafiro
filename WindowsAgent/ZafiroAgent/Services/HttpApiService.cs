@@ -109,7 +109,11 @@ namespace ZafiroAgent.Services
             return JsonSerializer.Deserialize<Product[]>(items.GetRawText()) ?? Array.Empty<Product>();
         }
 
-        public async Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken)
+        public Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken) =>
+            PurchaseTariffAsync(tariffId, null, cancellationToken);
+
+        /// <summary>balance: main — всё с основного баланса, bonus — бонусами до процента клуба; null — как раньше.</summary>
+        public async Task<PurchaseResult> PurchaseTariffAsync(string tariffId, string? balance, CancellationToken cancellationToken)
         {
             var config = _config.Load();
             var token = _secure.Unprotect(config.ProtectedApiToken);
@@ -122,7 +126,9 @@ namespace ZafiroAgent.Services
                 return new PurchaseResult { Success = false, Message = L.T("Компьютер ещё не зарегистрирован в клубе. Проверьте подключение агента.") };
             }
             var purchaseUri = new Uri($"{ApiRoot(config)}/tariffs/{Uri.EscapeDataString(tariffId)}/purchase");
-            var payload = JsonSerializer.Serialize(new { computer_id = computerId });
+            var body = new Dictionary<string, object> { ["computer_id"] = computerId };
+            if (balance is "main" or "bonus") body["balance"] = balance;
+            var payload = JsonSerializer.Serialize(body);
             using var request = new HttpRequestMessage(HttpMethod.Post, purchaseUri)
             {
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")
@@ -141,13 +147,20 @@ namespace ZafiroAgent.Services
                 ?? new PurchaseResult { Success = false, Message = L.T("Сервер вернул неожиданный ответ.") };
         }
 
-        /// <summary>Досрочно завершает оплаченную сессию на сервере (неиспользованное время не возвращается).</summary>
-        public async Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken)
+        /// <summary>Досрочно завершает оплаченную сессию на сервере.</summary>
+        public async Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken) =>
+            await EndSessionWithResultAsync(sessionId, cancellationToken).ConfigureAwait(false) is not null;
+
+        /// <summary>
+        /// Досрочно завершает сессию; null — не удалось. Минуты, купленные поминутно, сервер возвращает
+        /// на балансы, остаток тарифа с ограничением использования сохраняет абонементом.
+        /// </summary>
+        public async Task<EndSessionResult?> EndSessionWithResultAsync(string sessionId, CancellationToken cancellationToken)
         {
             var config = _config.Load();
             var token = _secure.Unprotect(config.ProtectedApiToken);
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(sessionId)) return false;
-            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0) return false;
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(sessionId)) return null;
+            if (!long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) || computerId <= 0) return null;
 
             var uri = new Uri($"{ApiRoot(config)}/club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/session/end");
             using var request = new HttpRequestMessage(HttpMethod.Post, uri)
@@ -156,8 +169,27 @@ namespace ZafiroAgent.Services
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
 
-            return response.IsSuccessStatusCode;
+            // Сервер старой версии отвечает без сумм: сессия всё равно завершена.
+            string refunded = "0.00", refundedBonus = "0.00";
+            var kept = 0;
+            try
+            {
+                using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("refunded", out var r) && r.ValueKind == JsonValueKind.String) refunded = r.GetString() ?? refunded;
+                    if (root.TryGetProperty("refunded_bonus", out var rb) && rb.ValueKind == JsonValueKind.String) refundedBonus = rb.GetString() ?? refundedBonus;
+                    if (root.TryGetProperty("kept_minutes", out var k) && k.ValueKind == JsonValueKind.Number && k.TryGetInt32(out var minutes)) kept = minutes;
+                }
+            }
+            catch (JsonException)
+            {
+            }
+
+            return new EndSessionResult(refunded, refundedBonus, kept);
         }
 
         /// <summary>

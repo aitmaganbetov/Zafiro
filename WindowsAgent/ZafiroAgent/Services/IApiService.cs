@@ -11,7 +11,9 @@ namespace ZafiroAgent.Services
         Task<Product[]> GetProductsAsync(CancellationToken cancellationToken);
         Task<Tariff[]> GetTariffsAsync(CancellationToken cancellationToken);
         Task<PurchaseResult> PurchaseTariffAsync(string tariffId, CancellationToken cancellationToken);
+        Task<PurchaseResult> PurchaseTariffAsync(string tariffId, string? balance, CancellationToken cancellationToken);
         Task<bool> EndSessionAsync(string sessionId, CancellationToken cancellationToken);
+        Task<EndSessionResult?> EndSessionWithResultAsync(string sessionId, CancellationToken cancellationToken);
         Task<GuestApiResult> CallGuestApiAsync(HttpMethod method, string path, object? body, bool fromThisComputer, CancellationToken cancellationToken);
     }
 }

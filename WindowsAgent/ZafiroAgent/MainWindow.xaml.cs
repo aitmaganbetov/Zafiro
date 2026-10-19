@@ -46,6 +46,10 @@ namespace ZafiroAgent
         // Оплаченная сессия на этом ПК (по данным сервера). Без неё рабочий стол недоступен.
         private string? _activeSessionId;
         private DateTimeOffset? _activeSessionEndsAt;
+        // Предупреждения о конце сессии: за сколько минут, и для какого времени конца они уже были.
+        private static readonly int[] SessionWarningMinutes = { 10, 5, 3, 1 };
+        private DateTimeOffset? _warnedForEnd;
+        private int _warnedMinutes = int.MaxValue;
         private DateTime _sessionAdoptedAtUtc;
 
         // Часы сервера минус часы ПК: если часы ПК спешат или отстают, сессия всё равно
@@ -403,6 +407,9 @@ namespace ZafiroAgent
         /// </summary>
         private void EndSessionLocally(string reason)
         {
+            // Время вышло (по часам ПК или сервер закрыл сессию в срок, а не сотрудник досрочно).
+            var timeIsUp = _activeSessionId is not null && (reason == "expired" ||
+                (reason == "server" && _activeSessionEndsAt is { } plannedEnd && plannedEnd <= ServerNow + TimeSpan.FromSeconds(30)));
             _activeSessionId = null;
             _activeSessionEndsAt = null;
             _heartbeatService?.SetState(ComputerState.Idle);
@@ -414,6 +421,8 @@ namespace ZafiroAgent
             }
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
             ScheduleAfterSessionAction();
+            // После агента: уведомление должно быть поверх его окна.
+            if (timeIsUp) Views.SessionTimeNotice.Show(L.T("Истекло время сессии"), final: true);
         }
 
         private static bool IsPowerAction(string action) => action is "restart" or "shutdown";
@@ -478,6 +487,33 @@ namespace ZafiroAgent
             App.Instance.RefreshKiosk(); // киоск включается, как только ПК получил токен устройства
             if (_activeSessionId is not null && _activeSessionEndsAt is { } endsAt && endsAt <= ServerNow)
                 EndSessionLocally("expired");
+            else
+                WarnSessionTime();
+        }
+
+        /// <summary>
+        /// За 10, 5, 3 и 1 минуту до конца — уведомление со звуком, каждое один раз. Время продлили —
+        /// отсчёт заново, но без уведомления сразу после покупки.
+        /// </summary>
+        private void WarnSessionTime()
+        {
+            if (_activeSessionId is null || _activeSessionEndsAt is not { } endsAt) return;
+            var left = endsAt - ServerNow;
+            var reached = int.MaxValue;
+            foreach (var minutes in SessionWarningMinutes)
+                if (left <= TimeSpan.FromMinutes(minutes)) reached = Math.Min(reached, minutes);
+
+            if (_warnedForEnd != endsAt)
+            {
+                _warnedForEnd = endsAt;
+                _warnedMinutes = reached;
+                return;
+            }
+            if (reached >= _warnedMinutes) return;
+
+            _warnedMinutes = reached;
+            var count = Math.Max(1, (int)Math.Ceiling(left.TotalMinutes));
+            Views.SessionTimeNotice.Show(L.T("До конца сессии осталось :count мин.", ("count", count)), final: false);
         }
 
         // 401: вход обновляется один раз; повторный 401 после нового входа цикл не запускает.
@@ -762,7 +798,8 @@ namespace ZafiroAgent
                     return;
                 }
 
-                if (!await _apiService.EndSessionAsync(sessionId, CancellationToken.None))
+                var settled = await _apiService.EndSessionWithResultAsync(sessionId, CancellationToken.None);
+                if (settled is null)
                 {
                     SendMessageToWeb(JsonSerializer.Serialize(new { type = "actionFailed", message = L.T("Не удалось завершить сессию.") }));
                     return;
@@ -770,6 +807,8 @@ namespace ZafiroAgent
 
                 // Пользователь остаётся в системе: токен и клуб не трогаем.
                 EndSessionLocally("ended");
+                // Что вернулось на баланс и что сохранилось абонементом — странице для уведомления.
+                SendMessageToWeb(JsonSerializer.Serialize(new { type = "sessionSettled", refunded = settled.Refunded, refundedBonus = settled.RefundedBonus, keptMinutes = settled.KeptMinutes }));
             }
             catch (Exception ex)
             {
@@ -791,6 +830,10 @@ namespace ZafiroAgent
             SendMessageToWeb(JsonSerializer.Serialize(new { type = replyType, ok = result.Success, message = result.Message, data = result.Data }));
             return result;
         }
+
+        /// <summary>Выбор клиента на странице: main или bonus; иначе null (сервер возьмёт как раньше).</summary>
+        private static string? PaymentBalance(JsonElement message) =>
+            message.TryGetProperty("balance", out var b) && b.ValueKind == JsonValueKind.String && b.GetString() is "main" or "bonus" ? b.GetString() : null;
 
         private static long? FriendshipId(JsonElement message) =>
             message.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var value) && value > 0 ? value : null;
@@ -919,10 +962,49 @@ namespace ZafiroAgent
                     // Как с тарифом: второе нажатие, пока покупка идёт, не списывает деньги ещё раз.
                     if (_purchaseInFlight) return;
                     if (!doc.RootElement.TryGetProperty("minutes", out var m) || m.ValueKind != JsonValueKind.Number || !m.TryGetInt32(out var minutes) || minutes <= 0) return;
+                    var payWith = PaymentBalance(doc.RootElement);
                     _purchaseInFlight = true;
                     try
                     {
-                        var result = await _apiService.CallGuestApiAsync(HttpMethod.Post, "minutes/purchase", new { minutes }, true, CancellationToken.None);
+                        object body = payWith is null ? new { minutes } : new { minutes, balance = payWith };
+                        var result = await _apiService.CallGuestApiAsync(HttpMethod.Post, "minutes/purchase", body, true, CancellationToken.None);
+                        var data = result.Data;
+                        string? Text(string name) => data is { } d && d.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+                        var sessionId = Text("session_id");
+                        DateTimeOffset? endsAt = DateTimeOffset.TryParse(Text("session_ends_at"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var ends) ? ends.ToUniversalTime() : null;
+                        if (result.Success && !string.IsNullOrWhiteSpace(sessionId))
+                            AdoptSession(sessionId, endsAt);
+
+                        SendMessageToWeb(JsonSerializer.Serialize(new
+                        {
+                            type = "purchaseResult",
+                            success = result.Success,
+                            message = result.Message,
+                            sessionId,
+                            newBalance = Text("new_balance"),
+                            newBonus = Text("new_bonus"),
+                            sessionEndsAt = endsAt?.ToString("O")
+                        }));
+                    }
+                    finally
+                    {
+                        _purchaseInFlight = false;
+                    }
+                }
+                else if (type == "requestPackages")
+                {
+                    await GuestCallAsync("packages", HttpMethod.Get, "packages");
+                }
+                else if (type == "startPackage")
+                {
+                    // Абонемент (сохранённое время тарифа): запуск без оплаты, как покупка — сессия начинается здесь.
+                    if (_purchaseInFlight) return;
+                    if (!doc.RootElement.TryGetProperty("packageId", out var pid) || pid.ValueKind != JsonValueKind.String ||
+                        !long.TryParse(pid.GetString(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var packageId) || packageId <= 0) return;
+                    _purchaseInFlight = true;
+                    try
+                    {
+                        var result = await _apiService.CallGuestApiAsync(HttpMethod.Post, "packages/" + packageId.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/start", new { }, true, CancellationToken.None);
                         var data = result.Data;
                         string? Text(string name) => data is { } d && d.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                         var sessionId = Text("session_id");
@@ -1037,7 +1119,7 @@ namespace ZafiroAgent
                     try
                     {
                         var tariffId = doc.RootElement.GetProperty("tariffId").GetString() ?? string.Empty;
-                        var res = await _apiService.PurchaseTariffAsync(tariffId, CancellationToken.None);
+                        var res = await _apiService.PurchaseTariffAsync(tariffId, PaymentBalance(doc.RootElement), CancellationToken.None);
 
                         if (res.Success && !string.IsNullOrWhiteSpace(res.SessionId))
                             AdoptSession(res.SessionId, res.SessionEndsAt);

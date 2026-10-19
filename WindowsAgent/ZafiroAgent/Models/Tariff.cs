@@ -22,5 +22,16 @@ namespace ZafiroAgent.Models
 
         [JsonPropertyName("currency")]
         public string Currency { get; set; } = "KZT";
+
+        // Можно ли оплатить бонусами и какую часть цены (настройка клуба; «только основной баланс» — нельзя).
+        [JsonPropertyName("bonus_allowed")]
+        public bool BonusAllowed { get; set; }
+
+        [JsonPropertyName("bonus_max_percent")]
+        public int BonusMaxPercent { get; set; }
+
+        // Ограничение использования: неиспользованное время сохраняется абонементом на столько минут после покупки.
+        [JsonPropertyName("usage_limit_minutes")]
+        public int? UsageLimitMinutes { get; set; }
     }
 }

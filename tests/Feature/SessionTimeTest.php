@@ -126,6 +126,7 @@ test('the customer picks the balance: main, or bonuses up to the club percent; s
     $this->getJson(route('api.tariffs.index'), $headers)->assertOk()
         ->assertJsonPath('data.0.bonus_allowed', true)->assertJsonPath('data.0.bonus_max_percent', 30)
         ->assertJsonPath('data.1.bonus_allowed', false);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('bonus_max_percent', 30);
 
     // 30% of 1000 with bonuses, the rest from the main balance.
     $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'bonus'], $headers)->assertOk()

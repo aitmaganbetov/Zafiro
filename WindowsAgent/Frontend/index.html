@@ -177,6 +177,14 @@
 			  <p data-i18n="Выберите подходящий пакет игрового времени.">Выберите подходящий пакет игрового времени.</p>
 			</div>
 		  </header>
+		  <!-- Абонементы: сохранённое время тарифа с ограничением использования, запуск без оплаты. -->
+		  <section class="minute-card" id="packageSection" aria-labelledby="packageTitle" hidden>
+			<div class="minute-head">
+			  <h2 id="packageTitle" data-i18n="Ваши абонементы">Ваши абонементы</h2>
+			  <p data-i18n="Неиспользованное время тарифа — запустите его, пока не сгорело.">Неиспользованное время тарифа — запустите его, пока не сгорело.</p>
+			</div>
+			<div class="package-list" id="packageList"></div>
+		  </section>
 		  <!-- Время поминутно по цене часа зоны этого ПК (если клуб задал цену часа в зоне). -->
 		  <section class="minute-card" id="minuteCard" aria-labelledby="minuteTitle" hidden>
 			<div class="minute-head">
@@ -339,6 +347,17 @@
 			<span><i class="seat-swatch current"></i><span data-i18n="Вы здесь">Вы здесь</span></span>
 		  </div>
 		  <button class="primary seat-confirm" id="seatConfirm" type="button" disabled data-i18n="Выберите свободный ПК">Выберите свободный ПК</button>
+		</dialog>
+
+		<!-- Оплата времени: с основного баланса или бонусами (до процента клуба, остальное — с основного). -->
+		<dialog class="cart-dialog confirm-dialog" id="payDialog" aria-labelledby="payTitle">
+		  <h2 id="payTitle"></h2>
+		  <p class="dialog-note" id="payText"></p>
+		  <div class="confirm-actions">
+			<button class="friend-button" id="payCancel" type="button" data-i18n="Отмена">Отмена</button>
+			<button class="friend-button" id="payBonus" type="button"></button>
+			<button class="primary" id="payMain" type="button" data-i18n="С основного баланса">С основного баланса</button>
+		  </div>
 		</dialog>
 
 		<!-- Подтверждение: выход, завершение сессии, оплата заказа. -->

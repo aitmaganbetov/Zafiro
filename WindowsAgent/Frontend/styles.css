@@ -160,6 +160,9 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .history-list-heading h2{margin:0;font-size:1.0625rem}
 .history-list-heading p{margin:5px 0 0;color:var(--muted);font-size:0.8125rem}
 .minute-card{display:grid;gap:12px;margin:18px 0 6px;padding:16px;border:1px solid rgba(139,92,246,0.35);border-radius:10px;background:rgba(139,92,246,0.06)}
+.package-list{display:grid;gap:8px}
+.package-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.04)}
+.package-item span{color:var(--muted);font-size:0.8125rem}
 .minute-head h2{margin:0;font-size:1.0625rem}
 .minute-head p{margin:4px 0 0;color:var(--muted);font-size:0.8125rem}
 .minute-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}

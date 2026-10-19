@@ -144,6 +144,42 @@
     if (event.target === confirmDialog) finishConfirm(false);
   });
 
+  // Оплата времени: с основного баланса или бонусами (до процента клуба, остальное — с основного).
+  // Ответ — 'main', 'bonus' или null (отмена). Бонусами нельзя — без вопроса, с основного.
+  const payDialog = document.getElementById('payDialog');
+  let payResolve = null;
+  const askBalance = (title, price, bonusPercent) => new Promise((resolve) => {
+    if (!(bonusPercent > 0)) {
+      resolve('main');
+      return;
+    }
+    if (payResolve) payResolve(null);
+    payResolve = resolve;
+    document.getElementById('payTitle').textContent = title;
+    document.getElementById('payText').textContent = t('К оплате :price. Бонусами можно оплатить до :percent% цены, остальное — с основного баланса.', { price, percent: bonusPercent });
+    document.getElementById('payBonus').textContent = t('Бонусами (до :percent%)', { percent: bonusPercent });
+    if (typeof payDialog.showModal === 'function') payDialog.showModal();
+    else payDialog.setAttribute('open', '');
+    document.getElementById('payMain').focus();
+  });
+  const finishPay = (answer) => {
+    const resolve = payResolve;
+    payResolve = null;
+    if (typeof payDialog.close === 'function') payDialog.close();
+    else payDialog.removeAttribute('open');
+    resolve?.(answer);
+  };
+  document.getElementById('payMain').addEventListener('click', () => finishPay('main'));
+  document.getElementById('payBonus').addEventListener('click', () => finishPay('bonus'));
+  document.getElementById('payCancel').addEventListener('click', () => finishPay(null));
+  payDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    finishPay(null);
+  });
+  payDialog.addEventListener('click', (event) => {
+    if (event.target === payDialog) finishPay(null);
+  });
+
   const fetchProducts = () => {
     setStatus(shopCount, 'Загружаем товары…');
     if (webview) webview.postMessage({ type: 'requestProducts' });
@@ -393,18 +429,20 @@
       button.className = 'tariff-purchase';
       button.type = 'button';
       button.textContent = t('Выбрать');
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         const tariffId = tariffValue(tariff, 'id');
         if (tariffId === undefined || !webview) {
           toastKey('Покупка доступна в приложении.', 'warning');
           return;
         }
 
+        const balance = await askBalance(name.textContent, price.textContent, tariff.bonus_allowed ? Number(tariff.bonus_max_percent) || 0 : 0);
+        if (!balance) return;
         setStatus(tariffPageStatus, 'Оформляем тариф…');
         tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => {
           item.disabled = true;
         });
-        webview.postMessage({ type: 'purchaseTariff', tariffId: String(tariffId) });
+        webview.postMessage({ type: 'purchaseTariff', tariffId: String(tariffId), balance });
       });
 
       footer.append(price, button);
@@ -461,6 +499,7 @@
   document.getElementById('btnExtend')?.addEventListener('click', () => {
     setView('tariffs');
     requestMinutes();
+    requestPackages();
   });
   document.getElementById('btnTopUp')?.addEventListener('click', () => {
     toastKey('Пополнить баланс можно на кассе клуба.', 'info');
@@ -905,14 +944,46 @@
     minuteInput.value = button.dataset.minutes;
     renderMinutes();
   }));
-  minuteBuy.addEventListener('click', () => {
+  minuteBuy.addEventListener('click', async () => {
     const minutes = minuteCount();
     if (minutes === null || !webview) return;
+    const balance = await askBalance(t('Поминутно'), document.getElementById('minutePrice').textContent, Number(minuteOffer?.bonus_max_percent) || 0);
+    if (!balance) return;
     minuteBuy.disabled = true;
     tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => { item.disabled = true; });
     setStatus(tariffPageStatus, 'Оформляем тариф…');
-    webview.postMessage({ type: 'purchaseMinutes', minutes });
+    webview.postMessage({ type: 'purchaseMinutes', minutes, balance });
   });
+
+  // Абонементы: сохранённое время тарифа с ограничением использования; запуск без оплаты.
+  const packageSection = document.getElementById('packageSection');
+  const packageList = document.getElementById('packageList');
+  let packages = [];
+  const requestPackages = () => webview?.postMessage({ type: 'requestPackages' });
+  const renderPackages = () => {
+    packageSection.hidden = packages.length === 0;
+    packageList.replaceChildren(...packages.map((item) => {
+      const row = document.createElement('div');
+      row.className = 'package-item';
+      const info = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = item.name;
+      const left = document.createElement('span');
+      left.textContent = t('Осталось :time · до :date', { time: formatTariffDuration(item.minutes), date: formatDateTime(item.expires_at) });
+      info.append(name, document.createElement('br'), left);
+      const start = document.createElement('button');
+      start.type = 'button';
+      start.className = 'primary';
+      start.textContent = t('Запустить');
+      start.addEventListener('click', () => {
+        start.disabled = true;
+        setStatus(tariffPageStatus, 'Запускаем абонемент…');
+        webview?.postMessage({ type: 'startPackage', packageId: String(item.id) });
+      });
+      row.append(info, start);
+      return row;
+    }));
+  };
 
   // Новости на главной: Zafiro (первая карточка) и клуб (вторая). Открываются здесь же, в окне агента.
   const newsDialog = document.getElementById('newsDialog');
@@ -1075,7 +1146,7 @@
 
     const ending = hasActiveSession;
     const confirmed = ending
-      ? await askConfirm(t('Завершить сессию?'), t('Оставшееся время не возвращается на счёт.'), t('Завершить сессию'))
+      ? await askConfirm(t('Завершить сессию?'), t('Минуты, купленные поминутно, вернутся на баланс, а остаток тарифа с ограничением использования сохранится абонементом. Остальное время тарифа не возвращается.'), t('Завершить сессию'))
       : await askConfirm(t('Выйти из аккаунта?'), t('Чтобы снова играть на этом ПК, нужно будет войти заново.'), t('Выйти'));
     // Пока окно было открыто, сессия могла закончиться: действие — то, что клиент подтвердил.
     if (!confirmed || ending !== hasActiveSession) return;
@@ -1117,6 +1188,7 @@
   tariffNavigation.addEventListener('click', () => {
     setView('tariffs');
     requestMinutes();
+    requestPackages();
   });
   profileNavigation.addEventListener('click', () => {
     setView('profile');
@@ -1195,6 +1267,7 @@
     renderFriends();
     renderHistory();
     renderMinutes();
+    renderPackages();
     renderNewsCards();
     if (newsDialog.open) showNews();
     if (!sessionEndsAt && !hasActiveSession) clearSessionDetails();
@@ -1284,7 +1357,25 @@
       setStatus(tariffPageStatus, null);
       toast(event.data.message ?? t(event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.'), event.data.success ? 'success' : 'error');
       // Сессию после покупки присылает агент (sessionSync); здесь — только баланс.
-      if (event.data.success) applyBalances(event.data.newBalance, event.data.newBonus);
+      if (event.data.success) {
+        applyBalances(event.data.newBalance, event.data.newBonus);
+        requestPackages();
+      }
+    }
+
+    if (event.data?.type === 'packages') {
+      packages = event.data.ok && Array.isArray(event.data.data?.data) ? event.data.data.data : [];
+      renderPackages();
+    }
+
+    // Сессия завершена досрочно: что вернулось на баланс и что сохранилось абонементом.
+    if (event.data?.type === 'sessionSettled') {
+      const parts = [];
+      if (Number(event.data.refunded) > 0) parts.push(t('Возвращено на баланс: :amount', { amount: formatPrice(Number(event.data.refunded)) }));
+      if (Number(event.data.refundedBonus) > 0) parts.push(t('Возвращено бонусов: :amount', { amount: formatPrice(Number(event.data.refundedBonus)) }));
+      if (Number(event.data.keptMinutes) > 0) parts.push(t('Сохранено в абонементах: :time', { time: formatTariffDuration(event.data.keptMinutes) }));
+      if (parts.length) toast(parts.join(' · '), 'success');
+      requestPackages();
     }
 
     // Сессия по данным сервера: после покупки, после перезапуска агента, при продлении.
@@ -1415,7 +1506,10 @@
       historyEntries = [];
       historyBefore = null;
       renderHistory();
+      packages = [];
+      renderPackages();
       closeDialog(newsDialog);
+      finishPay(null);
       chatThread.replaceChildren();
       chatAfter = 0;
       chatUnread = 0;

@@ -7,6 +7,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Services\AgentTariffPurchaseService;
 use App\Services\CurrentClub;
+use App\Services\PaymentRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,7 @@ class GuestMinutesController extends Controller
 {
     public const MAX_MINUTES = 720;
 
-    public function show(Request $request, CurrentClub $currentClub, AgentTariffPurchaseService $purchases): JsonResponse
+    public function show(Request $request, CurrentClub $currentClub, AgentTariffPurchaseService $purchases, PaymentRules $rules): JsonResponse
     {
         $computer = ClubComputer::query()->findOrFail((int) $request->validate(['computer_id' => ['required', 'integer']])['computer_id']);
         $zone = ClubZone::query()->find($computer->club_zone_id, ['id', 'name', 'price_per_hour']);
@@ -27,6 +28,8 @@ class GuestMinutesController extends Controller
             // With the customer's discount when the club applies it to hourly time.
             'price_per_hour' => $zone?->price_per_hour === null ? null : $purchases->hourlyPrice($request->user(), $zone),
             'original_price_per_hour' => $zone?->price_per_hour,
+            // Up to what percent of the price bonuses may pay (0 — not at all).
+            'bonus_max_percent' => $rules->bonusMaxPercent(),
             'currency' => data_get($currentClub->settings(), 'finances.currency', 'KZT'),
             'min_minutes' => 1,
             'max_minutes' => self::MAX_MINUTES,
