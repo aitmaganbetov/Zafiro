@@ -1022,6 +1022,7 @@ return [
         ':user удалил дружбу или заявку' => ':user removed a friend or a request',
         'QR-код устарел' => 'The QR code has expired',
         'QR-код устарел. Обновите его на ПК и отсканируйте снова.' => 'The QR code has expired. Refresh it on the PC and scan again.',
+        'QR-код относится к другому клубу.' => 'The QR code belongs to another club.',
         'Ваш аккаунт не состоит в этом клубе.' => 'Your account is not a member of this club.',
         'Введите 10 цифр номера после +7.' => 'Enter the 10 digits of the number after +7.',
         'Войти на ПК' => 'Sign in on the PC',

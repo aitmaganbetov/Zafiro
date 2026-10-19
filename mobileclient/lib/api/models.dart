@@ -136,3 +136,15 @@ class HistoryPage {
   final List<HistoryEntry> entries;
   final int? nextBefore;
 }
+
+class QrLoginInfo {
+  QrLoginInfo({required this.computer, required this.clubName});
+
+  factory QrLoginInfo.fromJson(Map<String, dynamic> json) => QrLoginInfo(
+    computer: json['computer'] as String? ?? '',
+    clubName: json['club_name'] as String? ?? '',
+  );
+
+  final String computer;
+  final String clubName;
+}

@@ -6,6 +6,7 @@ import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'scan_screen.dart';
 
 class BalanceTab extends StatelessWidget {
   const BalanceTab({super.key, required this.session});
@@ -45,6 +46,41 @@ class BalanceTab extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             _MainBalance(amount: money(profile.balance, profile.currency)),
+            const SizedBox(height: 14),
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              onTap: () => openScanner(context, session),
+              child: Row(
+                children: [
+                  const IconBadge(FontAwesomeIcons.qrcode, size: 44),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Войти на ПК',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Отсканируйте QR-код на экране ПК',
+                          style: TextStyle(color: Brand.faint, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FaIcon(
+                    FontAwesomeIcons.chevronRight,
+                    size: 14,
+                    color: Brand.faint,
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -183,5 +219,17 @@ class _Stat extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Сканер входа на ПК; после входа баланс мог измениться — обновляем.
+Future<void> openScanner(BuildContext context, Session session) async {
+  await Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => ScanScreen(api: session.api)));
+  try {
+    await session.refreshProfile();
+  } on ApiException {
+    // Баланс обновится при следующем открытии.
   }
 }

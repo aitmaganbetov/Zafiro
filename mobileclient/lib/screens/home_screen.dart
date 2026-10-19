@@ -36,6 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Войти на ПК по QR-коду',
+            onPressed: () => openScanner(context, session),
+            icon: const FaIcon(FontAwesomeIcons.qrcode, size: 20),
+          ),
           if (session.clubName.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 16),

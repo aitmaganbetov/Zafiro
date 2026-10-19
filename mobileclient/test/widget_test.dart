@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:zafiro_client/api/models.dart';
 import 'package:zafiro_client/format.dart';
+import 'package:zafiro_client/qr.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('ru'));
@@ -52,5 +53,16 @@ void main() {
     expect(plain(signedAmount(-2500)), '\u22122 500');
     expect(signedAmount(0), '0');
     expect(plain(signedAmount(-12.5)), '\u221212,50');
+  });
+
+  test('из QR берётся только код входа на ПК', () {
+    final code = '${'a' * 20}${'B' * 10}0123456789';
+    expect(pcLoginCode('https://zafiro.kz/pc-login/$code'), code);
+    expect(pcLoginCode(' https://zafiro.kz:8443/pc-login/$code\n'), code);
+    expect(pcLoginCode('https://zafiro.kz/pc-login/done'), isNull);
+    expect(pcLoginCode('https://zafiro.kz/pc-login/${code}x'), isNull);
+    expect(pcLoginCode('https://evil.example/other/$code'), isNull);
+    expect(pcLoginCode('WIFI:S:club;P:secret;;'), isNull);
+    expect(pcLoginCode(null), isNull);
   });
 }

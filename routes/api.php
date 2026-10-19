@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\GuestFriendController;
 use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestMinutesController;
 use App\Http\Controllers\Api\GuestNewsController;
+use App\Http\Controllers\Api\GuestQrLoginController;
 use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\GuestShopController;
 use App\Http\Controllers\Api\GuestTelegramController;
@@ -139,6 +140,9 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');
     Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1,api.guest.seat-transfer')->name('api.guest.seat-transfer');
+    // The mobile app scans the PC's QR code and confirms the sign-in there (like the /pc-login page).
+    Route::get('/guest/qr-login/{code}', [GuestQrLoginController::class, 'show'])->where('code', '[A-Za-z0-9]{40}')->middleware('throttle:30,1,api.guest.qr-login.show')->name('api.guest.qr-login.show');
+    Route::post('/guest/qr-login/{code}', [GuestQrLoginController::class, 'approve'])->where('code', '[A-Za-z0-9]{40}')->middleware('throttle:10,1,api.guest.qr-login.approve')->name('api.guest.qr-login.approve');
 });
 
 Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting'])

@@ -9,6 +9,7 @@ use App\Models\ClubZone;
 use App\Models\ComputerReservation;
 use App\Models\Friendship;
 use App\Models\MemberBalance;
+use App\Models\SaasPlan;
 use App\Models\Tariff;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -264,6 +265,58 @@ test('QR codes expire, belong to their PC and are only for members of the club',
 
     Carbon::setTestNow(now()->addMinutes(6));
     $this->get(route('pc-login.show', $code))->assertOk()->assertSee('QR-код устарел');
+});
+
+test('the mobile app scans the PC QR code and confirms the sign-in with its token', function () {
+    allGuestFeatures();
+    $customer = User::factory()->create(['name' => 'Арман']);
+    $computer = guestComputer(7);
+    $deviceToken = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    $app = guestApi($customer);
+    app(CurrentClub::class)->clear();
+
+    $created = $this->postJson(route('api.agent.qr-login.store'), [], ['X-Agent-Token' => $deviceToken])->assertCreated();
+    $code = basename($created->json('url'));
+    $poll = fn () => $this->postJson(route('api.agent.qr-login.poll'), ['id' => $created->json('id'), 'device_name' => 'PC-07'], ['X-Agent-Token' => $deviceToken]);
+
+    app('auth')->forgetGuards();
+    $this->getJson(route('api.guest.qr-login.show', $code))->assertUnauthorized();
+
+    $this->getJson(route('api.guest.qr-login.show', $code), $app)->assertOk()
+        ->assertExactJson(['computer' => $computer->displayName(), 'club_name' => Club::query()->find($computer->club_id)->name]);
+    app('auth')->forgetGuards();
+    $this->postJson(route('api.guest.qr-login.approve', $code), [], $app)->assertOk()->assertJsonPath('computer', $computer->displayName());
+    app('auth')->forgetGuards();
+    $this->postJson(route('api.guest.qr-login.approve', $code), [], $app)->assertStatus(410)->assertJsonPath('code', 'qr_expired');
+
+    app('auth')->forgetGuards();
+    $poll()->assertOk()->assertJsonPath('status', 'approved')->assertJsonPath('user.name', 'Арман');
+});
+
+test('the mobile app does not confirm expired codes or codes of another club', function () {
+    allGuestFeatures();
+    $customer = User::factory()->create();
+    $deviceToken = app(ClubComputerSessions::class)->issueAgentToken(guestComputer(1));
+    $otherClub = Club::query()->create(['name' => 'Другой клуб', 'slug' => 'qr-other-club']);
+    $otherClub->subscription()->create([
+        'saas_plan_id' => SaasPlan::query()->firstOrCreate(['slug' => 'trial'], ['name' => 'Пробный период', 'trial_days' => 14, 'is_active' => true])->id,
+        'status' => 'active',
+        'started_at' => now()->subDay(),
+    ]);
+    app(CurrentClub::class)->set($otherClub);
+    $customer->memberships()->create(['role' => 'owner']);
+    app('auth')->forgetGuards();
+    $otherClubApp = ['Authorization' => 'Bearer '.$customer->createToken('phone', ['club:'.$otherClub->id])->plainTextToken, 'Accept' => 'application/json'];
+    app(CurrentClub::class)->clear();
+
+    $code = basename($this->postJson(route('api.agent.qr-login.store'), [], ['X-Agent-Token' => $deviceToken])->json('url'));
+
+    $this->postJson(route('api.guest.qr-login.approve', $code), [], $otherClubApp)->assertForbidden()->assertJsonPath('code', 'other_club');
+    expect(AgentQrLogin::query()->withoutGlobalScope('club')->sole()->approved_user_id)->toBeNull();
+
+    Carbon::setTestNow(now()->addMinutes(6));
+    app('auth')->forgetGuards();
+    $this->getJson(route('api.guest.qr-login.show', $code), $otherClubApp)->assertStatus(410)->assertJsonPath('code', 'qr_expired');
 });
 
 test('the QR code is not issued when the club has it switched off', function () {

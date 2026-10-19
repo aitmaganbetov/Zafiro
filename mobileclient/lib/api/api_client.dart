@@ -51,6 +51,15 @@ class ApiClient {
     ),
   );
 
+  /// ПК и клуб из QR-кода на экране входа ПК.
+  Future<QrLoginInfo> qrLoginInfo(String code) async =>
+      QrLoginInfo.fromJson(await _send('GET', '/guest/qr-login/$code'));
+
+  /// Подтвердить вход на ПК: ПК откроется под этим аккаунтом.
+  Future<String> qrLoginApprove(String code) async =>
+      (await _send('POST', '/guest/qr-login/$code'))['message'] as String? ??
+      '';
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {

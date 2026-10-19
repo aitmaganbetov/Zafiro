@@ -47,6 +47,8 @@
 				</array>
 			</dict>
 		</dict>
+		<key>NSCameraUsageDescription</key>
+		<string>Камера нужна, чтобы отсканировать QR-код на экране ПК и войти в клубе.</string>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
