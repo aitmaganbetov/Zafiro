@@ -12,7 +12,7 @@ class LineChart
 
     public const HEIGHT = 160;
 
-    private const COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#10b981'];
+    private const COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#14b8a6', '#64748b'];
 
     /**
      * @param  list<int>  $buckets  the buckets (Unix minutes), in order

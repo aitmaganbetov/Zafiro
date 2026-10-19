@@ -57,7 +57,7 @@
         <h3 id="history-title" class="font-semibold text-gray-900 dark:text-white">{{ __('История') }}</h3>
         <nav class="flex gap-1 text-sm" aria-label="{{ __('Период') }}">
             @foreach(['24h' => __('24 часа'), '7d' => __('7 дней')] as $key => $label)
-                <a href="{{ route('superadmin.dashboard', ['period' => $key]) }}" class="rounded-lg px-3 py-1.5 {{ $period === $key ? 'bg-violet-700 text-white' : 'border border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-300' }}" @if($period === $key) aria-current="page" @endif>{{ $label }}</a>
+                <a href="{{ route('superadmin.dashboard', ['period' => $key, 'clubs' => is_array(request()->query('clubs')) ? request()->query('clubs') : null]) }}" class="rounded-lg px-3 py-1.5 {{ $period === $key ? 'bg-violet-700 text-white' : 'border border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-300' }}" @if($period === $key) aria-current="page" @endif>{{ $label }}</a>
             @endforeach
         </nav>
     </div>
@@ -68,6 +68,59 @@
         @include('superadmin.partials.chart', ['chart' => $charts['duration'], 'title' => __('Среднее время ответа'), 'unit' => __('мс')])
         @include('superadmin.partials.chart', ['chart' => $charts['errors'], 'title' => __('Доля ошибок 5xx'), 'unit' => '%'])
     </div>
+</section>
+
+{{-- Нагрузка каждого клуба за тот же период: таблица (самые нагруженные сверху), отмеченные — на графике. --}}
+<section id="club-load" class="mt-6 scroll-mt-6" aria-labelledby="club-load-title">
+    <h3 id="club-load-title" class="mb-1 font-semibold text-gray-900 dark:text-white">{{ __('Нагрузка по клубам') }}</h3>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Запросы агентов ПК, API, панели сотрудников и приложения гостей каждого клуба. Отметьте клубы (до :max), чтобы сравнить их на графике.', ['max' => 8]) }}</p>
+    @if($clubLoad->isEmpty())
+        <p class="{{ $card }} text-sm text-gray-500">{{ __('За этот период запросов клубов ещё нет.') }}</p>
+    @else
+        @include('superadmin.partials.chart', ['chart' => $charts['clubs'], 'title' => __('Запросов в минуту по клубам'), 'unit' => __('запр./мин')])
+        <form method="GET" action="{{ route('superadmin.dashboard') }}#club-load" class="{{ $card }} mt-4">
+            <input type="hidden" name="period" value="{{ $period }}">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[860px] text-sm">
+                    <thead><tr class="text-left text-gray-500">
+                        <th class="py-2"><span class="sr-only">{{ __('На графике') }}</span></th>
+                        <th class="py-2">{{ __('Клуб') }}</th>
+                        <th class="py-2 text-right">{{ __('Запр./мин') }}</th>
+                        <th class="py-2 text-right">{{ __('Пик, запр./мин') }}</th>
+                        <th class="py-2 text-right">{{ __('Агенты ПК') }}</th>
+                        <th class="py-2 text-right">{{ __('API v1') }}</th>
+                        <th class="py-2 text-right">{{ __('Панель') }}</th>
+                        <th class="py-2 text-right">{{ __('Приложение гостя') }}</th>
+                        <th class="py-2 text-right">{{ __('Ответ, мс') }}</th>
+                        <th class="py-2 text-right">{{ __('Ошибки 5xx') }}</th>
+                        <th class="py-2 text-right">{{ __('Доля времени сервера') }}</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($clubLoad as $row)
+                        @php($name = $clubNames[$row->club_id] ?? '#'.$row->club_id)
+                        <tr class="border-t border-gray-100 tabular-nums dark:border-gray-800">
+                            <td class="py-2 pr-2"><input type="checkbox" name="clubs[]" value="{{ $row->club_id }}" class="rounded border-gray-300" aria-label="{{ __('Показать на графике: :club', ['club' => $name]) }}" @checked(in_array((int) $row->club_id, $selectedClubs, true))></td>
+                            <td class="py-2 text-gray-800 dark:text-gray-200"><a href="{{ route('superadmin.clubs.show', $row->club_id) }}" class="hover:underline">{{ $name }}</a></td>
+                            <td class="py-2 text-right">{{ round($row->requests / $periodMinutes, 1) }}</td>
+                            <td class="py-2 text-right">{{ (int) $row->peak }}</td>
+                            <td class="py-2 text-right">{{ number_format((int) $row->agent, 0, '.', ' ') }}</td>
+                            <td class="py-2 text-right">{{ number_format((int) $row->api, 0, '.', ' ') }}</td>
+                            <td class="py-2 text-right">{{ number_format((int) $row->panel, 0, '.', ' ') }}</td>
+                            <td class="py-2 text-right">{{ number_format((int) $row->guest, 0, '.', ' ') }}</td>
+                            <td class="py-2 text-right">{{ $row->requests > 0 ? (int) round($row->duration_ms / $row->requests) : '—' }}</td>
+                            <td class="py-2 text-right {{ $row->errors > 0 ? $bad : '' }}">{{ $row->requests > 0 ? round($row->errors * 100 / $row->requests, 1).'%' : '—' }}</td>
+                            <td class="py-2 text-right">{{ $serverDurationMs > 0 ? round($row->duration_ms * 100 / $serverDurationMs, 1).'%' : '—' }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+                <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Показать на графике') }}</button>
+                <span class="text-xs text-gray-500">{{ __('Без отметок — :count самых нагруженных. Пик — максимум запросов за одну минуту.', ['count' => 5]) }}</span>
+            </div>
+        </form>
+    @endif
 </section>
 
 <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">

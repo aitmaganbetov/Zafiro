@@ -95,14 +95,50 @@ test('requests are counted per channel and club in minute files, then folded int
 
     // Lines of a club's agent count towards the club's load.
     $minute = intdiv(now()->getTimestamp(), 60);
-    file_put_contents($this->metricsPath.'/requests-'.$minute.'.log', "agent\t{$club->id}\t12\t200\nagent\t{$club->id}\t30\t500\napi\t999999\t5\t200\n");
+    file_put_contents($this->metricsPath.'/requests-'.$minute.'.log', "agent\t{$club->id}\t12\t200\nagent\t{$club->id}\t30\t500\napi\t999999\t5\t200\npanel\t{$club->id}\t100\t200\nguest\t{$club->id}\t8\t200\n");
     $this->travel(1)->minutes();
     $this->artisan('monitoring:collect')->assertSuccessful();
+
+    // Every channel of the club counts: its PCs, its staff panel and its guests' app.
+    expect(DB::table('club_request_metrics')->where('club_id', $club->id)->where('minute', $minute)->first())
+        ->agent_requests->toEqual(2)->panel_requests->toEqual(1)->guest_requests->toEqual(1)->api_requests->toEqual(0)
+        ->errors->toEqual(1)->duration_ms->toEqual(150);
+    // A line written late for the same minute is added up.
+    file_put_contents($this->metricsPath.'/requests-'.$minute.'.log', "panel\t{$club->id}\t50\t200\n");
+    $this->artisan('monitoring:collect')->assertSuccessful();
+    expect(DB::table('club_request_metrics')->where('club_id', $club->id)->where('minute', $minute)->first())
+        ->panel_requests->toEqual(2)->duration_ms->toEqual(200);
 
     expect(DB::table('club_request_metrics')->where('club_id', $club->id)->where('minute', $minute)->value('agent_requests'))->toEqual(2)
         ->and(DB::table('club_request_metrics')->where('club_id', 999999)->exists())->toBeFalse()
         ->and(DB::table('request_metrics')->where('minute', $minute)->where('channel', 'agent')->first())
         ->requests->toEqual(2)->errors->toEqual(1)->duration_ms->toEqual(42);
+});
+
+test('the server page shows the load of each club and compares the selected ones on a chart', function () {
+    $minute = intdiv(now()->getTimestamp(), 60);
+    $clubs = collect(range(1, 7))->map(fn (int $n) => Club::query()->create(['name' => 'Клуб '.$n, 'slug' => 'load-'.$n]));
+    foreach ($clubs as $index => $club) {
+        // Club 7 is the heaviest, club 1 the lightest.
+        DB::table('club_request_metrics')->insert(['club_id' => $club->id, 'minute' => $minute - 5, 'agent_requests' => ($index + 1) * 100, 'api_requests' => 10, 'panel_requests' => 20, 'guest_requests' => 5, 'errors' => $index === 6 ? 7 : 0, 'duration_ms' => ($index + 1) * 1000]);
+    }
+    DB::table('request_metrics')->insert(['minute' => $minute - 5, 'channel' => 'agent', 'requests' => 3000, 'errors' => 7, 'duration_ms' => 56000]);
+    // Long ago: not in the 24 hours.
+    DB::table('club_request_metrics')->insert(['club_id' => $clubs[0]->id, 'minute' => $minute - 2000, 'agent_requests' => 99999]);
+
+    $page = $this->actingAs(monitoringAdmin())->get(route('superadmin.dashboard'))->assertOk()
+        ->assertSee('Нагрузка по клубам')
+        ->assertSeeInOrder(['Клуб 7', 'Клуб 6', 'Клуб 1'])
+        // Club 7: 735 requests, a peak of 735 a minute, 7 of them 5xx, 7 000 of 56 000 ms of the server.
+        ->assertSee('>735<', false)->assertSee('1%')->assertSee('12.5%');
+    // Without a choice the chart shows the five heaviest clubs.
+    expect(substr_count($page->getContent(), 'name="clubs[]"'))->toBe(7)
+        ->and(substr_count($page->getContent(), 'checked'))->toBe(5);
+
+    $chosen = $this->get(route('superadmin.dashboard', ['clubs' => [(string) $clubs[0]->id, (string) $clubs[1]->id, 'x']]))->assertOk();
+    expect(substr_count($chosen->getContent(), 'checked'))->toBe(2);
+    $chosen->assertSee('period=7d&amp;clubs%5B0%5D='.$clubs[0]->id, false);
+    $this->get(route('superadmin.dashboard', ['clubs' => 'nope', 'period' => '7d']))->assertOk();
 });
 
 test('an alert is sent once when a problem starts and once when it is over', function () {

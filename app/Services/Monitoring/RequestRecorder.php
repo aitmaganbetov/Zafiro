@@ -47,8 +47,9 @@ class RequestRecorder
     /**
      * Totals of the files whose minute is over (a minute is kept open a little longer, so a
      * request still writing its line is not lost). The files are removed once read.
+     * Per club: minute => club id => requests of each channel (agent, api, panel, guest), errors, duration_ms.
      *
-     * @return array{channels: array<int, array<string, array{requests: int, errors: int, duration_ms: int}>>, clubs: array<int, array<int, array{agent: int, api: int}>>}
+     * @return array{channels: array<int, array<string, array{requests: int, errors: int, duration_ms: int}>>, clubs: array<int, array<int, array<string, int>>>}
      */
     public function drain(int $beforeMinute): array
     {
@@ -74,8 +75,12 @@ class RequestRecorder
                 $totals['errors'] += (int) $status >= 500 ? 1 : 0;
                 $totals['duration_ms'] += (int) $milliseconds;
                 $channels[$minute][$channel] = $totals;
-                if (ctype_digit($club) && in_array($channel, ['agent', 'api'], true)) {
-                    $clubs[$minute][(int) $club][$channel] = ($clubs[$minute][(int) $club][$channel] ?? 0) + 1;
+                if (ctype_digit($club)) {
+                    $counts = $clubs[$minute][(int) $club] ?? [];
+                    $counts[$channel] = ($counts[$channel] ?? 0) + 1;
+                    $counts['errors'] = ($counts['errors'] ?? 0) + ((int) $status >= 500 ? 1 : 0);
+                    $counts['duration_ms'] = ($counts['duration_ms'] ?? 0) + (int) $milliseconds;
+                    $clubs[$minute][(int) $club] = $counts;
                 }
             }
             fclose($handle);

@@ -31,7 +31,10 @@ class CollectServerMetrics extends Command
         return self::SUCCESS;
     }
 
-    /** @param  array{channels: array<int, array<string, array{requests: int, errors: int, duration_ms: int}>>, clubs: array<int, array<int, array{agent?: int, api?: int}>>}  $drained */
+    /** Columns of club_request_metrics by the keys of the drained club counts. */
+    private const CLUB_COLUMNS = ['agent' => 'agent_requests', 'api' => 'api_requests', 'panel' => 'panel_requests', 'guest' => 'guest_requests', 'errors' => 'errors', 'duration_ms' => 'duration_ms'];
+
+    /** @param  array{channels: array<int, array<string, array{requests: int, errors: int, duration_ms: int}>>, clubs: array<int, array<int, array<string, int>>>}  $drained */
     private function saveRequests(array $drained): void
     {
         foreach ($drained['channels'] as $minute => $channels) {
@@ -56,13 +59,15 @@ class CollectServerMetrics extends Command
                 if (! $known->has($clubId)) {
                     continue;
                 }
+                $values = [];
+                foreach (self::CLUB_COLUMNS as $key => $column) {
+                    $values[$column] = (int) ($counts[$key] ?? 0);
+                }
                 if ($existing->has($clubId)) {
-                    DB::table('club_request_metrics')->where('club_id', $clubId)->where('minute', $minute)->update([
-                        'agent_requests' => DB::raw('agent_requests + '.(int) ($counts['agent'] ?? 0)),
-                        'api_requests' => DB::raw('api_requests + '.(int) ($counts['api'] ?? 0)),
-                    ]);
+                    DB::table('club_request_metrics')->where('club_id', $clubId)->where('minute', $minute)
+                        ->update(collect($values)->mapWithKeys(fn (int $value, string $column) => [$column => DB::raw($column.' + '.$value)])->all());
                 } else {
-                    $rows[] = ['club_id' => $clubId, 'minute' => $minute, 'agent_requests' => $counts['agent'] ?? 0, 'api_requests' => $counts['api'] ?? 0];
+                    $rows[] = ['club_id' => $clubId, 'minute' => $minute, ...$values];
                 }
             }
             foreach (array_chunk($rows, 500) as $chunk) {
