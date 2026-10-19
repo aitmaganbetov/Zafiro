@@ -73,6 +73,8 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('password-recovery:'.$request->ip().'|'.preg_replace('/\D+/', '', (string) $request->input('phone'))),
             Limit::perMinute(30)->by('password-recovery-ip:'.$request->ip()),
         ]);
+        // The staff app polls the map, the chat and the counters: generous, per staff member.
+        RateLimiter::for('staff-app', fn (Request $request): Limit => Limit::perMinute(240)->by('staff-app:'.($request->user()?->getKey() ?? $request->ip())));
         RateLimiter::for('club-resolve', fn (Request $request): array => [
             Limit::perMinute(10)->by('club-resolve:'.$request->ip().'|'.hash('sha256', (string) $request->input('club_key', $request->input('key')))),
             Limit::perMinute(300)->by('club-resolve-ip:'.$request->ip()),

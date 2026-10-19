@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\ClubComputerController;
 use App\Http\Controllers\SettingsController;
+use App\Support\ClubRoles;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/clubs/resolve', ClubInstallationController::class)
@@ -165,6 +166,12 @@ Route::get('/settings/{section}/{key}', [SettingsController::class, 'showSetting
     ->name('api.settings.show');
 
 // Integration API for external systems: API keys bound to one club, see routes/api_v1.php.
+// Staff mobile app (docs/staff-api.md): a token of one club, staff roles only.
+Route::prefix('staff')
+    ->name('api.staff.')
+    ->middleware(['auth:sanctum', 'current-club', 'subscription', 'club-role:'.implode(',', ClubRoles::STAFF), 'throttle:staff-app'])
+    ->group(base_path('routes/api_staff.php'));
+
 // Separate prefix, so the routes above keep their contracts.
 Route::prefix('v1')
     ->name('api.v1.')

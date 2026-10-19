@@ -44,6 +44,19 @@ class ChatController extends Controller
         ]);
     }
 
+    /** Conversations as JSON (the staff app): customer, unread, last message. */
+    public function conversationsJson(): JsonResponse
+    {
+        return response()->json([
+            'conversations' => $this->conversations()->map(fn ($row): array => [
+                'customer' => $row->customer === null ? null : ['id' => $row->customer->id, 'name' => $row->customer->name, 'phone' => $row->customer->phone],
+                'unread' => $row->unread,
+                'last' => $row->last === null ? null : ['id' => $row->last->id, 'body' => $row->last->body, 'from_staff' => (bool) $row->last->from_staff, 'at' => $row->last->created_at?->copy()->utc()->toIso8601ZuluString()],
+            ])->values(),
+            'unread' => self::unreadTotal(),
+        ]);
+    }
+
     /** New messages of the open conversation and the unread total, for the page to follow. */
     public function poll(Request $request): JsonResponse
     {

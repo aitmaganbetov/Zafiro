@@ -193,7 +193,7 @@ class AuthController extends Controller
     }
 
     /**
-     * @return list<array{id: int, name: string, current: bool}>
+     * @return list<array{id: int, name: string, current: bool, role: string}>
      */
     private function clubList(User $user, ?int $currentClubId): array
     {
@@ -202,8 +202,9 @@ class AuthController extends Controller
             ->join('clubs', 'clubs.id', '=', 'club_memberships.club_id')
             ->where('club_memberships.user_id', $user->getKey())
             ->orderBy('clubs.name')
-            ->get(['clubs.id', 'clubs.name'])
-            ->map(fn ($club): array => ['id' => (int) $club->id, 'name' => (string) $club->name, 'current' => (int) $club->id === $currentClubId])
+            ->get(['clubs.id', 'clubs.name', 'club_memberships.role'])
+            // role: the staff app shows only the clubs where the account is staff.
+            ->map(fn ($club): array => ['id' => (int) $club->id, 'name' => (string) $club->name, 'current' => (int) $club->id === $currentClubId, 'role' => (string) $club->role])
             ->values()
             ->all();
     }

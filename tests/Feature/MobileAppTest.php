@@ -81,8 +81,8 @@ test('the app sign-in lists the clubs of the account; the PC agent contract stay
         ->assertOk()
         ->assertJsonPath('club_id', $firstId)
         ->assertJsonPath('clubs', [
-            ['id' => $firstId, 'name' => 'Альфа', 'current' => true],
-            ['id' => $second->id, 'name' => 'Бета', 'current' => false],
+            ['id' => $firstId, 'name' => 'Альфа', 'current' => true, 'role' => 'owner'],
+            ['id' => $second->id, 'name' => 'Бета', 'current' => false, 'role' => 'owner'],
         ]);
 
     $this->postJson(route('api.agent.user.login'), ['phone' => '+77001112233', 'password' => 'secret-pass', 'club_id' => $firstId])
