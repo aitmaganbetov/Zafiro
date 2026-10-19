@@ -1617,6 +1617,13 @@ return [
         'Картинка экрана входа удалена' => 'Sign-in screen picture removed',
         'Картинка экрана входа удалена: в агенте снова стандартная.' => 'Sign-in screen picture removed: the agent shows the standard one again.',
         'Изменение картинки экрана входа' => 'Sign-in screen picture change',
+        'Пополнять баланс без кассы может только владелец клуба.' => 'Only the club owner can top up a balance without the cash register.',
+        'Пополнение :balance без кассы: :user' => 'Top-up of :balance without the cash register: :user',
+        'без кассы (владелец)' => 'without the cash register (owner)',
+        'Данные клиента сохранены. Баланс пополнен на :amount без кассы.' => 'Customer saved. The balance was topped up by :amount without the cash register.',
+        'Пополнение без кассы: деньги не попадают в смену и отчёт кассы, пополнение записывается в журнал от вашего имени.' => 'Top-up without the cash register: the money does not go into the shift or the cash report; the top-up is logged in your name.',
+        'Пополнить баланс без кассы' => 'Top up the balance without the cash register',
+        'Какой баланс' => 'Which balance',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

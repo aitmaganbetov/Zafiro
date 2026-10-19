@@ -27,6 +27,12 @@ class UserController extends Controller
         return in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin', 'manager'], true);
     }
 
+    /** The club owner may top up a customer's balance without the cash register (editing the customer). */
+    public static function canTopUpWithoutCash(): bool
+    {
+        return app(CurrentClub::class)->membership()?->role === 'owner';
+    }
+
     public function index(LoyaltyProgram $loyalty): View
     {
         // Customers only; staff are on the Workers page.
@@ -36,7 +42,7 @@ class UserController extends Controller
             ->orderBy('user_id')
             ->paginate(25);
 
-        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney(), 'loyalty' => $loyalty]);
+        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty]);
     }
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
@@ -68,7 +74,10 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('status', __('Пользователь добавлен.'));
     }
 
-    /** Name and email of a customer (discount: managers only). */
+    /**
+     * Name and email of a customer (discount: managers only). The owner may also top up a balance
+     * here without the cash register: no cash transaction, the top-up is logged as the owner's.
+     */
     public function update(Request $request, ClubMembership $membership, ActivityLogger $activity): RedirectResponse
     {
         $user = $this->customer($membership);
@@ -76,9 +85,15 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique((new User)->getTable(), 'email')->ignore($user->getKey())],
             'discount' => [self::canSetMoney() ? 'nullable' : 'prohibited', 'numeric', 'min:0', 'max:100'],
-        ], ['discount.prohibited' => __('Скидку клиента задаёт менеджер.')]);
+            'top_up_amount' => [self::canTopUpWithoutCash() ? 'nullable' : 'prohibited', 'numeric', 'min:0.01', 'max:10000000'],
+            'top_up_balance' => ['nullable', 'required_with:top_up_amount', Rule::in(['balance', 'bonus_balance'])],
+        ], [
+            'discount.prohibited' => __('Скидку клиента задаёт менеджер.'),
+            'top_up_amount.prohibited' => __('Пополнять баланс без кассы может только владелец клуба.'),
+        ]);
+        $topUp = isset($data['top_up_amount']) ? round((float) $data['top_up_amount'], 2) : 0.0;
 
-        DB::transaction(function () use ($user, $membership, $data, $request, $activity): void {
+        DB::transaction(function () use ($user, $membership, $data, $topUp, $request, $activity): void {
             $before = ['name' => $user->name, 'email' => $user->email, 'discount' => (string) $membership->discount];
             $user->fill(['name' => $data['name'], 'email' => $data['email'] ?? null])->save();
             if (array_key_exists('discount', $data) && $data['discount'] !== null) {
@@ -90,9 +105,26 @@ class UserController extends Controller
             if ($changes !== []) {
                 $activity->record('user.updated', __('Изменён клиент: :user', ['user' => $user->name]), $request->user()->getKey(), $user, $changes);
             }
+
+            if ($topUp > 0) {
+                $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
+                $field = $data['top_up_balance'];
+                $balance->increment($field, $topUp);
+                $label = $field === 'balance' ? __('основной баланс') : __('бонусный баланс');
+                // The customer's history shows it as a top-up (the same event as at the cash register).
+                $activity->record('user.balance_topped_up', __('Пополнение :balance без кассы: :user', ['balance' => $label, 'user' => $user->name]), $request->user()->getKey(), $user, [
+                    'amount' => $topUp,
+                    'balance_type' => $label,
+                    'payment_method' => __('без кассы (владелец)'),
+                    'new_balance' => (float) $balance->refresh()->{$field},
+                    'without_cash' => true,
+                ]);
+            }
         });
 
-        return back()->with('status', __('Данные клиента сохранены.'));
+        return back()->with('status', $topUp > 0
+            ? __('Данные клиента сохранены. Баланс пополнен на :amount без кассы.', ['amount' => number_format($topUp, 2, '.', ' ')])
+            : __('Данные клиента сохранены.'));
     }
 
     /**
