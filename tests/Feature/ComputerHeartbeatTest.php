@@ -3,8 +3,10 @@
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\User;
+use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -50,4 +52,41 @@ test('computer heartbeat requires authentication', function () {
     ]);
 
     $this->postJson(route('api.club-computers.heartbeat', $computer))->assertUnauthorized();
+});
+
+test('a heartbeat that changes nothing is not written while last_seen_at is fresh', function () {
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 3]);
+    $token = app(ClubComputerSessions::class)->issueAgentToken($pc);
+    app(CurrentClub::class)->clear();
+    $beat = fn (array $data = ['state' => 'idle']) => test()->postJson(route('api.agent.heartbeat'), $data, ['X-Agent-Token' => $token])->assertOk();
+    $writes = function (callable $request): int {
+        $updates = 0;
+        DB::listen(function ($query) use (&$updates): void {
+            $updates += str_starts_with(strtolower($query->sql), 'update "club_computers"') ? 1 : 0;
+        });
+        $request();
+        DB::flushQueryLog();
+
+        return $updates;
+    };
+    $this->freezeTime();
+
+    expect($writes(fn () => $beat()))->toBe(1);
+    $seen = $pc->fresh()->last_seen_at;
+
+    // The sign-in screen asks again a few seconds later: nothing changed, nothing is written.
+    $this->travel(5)->seconds();
+    expect($writes(fn () => $beat()))->toBe(0)
+        ->and($pc->fresh()->last_seen_at->equalTo($seen))->toBeTrue();
+
+    // A change is written at once.
+    $this->travel(1)->seconds();
+    expect($writes(fn () => $beat(['state' => 'locked'])))->toBe(1)
+        ->and($pc->fresh()->agent_state)->toBe('locked');
+
+    // An unchanged heartbeat refreshes last_seen_at once it is older than the limit, so the PC stays online.
+    $this->travel(ClubComputerSessions::SEEN_WRITE_SECONDS + 1)->seconds();
+    expect($writes(fn () => $beat(['state' => 'locked'])))->toBe(1)
+        ->and($pc->fresh()->last_seen_at->getTimestamp())->toBe(now()->getTimestamp())
+        ->and($pc->fresh()->connectionStatus())->toBe('online');
 });

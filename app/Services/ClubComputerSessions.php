@@ -21,6 +21,9 @@ class ClubComputerSessions
 {
     public const DEFAULT_STAFF_MINUTES = 15;
 
+    /** A heartbeat that changes nothing still refreshes last_seen_at when it is older than this. */
+    public const SEEN_WRITE_SECONDS = 20;
+
     /** Club roles that may set up PCs and count as staff on them. */
     public const STAFF_ROLES = ['owner', 'admin', 'manager', 'operator'];
 
@@ -41,55 +44,93 @@ class ClubComputerSessions
      */
     public function heartbeat(ClubComputer $computer, array $data, ?string $ip): array
     {
+        // Most heartbeats change nothing (the sign-in screen asks every few seconds): they are
+        // answered without a transaction or a write while last_seen_at is fresh.
+        if (! $this->needsWrite($computer, $data, $ip)) {
+            return ['computer' => $computer, 'session' => $this->sessionPayload($computer), 'session_expired' => false];
+        }
+
         return DB::transaction(function () use ($computer, $data, $ip): array {
             $computer = ClubComputer::query()->withoutGlobalScope('club')->lockForUpdate()->findOrFail($computer->getKey());
             $expired = $this->expireIfDue($computer);
             if (filter_var($data['fresh_boot'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $this->resetGuestSession($computer);
             }
-            $updates = ['last_seen_at' => now(), 'status' => 'online', 'remote_ip' => $ip];
-
-            if (array_key_exists('state', $data)) {
-                // Right after expiry the agent may still report the old session: it is over.
-                $state = $expired && $data['state'] === 'in_session' ? 'idle' : $data['state'];
-                $updates['agent_state'] = $state;
-                $updates += $this->sessionUpdates($computer, $state, $data['session_id'] ?? null);
-                if (in_array($state, self::CUSTOMER_STATES, true)) {
-                    $updates += self::STAFF_FIELDS;
-                }
-            }
-
-            foreach (['agent_version', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'] as $field) {
-                if (array_key_exists($field, $data)) {
-                    $updates[$field] = $data[$field];
-                }
-            }
-
-            // The MAC is the key of the card: a heartbeat only fills it in. Another MAC means
-            // another PC (one booted from this PC's image with its token): it does not take the card.
-            if (($data['mac_address'] ?? null) !== null) {
-                $taken = $computer->mac_address === null && ClubComputer::query()->withoutGlobalScope('club')
-                    ->where('club_id', $computer->club_id)->where('mac_address', $data['mac_address'])->exists();
-                if ($computer->mac_address === null && ! $taken) {
-                    $updates['mac_address'] = $data['mac_address'];
-                } elseif ($computer->mac_address !== $data['mac_address']) {
-                    Log::warning('Agent heartbeat with another MAC ignored', ['club_id' => $computer->club_id, 'computer_id' => $computer->getKey()]);
-                }
-            }
-
-            if (! empty($data['device_name'])) {
-                $updates['device_name'] = $data['device_name'];
-            }
-
-            if (array_intersect(['mac_address', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'], array_keys($data)) !== []) {
-                $updates['hardware_reported_at'] = now();
-            }
 
             // forceFill: the staff fields are server-only and deliberately not mass assignable.
-            $computer->forceFill($updates)->save();
+            $computer->forceFill($this->changes($computer, $data, $ip, $expired))->save();
 
             return ['computer' => $computer, 'session' => $this->sessionPayload($computer), 'session_expired' => $expired];
         });
+    }
+
+    /**
+     * A heartbeat is written when it changes something, when the PC was rebooted or its session
+     * is due to end, or when last_seen_at is older than SEEN_WRITE_SECONDS (well under the
+     * 90-second online timeout, so a PC never looks offline because of a skipped write).
+     */
+    private function needsWrite(ClubComputer $computer, array $data, ?string $ip): bool
+    {
+        if (filter_var($data['fresh_boot'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            || ($computer->session_ends_at !== null && ! $computer->session_ends_at->isFuture())
+            || $computer->last_seen_at === null || $computer->last_seen_at->lt(now()->subSeconds(self::SEEN_WRITE_SECONDS))) {
+            return true;
+        }
+
+        // On a copy: the PC of the request stays as stored. A session id that does not match throws here too.
+        $copy = clone $computer;
+        $copy->forceFill(array_diff_key($this->changes($copy, $data, $ip, false), array_flip(['last_seen_at', 'hardware_reported_at'])));
+
+        return $copy->isDirty();
+    }
+
+    /**
+     * The fields a heartbeat sets on the PC.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function changes(ClubComputer $computer, array $data, ?string $ip, bool $expired): array
+    {
+        $updates = ['last_seen_at' => now(), 'status' => 'online', 'remote_ip' => $ip];
+
+        if (array_key_exists('state', $data)) {
+            // Right after expiry the agent may still report the old session: it is over.
+            $state = $expired && $data['state'] === 'in_session' ? 'idle' : $data['state'];
+            $updates['agent_state'] = $state;
+            $updates += $this->sessionUpdates($computer, $state, $data['session_id'] ?? null);
+            if (in_array($state, self::CUSTOMER_STATES, true)) {
+                $updates += self::STAFF_FIELDS;
+            }
+        }
+
+        foreach (['agent_version', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $updates[$field] = $data[$field];
+            }
+        }
+
+        // The MAC is the key of the card: a heartbeat only fills it in. Another MAC means
+        // another PC (one booted from this PC's image with its token): it does not take the card.
+        if (($data['mac_address'] ?? null) !== null) {
+            $taken = $computer->mac_address === null && ClubComputer::query()->withoutGlobalScope('club')
+                ->where('club_id', $computer->club_id)->where('mac_address', $data['mac_address'])->exists();
+            if ($computer->mac_address === null && ! $taken) {
+                $updates['mac_address'] = $data['mac_address'];
+            } elseif ($computer->mac_address !== $data['mac_address']) {
+                Log::warning('Agent heartbeat with another MAC ignored', ['club_id' => $computer->club_id, 'computer_id' => $computer->getKey()]);
+            }
+        }
+
+        if (! empty($data['device_name'])) {
+            $updates['device_name'] = $data['device_name'];
+        }
+
+        if (array_intersect(['mac_address', 'local_ip', 'cpu_model', 'cpu_cores', 'ram_total_mb', 'gpu_model', 'os_version'], array_keys($data)) !== []) {
+            $updates['hardware_reported_at'] = now();
+        }
+
+        return $updates;
     }
 
     /**
