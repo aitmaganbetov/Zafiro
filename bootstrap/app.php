@@ -7,6 +7,7 @@ use App\Http\Middleware\Api\LimitApiRequestSize;
 use App\Http\Middleware\Api\LogApiRequest;
 use App\Http\Middleware\Api\RequireApiScope;
 use App\Http\Middleware\AuthenticateAgentDevice;
+use App\Http\Middleware\RecordRequestMetrics;
 use App\Http\Middleware\RequireActiveSubscription;
 use App\Http\Middleware\RequireClubRole;
 use App\Http\Middleware\RequireSuperadmin;
@@ -51,10 +52,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(ThrottleRequests::class, LimitApiRequestSize::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, AuthenticateApiKey::class);
         $middleware->prependToPriorityList(ThrottleRequests::class, ApiRateLimit::class);
+        $middleware->append(RecordRequestMetrics::class);
         $middleware->web(append: [SetLocale::class, RestrictSuperadminHost::class, RestrictWikiHost::class]);
         $middleware->api(append: [SetLocale::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Telegram tokens typed in the cabinet are not kept in the session when validation fails.
+        $exceptions->dontFlash(['token', 'bot_token']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );

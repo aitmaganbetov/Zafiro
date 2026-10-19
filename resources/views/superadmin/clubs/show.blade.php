@@ -62,6 +62,36 @@
     </section>
 </div>
 
+{{-- Тепловая карта: средняя доля занятых ПК по дням недели и часам (время клуба) за 4 недели. --}}
+<section class="{{ $card }} mt-6" aria-labelledby="heatmap-title">
+    <h3 id="heatmap-title" class="mb-1 font-semibold text-gray-900 dark:text-white">{{ __('Загрузка по часам') }}</h3>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Средняя доля занятых ПК за последние 4 недели, время клуба.') }}</p>
+    @if($heatmap->isEmpty())
+        <p class="text-sm text-gray-500">{{ __('Данных пока нет: снимки загрузки сохраняются каждые 5 минут.') }}</p>
+    @else
+        @php($weekdays = [1 => __('Пн'), 2 => __('Вт'), 3 => __('Ср'), 4 => __('Чт'), 5 => __('Пт'), 6 => __('Сб'), 7 => __('Вс')])
+        <div class="overflow-x-auto">
+            <table class="border-separate text-xs" style="border-spacing: 2px">
+                <thead><tr><th></th>@for($hour = 0; $hour < 24; $hour++)<th class="w-7 font-normal tabular-nums text-gray-500">{{ $hour }}</th>@endfor</tr></thead>
+                <tbody>
+                @foreach($weekdays as $day => $dayLabel)
+                    <tr>
+                        <th class="pr-2 text-left font-normal text-gray-500">{{ $dayLabel }}</th>
+                        @for($hour = 0; $hour < 24; $hour++)
+                            @php($cell = $heatmap[$day.'-'.$hour] ?? null)
+                            <td class="h-6 w-7 rounded {{ $cell === null ? 'bg-gray-50 dark:bg-gray-800' : '' }}"
+                                @if($cell !== null) style="background-color: rgb(124 58 237 / {{ max(0.06, $cell['busy'] / 100) }})" title="{{ __(':day, :hour:00 — занято :busy%, в сети в среднем :online ПК', ['day' => $dayLabel, 'hour' => $hour, 'busy' => $cell['busy'], 'online' => $cell['online']]) }}" @endif>
+                                <span class="sr-only">{{ $cell !== null ? $cell['busy'].'%' : '—' }}</span>
+                            </td>
+                        @endfor
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+</section>
+
 <section class="{{ $card }} mt-6" aria-labelledby="members-title">
     <h3 id="members-title" class="mb-3 font-semibold text-gray-900 dark:text-white">{{ __('Участники клуба') }}</h3>
     <div class="overflow-x-auto">

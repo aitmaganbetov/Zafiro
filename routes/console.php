@@ -9,6 +9,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Server snapshot and request counters for the cabinet's "Server" page, Telegram alerts. First, so the
+// queue worker below (up to 50 s) does not delay it; its rows are also how the scheduler is seen alive.
+Schedule::command('monitoring:collect')->everyMinute()->withoutOverlapping(5);
+Schedule::command('monitoring:clubs')->everyFiveMinutes()->withoutOverlapping(5);
+Schedule::command('monitoring:certificates')->hourly();
+Schedule::command('monitoring:prune')->daily();
+
 /*
  * Run by cron every minute: `* * * * * cd /home/admzafiro/Zafiro && php artisan schedule:run`.
  * Webhooks are sent by a short-lived worker, so no daemon has to be supervised.

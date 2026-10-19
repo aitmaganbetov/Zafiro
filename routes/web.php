@@ -81,6 +81,9 @@ $superadminDomain = SuperadminHost::domain();
         Route::get('/telegram', [SuperadminTelegramController::class, 'show'])->name('telegram.show');
         Route::post('/telegram', [SuperadminTelegramController::class, 'update'])->name('telegram.update');
         Route::delete('/telegram', [SuperadminTelegramController::class, 'destroy'])->name('telegram.destroy');
+        Route::post('/telegram/alerts', [SuperadminTelegramController::class, 'updateAlerts'])->name('telegram.alerts.update');
+        Route::post('/telegram/alerts/test', [SuperadminTelegramController::class, 'testAlerts'])->middleware('throttle:5,1,superadmin.telegram.alerts.test')->name('telegram.alerts.test');
+        Route::delete('/telegram/alerts', [SuperadminTelegramController::class, 'destroyAlerts'])->name('telegram.alerts.destroy');
 
         Route::get('/platform-news', [SuperadminNewsController::class, 'index'])->name('news.index');
         Route::post('/platform-news', [SuperadminNewsController::class, 'store'])->name('news.store');

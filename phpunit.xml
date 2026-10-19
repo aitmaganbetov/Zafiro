@@ -23,6 +23,7 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <env name="MONITORING_RECORD_REQUESTS" value="false"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="SUPERADMIN_DOMAIN" value="superadmin.localhost"/>
         <env name="WIKI_DOMAIN" value="wiki.localhost"/>

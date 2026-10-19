@@ -12,6 +12,8 @@ use App\Models\ClubSubscription;
 use App\Models\PlatformLog;
 use App\Models\SaasPlan;
 use App\Models\User;
+use App\Services\AgentUpdate;
+use App\Services\Monitoring\ClubAttention;
 use App\Services\PlatformLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -24,14 +26,41 @@ class ClubController extends Controller
 {
     public function __construct(private PlatformLogger $platformLog) {}
 
-    public function index(Request $request): View
+    /** Activity-log events that start a PC session (a tariff, time by the minute, a guest at the cash register). */
+    private const SESSION_EVENTS = ['tariff.purchased', 'time.purchased', 'computer.guest_session'];
+
+    /** sort key => [column, default direction] */
+    private const SORTS = [
+        'name' => ['name', 'asc'],
+        'online' => ['online_count', 'desc'],
+        'busy' => ['busy_count', 'desc'],
+        'agent_requests' => ['agent_requests', 'desc'],
+        'api_requests' => ['api_requests', 'desc'],
+        'last_login' => ['last_login_at', 'desc'],
+        'sessions' => ['sessions_today', 'desc'],
+        'webhooks' => ['webhook_failures', 'desc'],
+        'ends' => ['subscription_ends_at', 'asc'],
+    ];
+
+    /** Requests per minute of a club are averaged over this many minutes. */
+    private const LOAD_MINUTES = 15;
+
+    public function index(Request $request, ClubAttention $attention, AgentUpdate $agentUpdate): View
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'subscription' => ['nullable', 'in:active,inactive'],
+            'sort' => ['nullable', 'in:'.implode(',', array_keys(self::SORTS))],
+            'direction' => ['nullable', 'in:asc,desc'],
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
+        $sort = $filters['sort'] ?? 'name';
+        [$sortColumn, $direction] = self::SORTS[$sort];
+        $direction = $filters['direction'] ?? $direction;
         $activeSubscription = fn (Builder $query) => $query->active();
+        $now = now();
+        $loadFrom = intdiv($now->getTimestamp(), 60) - self::LOAD_MINUTES;
+        $clubComputers = fn () => ClubComputer::query()->withoutGlobalScope('club')->selectRaw('COUNT(*)')->whereColumn('club_computers.club_id', 'clubs.id');
 
         $clubs = Club::query()
             ->select(['id', 'name', 'slug', 'created_at'])
@@ -41,20 +70,61 @@ class ClubController extends Controller
                 ->whereColumn('club_memberships.club_id', 'clubs.id')
                 ->where('club_memberships.role', 'owner')
                 ->limit(1)])
-            ->addSelect(['computers_count' => ClubComputer::query()->withoutGlobalScope('club')
-                ->selectRaw('COUNT(*)')->whereColumn('club_computers.club_id', 'clubs.id')])
-            ->addSelect(['online_count' => ClubComputer::query()->withoutGlobalScope('club')
-                ->selectRaw('COUNT(*)')->whereColumn('club_computers.club_id', 'clubs.id')
-                ->where('last_seen_at', '>=', now()->subSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS))])
+            ->addSelect(['computers_count' => $clubComputers()])
+            ->addSelect(['online_count' => $clubComputers()->where('last_seen_at', '>=', $now->copy()->subSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS))])
+            ->addSelect(['busy_count' => $clubComputers()->whereNotNull('current_session_id')->where('session_ends_at', '>', $now)
+                ->where(fn (Builder $query) => $query->whereNotNull('current_session_user_id')->orWhere('session_guest', true))])
+            ->addSelect(['agent_requests' => DB::table('club_request_metrics')->selectRaw('COALESCE(SUM(agent_requests), 0)')
+                ->whereColumn('club_request_metrics.club_id', 'clubs.id')->where('minute', '>=', $loadFrom)])
+            ->addSelect(['api_requests' => DB::table('club_request_metrics')->selectRaw('COALESCE(SUM(api_requests), 0)')
+                ->whereColumn('club_request_metrics.club_id', 'clubs.id')->where('minute', '>=', $loadFrom)])
+            ->addSelect(['last_login_at' => ActivityLog::query()->withoutGlobalScope('club')->selectRaw('MAX(created_at)')
+                ->whereColumn('activity_logs.club_id', 'clubs.id')->where('event', 'auth.login')])
+            ->addSelect(['sessions_today' => ActivityLog::query()->withoutGlobalScope('club')->selectRaw('COUNT(*)')
+                ->whereColumn('activity_logs.club_id', 'clubs.id')->whereIn('event', self::SESSION_EVENTS)->where('created_at', '>=', $now->copy()->subDay())])
+            ->addSelect(['webhook_failures' => DB::table('webhook_deliveries')->selectRaw('COUNT(*)')
+                ->whereColumn('webhook_deliveries.club_id', 'clubs.id')->where('status', 'failed')->where('created_at', '>=', $now->copy()->subDay())])
+            ->addSelect(['subscription_ends_at' => ClubSubscription::query()
+                ->selectRaw("CASE WHEN status = 'trialing' THEN trial_ends_at ELSE current_period_ends_at END")
+                ->whereColumn('club_subscriptions.club_id', 'clubs.id')->limit(1)])
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $match) => $match
                 ->where('name', 'like', "%{$search}%")->orWhere('slug', 'like', "%{$search}%")))
             ->when(($filters['subscription'] ?? null) === 'active', fn (Builder $query) => $query->whereHas('subscription', $activeSubscription))
             ->when(($filters['subscription'] ?? null) === 'inactive', fn (Builder $query) => $query->whereDoesntHave('subscription', $activeSubscription))
+            ->orderBy($sortColumn, $direction)
             ->orderBy('name')
             ->paginate(25)
             ->withQueryString();
 
-        return view('superadmin.clubs.index', ['clubs' => $clubs, 'filters' => $filters]);
+        // PCs on an old agent, for this page only: versions are compared as versions, not as text.
+        $latest = $agentUpdate->latestVersion();
+        $outdated = [];
+        if ($latest !== null) {
+            ClubComputer::query()->withoutGlobalScope('club')->whereIn('club_id', $clubs->pluck('id'))->whereNotNull('agent_version')
+                ->selectRaw('club_id, agent_version, COUNT(*) AS aggregate')->groupBy('club_id', 'agent_version')->get()
+                ->each(function ($row) use ($agentUpdate, $latest, &$outdated): void {
+                    if ($agentUpdate->isOutdated($row->agent_version, $latest)) {
+                        $outdated[$row->club_id] = ($outdated[$row->club_id] ?? 0) + (int) $row->aggregate;
+                    }
+                });
+        }
+
+        return view('superadmin.clubs.index', [
+            'clubs' => $clubs,
+            'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
+            'sorts' => self::SORTS,
+            'loadMinutes' => self::LOAD_MINUTES,
+            'outdated' => $outdated,
+            'latestAgent' => $latest,
+            'issues' => $attention->issues(),
+            'totals' => [
+                'clubs' => Club::query()->count(),
+                'active' => ClubSubscription::query()->active()->count(),
+                'trial' => ClubSubscription::query()->where('status', 'trialing')->where('trial_ends_at', '>', $now)->count(),
+            ],
+        ]);
     }
 
     public function show(Club $club): View
@@ -73,6 +143,12 @@ class ClubController extends Controller
                 ->selectRaw('COUNT(*) AS total')
                 ->selectRaw('SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS online', [now()->subSeconds(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS)])
                 ->first(),
+            // Share of busy PCs by weekday and hour (club time) over four weeks of 5-minute snapshots.
+            'heatmap' => DB::table('club_load_snapshots')->where('club_id', $club->getKey())
+                ->where('captured_at', '>=', now()->subDays(28))->where('computers', '>', 0)
+                ->selectRaw('weekday, hour, AVG(busy * 100.0 / computers) AS busy, AVG(online) AS online')
+                ->groupBy('weekday', 'hour')->get()
+                ->mapWithKeys(fn ($cell) => [$cell->weekday.'-'.$cell->hour => ['busy' => (int) round((float) $cell->busy), 'online' => round((float) $cell->online, 1)]]),
             'plans' => SaasPlan::query()->orderBy('price_monthly')->get(['id', 'name', 'price_monthly', 'is_active']),
             'activity' => ActivityLog::query()->withoutGlobalScope('club')->where('club_id', $club->getKey())
                 ->with(['user:id,name', 'club:id,name'])->latest('id')->limit(15)->get(),
