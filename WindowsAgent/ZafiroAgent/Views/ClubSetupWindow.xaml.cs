@@ -41,6 +41,7 @@ namespace ZafiroAgent.Views
         private Window? _guestOverlay;
         private TextBlock? _guestOverlayText;
         private readonly System.Windows.Threading.DispatcherTimer _guestTick = new() { Interval = TimeSpan.FromSeconds(1) };
+        private static readonly TimeSpan GuestWatchInterval = TimeSpan.FromSeconds(15);
         // Выключение/перезагрузка ждёт второго нажатия: null — ничего, true — перезагрузка, false — выключение.
         private bool? _powerArmed;
         // Картинка клуба на экране входа: скачанная — на всё время работы агента, неудачная — повтор через 5 минут.
@@ -659,9 +660,10 @@ namespace ZafiroAgent.Views
                         ShowSignInImage();
                         ApplyGuestSession(check.Value);
                     }
-                    // Токена ПК ещё нет (служба получает его по ключу клуба после загрузки): проверка позже.
-                    var delay = check.Failure is ApiFailure.DeviceTokenInvalid || _guest is not null ? TimeSpan.FromSeconds(15) : TimeSpan.FromSeconds(5);
-                    await Task.Delay(delay, _cts.Token);
+                    // Раз в 15 с: этот запрос — почти вся нагрузка свободных ПК на сервер, а гостевое время,
+                    // которое подключил кассир, открывает ПК не позже чем через 15 с. Пока токена ПК нет
+                    // (служба получает его по ключу клуба после загрузки), проверка идёт с тем же шагом.
+                    await Task.Delay(GuestWatchInterval, _cts.Token);
                 }
             }
             catch (OperationCanceledException)
