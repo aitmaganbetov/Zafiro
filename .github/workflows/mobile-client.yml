@@ -1,0 +1,70 @@
+# Builds the guest mobile app (mobileclient/: Flutter) for Android.
+# - every push to main and every pull request that touches the app: analyze + tests + APK as a downloadable artifact
+# - manual run from the Actions tab
+# Server address: repository variable CLIENT_API_BASE_URL (Settings → Variables), default https://zafiro.kz/api.
+# The APK is signed with the debug key: fine for testing, not for Google Play.
+name: Mobile client (Android)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobileclient/**'
+      - '.github/workflows/mobile-client.yml'
+  pull_request:
+    paths:
+      - 'mobileclient/**'
+      - '.github/workflows/mobile-client.yml'
+  workflow_dispatch:
+
+# Сторонние действия закреплены по хешу коммита: подменённый тег не попадёт в сборку.
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-client-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobileclient
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: '3.47.7'
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Build APK
+        env:
+          API_BASE_URL: ${{ vars.CLIENT_API_BASE_URL || 'https://zafiro.kz/api' }}
+        run: >
+          flutter build apk --release
+          --build-number=${{ github.run_number }}
+          --dart-define=API_BASE_URL=$API_BASE_URL
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/zafiro-client-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zafiro-client-android-${{ github.run_number }}
+          path: mobileclient/build/app/outputs/flutter-apk/zafiro-client-*.apk
+          if-no-files-found: error
+          retention-days: 30
