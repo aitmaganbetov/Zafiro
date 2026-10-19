@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use LogicException;
 
 #[Fillable(['name', 'slug', 'settings'])]
-#[Hidden(['installation_key', 'installation_key_hash', 'agent_exit_pin_hash', 'logo_path'])]
+#[Hidden(['installation_key', 'installation_key_hash', 'agent_exit_pin_hash', 'logo_path', 'signin_image_path'])]
 class Club extends Model
 {
     use UsesClubTimezone;
@@ -58,5 +58,11 @@ class Club extends Model
     public function logoUrl(): ?string
     {
         return $this->logo_path === null ? null : route('club-logos.show', [$this, basename($this->logo_path)]);
+    }
+
+    /** Public URL of the sign-in screen picture of the PC agent; a new upload changes it. */
+    public function signInImageUrl(): ?string
+    {
+        return $this->signin_image_path === null ? null : route('club-signin-images.show', [$this, basename($this->signin_image_path)]);
     }
 }

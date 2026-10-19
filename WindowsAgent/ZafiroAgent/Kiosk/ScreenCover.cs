@@ -34,7 +34,6 @@ namespace ZafiroAgent.Kiosk
         private string? _logoUrl;
         private string? _failedLogoUrl;
         private DateTime _logoRetryAtUtc;
-        private HttpClient? _logoHttp;
 
         public ScreenCover()
         {
@@ -104,44 +103,8 @@ namespace ZafiroAgent.Kiosk
         }
 
         /// <summary>Только HTTPS на хост Zafiro, без редиректов, не больше 2 МБ; картинка уменьшается до 1024 px.</summary>
-        private async Task<ImageSource?> DownloadLogoAsync(string url)
-        {
-            if (!ZafiroApiClient.TryValidateHttpsEndpoint(url, out var uri)) return null;
-
-            _logoHttp ??= ZafiroApiClient.CreateDirectHttpClient();
-            using var response = await _logoHttp.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxLogoBytes) return null;
-
-            var buffer = new MemoryStream();
-            await using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-            {
-                var chunk = new byte[81920];
-                int read;
-                while ((read = await source.ReadAsync(chunk).ConfigureAwait(false)) > 0)
-                {
-                    if (buffer.Length + read > MaxLogoBytes) return null;
-                    buffer.Write(chunk, 0, read);
-                }
-            }
-
-            // Размер читается до декодирования: огромная картинка не займёт всю память ПК.
-            buffer.Position = 0;
-            var frame = BitmapDecoder.Create(buffer, BitmapCreateOptions.DelayCreation | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.None).Frames[0];
-            var (width, height) = (frame.PixelWidth, frame.PixelHeight);
-            if (width <= 0 || height <= 0) return null;
-
-            buffer.Position = 0;
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            if (width >= height && width > MaxLogoPixels) image.DecodePixelWidth = MaxLogoPixels;
-            else if (height > width && height > MaxLogoPixels) image.DecodePixelHeight = MaxLogoPixels;
-            image.StreamSource = buffer;
-            image.EndInit();
-            image.Freeze();
-            return image;
-        }
+        private static Task<ImageSource?> DownloadLogoAsync(string url) =>
+            Infrastructure.RemoteImage.DownloadAsync(url, MaxLogoBytes, MaxLogoPixels);
 
         private void Refresh()
         {
@@ -238,7 +201,6 @@ namespace ZafiroAgent.Kiosk
             SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
             _shown = false;
             Close();
-            _logoHttp?.Dispose();
         }
 
         private static List<(IntPtr Monitor, Rect Bounds)> Monitors()

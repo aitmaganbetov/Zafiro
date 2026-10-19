@@ -13,6 +13,9 @@ namespace ZafiroAgent.Configuration
 
         public string ClubName { get; set; } = string.Empty;
 
+        // Картинка клуба для экрана входа из последнего heartbeat: после перезапуска ПК сразу она.
+        public string SignInImageUrl { get; set; } = string.Empty;
+
         // Язык клуба из последнего heartbeat: окно входа после перезапуска сразу на нём.
         public string ClubLocale { get; set; } = string.Empty;
         public string ApiBaseUrl { get; set; } = string.Empty;

@@ -7,6 +7,7 @@
     'shift-limits' => __('Сотрудники на смене'),
     'club-key' => __('Ключ установки клуба'),
     'club-logo' => __('Логотип клуба'),
+    'signin-image' => __('Картинка экрана входа'),
     'timezone' => __('Часовой пояс'),
     'agent-pin' => __('PIN-код для выхода из агента'),
 ])
@@ -106,6 +107,34 @@
                 <form method="POST" action="{{ route('settings.logo.destroy') }}" class="mt-2">
                     @csrf @method('DELETE')
                     <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Удалить логотип') }}</button>
+                </form>
+            @endif
+        </div>
+    </div>
+</x-settings.card>
+
+<x-settings.card id="signin-image" aria-labelledby="signin-image-title">
+    <h5 id="signin-image-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Картинка экрана входа') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Показывается слева на экране входа в агенте на ПК клуба вместо стандартной. Лучше горизонтальная, от 1280×720; PNG или JPG, до 3 МБ. На ПК появится в течение минуты.') }}</p>
+    @error('image')<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+    <div class="flex flex-wrap items-center gap-4">
+        <div class="flex h-28 w-48 items-center justify-center overflow-hidden rounded-lg bg-gray-900">
+            @if($currentClub->signInImageUrl())
+                <img src="{{ $currentClub->signInImageUrl() }}" alt="{{ __('Картинка экрана входа') }}" class="h-full w-full object-cover">
+            @else
+                <span class="px-3 text-center text-xs text-gray-400">{{ __('Стандартная картинка Zafiro') }}</span>
+            @endif
+        </div>
+        <div class="min-w-0 flex-1 basis-64">
+            <form method="POST" action="{{ route('settings.signin-image') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
+                @csrf
+                <input type="file" name="image" accept="image/png,image/jpeg" required class="min-w-0 text-sm text-gray-700 dark:text-gray-300">
+                <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Загрузить картинку') }}</button>
+            </form>
+            @if($currentClub->signInImageUrl())
+                <form method="POST" action="{{ route('settings.signin-image.destroy') }}" class="mt-2">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Вернуть стандартную') }}</button>
                 </form>
             @endif
         </div>

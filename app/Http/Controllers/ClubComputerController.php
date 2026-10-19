@@ -290,6 +290,8 @@ class ClubComputerController extends Controller
             'club' => [
                 'name' => app(CurrentClub::class)->get()?->name,
                 'logo_url' => app(CurrentClub::class)->get()?->logoUrl(),
+                // The club's picture on the sign-in screen; null — the standard one.
+                'signin_image_url' => app(CurrentClub::class)->get()?->signInImageUrl(),
                 ...$this->agentLanguages(),
                 'after_session' => $this->afterSessionAction(),
                 // What customers may do themselves (club settings → Guests).

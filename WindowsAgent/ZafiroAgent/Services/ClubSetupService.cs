@@ -37,6 +37,9 @@ namespace ZafiroAgent.Services
 
         public string ClubName => _config.Load().ClubName;
 
+        /// <summary>Картинка клуба для экрана входа (из heartbeat); null — стандартная.</summary>
+        public string? SignInImageUrl => _config.Load().SignInImageUrl is { Length: > 0 } url ? url : null;
+
         public string ComputerId => _config.Load().ComputerId;
 
         public string ComputerNumber => _config.Load().ComputerNumber;
@@ -325,6 +328,7 @@ namespace ZafiroAgent.Services
 
             var root = result.Value;
             RememberComputer(root);
+            RememberSignInImage(root);
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
                 ? now.ToUniversalTime() - DateTimeOffset.UtcNow
@@ -432,6 +436,16 @@ namespace ZafiroAgent.Services
                 c.Zone = zone ?? string.Empty;
             });
             SafeLog.Write("[Setup] computer identity updated from the server");
+        }
+
+        /// <summary>Картинка экрана входа клуба: запоминается, чтобы после перезапуска показать её сразу.</summary>
+        private void RememberSignInImage(JsonElement root)
+        {
+            // Сервер старой версии о картинке не сообщает: тогда сохранённую не трогаем.
+            if (!root.TryGetProperty("club", out var club) || club.ValueKind != JsonValueKind.Object || !club.TryGetProperty("signin_image_url", out var value)) return;
+            var url = value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : string.Empty;
+            if (_config.Load().SignInImageUrl == url) return;
+            _config.Update(c => c.SignInImageUrl = url);
         }
 
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>

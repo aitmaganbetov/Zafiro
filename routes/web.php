@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubLogoController;
+use App\Http\Controllers\ClubSignInImageController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\ComputerReservationController;
 use App\Http\Controllers\DashboardController;
@@ -128,6 +129,10 @@ Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('ap
 Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
     ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
     ->name('club-logos.show');
+// The club's picture on the agent's sign-in screen: public by its random file name.
+Route::get('/club-signin-images/{club}/{file}', [ClubSignInImageController::class, 'show'])
+    ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
+    ->name('club-signin-images.show');
 
 // News pictures for the PC agent: public by their random file name.
 Route::get('/news-images/{news}/{file}', [NewsController::class, 'image'])
@@ -206,6 +211,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
         Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
         Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
+        Route::post('/settings/signin-image', [ClubSignInImageController::class, 'update'])->name('settings.signin-image');
+        Route::delete('/settings/signin-image', [ClubSignInImageController::class, 'destroy'])->name('settings.signin-image.destroy');
         Route::get('/tariffs', [TariffController::class, 'index'])->name('tariffs.index');
         Route::post('/todos', [TodoController::class, 'store'])->name('todos.store');
         Route::delete('/todos/{task}', [TodoController::class, 'destroy'])->name('todos.destroy');

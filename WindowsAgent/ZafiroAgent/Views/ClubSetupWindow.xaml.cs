@@ -43,6 +43,11 @@ namespace ZafiroAgent.Views
         private readonly System.Windows.Threading.DispatcherTimer _guestTick = new() { Interval = TimeSpan.FromSeconds(1) };
         // Выключение/перезагрузка ждёт второго нажатия: null — ничего, true — перезагрузка, false — выключение.
         private bool? _powerArmed;
+        // Картинка клуба на экране входа: скачанная — на всё время работы агента, неудачная — повтор через 5 минут.
+        private static (string Url, ImageSource Image)? _signInImageCache;
+        private static (string Url, DateTime RetryAtUtc)? _signInImageFailure;
+        private ImageSource? _standardSignInImage;
+        private string? _shownSignInImageUrl;
         private readonly System.Windows.Threading.DispatcherTimer _powerArmTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
         public ClubSession? Session { get; private set; }
@@ -51,6 +56,8 @@ namespace ZafiroAgent.Views
         {
             InitializeComponent();
             _setup = setup;
+            _standardSignInImage = SignInImage.Source;
+            ShowSignInImage();
             _relogin = setup.IsClubConfigured;
             _mode = _relogin ? Mode.Relogin : Mode.Setup;
             if (_relogin) KeyPanel.Visibility = Visibility.Collapsed;
@@ -477,6 +484,47 @@ namespace ZafiroAgent.Views
             else PasswordBox.Focus();
         }
 
+        /// <summary>Картинка клуба вместо стандартной (настройки клуба на сайте); удалили — снова стандартная.</summary>
+        private async void ShowSignInImage()
+        {
+            var url = _setup.SignInImageUrl;
+            if (url == _shownSignInImageUrl) return;
+            if (url is null)
+            {
+                _shownSignInImageUrl = null;
+                SignInImage.Source = _standardSignInImage;
+                return;
+            }
+            if (_signInImageCache is { } cached && cached.Url == url)
+            {
+                _shownSignInImageUrl = url;
+                SignInImage.Source = cached.Image;
+                return;
+            }
+            if (_signInImageFailure is { } failed && failed.Url == url && DateTime.UtcNow < failed.RetryAtUtc) return;
+
+            _shownSignInImageUrl = url;
+            try
+            {
+                var image = await Task.Run(() => RemoteImage.DownloadAsync(url, 4 * 1024 * 1024, 2560));
+                if (image is null)
+                {
+                    _shownSignInImageUrl = null;
+                    _signInImageFailure = (url, DateTime.UtcNow.AddMinutes(5));
+                    return;
+                }
+                _signInImageCache = (url, image);
+                // Пока картинка скачивалась, клуб мог сменить её ещё раз.
+                if (_shownSignInImageUrl == url) SignInImage.Source = image;
+            }
+            catch (Exception ex)
+            {
+                _shownSignInImageUrl = null;
+                _signInImageFailure = (url, DateTime.UtcNow.AddMinutes(5));
+                SafeLog.Write("[SignIn] could not load the club picture: " + ex.GetType().Name);
+            }
+        }
+
         private void ShowNotice(string text)
         {
             NoticeText.Text = text;
@@ -608,6 +656,7 @@ namespace ZafiroAgent.Views
                     if (check.Success)
                     {
                         ShowComputer();
+                        ShowSignInImage();
                         ApplyGuestSession(check.Value);
                     }
                     // Токена ПК ещё нет (служба получает его по ключу клуба после загрузки): проверка позже.

@@ -72,7 +72,8 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0">
-                <Image Source="pack://siteoforigin:,,,/Frontend/gaming-setup.jpg" Stretch="UniformToFill"/>
+                <!-- Картинку клуба (настройки клуба → «Картинка экрана входа») окно подставляет вместо этой. -->
+                <Image x:Name="SignInImage" Source="pack://siteoforigin:,,,/Frontend/gaming-setup.jpg" Stretch="UniformToFill"/>
                 <Rectangle>
                     <Rectangle.Fill>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
