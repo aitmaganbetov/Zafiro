@@ -229,6 +229,8 @@ class SettingsController extends Controller
                 'loyalty_levels',
                 'topup_bonus_enabled',
                 'topup_bonus_levels',
+                'discount_scope',
+                'bonus_max_percent',
             ],
             'guests' => [
                 'show_qr_code_on_login',
@@ -267,6 +269,7 @@ class SettingsController extends Controller
                     in_array($field, $minuteFields, true) => $this->number((float) $request->input($field)),
                     $field === 'loyalty_levels' => LoyaltyProgram::normalize($request->input($field) ?? []),
                     $field === 'topup_bonus_levels' => TopUpBonus::normalize($request->input($field) ?? []),
+                    $field === 'bonus_max_percent' => (int) $request->input($field),
                     default => $request->input($field),
                 };
             }
@@ -340,6 +343,9 @@ class SettingsController extends Controller
                 // Bonus for topping up the main balance: [{amount, percent}] — see TopUpBonus.
                 'topup_bonus_enabled' => false,
                 'topup_bonus_levels' => [],
+                // Paying for time — see PaymentRules.
+                'discount_scope' => 'tariffs',
+                'bonus_max_percent' => 100,
             ],
             'guests' => [
                 'show_qr_code_on_login' => false,
@@ -371,6 +377,8 @@ class SettingsController extends Controller
                 'loyalty_levels' => __('Уровни накопительной скидки'),
                 'topup_bonus_enabled' => __('Включить бонусы за пополнение'),
                 'topup_bonus_levels' => __('Уровни бонусов за пополнение'),
+                'discount_scope' => __('Где действует скидка клиента'),
+                'bonus_max_percent' => __('Сколько процентов цены можно оплатить бонусами'),
             ],
             'guests' => [
                 'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),

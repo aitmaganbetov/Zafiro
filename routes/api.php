@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\GuestFriendController;
 use App\Http\Controllers\Api\GuestHistoryController;
 use App\Http\Controllers\Api\GuestMinutesController;
 use App\Http\Controllers\Api\GuestNewsController;
+use App\Http\Controllers\Api\GuestPackageController;
 use App\Http\Controllers\Api\GuestQrLoginController;
 use App\Http\Controllers\Api\GuestSeatController;
 use App\Http\Controllers\Api\GuestShopController;
@@ -139,6 +140,9 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     // Time by the minute at the zone's hourly price.
     Route::get('/guest/minutes', [GuestMinutesController::class, 'show'])->middleware('throttle:60,1,api.guest.minutes')->name('api.guest.minutes');
     Route::post('/guest/minutes/purchase', [GuestMinutesController::class, 'purchase'])->middleware('throttle:10,1,api.guest.minutes.purchase')->name('api.guest.minutes.purchase');
+    // Kept time of a tariff with a usage limit, started again.
+    Route::get('/guest/packages', [GuestPackageController::class, 'index'])->middleware('throttle:60,1,api.guest.packages')->name('api.guest.packages');
+    Route::post('/guest/packages/{package}/start', [GuestPackageController::class, 'start'])->whereNumber('package')->middleware('throttle:10,1,api.guest.packages.start')->name('api.guest.packages.start');
     Route::get('/guest/chat', [GuestChatController::class, 'index'])->middleware('throttle:60,1,api.guest.chat')->name('api.guest.chat');
     Route::post('/guest/chat', [GuestChatController::class, 'store'])->middleware('throttle:20,1,api.guest.chat.store')->name('api.guest.chat.store');
     Route::get('/guest/telegram', [GuestTelegramController::class, 'show'])->middleware('throttle:30,1,api.guest.telegram')->name('api.guest.telegram');

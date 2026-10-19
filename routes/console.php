@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\AgentQrLogin;
+use App\Models\ClubComputer;
+use App\Models\SessionPurchase;
+use App\Models\TimePackage;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -32,6 +35,13 @@ Schedule::command('club-computers:expire-sessions')->everyMinute();
 
 Schedule::command('integrations:prune')->hourly()->withoutOverlapping();
 
+// Parts of sessions that are over (refunds are settled when a session ends early) and expired kept time.
+Schedule::call(function (): void {
+    SessionPurchase::query()->withoutGlobalScope('club')->where('created_at', '<', now()->subDays(8))
+        ->whereNotIn('session_id', ClubComputer::query()->withoutGlobalScope('club')->whereNotNull('current_session_id')->select('current_session_id'))
+        ->delete();
+    TimePackage::query()->withoutGlobalScope('club')->where('expires_at', '<', now())->delete();
+})->daily()->name('session-purchases:prune');
 // QR codes for signing in on a PC live 5 minutes; old ones are of no use.
 Schedule::call(fn () => AgentQrLogin::query()->withoutGlobalScope('club')->where('expires_at', '<', now()->subDay())->delete())
     ->daily()->name('agent-qr-logins:prune');

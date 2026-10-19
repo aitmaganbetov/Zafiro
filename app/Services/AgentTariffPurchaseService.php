@@ -7,7 +7,9 @@ use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubZone;
 use App\Models\MemberBalance;
+use App\Models\SessionPurchase;
 use App\Models\Tariff;
+use App\Models\TimePackage;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -17,7 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class AgentTariffPurchaseService
 {
-    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations, private LoyaltyProgram $loyalty) {}
+    /** The customer's choice of balance in the agent: all from the main one, or bonuses (up to the club's percent) and the rest from the main one. */
+    public const BALANCES = ['main', 'bonus'];
+
+    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations, private LoyaltyProgram $loyalty, private PaymentRules $rules) {}
 
     /** @return Collection<int, array<string, mixed>> */
     public function availableFor(User $user): Collection
@@ -43,10 +48,13 @@ class AgentTariffPurchaseService
             ->values();
     }
 
-    /** @return array<string, mixed> */
-    public function purchase(User $user, Tariff $tariff, int $computerId): array
+    /**
+     * @param  ?string  $balance  main | bonus; null — agents before 0.0.57: the main balance first, then bonuses
+     * @return array<string, mixed>
+     */
+    public function purchase(User $user, Tariff $tariff, int $computerId, ?string $balance = null): array
     {
-        return DB::transaction(function () use ($user, $tariff, $computerId): array {
+        return DB::transaction(function () use ($user, $tariff, $computerId, $balance): array {
             $tariff = Tariff::query()->lockForUpdate()->findOrFail($tariff->getKey());
             $membership = $user->currentMembership()->lockForUpdate()->firstOrFail();
             $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computerId);
@@ -62,8 +70,15 @@ class AgentTariffPurchaseService
             }
 
             $price = $this->priceInCents($tariff, $membership);
+            // A usage limit: the tariff burns that long after it is bought; unused time is kept till then.
+            $part = [
+                'kind' => SessionPurchase::KIND_TARIFF,
+                'tariff_id' => $tariff->getKey(),
+                'name' => $tariff->name,
+                'expires_at' => $tariff->usage_limit_enabled && $tariff->usage_limit_minutes !== null ? now()->addMinutes($tariff->usage_limit_minutes) : null,
+            ];
 
-            return $this->sell($user, $computer, $price, $tariff->payment_method, $this->effectiveMinutes($tariff), function (array $sale) use ($user, $tariff, $price, $computer): void {
+            return $this->sell($user, $computer, $price, $tariff->payment_method, $balance, $this->effectiveMinutes($tariff), $part, function (array $sale) use ($user, $tariff, $price, $computer): void {
                 $this->activity->record('tariff.purchased', __('Куплен тариф: :tariff', ['tariff' => $tariff->name]), $user->getKey(), $tariff, [
                     'amount' => self::formatCents($price),
                     'currency' => $tariff->currency,
@@ -79,14 +94,15 @@ class AgentTariffPurchaseService
     }
 
     /**
-     * Time by the minute at the hourly price of the PC's zone: minutes × hour price / 60, rounded
-     * to the cent; paid from the main balance, the rest from bonuses (like a tariff "main or bonus").
+     * Time by the minute at the hourly price of the PC's zone (with the customer's discount when the
+     * club applies it to hourly time): minutes × hour price / 60, rounded to the cent. Unused minutes
+     * of a session ended early go back to the balances they were paid from.
      *
      * @return array<string, mixed>
      */
-    public function purchaseMinutes(User $user, int $computerId, int $minutes): array
+    public function purchaseMinutes(User $user, int $computerId, int $minutes, ?string $balance = null): array
     {
-        return DB::transaction(function () use ($user, $computerId, $minutes): array {
+        return DB::transaction(function () use ($user, $computerId, $minutes, $balance): array {
             $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computerId);
             $zone = ClubZone::query()->find($computer->club_zone_id);
             if ($zone?->price_per_hour === null) {
@@ -94,14 +110,15 @@ class AgentTariffPurchaseService
             }
 
             $this->ensureComputerFor($computer, $user);
-            $price = self::minutesPriceInCents((string) $zone->price_per_hour, $minutes);
+            $price = self::minutesPriceInCents($this->hourlyPrice($user, $zone), $minutes);
             $currency = data_get($this->currentClub->settings(), 'finances.currency', 'KZT');
+            $part = ['kind' => SessionPurchase::KIND_MINUTES, 'tariff_id' => null, 'name' => $zone->name, 'expires_at' => null];
 
-            return $this->sell($user, $computer, $price, 'main_or_bonus', $minutes, function (array $sale) use ($user, $zone, $price, $currency, $computer): void {
+            return $this->sell($user, $computer, $price, 'main_or_bonus', $balance, $minutes, $part, function (array $sale) use ($user, $zone, $price, $currency, $computer): void {
                 $this->activity->record('time.purchased', __('Куплено :count мин. в зоне :zone', ['count' => $sale['minutes'], 'zone' => $zone->name]), $user->getKey(), $zone, [
                     'amount' => self::formatCents($price),
                     'currency' => $currency,
-                    'price_per_hour' => (string) $zone->price_per_hour,
+                    'price_per_hour' => $this->hourlyPrice($user, $zone),
                     'main_balance_amount' => self::formatCents($price - $sale['bonus_payment']),
                     'bonus_balance_amount' => self::formatCents($sale['bonus_payment']),
                     'duration_minutes' => $sale['minutes'],
@@ -110,6 +127,71 @@ class AgentTariffPurchaseService
                     'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
                 ]);
             }, __('Время добавлено.'));
+        });
+    }
+
+    /** The zone's hourly price for this customer: with their discount when the club applies it to hourly time. */
+    public function hourlyPrice(User $user, ClubZone $zone): string
+    {
+        $price = self::amountToCents((string) $zone->price_per_hour);
+        $membership = $user->currentMembership()->first();
+        if ($membership === null || ! $this->rules->discountOnHourly()) {
+            return self::formatCents($price);
+        }
+
+        return self::formatCents(self::discounted($price, $this->loyalty->discountFor($membership)));
+    }
+
+    /** @return list<array{id: string, name: string, minutes: int, expires_at: string}> the customer's kept tariff time */
+    public function packagesFor(User $user): array
+    {
+        return TimePackage::query()->where('user_id', $user->getKey())->where('expires_at', '>', now())
+            ->orderBy('expires_at')->get()
+            ->map(fn (TimePackage $package): array => [
+                'id' => (string) $package->getKey(),
+                'name' => $package->name,
+                'minutes' => $package->minutes_left,
+                'expires_at' => $package->expires_at->utc()->toIso8601String(),
+            ])->all();
+    }
+
+    /**
+     * Starts the customer's kept tariff time on this PC (no charge): as much as is left, but not
+     * past its expiry; within the tariff's zones and periods while the tariff exists.
+     *
+     * @return array<string, mixed>
+     */
+    public function startPackage(User $user, TimePackage $package, int $computerId): array
+    {
+        return DB::transaction(function () use ($user, $package, $computerId): array {
+            $package = TimePackage::query()->where('user_id', $user->getKey())->lockForUpdate()->findOrFail($package->getKey());
+            $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computerId);
+            $minutes = min($package->minutes_left, intdiv(max(0, $package->expires_at->getTimestamp() - now()->getTimestamp()), 60));
+            if ($minutes <= 0) {
+                $package->delete();
+                throw ValidationException::withMessages(['package' => __('Срок абонемента истёк.')]);
+            }
+
+            $this->ensureComputerFor($computer, $user);
+            $tariff = $package->tariff;
+            if ($tariff !== null && $tariff->zones()->exists() && ! $tariff->zones()->whereKey($computer->club_zone_id)->exists()) {
+                throw ValidationException::withMessages(['package' => __('Абонемент не действует на этом компьютере.')]);
+            }
+            if ($tariff !== null && ! $this->inValidityPeriod($tariff)) {
+                throw ValidationException::withMessages(['package' => __('Абонемент сейчас не действует: проверьте дни и время тарифа.')]);
+            }
+
+            $part = ['kind' => SessionPurchase::KIND_TARIFF, 'tariff_id' => $package->tariff_id, 'name' => $package->name, 'expires_at' => $package->expires_at];
+            $result = $this->sell($user, $computer, 0, 'main_balance_only', 'main', $minutes, $part, function (array $sale) use ($user, $package, $computer): void {
+                $this->activity->record('time.package_started', __('Запущен абонемент :name: :count мин.', ['name' => $package->name, 'count' => $sale['minutes']]), $user->getKey(), $computer, [
+                    'minutes' => $sale['minutes'],
+                    'session_id' => $sale['session_id'],
+                    'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
+                ]);
+            }, __('Абонемент запущен.'));
+            $package->delete();
+
+            return $result;
         });
     }
 
@@ -134,30 +216,40 @@ class AgentTariffPurchaseService
     /**
      * Charges the balance and starts or extends the customer's session on the locked PC.
      *
+     * The price is paid by the customer's choice: "main" — all from the main balance; "bonus" —
+     * bonuses up to the club's percent of the price, the rest from the main balance; none (older
+     * agents) — the main balance first, then bonuses within the same limit. A tariff "main
+     * balance only" takes no bonuses. The part is written to the session (SessionSettlement).
+     *
+     * @param  array{kind: string, tariff_id: ?int, name: string, expires_at: ?Carbon}  $part
      * @param  callable(array{bonus_payment: int, minutes: int, session_id: string, session_ends_at: Carbon}): void  $log
      * @return array<string, mixed>
      */
-    private function sell(User $user, ClubComputer $computer, int $price, string $paymentMethod, int $minutes, callable $log, string $message): array
+    private function sell(User $user, ClubComputer $computer, int $price, string $paymentMethod, ?string $choice, int $minutes, array $part, callable $log, string $message): array
     {
         $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
         $mainBalance = self::amountToCents((string) $balance->balance);
         $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
-        $bonusPayment = 0;
+        $bonusLimit = $paymentMethod === 'main_balance_only' ? 0 : $this->rules->bonusLimitCents($price);
 
-        if ($paymentMethod === 'main_balance_only') {
-            if ($mainBalance < $price) {
-                throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
+        if ($choice === 'bonus') {
+            if ($bonusLimit === 0 && $price > 0) {
+                throw ValidationException::withMessages(['balance' => $paymentMethod === 'main_balance_only'
+                    ? __('Этот тариф оплачивается только с основного баланса.')
+                    : __('В клубе бонусами нельзя оплачивать время.')]);
             }
-            $mainBalance -= $price;
+            $bonusPayment = min($bonusBalance, $bonusLimit);
+        } elseif ($choice === 'main') {
+            $bonusPayment = 0;
         } else {
-            $mainPayment = min($mainBalance, $price);
-            $bonusPayment = $price - $mainPayment;
-            if ($bonusBalance < $bonusPayment) {
-                throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
-            }
-            $mainBalance -= $mainPayment;
-            $bonusBalance -= $bonusPayment;
+            $bonusPayment = min($bonusLimit, max(0, $price - $mainBalance));
         }
+        $mainPayment = $price - $bonusPayment;
+        if ($mainBalance < $mainPayment || $bonusBalance < $bonusPayment) {
+            throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
+        }
+        $mainBalance -= $mainPayment;
+        $bonusBalance -= $bonusPayment;
 
         $hasActiveSession = $computer->hasPaidSession();
         $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
@@ -174,7 +266,14 @@ class AgentTariffPurchaseService
             'balance' => self::formatCents($mainBalance),
             'bonus_balance' => self::formatCents($bonusBalance),
         ]);
-        $this->loyalty->addSpending($user->getKey(), $price - $bonusPayment);
+        $this->loyalty->addSpending($user->getKey(), $mainPayment);
+        SessionPurchase::query()->create($part + [
+            'session_id' => $sessionId,
+            'user_id' => $user->getKey(),
+            'minutes' => $minutes,
+            'main_cents' => $mainPayment,
+            'bonus_cents' => $bonusPayment,
+        ]);
         $computer->update([
             'current_session_id' => $sessionId,
             'current_session_user_id' => $user->getKey(),
@@ -205,6 +304,12 @@ class AgentTariffPurchaseService
             return false;
         }
 
+        return $this->inValidityPeriod($tariff);
+    }
+
+    /** Now is within the tariff's days and times (its "validity period"); none set — always. */
+    private function inValidityPeriod(Tariff $tariff): bool
+    {
         $periods = $tariff->validity_periods;
         if (! is_array($periods) || $periods === []) {
             return true;
@@ -252,17 +357,29 @@ class AgentTariffPurchaseService
             'original_price' => (string) $tariff->price,
             'currency' => $tariff->currency,
             'zone_ids' => $tariff->zones->modelKeys(),
+            // The agent offers "pay with bonuses" only when bonuses may pay a part of it.
+            'bonus_allowed' => $tariff->payment_method !== 'main_balance_only' && $this->rules->bonusMaxPercent() > 0,
+            'bonus_max_percent' => $tariff->payment_method === 'main_balance_only' ? 0 : $this->rules->bonusMaxPercent(),
+            // Unused time is kept until it burns this long after the purchase.
+            'usage_limit_minutes' => $tariff->usage_limit_enabled ? $tariff->usage_limit_minutes : null,
         ];
     }
 
     private function priceInCents(Tariff $tariff, ClubMembership $membership): int
     {
         $price = self::amountToCents((string) $tariff->price);
-        $discountBasisPoints = $tariff->discount_enabled
-            ? min(10000, max(0, (int) round($this->loyalty->discountFor($membership) * 100)))
-            : 0;
 
-        return max(0, $price - intdiv($price * $discountBasisPoints + 5000, 10000));
+        return $tariff->discount_enabled && $this->rules->discountOnTariffs()
+            ? self::discounted($price, $this->loyalty->discountFor($membership))
+            : $price;
+    }
+
+    /** A price in cents less a percent, rounded half up. */
+    private static function discounted(int $price, float $percent): int
+    {
+        $basisPoints = min(10000, max(0, (int) round($percent * 100)));
+
+        return max(0, $price - intdiv($price * $basisPoints + 5000, 10000));
     }
 
     public function effectiveMinutes(Tariff $tariff): int

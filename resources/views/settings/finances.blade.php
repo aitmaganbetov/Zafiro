@@ -4,7 +4,8 @@
 
 @php
     // Подразделы страницы: якоря в левом меню настроек.
-    $settingsAnchors = ['currency-settings' => __('Валюта'), 'loyalty' => __('Накопительная скидка'), 'topup-bonus' => __('Бонусы за пополнение')];
+    $settingsAnchors = ['currency-settings' => __('Валюта'), 'payment-rules' => __('Оплата времени'), 'loyalty' => __('Накопительная скидка'), 'topup-bonus' => __('Бонусы за пополнение')];
+    $discountScope = old('discount_scope', $settings['finances']['discount_scope'] ?? 'tariffs');
     $currency = $settings['finances']['currency'] ?? 'KZT';
     $inputClass = 'brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100';
 @endphp
@@ -22,9 +23,31 @@
     </div>
 </x-settings.card>
 
+<x-settings.card id="payment-rules">
+    <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Оплата времени') }}</h5>
+    <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Как клиенты платят за время в агенте: где действует их скидка (персональная или накопительная) и какую часть цены можно оплатить бонусами. Клиент сам выбирает при покупке: с основного баланса или бонусами.') }}</p>
+    <div class="grid max-w-2xl grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+            <label for="discount_scope" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Где действует скидка клиента') }}</label>
+            <select id="discount_scope" name="discount_scope" class="{{ $inputClass }}">
+                <option value="tariffs" @selected($discountScope === 'tariffs')>{{ __('На тарифы с отметкой «Применять скидку»') }}</option>
+                <option value="hourly" @selected($discountScope === 'hourly')>{{ __('Только на почасовую оплату (поминутно по цене зоны)') }}</option>
+                <option value="all" @selected($discountScope === 'all')>{{ __('Везде: на тарифы с отметкой и на почасовую оплату') }}</option>
+            </select>
+            @error('discount_scope')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+        </div>
+        <div>
+            <label for="bonus_max_percent" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Сколько процентов цены можно оплатить бонусами') }}</label>
+            <input id="bonus_max_percent" name="bonus_max_percent" type="number" min="0" max="100" step="1" required value="{{ old('bonus_max_percent', $settings['finances']['bonus_max_percent'] ?? 100) }}" class="{{ $inputClass }}">
+            <p class="mt-1 text-xs text-gray-500">{{ __('100 — бонусами можно оплатить всю цену, 0 — бонусами за время платить нельзя. Остаток — с основного баланса.') }}</p>
+            @error('bonus_max_percent')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+        </div>
+    </div>
+</x-settings.card>
+
 <x-settings.card id="loyalty">
     <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Накопительная скидка') }}</h5>
-    <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Клиент получает скидку, когда его траты в клубе достигают порога. Считаются тарифы, поминутное время и заказы в агенте, оплаченные с основного баланса. Скидка действует на тарифы с отметкой «Применять скидку»; если у клиента есть персональная скидка, применяется большая.') }}</p>
+    <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Клиент получает скидку, когда его траты в клубе достигают порога. Считаются тарифы, поминутное время и заказы в агенте, оплаченные с основного баланса. Где действует скидка — в блоке «Оплата времени»; если у клиента есть персональная скидка, применяется большая.') }}</p>
 
     <div class="mb-4 inline-flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <label for="loyalty_enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Включить накопительную скидку') }}</label>

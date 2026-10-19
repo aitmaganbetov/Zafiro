@@ -31,7 +31,7 @@ class ClubComputerSessions
     /** Agent states that mean the PC is back in customer hands. */
     private const CUSTOMER_STATES = ['idle', 'locked', 'in_session'];
 
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private SessionSettlement $settlement) {}
 
     /**
      * Apply an agent heartbeat and describe the computer for the agent.
@@ -153,10 +153,15 @@ class ClubComputerSessions
             ->update(self::SESSION_FIELDS + ['updated_at' => now()]);
     }
 
-    /** The customer who owns the session or club staff end it early; unused time is not refunded. */
-    public function end(ClubComputer $computer, string $sessionId, User $actor, bool $isStaff): void
+    /**
+     * The customer who owns the session or club staff end it early. Unused minutes go back to the
+     * balances, unused time of a tariff with a usage limit is kept as a package (SessionSettlement).
+     *
+     * @return array{refund_main: int, refund_bonus: int, kept_minutes: int}
+     */
+    public function end(ClubComputer $computer, string $sessionId, User $actor, bool $isStaff): array
     {
-        DB::transaction(function () use ($computer, $sessionId, $actor, $isStaff): void {
+        return DB::transaction(function () use ($computer, $sessionId, $actor, $isStaff): array {
             $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computer->getKey());
 
             if ($computer->current_session_id === null || $computer->current_session_id !== $sessionId) {
@@ -168,11 +173,17 @@ class ClubComputerSessions
             }
 
             $endsAt = $computer->session_ends_at;
+            $customerId = $computer->current_session_user_id;
             $computer->forceFill(self::SESSION_FIELDS)->save();
+            $settled = $customerId === null
+                ? ['refund_main' => 0, 'refund_bonus' => 0, 'kept_minutes' => 0]
+                : $this->settlement->settle($computer, $sessionId, (int) $customerId, $endsAt, $actor->getKey());
             $this->activity->record('computer.session_ended', __('Сессия на ПК :computer завершена досрочно', ['computer' => $computer->displayName()]), $actor->getKey(), $computer, [
                 'session_id' => $sessionId,
                 'planned_end' => $endsAt?->utc()->toIso8601String() ?? '—',
             ]);
+
+            return $settled;
         });
     }
 

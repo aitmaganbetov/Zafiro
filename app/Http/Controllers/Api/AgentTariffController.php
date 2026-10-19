@@ -31,6 +31,7 @@ class AgentTariffController extends Controller
             $request->user(),
             $tariff,
             (int) $request->validated('computer_id'),
+            $request->validated('balance'),
         ));
     }
 }

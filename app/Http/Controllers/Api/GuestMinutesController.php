@@ -9,13 +9,14 @@ use App\Services\AgentTariffPurchaseService;
 use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /** Time by the minute at the hourly price of the PC's zone (PC agent). */
 class GuestMinutesController extends Controller
 {
     public const MAX_MINUTES = 720;
 
-    public function show(Request $request, CurrentClub $currentClub): JsonResponse
+    public function show(Request $request, CurrentClub $currentClub, AgentTariffPurchaseService $purchases): JsonResponse
     {
         $computer = ClubComputer::query()->findOrFail((int) $request->validate(['computer_id' => ['required', 'integer']])['computer_id']);
         $zone = ClubZone::query()->find($computer->club_zone_id, ['id', 'name', 'price_per_hour']);
@@ -23,7 +24,9 @@ class GuestMinutesController extends Controller
         return response()->json([
             'available' => $zone?->price_per_hour !== null,
             'zone' => $zone?->name,
-            'price_per_hour' => $zone?->price_per_hour,
+            // With the customer's discount when the club applies it to hourly time.
+            'price_per_hour' => $zone?->price_per_hour === null ? null : $purchases->hourlyPrice($request->user(), $zone),
+            'original_price_per_hour' => $zone?->price_per_hour,
             'currency' => data_get($currentClub->settings(), 'finances.currency', 'KZT'),
             'min_minutes' => 1,
             'max_minutes' => self::MAX_MINUTES,
@@ -35,6 +38,7 @@ class GuestMinutesController extends Controller
         $data = $request->validate([
             'computer_id' => ['required', 'integer'],
             'minutes' => ['required', 'integer', 'min:1', 'max:'.self::MAX_MINUTES],
+            'balance' => ['nullable', Rule::in(AgentTariffPurchaseService::BALANCES)],
         ]);
         $computer = ClubComputer::query()->findOrFail((int) $data['computer_id']);
 
@@ -44,6 +48,6 @@ class GuestMinutesController extends Controller
             return response()->json(['message' => __('Тариф можно купить только на самом компьютере.'), 'code' => 'wrong_computer'], 403);
         }
 
-        return response()->json($purchases->purchaseMinutes($request->user(), $computer->getKey(), (int) $data['minutes']));
+        return response()->json($purchases->purchaseMinutes($request->user(), $computer->getKey(), (int) $data['minutes'], $data['balance'] ?? null));
     }
 }

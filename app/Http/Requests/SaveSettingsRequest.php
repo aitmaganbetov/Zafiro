@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\LoyaltyProgram;
+use App\Services\PaymentRules;
 use App\Services\TopUpBonus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -33,6 +34,8 @@ class SaveSettingsRequest extends FormRequest
             'loyalty_levels.*' => ['array:spent,percent'],
             'loyalty_levels.*.spent' => ['required', 'numeric', 'min:0.01', 'max:999999999', 'distinct'],
             'loyalty_levels.*.percent' => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'discount_scope' => ['sometimes', Rule::in(PaymentRules::DISCOUNT_SCOPES)],
+            'bonus_max_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'topup_bonus_enabled' => ['nullable', 'boolean'],
             'topup_bonus_levels' => ['nullable', 'array', 'max:'.TopUpBonus::MAX_LEVELS],
             'topup_bonus_levels.*' => ['array:amount,percent'],

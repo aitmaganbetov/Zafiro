@@ -16,14 +16,15 @@ class GuestHistory
     public const PAGE = 30;
 
     /** Done by the customer. */
-    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
+    // time.refunded: by the customer (ended the session) or staff, so both lists.
+    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
-    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred', 'shop.order_cancelled'];
+    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
 
     /** Filters of the history page in the agent: [own events, received events]. */
     public const FILTERS = [
-        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased'], ['shop.order_cancelled']],
+        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded'], ['shop.order_cancelled', 'time.refunded']],
         'top_ups' => [[], ['user.balance_topped_up']],
         'transfers' => [['balance.transferred'], ['balance.transferred']],
         'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
@@ -90,6 +91,12 @@ class GuestHistory
                 $entry['kind'] = 'refund';
                 $entry['title'] = __('Возврат за отменённый заказ');
                 $entry['amount'] = self::positive($details['amount'] ?? null);
+                break;
+            case 'time.refunded':
+                $entry['kind'] = 'refund';
+                $entry['title'] = __('Возврат за неиспользованное время');
+                $entry['amount'] = self::positive($details['main_balance_amount'] ?? null);
+                $entry['bonus_amount'] = self::positive($details['bonus_balance_amount'] ?? null);
                 break;
             case 'user.balance_topped_up':
                 $entry['kind'] = 'top_up';

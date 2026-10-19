@@ -12,6 +12,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Language;
 use App\Services\ActivityLogger;
+use App\Services\AgentTariffPurchaseService;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
@@ -248,9 +249,16 @@ class ClubComputerController extends Controller
     public function endSession(Request $request, ClubComputer $computer, ClubComputerSessions $sessions): JsonResponse
     {
         $data = $request->validate(['session_id' => ['required', 'string', 'max:255']]);
-        $sessions->end($computer, $data['session_id'], $request->user(), Gate::allows('register', ClubComputer::class));
+        $settled = $sessions->end($computer, $data['session_id'], $request->user(), Gate::allows('register', ClubComputer::class));
 
-        return response()->json(['success' => true, 'session' => null]);
+        return response()->json([
+            'success' => true,
+            'session' => null,
+            // Unused minutes went back to the balances; a tariff with a usage limit was kept.
+            'refunded' => AgentTariffPurchaseService::formatCents($settled['refund_main']),
+            'refunded_bonus' => AgentTariffPurchaseService::formatCents($settled['refund_bonus']),
+            'kept_minutes' => $settled['kept_minutes'],
+        ]);
     }
 
     /** @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result */
