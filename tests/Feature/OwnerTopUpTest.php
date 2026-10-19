@@ -76,3 +76,16 @@ test('a worker of another club plays here: this club changes the discount and ba
         ->and(MemberBalance::query()->where('user_id', $customer->id)->sole()->balance)->toBe('400.00')
         ->and($customer->fresh()->name)->toBe('Арман');
 });
+
+test('a superadmin playing in a club gets a discount and a top-up like any customer, the account stays locked', function () {
+    [$owner, $customer, $membership] = topUpCustomer();
+    $customer->forceFill(['is_superadmin' => true])->save();
+
+    $this->actingAs($owner)->get(route('users.index'))->assertOk()->assertSee('data-account-locked', false);
+    $this->patch(route('users.update', $membership), ['name' => 'Арман', 'email' => $customer->email, 'discount' => '5', 'top_up_amount' => '50', 'top_up_balance' => 'balance'])
+        ->assertSessionHasNoErrors();
+    $this->post(route('users.password', $membership))->assertForbidden();
+
+    expect($membership->fresh()->discount)->toBe('5.00')
+        ->and(MemberBalance::query()->where('user_id', $customer->id)->sole()->balance)->toBe('150.00');
+});

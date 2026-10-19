@@ -39,13 +39,15 @@ class UserController extends Controller
         // Customers only; staff are on the Workers page.
         $users = ClubMembership::query()
             ->whereNotIn('role', ClubRoles::STAFF)
-            ->with(['user:id,name,phone,email', 'balance'])
+            ->with(['user:id,name,phone,email,is_superadmin', 'balance'])
             ->orderBy('user_id')
             ->paginate(25);
 
         $staffElsewhere = ClubMembership::query()->withoutGlobalScope('club')
             ->whereIn('user_id', $users->pluck('user_id'))->whereIn('role', ClubRoles::STAFF)
-            ->distinct()->pluck('user_id')->flip();
+            ->distinct()->pluck('user_id')
+            ->merge($users->filter(fn (ClubMembership $membership): bool => $membership->user->isSuperadmin())->pluck('user_id'))
+            ->flip();
 
         return view('users', ['users' => $users, 'staffElsewhere' => $staffElsewhere, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty]);
     }
@@ -86,7 +88,7 @@ class UserController extends Controller
     public function update(Request $request, ClubMembership $membership, ActivityLogger $activity): RedirectResponse
     {
         $user = $this->customer($membership);
-        $accountLocked = $this->isStaffElsewhere($user);
+        $accountLocked = $this->isAccountLocked($user);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique((new User)->getTable(), 'email')->ignore($user->getKey())],
@@ -147,7 +149,7 @@ class UserController extends Controller
     {
         $user = $this->customer($membership);
         // The password of a worker opens the other club's admin: never shown to this club's staff.
-        abort_if($this->isStaffElsewhere($user), 403, __('Это сотрудник другого клуба: пароль он восстанавливает сам («Забыли пароль?»).'));
+        abort_if($this->isAccountLocked($user), 403, __('Это сотрудник другого клуба: пароль он восстанавливает сам («Забыли пароль?»).'));
         $password = Str::password(8, symbols: false);
 
         DB::transaction(function () use ($user, $password): void {
@@ -164,19 +166,19 @@ class UserController extends Controller
     }
 
     /**
-     * Only customers of this club. A worker of another club may play here: this club changes their
-     * discount and balance, not the account (name, email, password). Superadmins are not changed.
+     * Only customers of this club. A worker of another club (or a superadmin) may play here: this
+     * club changes their discount and balance, not the account (name, email, password).
      */
     private function customer(ClubMembership $membership): User
     {
-        $user = User::query()->findOrFail($membership->user_id);
-        abort_if(ClubRoles::isStaff($membership->role) || $user->isSuperadmin(), 403, __('Сотрудников меняют на странице «Работники».'));
+        abort_if(ClubRoles::isStaff($membership->role), 403, __('Сотрудников меняют на странице «Работники».'));
 
-        return $user;
+        return User::query()->findOrFail($membership->user_id);
     }
 
-    private function isStaffElsewhere(User $user): bool
+    /** The account opens a club admin or the superadmin panel: its sign-in data stays its own. */
+    private function isAccountLocked(User $user): bool
     {
-        return ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $user->getKey())->whereIn('role', ClubRoles::STAFF)->exists();
+        return $user->isSuperadmin() || ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $user->getKey())->whereIn('role', ClubRoles::STAFF)->exists();
     }
 }
