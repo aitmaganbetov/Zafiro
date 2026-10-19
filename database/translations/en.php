@@ -1602,6 +1602,9 @@ return [
         'Срок абонемента истёк.' => 'The pass has expired.',
         'Только на почасовую оплату (поминутно по цене зоны)' => 'Hourly time only (per minute at the zone price)',
         'Этот тариф оплачивается только с основного баланса.' => 'This tariff is paid from the main balance only.',
+        'Изменить тариф' => 'Edit tariff',
+        'Изменён тариф: :tariff' => 'Tariff changed: :tariff',
+        'Изменение тарифа' => 'Tariff change',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

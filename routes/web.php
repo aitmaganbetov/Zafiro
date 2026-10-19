@@ -214,6 +214,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::patch('/news/{news}', [NewsController::class, 'update'])->name('news.update');
         Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('news.destroy');
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
+        Route::get('/tariffs/{tariff}/edit', [TariffController::class, 'edit'])->name('tariffs.edit');
+        Route::patch('/tariffs/{tariff}', [TariffController::class, 'update'])->name('tariffs.update');
     });
 
     // Settings → API and integrations: the owner and members with the integrations permission.
