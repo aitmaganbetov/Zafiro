@@ -57,6 +57,7 @@ class ActivityLog extends Model
         'user.balance_topped_up' => 'Пополнение баланса пользователя',
         'user.updated' => 'Изменение клиента',
         'user.registered' => 'Регистрация клиента на ПК',
+        'user.joined_club' => 'Клиент другого клуба присоединился на ПК',
         'user.password_reset' => 'Сброс пароля клиента',
         'auth.login_failed' => 'Неудачный вход',
         'auth.api_login_failed' => 'Неудачный вход через API',

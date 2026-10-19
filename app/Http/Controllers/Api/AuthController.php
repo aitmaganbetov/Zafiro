@@ -79,7 +79,10 @@ class AuthController extends Controller
         if (! $membership) {
             $failed('no_club_access');
 
-            return response()->json(['message' => __('У аккаунта нет доступа к выбранному клубу.')], 403);
+            // On a club PC the account is of another club: registering there joins this one.
+            return response()->json(['message' => $agentContract
+                ? __('Вы ещё не клиент этого клуба. Нажмите «Зарегистрироваться» и введите номер и пароль от своего аккаунта Zafiro.')
+                : __('У аккаунта нет доступа к выбранному клубу.'), 'code' => 'not_club_member'], 403);
         }
 
         $currentClub->set($membership->club);

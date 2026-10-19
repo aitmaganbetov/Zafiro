@@ -11,11 +11,13 @@ use App\Support\ClubRoles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
  * A customer registers on a club PC (agent sign-in window, by the PC's device token): a new
- * Zafiro account, a customer of this club, signed in on this PC at once.
+ * Zafiro account, a customer of this club, signed in on this PC at once. One account serves every
+ * club: a number already in Zafiro joins this club with the password of that account.
  */
 class AgentRegisterController extends Controller
 {
@@ -35,22 +37,38 @@ class AgentRegisterController extends Controller
                 'password' => ['required', 'string', 'min:6', 'max:255'],
                 'device_name' => ['required', 'string', 'max:120'],
             ], ['phone.regex' => __('Введите 10 цифр номера после +7.'), 'password.min' => __('Пароль — не короче 6 символов.')]);
-            if (User::query()->where('phone', $data['phone'])->exists()) {
-                throw ValidationException::withMessages(['phone' => __('Этот номер уже зарегистрирован. Войдите со своим паролем.')]);
+            $existing = User::query()->where('phone', $data['phone'])->first();
+            if ($existing !== null) {
+                if (ClubMembership::query()->withoutGlobalScope('club')->where('club_id', $computer->club_id)->where('user_id', $existing->getKey())->exists()) {
+                    throw ValidationException::withMessages(['phone' => __('Вы уже клиент этого клуба. Войдите со своим паролем.')]);
+                }
+                if ($existing->isBlocked()) {
+                    throw ValidationException::withMessages(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')]);
+                }
+                if (! Hash::check($data['password'], $existing->password)) {
+                    $activity->recordFailedLogin('auth.api_login_failed', $data['phone'], 'join_wrong_password', ['device' => $data['device_name']]);
+                    throw ValidationException::withMessages(['password' => __('Этот номер уже есть в Zafiro (вы клиент другого клуба). Введите пароль от своего аккаунта или восстановите его: «Забыли пароль?».')]);
+                }
             }
         } catch (ValidationException $exception) {
             return response()->json(['message' => collect($exception->errors())->flatten()->first(), 'errors' => $exception->errors()], 422);
         }
 
-        [$user, $token, $expiresAt] = DB::transaction(function () use ($data, $computer, $activity): array {
-            $user = User::query()->create(['name' => trim($data['name']), 'phone' => $data['phone'], 'password' => $data['password']]);
+        [$user, $token, $expiresAt] = DB::transaction(function () use ($data, $computer, $activity, $existing): array {
+            // The account of another club keeps its name and password; it gets a balance here.
+            $user = $existing ?? User::query()->create(['name' => trim($data['name']), 'phone' => $data['phone'], 'password' => $data['password']]);
             ClubMembership::query()->create(['user_id' => $user->getKey(), 'role' => ClubRoles::CLIENT, 'discount' => 0]);
             MemberBalance::query()->create(['user_id' => $user->getKey(), 'balance' => 0, 'bonus_balance' => 0]);
             $expiresAt = now()->addDays(30);
+            $user->tokens()->where('name', $data['device_name'])->delete();
             $token = $user->createToken($data['device_name'], ['club:'.$computer->club_id], $expiresAt)->plainTextToken;
-            $activity->record('user.registered', __('Клиент зарегистрировался на ПК :computer: :user', ['computer' => $computer->displayName(), 'user' => $user->name]), $user->getKey(), $user, [
-                'computer' => $computer->displayName(),
-            ]);
+            $activity->record(
+                $existing === null ? 'user.registered' : 'user.joined_club',
+                $existing === null
+                    ? __('Клиент зарегистрировался на ПК :computer: :user', ['computer' => $computer->displayName(), 'user' => $user->name])
+                    : __('Клиент другого клуба стал клиентом этого клуба на ПК :computer: :user', ['computer' => $computer->displayName(), 'user' => $user->name]),
+                $user->getKey(), $user, ['computer' => $computer->displayName()],
+            );
 
             return [$user, $token, $expiresAt];
         });
