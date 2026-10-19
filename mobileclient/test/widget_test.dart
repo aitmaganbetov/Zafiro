@@ -45,4 +45,12 @@ void main() {
     expect(money(1500, 'KZT'), contains('₸'));
     expect(money(1500, 'KZT'), isNot(contains(',')));
   });
+
+  test('сумма в истории: знак, минус и разделитель тысяч', () {
+    String plain(String s) => s.replaceAll(RegExp(r'\s'), ' ');
+    expect(plain(signedAmount(5000)), '+5 000');
+    expect(plain(signedAmount(-2500)), '\u22122 500');
+    expect(signedAmount(0), '0');
+    expect(plain(signedAmount(-12.5)), '\u221212,50');
+  });
 }

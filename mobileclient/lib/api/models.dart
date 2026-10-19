@@ -93,6 +93,7 @@ class HistoryEntry {
   HistoryEntry({
     required this.id,
     required this.title,
+    this.kind = '',
     this.at,
     this.note,
     this.amount,
@@ -102,6 +103,7 @@ class HistoryEntry {
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
     id: json['id'] as int,
     title: json['title'] as String? ?? '',
+    kind: json['kind'] as String? ?? '',
     at: _date(json['at']),
     note: json['note'] as String?,
     amount: json['amount'] is num ? (json['amount'] as num).toDouble() : null,
@@ -112,6 +114,9 @@ class HistoryEntry {
 
   final int id;
   final String title;
+
+  /// Событие журнала: tariff.purchased, shop.purchased, user.balance_topped_up…
+  final String kind;
   final DateTime? at;
   final String? note;
   final double? amount;

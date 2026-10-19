@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../session.dart';
+import '../theme.dart';
+import '../widgets.dart';
 import 'balance_tab.dart';
 import 'history_tab.dart';
 import 'news_tab.dart';
@@ -18,55 +21,111 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  static const _titles = ['Баланс', 'Новости', 'История', 'Профиль'];
-
   @override
   Widget build(BuildContext context) {
     final session = widget.session;
-    final tabs = [
-      BalanceTab(session: session),
-      NewsTab(api: session.api),
-      HistoryTab(api: session.api),
-      ProfileTab(session: session),
-    ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_index]),
-        bottom: session.clubName.isEmpty
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(20),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    session.clubName,
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
+        titleSpacing: 20,
+        title: const BrandMark(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.05),
+          ),
+        ),
+        actions: [
+          if (session.clubName.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: _ClubChip(session.clubName),
+            ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _index,
+        children: [
+          BalanceTab(session: session),
+          NewsTab(api: session.api),
+          HistoryTab(api: session.api),
+          ProfileTab(session: session),
+        ],
+      ),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(
+              icon: FaIcon(FontAwesomeIcons.wallet),
+              label: 'Баланс',
+            ),
+            NavigationDestination(
+              icon: FaIcon(FontAwesomeIcons.newspaper),
+              label: 'Новости',
+            ),
+            NavigationDestination(
+              icon: FaIcon(FontAwesomeIcons.clockRotateLeft),
+              label: 'История',
+            ),
+            NavigationDestination(
+              icon: FaIcon(FontAwesomeIcons.user),
+              label: 'Профиль',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Плашка клуба, как «Сейчас занято…» на сайте: rounded-full bg-white/5.
+class _ClubChip extends StatelessWidget {
+  const _ClubChip(this.name);
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 160),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Brand.accent,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Brand.muted,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-      ),
-      body: IndexedStack(index: _index, children: tabs),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Баланс',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.newspaper_outlined),
-            selectedIcon: Icon(Icons.newspaper),
-            label: 'Новости',
-          ),
-          NavigationDestination(icon: Icon(Icons.history), label: 'История'),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Профиль',
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

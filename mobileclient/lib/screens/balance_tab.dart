@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../api/api_client.dart';
-import '../session.dart';
 import '../format.dart';
+import '../session.dart';
+import '../theme.dart';
+import '../widgets.dart';
 
 class BalanceTab extends StatelessWidget {
   const BalanceTab({super.key, required this.session});
@@ -23,50 +26,54 @@ class BalanceTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = session.profile;
-    final theme = Theme.of(context);
     return RefreshIndicator(
       onRefresh: () => _refresh(context),
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         children: [
           if (profile == null)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(
-                child: Text(
-                  'Не удалось загрузить баланс. Потяните вниз, чтобы обновить.',
-                ),
-              ),
+            EmptyState(
+              icon: FontAwesomeIcons.wallet,
+              text: 'Не удалось загрузить баланс',
+              onRetry: () => _refresh(context),
             )
           else ...[
-            Text(
-              'Здравствуйте, ${profile.name}',
-              style: theme.textTheme.titleLarge,
+            SectionHeading(
+              kicker: 'Баланс',
+              title: 'Здравствуйте, ${profile.name}',
             ),
-            const SizedBox(height: 16),
-            _BalanceCard(
-              label: 'Основной баланс',
-              value: money(profile.balance, profile.currency),
-              icon: Icons.account_balance_wallet,
-              color: theme.colorScheme.primaryContainer,
+            const SizedBox(height: 20),
+            _MainBalance(amount: money(profile.balance, profile.currency)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _Stat(
+                    icon: FontAwesomeIcons.gift,
+                    label: 'Бонусы',
+                    value: money(profile.bonusBalance, profile.currency),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _Stat(
+                    icon: FontAwesomeIcons.percent,
+                    label: 'Скидка',
+                    value:
+                        '${profile.discount.toStringAsFixed(profile.discount % 1 == 0 ? 0 : 1)}%',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _BalanceCard(
-              label: 'Бонусы',
-              value: money(profile.bonusBalance, profile.currency),
-              icon: Icons.card_giftcard,
-              color: theme.colorScheme.tertiaryContainer,
-            ),
-            if (profile.discount > 0) ...[
-              const SizedBox(height: 12),
-              _BalanceCard(
-                label: 'Ваша скидка',
-                value:
-                    '${profile.discount.toStringAsFixed(profile.discount % 1 == 0 ? 0 : 1)}%',
-                icon: Icons.percent,
-                color: theme.colorScheme.secondaryContainer,
+            const SizedBox(height: 20),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => _refresh(context),
+                icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 14),
+                label: const Text('Обновить баланс'),
               ),
-            ],
+            ),
           ],
         ],
       ),
@@ -74,41 +81,106 @@ class BalanceTab extends StatelessWidget {
   }
 }
 
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
+/// Основной баланс в карточке со свечением — как блок «Карта клуба» на сайте.
+class _MainBalance extends StatelessWidget {
+  const _MainBalance({required this.amount});
 
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+  final String amount;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      color: color,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Icon(icon, size: 36),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: theme.textTheme.labelLarge),
-                  Text(value, style: theme.textTheme.headlineSmall),
-                ],
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Brand.border),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            // Непрозрачные цвета: иначе сквозь карточку видна её тень.
+            Color.alphaBlend(
+              Brand.accent.withValues(alpha: 0.28),
+              Brand.surface,
+            ),
+            Brand.surface,
+          ],
+          stops: const [0, 0.7],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Brand.accent.withValues(alpha: 0.18),
+            blurRadius: 40,
+            spreadRadius: -10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const IconBadge(
+                FontAwesomeIcons.wallet,
+                size: 40,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Основной баланс',
+                style: TextStyle(
+                  color: Brand.muted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              amount,
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w800,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.icon, required this.label, required this.value});
+
+  final FaIconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconBadge(icon, size: 38),
+          const SizedBox(height: 14),
+          Text(label, style: TextStyle(color: Brand.faint, fontSize: 13)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }

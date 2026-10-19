@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
+import '../theme.dart';
+import '../widgets.dart';
 
 class NewsTab extends StatefulWidget {
   const NewsTab({super.key, required this.api});
@@ -27,24 +30,51 @@ class _NewsTabState extends State<NewsTab> {
     return FutureBuilder<NewsFeed>(
       future: _feed,
       builder: (context, snapshot) {
+        final children = <Widget>[
+          const SectionHeading(kicker: 'Новости', title: 'Что нового'),
+          const SizedBox(height: 20),
+        ];
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return _Message(text: '${snapshot.error}', onRetry: _reload);
-        }
-        final feed = snapshot.data!;
-        final items = [...feed.club, ...feed.platform];
-        if (items.isEmpty) {
-          return _Message(text: 'Новостей пока нет', onRetry: _reload);
+          children.add(
+            const Padding(
+              padding: EdgeInsets.all(48),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          children.add(
+            EmptyState(
+              icon: FontAwesomeIcons.circleExclamation,
+              text: '${snapshot.error}',
+              onRetry: _reload,
+            ),
+          );
+        } else {
+          final feed = snapshot.data!;
+          final items = [
+            for (final item in feed.club) (item, false),
+            for (final item in feed.platform) (item, true),
+          ];
+          if (items.isEmpty) {
+            children.add(
+              const EmptyState(
+                icon: FontAwesomeIcons.newspaper,
+                text: 'Новостей пока нет',
+              ),
+            );
+          }
+          for (final (item, platform) in items) {
+            children
+              ..add(_NewsCard(item: item, platform: platform))
+              ..add(const SizedBox(height: 14));
+          }
         }
         return RefreshIndicator(
           onRefresh: _reload,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _NewsCard(item: items[i]),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+            children: children,
           ),
         );
       },
@@ -53,15 +83,17 @@ class _NewsTabState extends State<NewsTab> {
 }
 
 class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.item});
+  const _NewsCard({required this.item, required this.platform});
 
   final NewsItem item;
 
+  /// Новость Zafiro для всех клубов, а не только этого клуба.
+  final bool platform;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return GlassCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -71,22 +103,46 @@ class _NewsCard extends StatelessWidget {
               child: Image.network(
                 item.imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                errorBuilder: (_, _, _) => Container(
+                  color: Brand.surface,
+                  alignment: Alignment.center,
+                  child: FaIcon(FontAwesomeIcons.image, color: Brand.faint),
+                ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: theme.textTheme.titleMedium),
-                if (item.publishedAt != null)
-                  Text(
-                    dateTime(item.publishedAt),
-                    style: theme.textTheme.bodySmall,
+                Row(
+                  children: [
+                    _Tag(platform ? 'Zafiro' : 'Клуб'),
+                    const SizedBox(width: 10),
+                    if (item.publishedAt != null)
+                      Flexible(
+                        child: Text(
+                          dateTime(item.publishedAt),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Brand.faint, fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
                   ),
+                ),
                 const SizedBox(height: 8),
-                Text(item.body),
+                Text(
+                  item.body,
+                  style: TextStyle(color: Brand.muted, height: 1.5),
+                ),
               ],
             ),
           ),
@@ -96,24 +152,26 @@ class _NewsCard extends StatelessWidget {
   }
 }
 
-class _Message extends StatelessWidget {
-  const _Message({required this.text, required this.onRetry});
+class _Tag extends StatelessWidget {
+  const _Tag(this.text);
 
   final String text;
-  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(text, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Обновить')),
-          ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Brand.accent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Brand.accentSoft,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
         ),
       ),
     );
