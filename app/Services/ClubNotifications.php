@@ -170,7 +170,7 @@ class ClubNotifications
             ->with('zone:id,name')
             ->orderBy('club_zone_id')
             ->orderBy('number')
-            ->get(['id', 'club_zone_id', 'number', 'device_name', 'last_seen_at']);
+            ->get(['id', 'club_zone_id', 'number', 'display_name', 'device_name', 'last_seen_at']);
 
         if ($computers->isEmpty()) {
             return [];

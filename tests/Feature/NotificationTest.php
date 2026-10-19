@@ -51,7 +51,8 @@ test('managers see activity, stock, offline PCs, subscription and invitation not
     Product::factory()->create(['name' => 'Вода', 'quantity' => 40]);
 
     $zone = ClubZone::query()->create(['name' => 'Зал']);
-    ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 1, 'device_name' => 'PC-01', 'status' => 'online', 'last_seen_at' => now()->subMinutes(10)]);
+    // A diskless club: every PC has the Windows name of the image; the club map name is what staff know.
+    ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 1, 'display_name' => 'PC-01', 'device_name' => 'PC191', 'status' => 'online', 'last_seen_at' => now()->subMinutes(10)]);
     ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 2, 'device_name' => 'PC-02', 'status' => 'offline', 'last_seen_at' => now()->subMinutes(10)]);
     ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 3, 'device_name' => 'PC-03', 'status' => 'online', 'last_seen_at' => now()]);
 
