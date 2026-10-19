@@ -1,0 +1,67 @@
+name: zafiro_staff
+description: "Zafiro Staff — приложение для сотрудников клуба"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  http: ^1.6.0
+  flutter_secure_storage: ^11.2.0
+  intl: ^0.20.3
+  flutter_localizations:
+    sdk: flutter
+  flutter_svg: ^2.3.0
+  font_awesome_flutter: ^11.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  # Inter — шрифт сайта zafiro.kz (SIL OFL, assets/fonts/Inter-LICENSE.txt).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
+
+# Иконка из логотипа сайта (public/images/logo.svg): dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: assets/icon/icon_background.png
+  adaptive_icon_foreground: assets/icon/icon_foreground.png
+  min_sdk_android: 21
+
+# Экран запуска: светлый и тёмный, как панель сайта: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#f3f6f4"
+  color_dark: "#0c110e"
+  image: assets/icon/icon_foreground.png
+  android_12:
+    color: "#f3f6f4"
+    color_dark: "#0c110e"
+    image: assets/icon/icon_foreground.png
