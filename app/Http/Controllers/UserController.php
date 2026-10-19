@@ -18,6 +18,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -42,7 +43,11 @@ class UserController extends Controller
             ->orderBy('user_id')
             ->paginate(25);
 
-        return view('users', ['users' => $users, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty]);
+        $staffElsewhere = ClubMembership::query()->withoutGlobalScope('club')
+            ->whereIn('user_id', $users->pluck('user_id'))->whereIn('role', ClubRoles::STAFF)
+            ->distinct()->pluck('user_id')->flip();
+
+        return view('users', ['users' => $users, 'staffElsewhere' => $staffElsewhere, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty]);
     }
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
@@ -81,6 +86,7 @@ class UserController extends Controller
     public function update(Request $request, ClubMembership $membership, ActivityLogger $activity): RedirectResponse
     {
         $user = $this->customer($membership);
+        $accountLocked = $this->isStaffElsewhere($user);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique((new User)->getTable(), 'email')->ignore($user->getKey())],
@@ -91,6 +97,11 @@ class UserController extends Controller
             'discount.prohibited' => __('Скидку клиента задаёт менеджер.'),
             'top_up_amount.prohibited' => __('Пополнять баланс без кассы может только владелец клуба.'),
         ]);
+        // A worker of another club: the name and email are of the account — this club changes only
+        // its own discount and balance.
+        if ($accountLocked && ($data['name'] !== $user->name || ($data['email'] ?? null) !== $user->email)) {
+            throw ValidationException::withMessages(['name' => __('Это сотрудник другого клуба: имя и email меняет он сам. Здесь меняются только скидка и баланс.')]);
+        }
         $topUp = isset($data['top_up_amount']) ? round((float) $data['top_up_amount'], 2) : 0.0;
 
         DB::transaction(function () use ($user, $membership, $data, $topUp, $request, $activity): void {
@@ -135,6 +146,8 @@ class UserController extends Controller
     public function resetPassword(Request $request, ClubMembership $membership, ActivityLogger $activity): Response
     {
         $user = $this->customer($membership);
+        // The password of a worker opens the other club's admin: never shown to this club's staff.
+        abort_if($this->isStaffElsewhere($user), 403, __('Это сотрудник другого клуба: пароль он восстанавливает сам («Забыли пароль?»).'));
         $password = Str::password(8, symbols: false);
 
         DB::transaction(function () use ($user, $password): void {
@@ -150,13 +163,20 @@ class UserController extends Controller
             ->header('Cache-Control', 'no-store, private');
     }
 
-    /** Only customers: staff of any club and superadmins are not changed from here. */
+    /**
+     * Only customers of this club. A worker of another club may play here: this club changes their
+     * discount and balance, not the account (name, email, password). Superadmins are not changed.
+     */
     private function customer(ClubMembership $membership): User
     {
         $user = User::query()->findOrFail($membership->user_id);
-        $isStaffSomewhere = ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $user->getKey())->whereIn('role', ClubRoles::STAFF)->exists();
-        abort_if(ClubRoles::isStaff($membership->role) || $isStaffSomewhere || $user->isSuperadmin(), 403, __('Сотрудников меняют на странице «Работники».'));
+        abort_if(ClubRoles::isStaff($membership->role) || $user->isSuperadmin(), 403, __('Сотрудников меняют на странице «Работники».'));
 
         return $user;
+    }
+
+    private function isStaffElsewhere(User $user): bool
+    {
+        return ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $user->getKey())->whereIn('role', ClubRoles::STAFF)->exists();
     }
 }

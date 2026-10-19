@@ -2,9 +2,11 @@
 
 use App\Models\ActivityLog;
 use App\Models\CashTransaction;
+use App\Models\Club;
 use App\Models\ClubMembership;
 use App\Models\MemberBalance;
 use App\Models\User;
+use App\Services\CurrentClub;
 use App\Services\GuestHistory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -54,3 +56,23 @@ test('other staff cannot top up without the cash register', function (string $ro
         ->assertSessionHasErrors('top_up_amount');
     expect(MemberBalance::query()->where('user_id', $customer->id)->value('balance'))->toBe('100.00');
 })->with(['admin', 'manager', 'cashier']);
+
+test('a worker of another club plays here: this club changes the discount and balance, not the account', function () {
+    [$owner, $customer, $membership] = topUpCustomer();
+    $otherClub = Club::query()->create(['name' => 'Другой клуб', 'slug' => 'worker-elsewhere']);
+    $current = app(CurrentClub::class)->get();
+    app(CurrentClub::class)->set($otherClub);
+    ClubMembership::query()->create(['user_id' => $customer->id, 'role' => 'admin', 'discount' => 0]);
+    app(CurrentClub::class)->set($current);
+
+    $this->actingAs($owner)->get(route('users.index'))->assertOk()
+        ->assertSee('data-account-locked', false)->assertDontSee(route('users.password', $membership), false);
+    $this->patch(route('users.update', $membership), ['name' => 'Арман', 'email' => $customer->email, 'discount' => '7', 'top_up_amount' => '300', 'top_up_balance' => 'balance'])
+        ->assertSessionHasNoErrors();
+    $this->patch(route('users.update', $membership), ['name' => 'Чужое имя', 'email' => $customer->email])->assertSessionHasErrors('name');
+    $this->post(route('users.password', $membership))->assertForbidden();
+
+    expect($membership->fresh()->discount)->toBe('7.00')
+        ->and(MemberBalance::query()->where('user_id', $customer->id)->sole()->balance)->toBe('400.00')
+        ->and($customer->fresh()->name)->toBe('Арман');
+});

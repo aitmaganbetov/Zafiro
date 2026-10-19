@@ -1628,6 +1628,9 @@ return [
         'Клиент другого клуба стал клиентом этого клуба на ПК :computer: :user' => 'A customer of another club joined this club on PC :computer: :user',
         'Вы ещё не клиент этого клуба. Нажмите «Зарегистрироваться» и введите номер и пароль от своего аккаунта Zafiro.' => 'You are not a customer of this club yet. Press “Sign up” and enter the number and password of your Zafiro account.',
         'Клиент другого клуба присоединился на ПК' => 'Customer of another club joined on a PC',
+        'Это сотрудник другого клуба: имя и email меняет он сам. Здесь меняются только скидка и баланс.' => 'This is a worker of another club: they change the name and email themselves. Only the discount and balance are changed here.',
+        'Это сотрудник другого клуба: пароль он восстанавливает сам («Забыли пароль?»).' => 'This is a worker of another club: they reset the password themselves (“Forgot password?”).',
+        'Это сотрудник другого клуба: имя, email и пароль он меняет сам. Здесь меняются только скидка и баланс.' => 'This is a worker of another club: they change the name, email and password themselves. Only the discount and balance are changed here.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
