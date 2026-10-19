@@ -52,6 +52,10 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
             ->get('/me', [AuthController::class, 'me'])
             ->name('me');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+        // The mobile app: the account's clubs and moving to another one (no subscription check:
+        // a customer of an expired club can still move to an active one).
+        Route::get('/clubs', [AuthController::class, 'clubs'])->middleware('throttle:30,1,api.auth.clubs')->name('clubs');
+        Route::post('/switch-club', [AuthController::class, 'switchClub'])->middleware('throttle:10,1,api.auth.switch-club')->name('switch-club');
     });
 });
 
@@ -129,6 +133,9 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::post('/guest/friends/{friendship}/accept', [GuestFriendController::class, 'accept'])->middleware('throttle:30,1,api.guest.friends.accept')->name('api.guest.friends.accept');
     Route::post('/guest/friends/{friendship}/remove', [GuestFriendController::class, 'remove'])->middleware('throttle:30,1,api.guest.friends.remove')->name('api.guest.friends.remove');
     Route::post('/guest/friends/{friendship}/transfer', [GuestFriendController::class, 'transfer'])->middleware('throttle:10,1,api.guest.friends.transfer')->name('api.guest.friends.transfer');
+    // Mobile app: the transfer is confirmed with a code from Telegram instead of the password.
+    Route::post('/guest/friends/{friendship}/transfer/code', [GuestFriendController::class, 'transferCode'])->middleware('throttle:5,1,api.guest.friends.transfer.code')->name('api.guest.friends.transfer.code');
+    Route::post('/guest/friends/{friendship}/transfer/confirm', [GuestFriendController::class, 'transferConfirm'])->middleware('throttle:10,1,api.guest.friends.transfer.confirm')->name('api.guest.friends.transfer.confirm');
     // Time by the minute at the zone's hourly price.
     Route::get('/guest/minutes', [GuestMinutesController::class, 'show'])->middleware('throttle:60,1,api.guest.minutes')->name('api.guest.minutes');
     Route::post('/guest/minutes/purchase', [GuestMinutesController::class, 'purchase'])->middleware('throttle:10,1,api.guest.minutes.purchase')->name('api.guest.minutes.purchase');

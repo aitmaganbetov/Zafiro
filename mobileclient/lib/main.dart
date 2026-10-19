@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'api/api_client.dart';
+import 'screens/club_picker.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'session.dart';
@@ -43,9 +44,13 @@ class ZafiroClientApp extends StatelessWidget {
           if (session.restoring) {
             return const Scaffold(body: Center(child: BrandMark(height: 44)));
           }
-          return session.signedIn
-              ? HomeScreen(session: session)
-              : LoginScreen(session: session);
+          if (!session.signedIn) return LoginScreen(session: session);
+          if (session.choosingClub) return ClubChoiceScreen(session: session);
+          // Новый клуб — экраны с его данными создаются заново.
+          return HomeScreen(
+            key: ValueKey(session.clubVersion),
+            session: session,
+          );
         },
       ),
     );

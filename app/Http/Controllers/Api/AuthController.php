@@ -129,9 +129,80 @@ class AuthController extends Controller
         } else {
             $payload['token'] = $token;
             $payload['access_token'] = $token;
+            // The mobile app lets a member of several clubs pick one after signing in.
+            $payload['clubs'] = $this->clubList($user, $membership->club_id);
         }
 
         return response()->json($payload);
+    }
+
+    /** Clubs of the signed-in account, for the club switcher in the mobile app. */
+    public function clubs(Request $request, CurrentClub $currentClub): JsonResponse
+    {
+        return response()->json(['clubs' => $this->clubList($request->user(), $currentClub->id())]);
+    }
+
+    /**
+     * The mobile app moves to another club of the account: a token for that club replaces
+     * the current one (tokens belong to one club).
+     */
+    public function switchClub(Request $request, ActivityLogger $activity, CurrentClub $currentClub): JsonResponse
+    {
+        $clubId = (int) $request->validate(['club_id' => ['required', 'integer']])['club_id'];
+        $user = $request->user();
+
+        if ($user->isBlocked()) {
+            return response()->json(['message' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.'), 'code' => 'account_blocked'], 403);
+        }
+
+        $membership = ClubMembership::query()
+            ->withoutGlobalScope('club')
+            ->with('club')
+            ->where('user_id', $user->getKey())
+            ->where('club_id', $clubId)
+            ->first();
+
+        if (! $membership) {
+            return response()->json(['message' => __('У аккаунта нет доступа к выбранному клубу.')], 403);
+        }
+
+        $currentClub->set($membership->club, $membership);
+        if (ClubSubscription::query()->where('club_id', $clubId)->first()?->isActive() !== true) {
+            return response()->json(['message' => __('Подписка клуба не активна.')], 402);
+        }
+
+        $current = $user->currentAccessToken();
+        $expiresAt = now()->addDays(30);
+        $token = $user->createToken($current->name ?: 'mobile', ['club:'.$clubId], $expiresAt)->plainTextToken;
+        $current->delete();
+        $activity->record('auth.api_club_switched', __('Смена клуба в приложении: :user', ['user' => $user->name]), $user->getKey(), $user);
+
+        return response()->json([
+            'token_type' => 'Bearer',
+            'expires_at' => $expiresAt->toIso8601String(),
+            'token' => $token,
+            'access_token' => $token,
+            'user' => $this->userData($user, $request),
+            'club_id' => $clubId,
+            'club_name' => $membership->club->name,
+            'clubs' => $this->clubList($user, $clubId),
+        ]);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, current: bool}>
+     */
+    private function clubList(User $user, ?int $currentClubId): array
+    {
+        return ClubMembership::query()
+            ->withoutGlobalScope('club')
+            ->join('clubs', 'clubs.id', '=', 'club_memberships.club_id')
+            ->where('club_memberships.user_id', $user->getKey())
+            ->orderBy('clubs.name')
+            ->get(['clubs.id', 'clubs.name'])
+            ->map(fn ($club): array => ['id' => (int) $club->id, 'name' => (string) $club->name, 'current' => (int) $club->id === $currentClubId])
+            ->values()
+            ->all();
     }
 
     public function me(Request $request): JsonResponse

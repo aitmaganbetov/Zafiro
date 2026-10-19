@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'club_picker.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key, required this.session});
@@ -62,6 +63,10 @@ class ProfileTab extends StatelessWidget {
                   icon: FontAwesomeIcons.store,
                   label: 'Клуб',
                   value: session.clubName,
+                  action: session.clubs.length > 1 ? 'Сменить' : null,
+                  onTap: session.clubs.length > 1
+                      ? () => showClubSwitcher(context, session)
+                      : null,
                 ),
               ],
             ],
@@ -87,15 +92,23 @@ class ProfileTab extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.icon, required this.label, required this.value});
+  const _Row({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.action,
+    this.onTap,
+  });
 
   final FaIconData icon;
   final String label;
   final String value;
+  final String? action;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
@@ -117,8 +130,24 @@ class _Row extends StatelessWidget {
               ],
             ),
           ),
+          if (action != null) ...[
+            Text(
+              action!,
+              style: const TextStyle(
+                color: Brand.accentSoft,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const FaIcon(
+              FontAwesomeIcons.chevronRight,
+              size: 12,
+              color: Brand.accentSoft,
+            ),
+          ],
         ],
       ),
     );
+    return onTap == null ? row : InkWell(onTap: onTap, child: row);
   }
 }

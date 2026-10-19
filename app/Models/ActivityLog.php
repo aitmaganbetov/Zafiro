@@ -51,6 +51,7 @@ class ActivityLog extends Model
         'auth.logout' => 'Выход из системы',
         'auth.api_login' => 'Вход через API',
         'auth.api_logout' => 'Выход через API',
+        'auth.api_club_switched' => 'Смена клуба в приложении',
         'user.created' => 'Создание пользователя',
         'user.balance_topped_up' => 'Пополнение баланса пользователя',
         'user.updated' => 'Изменение клиента',

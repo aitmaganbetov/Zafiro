@@ -65,4 +65,43 @@ void main() {
     expect(pcLoginCode('WIFI:S:club;P:secret;;'), isNull);
     expect(pcLoginCode(null), isNull);
   });
+
+  test('вход: список клубов аккаунта и текущий клуб', () {
+    final result = LoginResult.fromJson({
+      'access_token': 't',
+      'club_id': 2,
+      'club_name': 'Beta',
+      'user': {'id': 1, 'name': 'A'},
+      'clubs': [
+        {'id': 1, 'name': 'Alpha', 'current': false},
+        {'id': 2, 'name': 'Beta', 'current': true},
+      ],
+    });
+    expect(result.clubs.map((c) => c.name), ['Alpha', 'Beta']);
+    expect(result.clubs.where((c) => c.current).single.id, 2);
+    expect(
+      LoginResult.fromJson({
+        'access_token': 't',
+        'user': {'id': 1},
+      }).clubs,
+      isEmpty,
+    );
+  });
+
+  test('друзья: возможности клуба и группы заявок', () {
+    final overview = FriendsOverview.fromJson({
+      'features': {'friends': true, 'balance_transfer': false},
+      'friends': [
+        {'id': 3, 'name': 'Dana', 'phone': '+7 *** 77'},
+      ],
+      'incoming': [],
+      'outgoing': [
+        {'id': 4, 'name': 'Erlan', 'phone': null},
+      ],
+    });
+    expect(overview.friendsEnabled, isTrue);
+    expect(overview.transfersEnabled, isFalse);
+    expect(overview.friends.single.id, 3);
+    expect(overview.outgoing.single.phone, '');
+  });
 }

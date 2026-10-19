@@ -36,19 +36,46 @@ class Profile {
 class LoginResult {
   LoginResult({
     required this.token,
+    required this.clubId,
     required this.clubName,
     required this.profile,
+    this.clubs = const [],
   });
 
   factory LoginResult.fromJson(Map<String, dynamic> json) => LoginResult(
     token: json['access_token'] as String,
+    clubId: json['club_id'] as int? ?? 0,
     clubName: json['club_name'] as String? ?? '',
     profile: Profile.fromJson(json['user'] as Map<String, dynamic>),
+    clubs: ClubInfo.listFromJson(json['clubs']),
   );
 
   final String token;
+  final int clubId;
   final String clubName;
   final Profile profile;
+
+  /// Все клубы аккаунта: несколько — гость выбирает клуб после входа.
+  final List<ClubInfo> clubs;
+}
+
+class ClubInfo {
+  ClubInfo({required this.id, required this.name, this.current = false});
+
+  factory ClubInfo.fromJson(Map<String, dynamic> json) => ClubInfo(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    current: json['current'] as bool? ?? false,
+  );
+
+  static List<ClubInfo> listFromJson(Object? value) =>
+      (value as List? ?? const [])
+          .map((e) => ClubInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  final int id;
+  final String name;
+  final bool current;
 }
 
 class NewsItem {
@@ -147,4 +174,64 @@ class QrLoginInfo {
 
   final String computer;
   final String clubName;
+}
+
+class Friend {
+  Friend({required this.id, required this.name, required this.phone});
+
+  factory Friend.fromJson(Map<String, dynamic> json) => Friend(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    phone: json['phone'] as String? ?? '',
+  );
+
+  /// Номер дружбы (friendship), по нему принимают, удаляют и переводят.
+  final int id;
+  final String name;
+
+  /// Только последние цифры номера.
+  final String phone;
+}
+
+class FriendsOverview {
+  FriendsOverview({
+    required this.friendsEnabled,
+    required this.transfersEnabled,
+    required this.friends,
+    required this.incoming,
+    required this.outgoing,
+  });
+
+  factory FriendsOverview.fromJson(Map<String, dynamic> json) {
+    List<Friend> list(Object? value) => (value as List? ?? const [])
+        .map((e) => Friend.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final features = json['features'] as Map<String, dynamic>? ?? const {};
+    return FriendsOverview(
+      friendsEnabled: features['friends'] as bool? ?? false,
+      transfersEnabled: features['balance_transfer'] as bool? ?? false,
+      friends: list(json['friends']),
+      incoming: list(json['incoming']),
+      outgoing: list(json['outgoing']),
+    );
+  }
+
+  /// Включено в настройках клуба («Гости»).
+  final bool friendsEnabled;
+  final bool transfersEnabled;
+  final List<Friend> friends;
+  final List<Friend> incoming;
+  final List<Friend> outgoing;
+}
+
+class CodeSent {
+  CodeSent({required this.message, required this.resendSeconds});
+
+  factory CodeSent.fromJson(Map<String, dynamic> json) => CodeSent(
+    message: json['message'] as String? ?? '',
+    resendSeconds: json['resend_seconds'] as int? ?? 60,
+  );
+
+  final String message;
+  final int resendSeconds;
 }

@@ -5,6 +5,8 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'balance_tab.dart';
+import 'club_picker.dart';
+import 'friends_tab.dart';
 import 'history_tab.dart';
 import 'news_tab.dart';
 import 'profile_tab.dart';
@@ -44,7 +46,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (session.clubName.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: _ClubChip(session.clubName),
+              child: GestureDetector(
+                onTap: session.clubs.length > 1
+                    ? () => showClubSwitcher(context, session)
+                    : null,
+                child: _ClubChip(session.clubName),
+              ),
             ),
         ],
       ),
@@ -53,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           BalanceTab(session: session),
           NewsTab(api: session.api),
+          FriendsTab(session: session),
           HistoryTab(api: session.api),
           ProfileTab(session: session),
         ],
@@ -74,6 +82,10 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(
               icon: FaIcon(FontAwesomeIcons.newspaper),
               label: 'Новости',
+            ),
+            NavigationDestination(
+              icon: FaIcon(FontAwesomeIcons.userGroup),
+              label: 'Друзья',
             ),
             NavigationDestination(
               icon: FaIcon(FontAwesomeIcons.clockRotateLeft),

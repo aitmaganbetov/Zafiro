@@ -60,6 +60,54 @@ class ApiClient {
       (await _send('POST', '/guest/qr-login/$code'))['message'] as String? ??
       '';
 
+  /// Клубы аккаунта (текущий отмечен).
+  Future<List<ClubInfo>> clubs() async =>
+      ClubInfo.listFromJson((await _send('GET', '/auth/clubs'))['clubs']);
+
+  /// Перейти в другой клуб: сервер выдаёт новый токен, старый перестаёт работать.
+  Future<LoginResult> switchClub(int clubId) async => LoginResult.fromJson(
+    await _send('POST', '/auth/switch-club', body: {'club_id': clubId}),
+  );
+
+  Future<FriendsOverview> friends() async =>
+      FriendsOverview.fromJson(await _send('GET', '/guest/friends'));
+
+  /// Заявка в друзья по номеру; возвращает сообщение сервера.
+  Future<String> addFriend(String phone) async =>
+      (await _send('POST', '/guest/friends', body: {'phone': phone}))['message']
+          as String? ??
+      '';
+
+  Future<void> acceptFriend(int friendshipId) =>
+      _send('POST', '/guest/friends/$friendshipId/accept');
+
+  Future<void> removeFriend(int friendshipId) =>
+      _send('POST', '/guest/friends/$friendshipId/remove');
+
+  /// Код в Telegram для подтверждения перевода именно этой суммы этому другу.
+  Future<CodeSent> transferCode(int friendshipId, String amount) async =>
+      CodeSent.fromJson(
+        await _send(
+          'POST',
+          '/guest/friends/$friendshipId/transfer/code',
+          body: {'amount': amount},
+        ),
+      );
+
+  /// Перевод по коду из Telegram; возвращает сообщение «Переведено …».
+  Future<String> transferConfirm(
+    int friendshipId,
+    String amount,
+    String code,
+  ) async =>
+      (await _send(
+            'POST',
+            '/guest/friends/$friendshipId/transfer/confirm',
+            body: {'amount': amount, 'code': code},
+          ))['message']
+          as String? ??
+      '';
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {

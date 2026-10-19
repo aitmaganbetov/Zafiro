@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Friendship;
 use App\Services\Friends;
+use App\Services\FriendTransferCodes;
 use App\Services\GuestFeatures;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -70,6 +71,39 @@ class GuestFriendController extends Controller
         }
         $amount = (string) $data['amount'];
         $result = $this->friends->transfer($friendship, $request->user(), $amount);
+
+        return response()->json([
+            'message' => __('Переведено :amount.', ['amount' => $result['amount']]),
+            'balance' => $result['balance'],
+        ]);
+    }
+
+    /** Mobile app: a code to the account's Telegram confirming this transfer (instead of the password). */
+    public function transferCode(Request $request, Friendship $friendship, FriendTransferCodes $codes): JsonResponse
+    {
+        $this->features->ensure('balance_transfer');
+        $amount = (string) $request->validate(['amount' => ['required', 'string', 'max:20']])['amount'];
+        $codes->send($friendship, $request->user(), $amount);
+
+        return response()->json([
+            'message' => __('Код для подтверждения перевода отправлен в Telegram. Код действует :minutes мин.', ['minutes' => FriendTransferCodes::CODE_MINUTES]),
+            'code_minutes' => FriendTransferCodes::CODE_MINUTES,
+            'resend_seconds' => FriendTransferCodes::RESEND_SECONDS,
+        ]);
+    }
+
+    /** Mobile app: the transfer with the code from Telegram. */
+    public function transferConfirm(Request $request, Friendship $friendship, FriendTransferCodes $codes): JsonResponse
+    {
+        $this->features->ensure('balance_transfer');
+        $data = $request->validate([
+            'amount' => ['required', 'string', 'max:20'],
+            'code' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ], [
+            'code.required' => __('Введите код из Telegram.'),
+            'code.regex' => __('Код — 6 цифр из сообщения в Telegram.'),
+        ]);
+        $result = $codes->confirm($friendship, $request->user(), (string) $data['amount'], $data['code']);
 
         return response()->json([
             'message' => __('Переведено :amount.', ['amount' => $result['amount']]),

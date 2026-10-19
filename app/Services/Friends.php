@@ -173,7 +173,7 @@ class Friends
         return $friendship;
     }
 
-    private static function amountToCents(string $amount): int
+    public static function amountToCents(string $amount): int
     {
         $amount = str_replace(',', '.', trim($amount));
         if (! preg_match('/^\d{1,10}(\.\d{1,2})?$/', $amount)) {
