@@ -1,7 +1,11 @@
 <?php
 
+use App\Models\ChatMessage;
+use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
+use App\Models\Friendship;
+use App\Models\MemberBalance;
 use App\Models\User;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
@@ -89,4 +93,33 @@ test('a heartbeat that changes nothing is not written while last_seen_at is fres
     expect($writes(fn () => $beat(['state' => 'locked'])))->toBe(1)
         ->and($pc->fresh()->last_seen_at->getTimestamp())->toBe(now()->getTimestamp())
         ->and($pc->fresh()->connectionStatus())->toBe('online');
+});
+
+test('with the customer token the heartbeat brings their balance and what is new for them', function () {
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 4]);
+    $device = app(ClubComputerSessions::class)->issueAgentToken($pc);
+    $clubId = app(CurrentClub::class)->id();
+    $customer = User::factory()->create();
+    MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 1500, 'bonus_balance' => 200]);
+    $friend = User::factory()->create();
+    Friendship::query()->create(['requester_id' => $friend->id, 'addressee_id' => $customer->id]);
+    ChatMessage::query()->create(['customer_id' => $customer->id, 'from_staff' => false, 'body' => 'Привет']);
+    $reply = ChatMessage::query()->create(['customer_id' => $customer->id, 'from_staff' => true, 'body' => 'Здравствуйте']);
+    $token = $customer->createToken('PC', ['club:'.$clubId])->plainTextToken;
+    $beat = function (array $headers) use ($device) {
+        app('auth')->forgetGuards();
+        app(CurrentClub::class)->clear();
+
+        return test()->postJson(route('api.agent.heartbeat'), ['state' => 'idle'], ['X-Agent-Token' => $device, ...$headers])->assertOk();
+    };
+
+    $beat(['Authorization' => 'Bearer '.$token])->assertJsonPath('customer', [
+        'user_id' => $customer->id, 'balance' => 1500, 'bonus_balance' => 200, 'friend_requests' => 1, 'chat_last_staff_id' => $reply->id,
+    ]);
+    // Without a customer, or with a token of another club, there is nothing about anyone.
+    $beat([])->assertJsonPath('customer', null);
+    $other = Club::query()->create(['name' => 'Другой', 'slug' => 'hb-other']);
+    $foreign = $customer->createToken('PC', ['club:'.$other->id])->plainTextToken;
+    $beat(['Authorization' => 'Bearer '.$foreign])->assertJsonPath('customer', null);
+    $beat(['Authorization' => 'Bearer not-a-token'])->assertJsonPath('customer', null);
 });

@@ -659,6 +659,8 @@ namespace ZafiroAgent.Views
                         ShowComputer();
                         ShowSignInImage();
                         ApplyGuestSession(check.Value);
+                        // Клуб включил QR, пока экран входа открыт: код появляется без перезапуска.
+                        if (_relogin && _setup.QrLoginEnabled == true && !_qrRunning) _ = RunQrLoginAsync();
                     }
                     // Раз в 15 с: этот запрос — почти вся нагрузка свободных ПК на сервер, а гостевое время,
                     // которое подключил кассир, открывает ПК не позже чем через 15 с. Пока токена ПК нет
@@ -771,6 +773,16 @@ namespace ZafiroAgent.Views
             _qrRunning = true;
             try
             {
+                // Включён ли QR в клубе, приходит с первой проверкой гостевой сессии (до ~10 с):
+                // выключенный QR не запрашивается вовсе. Неизвестно (старый сервер) — пробуем, как раньше.
+                for (var wait = 0; wait < 20 && _setup.QrLoginEnabled is null; wait++)
+                    await Task.Delay(500, _cts.Token);
+                if (_setup.QrLoginEnabled == false)
+                {
+                    QrPanel.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
                 while (!_cts.IsCancellationRequested)
                 {
                     var start = await _setup.StartQrLoginAsync(_cts.Token);

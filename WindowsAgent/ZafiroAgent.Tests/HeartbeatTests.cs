@@ -115,6 +115,36 @@ public sealed class HeartbeatTests : IDisposable
     private static Task Finish(HeartbeatService service) => service.StopAsync(null, TimeSpan.FromSeconds(1));
 
     [Fact]
+    public async Task DeviceHeartbeat_SendsCustomerToken_AndReadsTheirBalanceAndCounters()
+    {
+        var handler = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK,
+            """{"computer_id":45,"status":"online","recommended_interval_seconds":30,"customer":{"user_id":9,"balance":1500.5,"bonus_balance":200,"friend_requests":2,"chat_last_staff_id":77}}"""));
+        var api = new ZafiroApiClient(new HttpClient(handler), () => Now);
+        var session = new ClubSession(1, "Club", new Uri("https://zafiro.kz/api/"), Token, Now.AddDays(1));
+        var request = new HeartbeatRequest(ComputerState.Idle, null, "1.2.3", "TEST-PC", HardwareSnapshot.Empty);
+
+        var heartbeat = await api.SendHeartbeatAsync(session, 45, request, CancellationToken.None, "device-token");
+
+        var sent = Assert.Single(handler.Snapshot());
+        Assert.Equal("https://zafiro.kz/api/agent/heartbeat", sent.Url.AbsoluteUri);
+        Assert.Equal("device-token", sent.AgentToken);
+        Assert.Equal("Bearer " + Token, sent.Authorization);
+        Assert.Equal(new CustomerState(1500.5m, 200m, 2, 77), heartbeat.Customer);
+    }
+
+    [Fact]
+    public async Task DeviceHeartbeat_WithoutCustomerBlock_LeavesItEmpty()
+    {
+        var handler = new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK, HeartbeatJson()));
+        var api = new ZafiroApiClient(new HttpClient(handler), () => Now);
+        var session = new ClubSession(1, "Club", new Uri("https://zafiro.kz/api/"), Token, Now.AddDays(1));
+
+        var heartbeat = await api.SendHeartbeatAsync(session, 45, new HeartbeatRequest(ComputerState.Idle, null, "1.2.3", "TEST-PC", HardwareSnapshot.Empty), CancellationToken.None, "device-token");
+
+        Assert.Null(heartbeat.Customer);
+    }
+
+    [Fact]
     public async Task Start_ResolvesComputerThenSendsStatusWithBearerToken()
     {
         var (service, handler, config) = Create();

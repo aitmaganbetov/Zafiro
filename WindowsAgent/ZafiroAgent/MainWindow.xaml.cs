@@ -328,7 +328,17 @@ namespace ZafiroAgent
                     {
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
-                        _ = RefreshBalanceAsync();
+                        if (hb.Customer is { } customer)
+                        {
+                            // Баланс и счётчики пришли с heartbeat: отдельно сервер не спрашиваем.
+                            _balanceRefreshedAtUtc = DateTime.UtcNow;
+                            SendMessageToWeb(JsonSerializer.Serialize(new { type = "balance", balance = customer.Balance, bonus = customer.BonusBalance, manual = false }));
+                            SendMessageToWeb(JsonSerializer.Serialize(new { type = "customerCounters", friendRequests = customer.FriendRequests, chatLastStaffId = customer.ChatLastStaffId }));
+                        }
+                        else
+                        {
+                            _ = RefreshBalanceAsync(); // сервер без блока customer: как раньше
+                        }
                         if (hb.ClubReported) App.Instance.Covers.SetBranding(hb.ClubName, hb.ClubLogoUrl);
                         ApplyClubLanguage(hb);
                         ApplyAfterSessionSettings(hb);

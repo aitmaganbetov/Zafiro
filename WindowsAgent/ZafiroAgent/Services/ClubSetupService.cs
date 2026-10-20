@@ -329,6 +329,7 @@ namespace ZafiroAgent.Services
             var root = result.Value;
             RememberComputer(root);
             RememberSignInImage(root);
+            RememberQrLogin(root);
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
                 ? now.ToUniversalTime() - DateTimeOffset.UtcNow
@@ -439,6 +440,17 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Картинка экрана входа клуба: запоминается, чтобы после перезапуска показать её сразу.</summary>
+        /// <summary>Вход по QR-коду включён в клубе (club.guest_features.qr_login); null — ещё неизвестно.</summary>
+        public bool? QrLoginEnabled { get; private set; }
+
+        private void RememberQrLogin(JsonElement root)
+        {
+            if (root.TryGetProperty("club", out var club) && club.ValueKind == JsonValueKind.Object &&
+                club.TryGetProperty("guest_features", out var features) && features.ValueKind == JsonValueKind.Object &&
+                features.TryGetProperty("qr_login", out var qr) && qr.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                QrLoginEnabled = qr.GetBoolean();
+        }
+
         private void RememberSignInImage(JsonElement root)
         {
             // Сервер старой версии о картинке не сообщает: тогда сохранённую не трогаем.

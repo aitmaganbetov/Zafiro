@@ -272,7 +272,7 @@ namespace ZafiroAgent.Services
         }
 
         /// <summary>Запрос относительно api_base_url с Bearer-токеном. 401/402/403 приводят к ZafiroApiException.</summary>
-        public async Task<HttpResponseMessage> SendAuthorizedAsync(ClubSession session, HttpMethod method, string relativePath, HttpContent? content, CancellationToken cancellationToken, string? deviceToken = null)
+        public async Task<HttpResponseMessage> SendAuthorizedAsync(ClubSession session, HttpMethod method, string relativePath, HttpContent? content, CancellationToken cancellationToken, string? deviceToken = null, bool withUserToken = false)
         {
             var baseUri = WithTrailingSlash(session.ApiBaseUrl);
             if (!TryValidateHttpsEndpoint(baseUri.AbsoluteUri, out _) ||
@@ -290,6 +290,8 @@ namespace ZafiroAgent.Services
             else
             {
                 request.Headers.Add("X-Agent-Token", deviceToken);
+                if (withUserToken && !string.IsNullOrEmpty(session.Token))
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
                 // Без службы токен ПК отправляет сам агент — вместе с UUID этого ПК. Через службу
                 // UUID подставляет она: агенту в сеансе клиента здесь не доверяют.
                 if (deviceToken != DeviceTokens.VaultMarker && DeviceInfo.StableId is { Length: > 0 } deviceId)
@@ -532,7 +534,8 @@ namespace ZafiroAgent.Services
             var path = deviceToken is null
                 ? $"club-computers/{computerId.ToString(CultureInfo.InvariantCulture)}/heartbeat"
                 : "agent/heartbeat";
-            using var response = await SendAuthorizedAsync(session, HttpMethod.Post, path, content, cancellationToken, deviceToken).ConfigureAwait(false);
+            // С токеном ПК идёт и токен клиента: в ответе — его баланс и счётчики друзей и чата.
+            using var response = await SendAuthorizedAsync(session, HttpMethod.Post, path, content, cancellationToken, deviceToken, withUserToken: true).ConfigureAwait(false);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -609,6 +612,7 @@ namespace ZafiroAgent.Services
             }
 
             heartbeat.SessionExpired = root.TryGetProperty("session_expired", out var expired) && expired.ValueKind == JsonValueKind.True;
+            heartbeat.Customer = ReadCustomer(root);
             if (TryGetString(root, "server_time", out var serverTime) &&
                 DateTimeOffset.TryParse(serverTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var serverNow))
                 heartbeat.ServerTimeUtc = serverNow.ToUniversalTime();
@@ -645,6 +649,17 @@ namespace ZafiroAgent.Services
             }
 
             return heartbeat;
+        }
+
+        private static CustomerState? ReadCustomer(JsonElement root)
+        {
+            if (!root.TryGetProperty("customer", out var customer) || customer.ValueKind != JsonValueKind.Object) return null;
+            static decimal Money(JsonElement value) => value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number) ? number : 0m;
+            return new CustomerState(
+                customer.TryGetProperty("balance", out var balance) ? Money(balance) : 0m,
+                customer.TryGetProperty("bonus_balance", out var bonus) ? Money(bonus) : 0m,
+                customer.TryGetProperty("friend_requests", out var requests) && requests.ValueKind == JsonValueKind.Number && requests.TryGetInt32(out var count) ? Math.Max(0, count) : 0,
+                customer.TryGetProperty("chat_last_staff_id", out var chat) && chat.ValueKind == JsonValueKind.Number && chat.TryGetInt64(out var lastId) ? lastId : 0);
         }
 
         private static string? ReadZoneName(JsonElement root) =>

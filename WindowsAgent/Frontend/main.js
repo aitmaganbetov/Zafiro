@@ -1062,6 +1062,8 @@
   const chatInput = document.getElementById('chatInput');
   const chatBadge = document.getElementById('chatBadge');
   let chatAfter = 0;
+  // Сервер присылает с heartbeat счётчики друзей и чата: тогда фоновые опросы не нужны.
+  let countersFromServer = false;
   let chatUnread = 0;
   let chatLoading = false;
 
@@ -1094,7 +1096,7 @@
   let chatTicks = 0;
   setInterval(() => {
     chatTicks += 1;
-    if (currentView === 'chat' || chatTicks % 6 === 0) requestChat();
+    if (currentView === 'chat' || (!countersFromServer && chatTicks % 6 === 0)) requestChat();
   }, 5000);
 
   document.getElementById('chatForm').addEventListener('submit', (event) => {
@@ -1388,6 +1390,13 @@
     }
 
     // Баланс обновляется сам (раз в ~20 с): пополнение на кассе видно без повторного входа.
+    if (event.data?.type === 'customerCounters') {
+      // Счётчики с heartbeat: друзья и чат запрашиваются, только когда в них появилось новое.
+      countersFromServer = true;
+      if ((Number(event.data.friendRequests) || 0) !== friendsData.incoming.length) requestFriends();
+      if ((Number(event.data.chatLastStaffId) || 0) > chatAfter) requestChat();
+    }
+
     if (event.data?.type === 'balance') {
       applyBalances(event.data.balance, event.data.bonus);
       if (event.data.manual) {
@@ -1428,8 +1437,8 @@
       // Пока ПК не определился в клубе (сразу после запуска), поминутная цена не загружается:
       // с первым heartbeat ПК уже известен — пробуем снова, не дожидаясь перехода в «Тарифы».
       if (minuteOffer === null) requestMinutes();
-      // С каждым heartbeat (~30 с): новые заявки в друзья видны без перезахода.
-      requestFriends();
+      // Старый сервер не присылает счётчики: заявки в друзья — с каждым heartbeat, как раньше.
+      if (!countersFromServer) requestFriends();
     }
 
     if (event.data?.type === 'friends') {

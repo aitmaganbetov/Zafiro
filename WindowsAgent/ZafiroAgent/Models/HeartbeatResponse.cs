@@ -40,5 +40,12 @@ namespace ZafiroAgent.Models
 
         // Через сколько минут без оплаченной сессии вошедший клиент выходит из аккаунта (0 — не выходит).
         public int? IdleLogoutMinutes { get; set; }
+
+        // Вошедший клиент (агент отправил его токен вместе с heartbeat): баланс и что у него нового.
+        // null — сервер старой версии: агент опрашивает баланс, друзей и чат сам, как раньше.
+        public CustomerState? Customer { get; set; }
     }
+
+    /// <summary>Баланс клиента, число входящих заявок в друзья и id последнего ответа сотрудника в чате.</summary>
+    public sealed record CustomerState(decimal Balance, decimal BonusBalance, int FriendRequests, long ChatLastStaffId);
 }

@@ -8,9 +8,12 @@ use App\Http\Requests\RegisterClubComputerRequest;
 use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\UpdateClubComputerLayoutRequest;
 use App\Http\Requests\UpdateClubComputerRequest;
+use App\Models\ChatMessage;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
+use App\Models\Friendship;
 use App\Models\Language;
+use App\Models\MemberBalance;
 use App\Services\ActivityLogger;
 use App\Services\AgentTariffPurchaseService;
 use App\Services\ClubComputerRegistrar;
@@ -25,6 +28,7 @@ use App\Services\TranslationCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -242,7 +246,39 @@ class ClubComputerController extends Controller
     {
         $computer = $request->attributes->get('agent_computer');
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $request->validated(), $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true]) === []);
+        return $this->heartbeatResponse(
+            $sessions->heartbeat($computer, $request->validated(), $request->ip()),
+            array_diff_key($request->validated(), ['fresh_boot' => true]) === [],
+            $this->customerState($request, $computer),
+        );
+    }
+
+    /**
+     * The agent sends the signed-in customer's token with the heartbeat: their balance and what is
+     * new for them ride on the answer, so the agent does not poll /api/me, friends and the chat.
+     * Only a valid token of this club counts, and it shows only its owner's own data.
+     *
+     * @return array{user_id: int, balance: float, bonus_balance: float, friend_requests: int, chat_last_staff_id: int}|null
+     */
+    private function customerState(Request $request, ClubComputer $computer): ?array
+    {
+        if ($request->bearerToken() === null) {
+            return null;
+        }
+        $user = Auth::guard('sanctum')->user();
+        $token = $user?->currentAccessToken();
+        if ($token === null || ! $token->can('club:'.$computer->club_id)) {
+            return null;
+        }
+        $balance = MemberBalance::query()->where('user_id', $user->getKey())->first(['balance', 'bonus_balance']);
+
+        return [
+            'user_id' => $user->getKey(),
+            'balance' => (float) ($balance?->balance ?? 0),
+            'bonus_balance' => (float) ($balance?->bonus_balance ?? 0),
+            'friend_requests' => Friendship::query()->where('addressee_id', $user->getKey())->whereNull('accepted_at')->count(),
+            'chat_last_staff_id' => (int) ChatMessage::query()->where('customer_id', $user->getKey())->where('from_staff', true)->max('id'),
+        ];
     }
 
     /** Ends the paid session early: its owner or club staff. */
@@ -262,7 +298,7 @@ class ClubComputerController extends Controller
     }
 
     /** @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result */
-    private function heartbeatResponse(array $result, bool $emptyHeartbeat): JsonResponse
+    private function heartbeatResponse(array $result, bool $emptyHeartbeat, ?array $customer = null): JsonResponse
     {
         $computer = $result['computer'];
         $computer->loadMissing('zone');
@@ -304,6 +340,8 @@ class ClubComputerController extends Controller
             'server_time' => now()->utc()->format('Y-m-d\TH:i:s.vP'),
             'recommended_interval_seconds' => $recommendedInterval,
             'heartbeat_interval_seconds' => $recommendedInterval,
+            // The signed-in customer (when the agent sent their token): balance and counters.
+            'customer' => $customer,
         ]);
     }
 
