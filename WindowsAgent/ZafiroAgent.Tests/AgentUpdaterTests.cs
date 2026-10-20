@@ -33,7 +33,7 @@ public sealed class AgentUpdaterTests : IDisposable
     }
 
     private static string OfferJson(string version = "0.0.70", string url = Url, string? sha = null) =>
-        $$"""{"status":"online","agent_update":{"version":"{{version}}","url":"{{url}}","sha256":"{{sha ?? InstallerSha}}"}}""";
+        $$$"""{"status":"online","agent_update":{"version":"{{{version}}}","url":"{{{url}}}","sha256":"{{{sha ?? InstallerSha}}}"}}""";
 
     private static HttpResponseMessage File(byte[] bytes, Uri? servedFrom = null)
     {
