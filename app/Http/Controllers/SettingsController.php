@@ -222,6 +222,7 @@ class SettingsController extends Controller
                 'max_operators_on_shift',
                 'agent_idle_logout_minutes',
                 'agent_shop_enabled',
+                'agent_auto_update',
             ],
             'finances' => [
                 'currency',
@@ -249,6 +250,7 @@ class SettingsController extends Controller
             'allow_adding_friends',
             'allow_balance_transfer_to_friends',
             'agent_shop_enabled',
+            'agent_auto_update',
             'guest_mode_enabled',
         ];
 
@@ -310,7 +312,7 @@ class SettingsController extends Controller
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {
-            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled'], true)) {
+            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled', 'agent_auto_update'], true)) {
                 $settings['club'][$field] = $this->minutes($settings['club'][$field]);
             }
         }
@@ -334,6 +336,8 @@ class SettingsController extends Controller
                 // A customer signed in on a PC without a paid session is signed out after these minutes; 0 — never.
                 'agent_idle_logout_minutes' => GuestFeatures::DEFAULT_IDLE_LOGOUT_MINUTES,
                 'agent_shop_enabled' => true,
+                // The agent service installs a new agent release itself (see AgentUpdate::offerFor).
+                'agent_auto_update' => true,
             ],
             'finances' => [
                 'currency' => 'KZT',
@@ -370,6 +374,7 @@ class SettingsController extends Controller
                 'max_operators_on_shift' => __('Сколько операторов может быть на смене'),
                 'agent_idle_logout_minutes' => __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)'),
                 'agent_shop_enabled' => __('Включить магазин в агенте'),
+                'agent_auto_update' => __('Автообновление агента'),
             ],
             'finances' => [
                 'currency' => __('Валюта'),

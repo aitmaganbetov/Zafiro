@@ -217,6 +217,14 @@
                     <label class="text-sm"><span class="mb-1 block text-gray-600">{{ __('Дата выпуска') }}</span><input type="date" name="released_at" required value="{{ old('released_at', isset($agentRelease['released_at']) ? substr($agentRelease['released_at'], 0, 10) : now()->toDateString()) }}" class="{{ $input }}"></label>
                 </div>
                 <label class="block text-sm"><span class="mb-1 block text-gray-600">{{ __('Ссылка на скачивание (https)') }}</span><input type="url" name="download_url" maxlength="500" placeholder="https://github.com/…/releases/tag/agent-v1.2.0" value="{{ old('download_url', $agentRelease['download_url'] ?? '') }}" class="{{ $input }}"></label>
+                <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" name="auto_update" value="1" class="mt-1" @checked(old('auto_update', $agentRelease['auto_update'] ?? false))>
+                    <span>{{ __('Автообновление: служба агента на свободных ПК сама установит эту версию с GitHub (сборка agent-v… с контрольной суммой). Клуб может выключить его в настройках.') }}</span>
+                </label>
+                @error('auto_update')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                @if(($agentRelease['auto_update'] ?? false) && isset($agentRelease['installer_sha256']))
+                    <p class="break-all text-xs text-gray-500">{{ __('Установщик: :url', ['url' => $agentRelease['installer_url'] ?? '']) }} · SHA-256 <span class="font-mono">{{ $agentRelease['installer_sha256'] }}</span></p>
+                @endif
                 <div class="flex flex-wrap gap-2">
                     <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Объявить версию') }}</button>
                 </div>

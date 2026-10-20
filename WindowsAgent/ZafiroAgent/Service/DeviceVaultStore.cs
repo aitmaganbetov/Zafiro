@@ -34,9 +34,13 @@ namespace ZafiroAgent.Service
             var dir = new DirectoryInfo(directory);
             if (restrictAccess) CreateTrusted(dir);
             else dir.Create();
+            FolderPath = dir.FullName;
             _path = Path.Combine(dir.FullName, "device.json");
             _deviceId = deviceId ?? (() => null);
         }
+
+        /// <summary>Папка службы (в службе — с доступом только для SYSTEM и администраторов).</summary>
+        public string FolderPath { get; }
 
         /// <summary>UUID этого ПК (SMBIOS): служба отправляет его серверу вместе с токеном.</summary>
         public string? DeviceId => _deviceId();

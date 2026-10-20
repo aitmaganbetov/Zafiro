@@ -36,6 +36,7 @@ class ClubComputer extends Model
             'session_guest' => 'boolean',
             'last_seen_at' => 'datetime',
             'session_ends_at' => 'datetime',
+            'agent_update_offered_at' => 'datetime',
             'cpu_cores' => 'integer',
             'ram_total_mb' => 'integer',
             'hardware_reported_at' => 'datetime',

@@ -42,6 +42,8 @@ class HeartbeatClubComputerRequest extends FormRequest
             'os_version' => ['sometimes', 'nullable', 'string', 'max:255'],
             // First report of the agent since Windows started: a guest session is reset.
             'fresh_boot' => ['sometimes', 'boolean'],
+            // Sent by the agent service, which can install an agent update itself.
+            'can_update' => ['sometimes', 'boolean'],
         ];
     }
 }

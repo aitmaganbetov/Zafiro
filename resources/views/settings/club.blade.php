@@ -53,6 +53,14 @@
             <input type="hidden" name="agent_shop_enabled" value="0">
             <input id="agent_shop_enabled" type="checkbox" role="switch" name="agent_shop_enabled" value="1" class="settings-switch" @checked(old('agent_shop_enabled', $settings['club']['agent_shop_enabled'] ?? true))>
         </div>
+        <div class="rounded-xl border border-gray-200 p-4 md:col-span-2 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <label for="agent_auto_update" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Автообновление агента') }}</label>
+                <input type="hidden" name="agent_auto_update" value="0">
+                <input id="agent_auto_update" type="checkbox" role="switch" name="agent_auto_update" value="1" class="settings-switch" @checked(old('agent_auto_update', $settings['club']['agent_auto_update'] ?? true))>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">{{ __('Новая версия агента ставится сама, когда ПК свободен: никто не вошёл и нет оплаченной сессии. На бездисковой системе обновление пропадает после перезагрузки — выключите автообновление и обновите агент в образе на сервере загрузки.') }}</p>
+        </div>
     </div>
 </x-settings.card>
 

@@ -16,6 +16,7 @@ use App\Models\Language;
 use App\Models\MemberBalance;
 use App\Services\ActivityLogger;
 use App\Services\AgentTariffPurchaseService;
+use App\Services\AgentUpdate;
 use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
@@ -232,7 +233,7 @@ class ClubComputerController extends Controller
             $data = array_intersect_key($data, array_flip(['state', 'session_id', 'session_ends_at', 'agent_version']));
         }
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true]) === []);
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true, 'can_update' => true]) === []);
     }
 
     /** New device token for this PC; the one in the request stops working. */
@@ -242,14 +243,17 @@ class ClubComputerController extends Controller
     }
 
     /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
-    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions): JsonResponse
+    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions, AgentUpdate $updates): JsonResponse
     {
         $computer = $request->attributes->get('agent_computer');
 
+        $result = $sessions->heartbeat($computer, $request->validated(), $request->ip());
+
         return $this->heartbeatResponse(
-            $sessions->heartbeat($computer, $request->validated(), $request->ip()),
-            array_diff_key($request->validated(), ['fresh_boot' => true]) === [],
+            $result,
+            array_diff_key($request->validated(), ['fresh_boot' => true, 'can_update' => true]) === [],
             $this->customerState($request, $computer),
+            $request->boolean('can_update') ? $updates->offerFor($result['computer']) : null,
         );
     }
 
@@ -297,8 +301,11 @@ class ClubComputerController extends Controller
         ]);
     }
 
-    /** @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result */
-    private function heartbeatResponse(array $result, bool $emptyHeartbeat, ?array $customer = null): JsonResponse
+    /**
+     * @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result
+     * @param  array{version: string, url: string, sha256: string}|null  $agentUpdate  the installer the agent service installs itself
+     */
+    private function heartbeatResponse(array $result, bool $emptyHeartbeat, ?array $customer = null, ?array $agentUpdate = null): JsonResponse
     {
         $computer = $result['computer'];
         $computer->loadMissing('zone');
@@ -342,6 +349,8 @@ class ClubComputerController extends Controller
             'heartbeat_interval_seconds' => $recommendedInterval,
             // The signed-in customer (when the agent sent their token): balance and counters.
             'customer' => $customer,
+            // A newer agent the service installs itself while the PC is free (see AgentUpdate::offerFor).
+            'agent_update' => $agentUpdate,
         ]);
     }
 

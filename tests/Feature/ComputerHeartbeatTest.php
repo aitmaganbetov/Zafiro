@@ -6,7 +6,9 @@ use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Friendship;
 use App\Models\MemberBalance;
+use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Services\AgentUpdate;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -122,4 +124,53 @@ test('with the customer token the heartbeat brings their balance and what is new
     $foreign = $customer->createToken('PC', ['club:'.$other->id])->plainTextToken;
     $beat(['Authorization' => 'Bearer '.$foreign])->assertJsonPath('customer', null);
     $beat(['Authorization' => 'Bearer not-a-token'])->assertJsonPath('customer', null);
+});
+
+test('the agent service of a free outdated PC is offered the update a few times', function () {
+    $sha = str_repeat('ab', 32);
+    PlatformSetting::write(PlatformSetting::AGENT_RELEASE, [
+        'latest_version' => '0.0.70', 'released_at' => '2026-10-20', 'download_url' => null,
+        'auto_update' => true, 'installer_url' => AgentUpdate::installerUrl('0.0.70'), 'installer_sha256' => $sha,
+    ], null);
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 5]);
+    $pc->forceFill(['agent_version' => '0.0.62', 'agent_state' => 'locked'])->save();
+    $device = app(ClubComputerSessions::class)->issueAgentToken($pc);
+    $club = app(CurrentClub::class)->get();
+    $probe = function (array $body = ['can_update' => true]) use ($device) {
+        app(CurrentClub::class)->clear();
+
+        return test()->postJson(route('api.agent.heartbeat'), $body, ['X-Agent-Token' => $device])->assertOk();
+    };
+    $offer = ['version' => '0.0.70', 'url' => 'https://github.com/aitmaganbetov/Zafiro/releases/download/agent-v0.0.70/ZafiroAgentSetup-0.0.70.exe', 'sha256' => $sha];
+
+    // Only the service asks; the agent window does not get it.
+    $probe(['state' => 'locked'])->assertJsonPath('agent_update', null);
+    // The service probe stays an empty heartbeat: the PC status is the one shown to staff.
+    $probe()->assertJsonPath('agent_update', $offer)->assertJsonPath('status', $pc->fresh()->currentStatus());
+    // The next offer only after a pause.
+    $probe()->assertJsonPath('agent_update', null);
+
+    // A diskless PC loses the update on restart: after MAX_OFFERS offers it is no longer offered.
+    for ($i = 1; $i < AgentUpdate::MAX_OFFERS; $i++) {
+        $this->travel(AgentUpdate::OFFER_INTERVAL_MINUTES + 1)->minutes();
+        $probe()->assertJsonPath('agent_update', $offer);
+    }
+    $this->travel(AgentUpdate::OFFER_INTERVAL_MINUTES + 1)->minutes();
+    $probe()->assertJsonPath('agent_update', null);
+
+    // A PC somebody is signed in on, an updated PC and a club that turned auto-update off get nothing.
+    $pc->forceFill(['agent_update_offers' => 0, 'agent_update_offered_at' => null, 'agent_state' => 'idle'])->save();
+    $probe()->assertJsonPath('agent_update', null);
+    $pc->forceFill(['agent_state' => 'locked', 'agent_version' => '0.0.70'])->save();
+    $probe()->assertJsonPath('agent_update', null);
+    $pc->forceFill(['agent_version' => '0.0.62'])->save();
+    $club->forceFill(['settings' => ['club' => ['agent_auto_update' => false]]])->save();
+    $probe()->assertJsonPath('agent_update', null);
+    $club->forceFill(['settings' => ['club' => ['agent_auto_update' => true]]])->save();
+    $probe()->assertJsonPath('agent_update', $offer);
+
+    // Without auto-update in the release the panel still tells the club, the PCs install nothing.
+    $pc->forceFill(['agent_update_offers' => 0, 'agent_update_offered_at' => null])->save();
+    PlatformSetting::write(PlatformSetting::AGENT_RELEASE, ['latest_version' => '0.0.70', 'released_at' => '2026-10-20', 'auto_update' => false], null);
+    $probe()->assertJsonPath('agent_update', null);
 });

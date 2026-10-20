@@ -36,13 +36,15 @@ namespace ZafiroAgent.Service
         private readonly Action<uint> _resume;
         private readonly Action<uint, uint> _alive;
         private readonly Func<string?> _macAddress;
+        private readonly AgentUpdater? _updater;
         private readonly SemaphoreSlim _storeGate = new(1, 1);
         private readonly Dictionary<uint, int> _connections = new();
         private string? _rotatedFrom;
         private DateTime _enrollAfterUtc;
 
-        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null, Func<string?>? macAddress = null)
+        public VaultServer(string pipeName, DeviceVaultStore store, HttpClient http, Action<uint, TimeSpan>? staffExit = null, Action<uint>? resume = null, Action<uint, uint>? alive = null, Func<string?>? macAddress = null, AgentUpdater? updater = null)
         {
+            _updater = updater;
             _macAddress = macAddress ?? (() => null);
             _alive = alive ?? ((_, _) => { });
             _pipeName = pipeName;
@@ -312,8 +314,11 @@ namespace ZafiroAgent.Service
             {
                 if (_store.Load() is { } token)
                 {
-                    if (await ProbeAsync(token, cancellationToken).ConfigureAwait(false) == HttpStatusCode.Unauthorized)
+                    var (status, offer) = await CheckAsync(token, cancellationToken).ConfigureAwait(false);
+                    if (status == HttpStatusCode.Unauthorized)
                         await ForgetAsync(token, cancellationToken).ConfigureAwait(false);
+                    else if (offer is not null && _updater is not null)
+                        _ = _updater.TryInstallAsync(offer, cancellationToken);
                 }
                 else
                 {
@@ -399,6 +404,27 @@ namespace ZafiroAgent.Service
         }
 
         // Пустой heartbeat: сервер только отмечает ПК в сети и отвечает, действителен ли токен.
+        /// <summary>
+        /// Проверка токена раз в минуту. Служба с автообновлением сообщает, что может установить
+        /// новую версию, и сервер присылает её, когда ПК свободен.
+        /// </summary>
+        private async Task<(HttpStatusCode Status, AgentUpdateOffer? Offer)> CheckAsync(string token, CancellationToken cancellationToken)
+        {
+            if (_updater is null) return (await ProbeAsync(token, cancellationToken).ConfigureAwait(false), null);
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, VaultProtocol.HeartbeatEndpoint)
+            {
+                Content = new StringContent("{\"can_update\":true}", Encoding.UTF8, "application/json")
+            };
+            Sign(request, token);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode != HttpStatusCode.OK) return (response.StatusCode, null);
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            return (response.StatusCode, body.Length <= MaxBodyChars ? AgentUpdater.ParseOffer(body) : null);
+        }
+
         private async Task<HttpStatusCode> ProbeAsync(string token, CancellationToken cancellationToken)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, VaultProtocol.HeartbeatEndpoint)

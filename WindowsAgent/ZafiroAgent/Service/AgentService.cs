@@ -29,7 +29,11 @@ namespace ZafiroAgent.Service
             var forAdministrators = LaunchForAdministrators();
             _watchdog = new Watchdog(exe, forAdministrators);
             SafeLog.Write("[Service] agent starts for administrators too: " + (forAdministrators ? "yes" : "no"));
-            var server = new VaultServer(VaultProtocol.PipeName, new DeviceVaultStore(), ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive, () => DeviceInfo.MacAddress);
+            var store = new DeviceVaultStore();
+            // Установщики обновлений — в папке службы (доступ только у SYSTEM и администраторов).
+            var updater = new AgentUpdater(System.IO.Path.Combine(store.FolderPath, "update"), AgentUpdater.CreateDownloadClient(), DeviceInfo.AgentVersion);
+            updater.RemoveLeftovers();
+            var server = new VaultServer(VaultProtocol.PipeName, store, ZafiroApiClient.CreateDirectHttpClient(), _watchdog.Pause, _watchdog.Resume, _watchdog.Alive, () => DeviceInfo.MacAddress, updater);
             _work = Task.WhenAll(
                 Task.Run(() => server.RunAsync(_stop.Token)),
                 Task.Run(() => server.KeepOnlineAsync(TimeSpan.FromSeconds(60), _stop.Token)),

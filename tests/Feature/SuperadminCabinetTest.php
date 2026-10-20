@@ -8,13 +8,16 @@ use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
 use App\Models\ClubZone;
 use App\Models\PlatformLog;
+use App\Models\PlatformSetting;
 use App\Models\SaasPlan;
 use App\Models\Tariff;
 use App\Models\User;
+use App\Services\AgentUpdate;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 uses(RefreshDatabase::class);
@@ -278,4 +281,30 @@ test('the superadmin announces a new agent version and clubs with older agents a
 
     $this->actingAs($admin)->delete(route('superadmin.agent-release.destroy'))->assertSessionHasNoErrors();
     expect($notices())->not->toContain('agent-update-1.2.0');
+});
+
+test('auto-update is turned on only with the installer checksum from GitHub', function () {
+    $admin = cabinetAdmin();
+    $sha = str_repeat('0f', 32);
+    $url = AgentUpdate::installerUrl('1.3.0');
+    Http::fake([
+        $url.'.sha256' => Http::response(strtoupper($sha)."  ZafiroAgentSetup-1.3.0.exe\n"),
+        '*' => Http::response('Not Found', 404),
+    ]);
+
+    $this->actingAs($admin)->put(route('superadmin.agent-release.update'), ['latest_version' => '1.3.0', 'released_at' => '2026-10-20', 'auto_update' => '1'])
+        ->assertSessionHasNoErrors();
+    expect(PlatformSetting::read(PlatformSetting::AGENT_RELEASE))
+        ->toMatchArray(['auto_update' => true, 'installer_url' => $url, 'installer_sha256' => $sha])
+        ->and(app(AgentUpdate::class)->autoInstaller())->toBe(['version' => '1.3.0', 'url' => $url, 'sha256' => $sha]);
+    $this->get(route('superadmin.dashboard'))->assertOk()->assertSee($sha);
+
+    // A version not built on GitHub: nothing to check the download against, the release stays as it was.
+    $this->put(route('superadmin.agent-release.update'), ['latest_version' => '9.9.9', 'released_at' => '2026-10-20', 'auto_update' => '1'])
+        ->assertSessionHasErrors('auto_update');
+    expect(PlatformSetting::read(PlatformSetting::AGENT_RELEASE)['latest_version'])->toBe('1.3.0');
+
+    // Without the box the release is only announced.
+    $this->put(route('superadmin.agent-release.update'), ['latest_version' => '1.3.1', 'released_at' => '2026-10-20'])->assertSessionHasNoErrors();
+    expect(app(AgentUpdate::class)->autoInstaller())->toBeNull();
 });
