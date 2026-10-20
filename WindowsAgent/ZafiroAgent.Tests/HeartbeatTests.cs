@@ -1023,7 +1023,8 @@ public sealed class HeartbeatTests : IDisposable
 
         var beat = handler.Snapshot()[1];
         Assert.Equal("https://zafiro.kz/api/agent/heartbeat", beat.Url.AbsoluteUri);
-        Assert.Null(beat.Authorization);
+        // The customer token rides along so the reply can carry their balance and counters.
+        Assert.Equal("Bearer " + Token, beat.Authorization);
         Assert.Equal(DeviceToken, beat.AgentToken);
         Assert.Equal(DeviceToken, new SecureStorageService().Unprotect(config.Load().ProtectedDeviceToken));
         Assert.DoesNotContain(DeviceToken, File.ReadAllText(Path.Combine(_dir, "agent.config.json")));
