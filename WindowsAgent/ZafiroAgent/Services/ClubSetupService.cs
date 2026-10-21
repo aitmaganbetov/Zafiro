@@ -321,7 +321,7 @@ namespace ZafiroAgent.Services
             // Пока сервер не знает о новой загрузке Windows, запрос несёт этот сигнал: старая гостевая
             // сессия сбрасывается раньше, чем окно входа успело бы её показать.
             var freshBoot = Infrastructure.FreshBoot.Pending;
-            object body = freshBoot ? new { fresh_boot = true } : new { };
+            object body = freshBoot ? new { fresh_boot = true, commands = true } : new { commands = true };
             var result = await _api.PostWithDeviceTokenAsync(ZafiroApiClient.AgentHeartbeatEndpoint, body, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
             if (!result.Success) return ApiResult<GuestSession?>.Fail(result.Failure, result.Message);
             if (freshBoot) Infrastructure.FreshBoot.Reported();
@@ -330,6 +330,8 @@ namespace ZafiroAgent.Services
             RememberComputer(root);
             RememberSignInImage(root);
             RememberQrLogin(root);
+            Infrastructure.WakeOnLan.Send(StaffCommands.WakeMacs(root));
+            PendingPowerCommand = StaffCommands.PowerCommand(root) ?? PendingPowerCommand;
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
                 ? now.ToUniversalTime() - DateTimeOffset.UtcNow
@@ -442,6 +444,16 @@ namespace ZafiroAgent.Services
         /// <summary>Картинка экрана входа клуба: запоминается, чтобы после перезапуска показать её сразу.</summary>
         /// <summary>Вход по QR-коду включён в клубе (club.guest_features.qr_login); null — ещё неизвестно.</summary>
         public bool? QrLoginEnabled { get; private set; }
+
+        /// <summary>Команда сотрудника с экрана входа (restart, shutdown): её выполняет окно входа.</summary>
+        public string? PendingPowerCommand { get; private set; }
+
+        public string? TakePowerCommand()
+        {
+            var command = PendingPowerCommand;
+            PendingPowerCommand = null;
+            return command;
+        }
 
         private void RememberQrLogin(JsonElement root)
         {

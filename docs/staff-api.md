@@ -72,7 +72,10 @@ every `/staff` endpoint. `GET /staff/me` returns `permissions` — the app shows
 
 ### `POST /staff/computers/control` (permission `control`)
 `{computer_ids: [7, 8], action: "reserve" | "power_on" | "restart" | "power_off"}` →
-`{updated, status}` or, for `reserve` (toggles), `{updated, reserved, computers: [{id, status}]}`.
+`{updated, status, queued, message}` for `restart` / `power_off` (the agent takes the command with
+its next heartbeat), `{updated, status: null, woken, without_mac, relays, message}` for `power_on`
+(Wake-on-LAN sent by the club's running PCs), or, for `reserve` (toggles),
+`{updated, reserved, computers: [{id, status}]}`. Show `message` to the staff member.
 
 ### `POST /staff/computers/guest-session` (permission `guest_session`, needs an open shift)
 `{computer_ids: [7], tariff_id: 3}` or `{computer_ids: [7], minutes: 90}`, plus `payment_method: cash | card | qr` →

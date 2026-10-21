@@ -659,6 +659,13 @@ namespace ZafiroAgent.Views
                         ShowComputer();
                         ShowSignInImage();
                         ApplyGuestSession(check.Value);
+                        // Сотрудник перезагрузил или выключил ПК из панели или приложения.
+                        if (_setup.TakePowerCommand() is { } command)
+                        {
+                            SafeLog.Write("[Power] " + command + " by staff from the sign-in screen");
+                            if (!PowerControl.Run(command == "restart"))
+                                ErrorText.Text = L.T("Windows не дал выключить ПК. Обратитесь к администратору клуба.");
+                        }
                         // Клуб включил QR, пока экран входа открыт: код появляется без перезапуска.
                         if (_relogin && _setup.QrLoginEnabled == true && !_qrRunning) _ = RunQrLoginAsync();
                     }

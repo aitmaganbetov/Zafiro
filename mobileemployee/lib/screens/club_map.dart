@@ -285,12 +285,15 @@ FaIconData actionIcon(String action) => switch (action) {
   _ => FontAwesomeIcons.powerOff,
 };
 
-/// Текст после команды ПК из ответа {updated, status} / {updated, reserved}.
+/// Текст после команды ПК: сервер сам говорит, что будет (команда агенту, Wake-on-LAN или
+/// почему включить нельзя); без него — по ответу {updated, status} / {updated, reserved}.
 String controlMessage(String action, Json result) {
   final count = toInt(result['updated']);
   if (action == 'reserve') {
     return toBool(result['reserved']) ? 'Бронь включена' : 'Бронь снята';
   }
+  final message = result['message'];
+  if (message is String && message.isNotEmpty) return message;
   final what = switch (action) {
     'power_on' => 'Команда «Включить» отправлена',
     'restart' => 'Команда «Перезагрузить» отправлена',

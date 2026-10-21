@@ -360,6 +360,9 @@ paths:
         Scope: `computers:control` (dangerous). **Idempotency-Key required.** Up to 50
         PCs of the club per call. Restart and power off are refused for the whole
         batch when any PC has an active customer session (409 with `computer_ids`).
+        Restart and power off reach the agent with its next heartbeat (within a minute;
+        a command not taken in 2 minutes expires). Power on is sent as Wake-on-LAN by
+        the club's running PCs to PCs whose MAC is known; the PC stays offline until it boots.
       parameters: [{ $ref: "#/components/parameters/idempotencyKeyRequired" }]
       requestBody:
         required: true

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Services\ActivityLogger;
+use App\Services\ComputerPower;
 use App\Services\CurrentClub;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Support\ApiError;
@@ -68,16 +69,17 @@ class ComputerController extends ApiV1Controller
      * Power commands for up to integrations.max_bulk_items PCs of the key's club.
      * PCs with an active customer session are refused as a whole batch.
      */
-    public function control(Request $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
+    public function control(Request $request, ActivityLogger $activity, WebhookDispatcher $webhooks, ComputerPower $power): JsonResponse
     {
         $data = $request->validate([
             'computer_ids' => ['required', 'array', 'min:1', 'max:'.(int) config('integrations.max_bulk_items', 50)],
             'computer_ids.*' => ['required', 'integer', 'distinct', Rule::exists((new ClubComputer)->getTable(), 'id')->where('club_id', app(CurrentClub::class)->id())],
             'action' => ['required', Rule::in(['power_on', 'restart', 'power_off'])],
         ]);
-        $status = ['power_on' => 'online', 'restart' => 'restarting', 'power_off' => 'offline'][$data['action']];
+        // A PC being turned on stays offline until its agent reports.
+        $status = ['power_on' => null, 'restart' => 'restarting', 'power_off' => 'offline'][$data['action']];
 
-        $computers = DB::transaction(function () use ($data, $status, $activity, $request, $webhooks) {
+        $computers = DB::transaction(function () use ($data, $status, $activity, $request, $webhooks, $power) {
             $computers = ClubComputer::query()->whereKey($data['computer_ids'])->orderBy('number')->lockForUpdate()->get();
             $busy = $data['action'] === 'power_on' ? collect() : $computers->whereNotNull('current_session_id');
 
@@ -85,7 +87,10 @@ class ComputerController extends ApiV1Controller
                 throw new ApiError('conflict', 409, 'Some computers have an active customer session.', ['computer_ids' => $busy->pluck('id')->values()->all()]);
             }
 
-            ClubComputer::query()->whereKey($computers->modelKeys())->update(['status' => $status]);
+            if ($status !== null) {
+                ClubComputer::query()->whereKey($computers->modelKeys())->update(['status' => $status]);
+            }
+            $power->queue($computers->modelKeys(), $data['action']);
             $names = $computers->map(fn (ClubComputer $computer): string => $computer->displayName())->implode(', ');
             $activity->record('computer.controlled', __('Управление ПК (:action): :names', ['action' => $data['action'], 'names' => $names]), $this->actorId($request), null, [
                 'action' => $data['action'],

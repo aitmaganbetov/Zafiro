@@ -324,8 +324,10 @@ namespace ZafiroAgent
                         zone = hb.Zone
                     };
                     SendMessageToWeb(JsonSerializer.Serialize(payload));
+                    Infrastructure.WakeOnLan.Send(hb.WakeMacs);
                     Dispatcher.BeginInvoke(() =>
                     {
+                        if (hb.PowerCommand is { } command) _ = RunStaffPowerCommandAsync(command);
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
                         if (hb.Customer is { } customer)
@@ -491,6 +493,38 @@ namespace ZafiroAgent
             // Windows не дал выключить ПК: агент остаётся заблокированным и ждёт следующего входа.
             await HandleLogoutAsync();
         }
+
+        /// <summary>
+        /// Сотрудник перезагрузил или выключил ПК из панели или приложения: последний статус уходит на
+        /// сервер, клиент выходит (оплаченная сессия остаётся на сервере), затем Windows выключается.
+        /// </summary>
+        private async Task RunStaffPowerCommandAsync(string command)
+        {
+            if (_staffPowerRunning) return;
+            _staffPowerRunning = true;
+            SafeLog.Write("[Power] " + command + " by staff");
+            try
+            {
+                if (_heartbeatService is { } heartbeat)
+                {
+                    await heartbeat.StopAsync(ComputerState.ShuttingDown, TimeSpan.FromSeconds(2));
+                    heartbeat.Dispose();
+                    _heartbeatService = null;
+                }
+                await _clubSetup.SignOutAsync(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Power] final status failed: " + ex.Message);
+            }
+
+            if (PowerControl.Run(command == "restart")) return;
+
+            _staffPowerRunning = false;
+            await HandleLogoutAsync();
+        }
+
+        private bool _staffPowerRunning;
 
         private void CheckSessionTime()
         {

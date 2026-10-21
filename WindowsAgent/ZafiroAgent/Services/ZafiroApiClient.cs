@@ -524,7 +524,9 @@ namespace ZafiroAgent.Services
                 ["cpu_cores"] = hardware.CpuCores,
                 ["ram_total_mb"] = hardware.RamTotalMb,
                 ["gpu_model"] = hardware.GpuModel,
-                ["os_version"] = hardware.OsVersion
+                ["os_version"] = hardware.OsVersion,
+                // Агент выполняет команды сотрудников: перезагрузку, выключение и Wake-on-LAN.
+                ["commands"] = true
             };
 
             if (request.SessionEndsAtUtc is { } sessionEndsAtUtc)
@@ -613,6 +615,8 @@ namespace ZafiroAgent.Services
 
             heartbeat.SessionExpired = root.TryGetProperty("session_expired", out var expired) && expired.ValueKind == JsonValueKind.True;
             heartbeat.Customer = ReadCustomer(root);
+            heartbeat.PowerCommand = StaffCommands.PowerCommand(root);
+            heartbeat.WakeMacs = StaffCommands.WakeMacs(root);
             if (TryGetString(root, "server_time", out var serverTime) &&
                 DateTimeOffset.TryParse(serverTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var serverNow))
                 heartbeat.ServerTimeUtc = serverNow.ToUniversalTime();

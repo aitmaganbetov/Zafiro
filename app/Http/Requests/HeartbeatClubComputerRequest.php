@@ -44,6 +44,8 @@ class HeartbeatClubComputerRequest extends FormRequest
             'fresh_boot' => ['sometimes', 'boolean'],
             // Sent by the agent service, which can install an agent update itself.
             'can_update' => ['sometimes', 'boolean'],
+            // Sent by agents that carry out staff power commands (restart, shut down, Wake-on-LAN).
+            'commands' => ['sometimes', 'boolean'],
         ];
     }
 }

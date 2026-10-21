@@ -21,6 +21,7 @@ use App\Services\ClubComputerRegistrar;
 use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
+use App\Services\ComputerPower;
 use App\Services\CurrentClub;
 use App\Services\GuestFeatures;
 use App\Services\Integrations\WebhookDispatcher;
@@ -36,6 +37,9 @@ use Illuminate\Validation\ValidationException;
 
 class ClubComputerController extends Controller
 {
+    /** Heartbeat fields that are requests to the server, not the PC state: a heartbeat of only these is "empty". */
+    private const NON_STATE_FIELDS = ['fresh_boot', 'can_update', 'commands'];
+
     public function store(Request $request, ClubZone $clubMap, ClubZoneComputerService $computers, ActivityLogger $activity): RedirectResponse
     {
         abort_unless($clubMap->icon === 'desktop', 404);
@@ -139,7 +143,7 @@ class ClubComputerController extends Controller
         return back()->with('status', __('ПК :computer удалён.', ['computer' => $name]))->with('edit_mode', true);
     }
 
-    public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks): JsonResponse
+    public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks, ComputerPower $power): JsonResponse
     {
         $data = $request->validated();
         $logControl = function (string $action, int $updated) use ($data, $request, $activity): void {
@@ -169,21 +173,52 @@ class ClubComputerController extends Controller
             return response()->json(['updated' => $updated, 'reserved' => $reserved, 'computers' => $statuses]);
         }
 
+        // A PC being turned on stays offline until its agent reports; the others show the command.
         $status = match ($data['action']) {
-            'power_on' => 'online',
+            'power_on' => null,
             'restart' => 'restarting',
             'power_off' => 'offline',
         };
 
-        $updated = DB::transaction(function () use ($data, $status, $logControl, $webhooks): int {
-            $updated = ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
-            $logControl($data['action'], $updated);
+        $result = DB::transaction(function () use ($data, $status, $logControl, $webhooks, $power): array {
+            if ($status !== null) {
+                ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
+            }
+            $result = $power->queue(array_values($data['computer_ids']), $data['action']);
+            $logControl($data['action'], count($data['computer_ids']));
             $webhooks->dispatch('computer.controlled', ['computer_ids' => array_values($data['computer_ids']), 'action' => $data['action'], 'status' => $status]);
 
-            return $updated;
+            return $result;
         });
 
-        return response()->json(['updated' => $updated, 'status' => $status]);
+        return response()->json([
+            'updated' => count($data['computer_ids']),
+            'status' => $status,
+            ...$result,
+            'message' => $this->controlMessage($data['action'], $result),
+        ]);
+    }
+
+    /** @param  array<string, int>  $result */
+    private function controlMessage(string $action, array $result): string
+    {
+        if ($action !== 'power_on') {
+            return $action === 'restart'
+                ? trans_choice('Перезагрузка: ПК получит команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).', $result['queued'])
+                : trans_choice('Выключение: ПК получит команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).', $result['queued']);
+        }
+
+        if ($result['woken'] === 0) {
+            return __('Не удалось включить: агент ещё не сообщил MAC-адрес этих ПК.');
+        }
+
+        if ($result['relays'] === 0) {
+            return __('Включить некому: в клубе нет включённых ПК с агентом, который отправит сигнал Wake-on-LAN.');
+        }
+
+        return $result['without_mac'] > 0
+            ? __('Сигнал включения отправят другие ПК клуба (Wake-on-LAN): :count ПК. Без MAC-адреса: :missing.', ['count' => $result['woken'], 'missing' => $result['without_mac']])
+            : __('Сигнал включения отправят другие ПК клуба (Wake-on-LAN): :count ПК. В BIOS этих ПК должен быть включён Wake-on-LAN.', ['count' => $result['woken']]);
     }
 
     public function resolve(ResolveClubComputerRequest $request, ClubComputerResolver $computers, ClubComputerSessions $sessions): JsonResponse
@@ -233,7 +268,7 @@ class ClubComputerController extends Controller
             $data = array_intersect_key($data, array_flip(['state', 'session_id', 'session_ends_at', 'agent_version']));
         }
 
-        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), array_diff_key($request->validated(), ['fresh_boot' => true, 'can_update' => true]) === []);
+        return $this->heartbeatResponse($sessions->heartbeat($computer, $data, $request->ip()), array_diff_key($request->validated(), array_flip(self::NON_STATE_FIELDS)) === []);
     }
 
     /** New device token for this PC; the one in the request stops working. */
@@ -243,17 +278,23 @@ class ClubComputerController extends Controller
     }
 
     /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
-    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions, AgentUpdate $updates): JsonResponse
+    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions, AgentUpdate $updates, ComputerPower $power): JsonResponse
     {
         $computer = $request->attributes->get('agent_computer');
 
         $result = $sessions->heartbeat($computer, $request->validated(), $request->ip());
+        // Only agents that carry out staff power commands ask for them, so an older agent does not take one.
+        $commands = $request->boolean('commands') ? [
+            'power_command' => $power->take($result['computer']),
+            'wake_macs' => $power->wakeTargets($result['computer']),
+        ] : [];
 
         return $this->heartbeatResponse(
             $result,
-            array_diff_key($request->validated(), ['fresh_boot' => true, 'can_update' => true]) === [],
+            array_diff_key($request->validated(), array_flip(self::NON_STATE_FIELDS)) === [],
             $this->customerState($request, $computer),
             $request->boolean('can_update') ? $updates->offerFor($result['computer']) : null,
+            $commands,
         );
     }
 
@@ -304,8 +345,9 @@ class ClubComputerController extends Controller
     /**
      * @param  array{computer: ClubComputer, session: ?array, session_expired: bool}  $result
      * @param  array{version: string, url: string, sha256: string}|null  $agentUpdate  the installer the agent service installs itself
+     * @param  array{power_command?: ?string, wake_macs?: list<string>}  $commands  staff power commands, for agents that ask
      */
-    private function heartbeatResponse(array $result, bool $emptyHeartbeat, ?array $customer = null, ?array $agentUpdate = null): JsonResponse
+    private function heartbeatResponse(array $result, bool $emptyHeartbeat, ?array $customer = null, ?array $agentUpdate = null, array $commands = []): JsonResponse
     {
         $computer = $result['computer'];
         $computer->loadMissing('zone');
@@ -351,6 +393,7 @@ class ClubComputerController extends Controller
             'customer' => $customer,
             // A newer agent the service installs itself while the PC is free (see AgentUpdate::offerFor).
             'agent_update' => $agentUpdate,
+            ...$commands,
         ]);
     }
 
