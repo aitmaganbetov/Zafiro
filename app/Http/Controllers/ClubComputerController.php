@@ -203,9 +203,17 @@ class ClubComputerController extends Controller
     private function controlMessage(string $action, array $result): string
     {
         if ($action !== 'power_on') {
-            return $action === 'restart'
-                ? trans_choice('Перезагрузка: ПК получит команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).', $result['queued'])
-                : trans_choice('Выключение: ПК получит команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).', $result['queued']);
+            $ready = $result['queued'] - $result['outdated'];
+            if ($ready === 0) {
+                return __('Агент на этих ПК устарел и не выполнит команду: обновите его до версии :version или новее.', ['version' => ComputerPower::AGENT_VERSION]);
+            }
+            $message = $action === 'restart'
+                ? trans_choice('Перезагрузка: ПК получит команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).', $ready)
+                : trans_choice('Выключение: ПК получит команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).', $ready);
+
+            return $result['outdated'] > 0
+                ? $message.' '.__('На :count ПК агент устарел (нужна версия :version): они команду не выполнят.', ['count' => $result['outdated'], 'version' => ComputerPower::AGENT_VERSION])
+                : $message;
         }
 
         if ($result['woken'] === 0) {
@@ -213,7 +221,9 @@ class ClubComputerController extends Controller
         }
 
         if ($result['relays'] === 0) {
-            return __('Включить некому: в клубе нет включённых ПК с агентом, который отправит сигнал Wake-on-LAN.');
+            return $result['old_relays'] > 0
+                ? __('Включить некому: на включённых ПК клуба старый агент. Сигнал Wake-on-LAN отправляет агент версии :version или новее — обновите агент хотя бы на одном ПК.', ['version' => ComputerPower::AGENT_VERSION])
+                : __('Включить некому: в клубе нет включённых ПК с агентом, который отправит сигнал Wake-on-LAN.');
         }
 
         return $result['without_mac'] > 0

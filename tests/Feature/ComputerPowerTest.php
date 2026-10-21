@@ -10,11 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function powerPc(int $number, ?string $mac, bool $online): array
+function powerPc(int $number, ?string $mac, bool $online, string $agent = ComputerPower::AGENT_VERSION): array
 {
     $zone = ClubZone::query()->firstOrCreate(['name' => 'Hall']);
     $pc = ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => $number]);
-    $pc->forceFill(['mac_address' => $mac, 'last_seen_at' => $online ? now() : now()->subHour(), 'status' => $online ? 'online' : 'offline'])->save();
+    $pc->forceFill(['agent_version' => $agent, 'mac_address' => $mac, 'last_seen_at' => $online ? now() : now()->subHour(), 'status' => $online ? 'online' : 'offline'])->save();
 
     return [$pc, app(ClubComputerSessions::class)->issueAgentToken($pc)];
 }
@@ -86,4 +86,22 @@ test('turning on is refused in words when nobody can send the signal', function 
         ->assertOk()->assertJsonPath('message', 'Включить некому: в клубе нет включённых ПК с агентом, который отправит сигнал Wake-on-LAN.');
     $this->postJson(route('club-computers.control'), ['computer_ids' => [$noMac->id], 'action' => 'power_on'])
         ->assertOk()->assertJsonPath('message', 'Не удалось включить: агент ещё не сообщил MAC-адрес этих ПК.');
+});
+
+test('staff are told when the agents are too old to carry the commands out', function () {
+    $staff = User::factory()->create();
+    [$off] = powerPc(1, 'AA:BB:CC:00:00:01', false, '0.0.59');
+    [$oldRelay] = powerPc(2, 'AA:BB:CC:00:00:02', true, '0.0.59');
+    [$newPc] = powerPc(3, 'AA:BB:CC:00:00:03', true);
+
+    $this->actingAs($staff)->postJson(route('club-computers.control'), ['computer_ids' => [$off->id], 'action' => 'power_on'])
+        ->assertOk()->assertJson(['relays' => 1, 'old_relays' => 1]);
+    $newPc->forceFill(['last_seen_at' => now()->subHour()])->save();
+    $this->postJson(route('club-computers.control'), ['computer_ids' => [$off->id], 'action' => 'power_on'])
+        ->assertOk()->assertJsonPath('message', 'Включить некому: на включённых ПК клуба старый агент. Сигнал Wake-on-LAN отправляет агент версии 0.0.66 или новее — обновите агент хотя бы на одном ПК.');
+
+    $this->postJson(route('club-computers.control'), ['computer_ids' => [$oldRelay->id], 'action' => 'restart'])
+        ->assertOk()->assertJsonPath('message', 'Агент на этих ПК устарел и не выполнит команду: обновите его до версии 0.0.66 или новее.');
+    $this->postJson(route('club-computers.control'), ['computer_ids' => [$oldRelay->id, $newPc->id], 'action' => 'power_off'])
+        ->assertOk()->assertJsonPath('message', 'Выключение: ПК получит команду в течение минуты (1 ПК). На 1 ПК агент устарел (нужна версия 0.0.66): они команду не выполнят.');
 });
