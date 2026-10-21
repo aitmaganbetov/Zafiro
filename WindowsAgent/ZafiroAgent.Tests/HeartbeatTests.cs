@@ -463,7 +463,7 @@ public sealed class HeartbeatTests : IDisposable
             new[]
             {
                 "state", "session_id", "agent_version", "device_name", "mac_address", "local_ip",
-                "cpu_model", "cpu_cores", "ram_total_mb", "gpu_model", "os_version"
+                "cpu_model", "cpu_cores", "ram_total_mb", "gpu_model", "os_version", "commands"
             },
             root.EnumerateObject().Select(p => p.Name).ToArray());
 
