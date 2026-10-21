@@ -118,6 +118,7 @@ test('agent can list and purchase an eligible tariff for its active computer ses
     $membership = ClubMembership::query()->where('user_id', $user->id)->firstOrFail();
     $membership->update(['discount' => 10]);
     $token = $user->createToken('agent', ['club:'.$membership->club_id])->plainTextToken;
+    allowMixedPayment();
     $zone = ClubZone::query()->create(['name' => 'Игровой зал']);
     $computer = ClubComputer::query()->create([
         'club_zone_id' => $zone->id,

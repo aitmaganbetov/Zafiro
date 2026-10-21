@@ -28,8 +28,9 @@ class GuestMinutesController extends Controller
             // With the customer's discount when the club applies it to hourly time.
             'price_per_hour' => $zone?->price_per_hour === null ? null : $purchases->hourlyPrice($request->user(), $zone),
             'original_price_per_hour' => $zone?->price_per_hour,
-            // Up to what percent of the price bonuses may pay (0 — not at all).
-            'bonus_max_percent' => $rules->bonusMaxPercent(),
+            // Up to what percent of the price bonuses may pay (0 — the agent does not offer bonuses).
+            'bonus_max_percent' => $rules->bonusPercentOffered(),
+            'mixed_payment' => $rules->mixedPaymentAllowed(),
             'currency' => data_get($currentClub->settings(), 'finances.currency', 'KZT'),
             'min_minutes' => 1,
             'max_minutes' => self::MAX_MINUTES,

@@ -4,7 +4,8 @@ namespace App\Services;
 
 /**
  * How customers pay for time, set up by the club (Settings → Finances): where the discount
- * (personal or cumulative) works, and how much of a price bonuses may cover.
+ * (personal or cumulative) works, how much of a price bonuses may cover and whether one
+ * purchase may be paid from both balances at once (mixed payment).
  */
 class PaymentRules
 {
@@ -36,6 +37,23 @@ class PaymentRules
         $percent = data_get($this->currentClub->settings(), 'finances.bonus_max_percent', 100);
 
         return is_numeric($percent) ? max(0, min(100, (int) $percent)) : 100;
+    }
+
+    /** Bonuses for a part of the price and the rest from the main balance; off — one balance per purchase. */
+    public function mixedPaymentAllowed(): bool
+    {
+        return (bool) data_get($this->currentClub->settings(), 'finances.allow_mixed_payment', false);
+    }
+
+    /**
+     * The percent the agent offers to pay with bonuses: 0 — the agent does not ask (the main balance).
+     * Without mixed payment bonuses must pay the whole price, so a limit under 100% offers nothing.
+     */
+    public function bonusPercentOffered(bool $mainBalanceOnly = false): int
+    {
+        $percent = $mainBalanceOnly ? 0 : $this->bonusMaxPercent();
+
+        return $percent < 100 && ! $this->mixedPaymentAllowed() ? 0 : $percent;
     }
 
     /** The part of a price in cents bonuses may pay. */

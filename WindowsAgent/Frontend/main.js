@@ -144,11 +144,12 @@
     if (event.target === confirmDialog) finishConfirm(false);
   });
 
-  // Оплата времени: с основного баланса или бонусами (до процента клуба, остальное — с основного).
-  // Ответ — 'main', 'bonus' или null (отмена). Бонусами нельзя — без вопроса, с основного.
+  // Оплата времени: с основного баланса или бонусами. Смешанная оплата в клубе — бонусы до процента
+  // клуба, остальное с основного; без неё — бонусами вся цена. Ответ — 'main', 'bonus' или null
+  // (отмена). Бонусами нельзя — без вопроса, с основного.
   const payDialog = document.getElementById('payDialog');
   let payResolve = null;
-  const askBalance = (title, price, bonusPercent) => new Promise((resolve) => {
+  const askBalance = (title, price, bonusPercent, mixed) => new Promise((resolve) => {
     if (!(bonusPercent > 0)) {
       resolve('main');
       return;
@@ -156,8 +157,12 @@
     if (payResolve) payResolve(null);
     payResolve = resolve;
     document.getElementById('payTitle').textContent = title;
-    document.getElementById('payText').textContent = t('К оплате :price. Бонусами можно оплатить до :percent% цены, остальное — с основного баланса.', { price, percent: bonusPercent });
-    document.getElementById('payBonus').textContent = t('Бонусами (до :percent%)', { percent: bonusPercent });
+    document.getElementById('payText').textContent = mixed
+      ? t('К оплате :price. Можно оплатить смешанно: бонусами до :percent% цены, остальное — с основного баланса.', { price, percent: bonusPercent })
+      : t('К оплате :price. Оплата целиком с одного баланса: основного или бонусного.', { price });
+    document.getElementById('payBonus').textContent = mixed
+      ? t('Смешанно: бонусы до :percent% + основной', { percent: bonusPercent })
+      : t('С бонусного баланса');
     if (typeof payDialog.showModal === 'function') payDialog.showModal();
     else payDialog.setAttribute('open', '');
     document.getElementById('payMain').focus();
@@ -436,7 +441,7 @@
           return;
         }
 
-        const balance = await askBalance(name.textContent, price.textContent, tariff.bonus_allowed ? Number(tariff.bonus_max_percent) || 0 : 0);
+        const balance = await askBalance(name.textContent, price.textContent, tariff.bonus_allowed ? Number(tariff.bonus_max_percent) || 0 : 0, tariff.mixed_payment === true);
         if (!balance) return;
         setStatus(tariffPageStatus, 'Оформляем тариф…');
         tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => {
@@ -612,6 +617,23 @@
   const transferStatus = document.getElementById('transferStatus');
   const transferSubmit = document.getElementById('transferSubmit');
   const transferPassword = document.getElementById('transferPassword');
+  // Глаз у пароля: показать введённое; очищенный пароль снова скрыт.
+  const transferPasswordEye = document.getElementById('transferPasswordEye');
+  const showTransferPassword = (shown) => {
+    transferPassword.type = shown ? 'text' : 'password';
+    transferPasswordEye.setAttribute('aria-pressed', String(shown));
+    const label = shown ? t('Скрыть пароль') : t('Показать пароль');
+    transferPasswordEye.title = label;
+    transferPasswordEye.setAttribute('aria-label', label);
+  };
+  transferPasswordEye.addEventListener('click', () => {
+    showTransferPassword(transferPassword.type === 'password');
+    transferPassword.focus();
+  });
+  const clearTransferPassword = () => {
+    transferPassword.value = '';
+    showTransferPassword(false);
+  };
   const seatButton = document.getElementById('btnSeat');
   const seatDialog = document.getElementById('seatDialog');
   const seatStatus = document.getElementById('seatStatus');
@@ -696,7 +718,7 @@
         transferFriend = friend;
         document.getElementById('transferFriend').textContent = `${friend.name ?? ''} · ${friend.phone ?? ''}`;
         transferAmount.value = '';
-        transferPassword.value = '';
+        clearTransferPassword();
         setStatus(transferStatus, null);
         transferSubmit.disabled = false;
         openDialog(transferDialog);
@@ -750,7 +772,7 @@
     transferSubmit.disabled = true;
     setStatus(transferStatus, 'Переводим…');
     webview?.postMessage({ type: 'transferBalance', id: transferFriend.id, amount, password: transferPassword.value });
-    transferPassword.value = '';
+    clearTransferPassword();
   });
 
   // Карта для пересадки — те же зоны и места ПК, что на карте клуба в панели (координаты оттуда же).
@@ -947,7 +969,7 @@
   minuteBuy.addEventListener('click', async () => {
     const minutes = minuteCount();
     if (minutes === null || !webview) return;
-    const balance = await askBalance(t('Поминутно'), document.getElementById('minutePrice').textContent, Number(minuteOffer?.bonus_max_percent) || 0);
+    const balance = await askBalance(t('Поминутно'), document.getElementById('minutePrice').textContent, Number(minuteOffer?.bonus_max_percent) || 0, minuteOffer?.mixed_payment === true);
     if (!balance) return;
     minuteBuy.disabled = true;
     tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => { item.disabled = true; });
@@ -1535,7 +1557,7 @@
       shopPaying = false;
       renderCart();
       setStatus(actionStatus, null);
-      transferPassword.value = '';
+      clearTransferPassword();
       if (confirmResolve) finishConfirm(false);
       historyFilter = '';
       document.querySelectorAll('[data-history-filter]').forEach((item) => {

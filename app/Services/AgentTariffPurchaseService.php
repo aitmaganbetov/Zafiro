@@ -19,7 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class AgentTariffPurchaseService
 {
-    /** The customer's choice of balance in the agent: all from the main one, or bonuses (up to the club's percent) and the rest from the main one. */
+    /**
+     * The customer's choice of balance in the agent: all from the main one, or bonuses — the whole
+     * price, or (mixed payment in the club) up to the club's percent and the rest from the main one.
+     */
     public const BALANCES = ['main', 'bonus'];
 
     public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations, private LoyaltyProgram $loyalty, private PaymentRules $rules) {}
@@ -217,9 +220,10 @@ class AgentTariffPurchaseService
      * Charges the balance and starts or extends the customer's session on the locked PC.
      *
      * The price is paid by the customer's choice: "main" — all from the main balance; "bonus" —
-     * bonuses up to the club's percent of the price, the rest from the main balance; none (older
-     * agents) — the main balance first, then bonuses within the same limit. A tariff "main
-     * balance only" takes no bonuses. The part is written to the session (SessionSettlement).
+     * bonuses up to the club's percent of the price, the rest from the main balance when the club
+     * allows mixed payment (otherwise bonuses pay the whole price); none (older agents) — the main
+     * balance first, then bonuses the same way. A tariff "main balance only" takes no bonuses.
+     * The part is written to the session (SessionSettlement).
      *
      * @param  array{kind: string, tariff_id: ?int, name: string, expires_at: ?Carbon}  $part
      * @param  callable(array{bonus_payment: int, minutes: int, session_id: string, session_ends_at: Carbon}): void  $log
@@ -231,6 +235,7 @@ class AgentTariffPurchaseService
         $mainBalance = self::amountToCents((string) $balance->balance);
         $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
         $bonusLimit = $paymentMethod === 'main_balance_only' ? 0 : $this->rules->bonusLimitCents($price);
+        $mixed = $this->rules->mixedPaymentAllowed();
 
         if ($choice === 'bonus') {
             if ($bonusLimit === 0 && $price > 0) {
@@ -239,10 +244,18 @@ class AgentTariffPurchaseService
                     : __('В клубе бонусами нельзя оплачивать время.')]);
             }
             $bonusPayment = min($bonusBalance, $bonusLimit);
+            if (! $mixed && $bonusPayment < $price) {
+                throw ValidationException::withMessages(['balance' => $bonusLimit < $price
+                    ? __('Бонусами можно оплатить только :percent% цены, а смешанная оплата в клубе выключена. Оплатите с основного баланса.', ['percent' => $this->rules->bonusMaxPercent()])
+                    : __('Бонусов не хватает на всю цену. Оплатите с основного баланса.')]);
+            }
         } elseif ($choice === 'main') {
             $bonusPayment = 0;
-        } else {
+        } elseif ($mixed) {
             $bonusPayment = min($bonusLimit, max(0, $price - $mainBalance));
+        } else {
+            // One balance: the main one, or bonuses for the whole price when the main one is short.
+            $bonusPayment = $mainBalance < $price && $bonusLimit >= $price && $bonusBalance >= $price ? $price : 0;
         }
         $mainPayment = $price - $bonusPayment;
         if ($mainBalance < $mainPayment || $bonusBalance < $bonusPayment) {
@@ -357,9 +370,10 @@ class AgentTariffPurchaseService
             'original_price' => (string) $tariff->price,
             'currency' => $tariff->currency,
             'zone_ids' => $tariff->zones->modelKeys(),
-            // The agent offers "pay with bonuses" only when bonuses may pay a part of it.
-            'bonus_allowed' => $tariff->payment_method !== 'main_balance_only' && $this->rules->bonusMaxPercent() > 0,
-            'bonus_max_percent' => $tariff->payment_method === 'main_balance_only' ? 0 : $this->rules->bonusMaxPercent(),
+            // The agent offers "pay with bonuses" only when bonuses may pay for it (see PaymentRules).
+            'bonus_allowed' => $this->rules->bonusPercentOffered($tariff->payment_method === 'main_balance_only') > 0,
+            'bonus_max_percent' => $this->rules->bonusPercentOffered($tariff->payment_method === 'main_balance_only'),
+            'mixed_payment' => $this->rules->mixedPaymentAllowed(),
             // Unused time is kept until it burns this long after the purchase.
             'usage_limit_minutes' => $tariff->usage_limit_enabled ? $tariff->usage_limit_minutes : null,
         ];

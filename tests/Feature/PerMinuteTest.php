@@ -50,6 +50,7 @@ test('a customer buys minutes at the hourly price of the zone, main balance firs
     Carbon::setTestNow(Carbon::parse('2026-10-15 10:00:00', 'UTC'));
     $customer = User::factory()->create();
     MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 100, 'bonus_balance' => 50]);
+    allowMixedPayment();
     $zone = ClubZone::query()->create(['name' => 'Hall', 'price_per_hour' => 500]);
     $computer = ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => 1]);
     $deviceToken = app(ClubComputerSessions::class)->issueAgentToken($computer);

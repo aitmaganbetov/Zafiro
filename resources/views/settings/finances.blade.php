@@ -25,7 +25,7 @@
 
 <x-settings.card id="payment-rules">
     <h5 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{{ __('Оплата времени') }}</h5>
-    <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Как клиенты платят за время в агенте: где действует их скидка (персональная или накопительная) и какую часть цены можно оплатить бонусами. Клиент сам выбирает при покупке: с основного баланса или бонусами.') }}</p>
+    <p class="mb-4 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{{ __('Как клиенты платят за время в агенте: где действует их скидка (персональная или накопительная), какую часть цены можно оплатить бонусами и можно ли платить сразу с двух балансов. Клиент сам выбирает при покупке: с основного баланса или бонусами.') }}</p>
     <div class="grid max-w-2xl grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label for="discount_scope" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Где действует скидка клиента') }}</label>
@@ -39,9 +39,17 @@
         <div>
             <label for="bonus_max_percent" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Сколько процентов цены можно оплатить бонусами') }}</label>
             <input id="bonus_max_percent" name="bonus_max_percent" type="number" min="0" max="100" step="1" required value="{{ old('bonus_max_percent', $settings['finances']['bonus_max_percent'] ?? 100) }}" class="{{ $inputClass }}">
-            <p class="mt-1 text-xs text-gray-500">{{ __('100 — бонусами можно оплатить всю цену, 0 — бонусами за время платить нельзя. Остаток — с основного баланса.') }}</p>
+            <p class="mt-1 text-xs text-gray-500">{{ __('100 — бонусами можно оплатить всю цену, 0 — бонусами за время платить нельзя.') }}</p>
             @error('bonus_max_percent')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
+    </div>
+    <div class="mt-4 max-w-2xl rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+            <label for="allow_mixed_payment" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Разрешить смешанную оплату') }}</label>
+            <input type="hidden" name="allow_mixed_payment" value="0">
+            <input id="allow_mixed_payment" type="checkbox" role="switch" name="allow_mixed_payment" value="1" class="settings-switch" @checked(old('allow_mixed_payment', $settings['finances']['allow_mixed_payment'] ?? false))>
+        </div>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Включено — клиент платит за тариф сразу с двух балансов: бонусами (до процента выше), остальное — с основного. Выключено — целиком с одного баланса: основного или бонусного (бонусами — только если можно оплатить 100% цены).') }}</p>
     </div>
 </x-settings.card>
 

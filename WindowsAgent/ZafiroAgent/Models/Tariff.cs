@@ -30,6 +30,10 @@ namespace ZafiroAgent.Models
         [JsonPropertyName("bonus_max_percent")]
         public int BonusMaxPercent { get; set; }
 
+        // Смешанная оплата в клубе: бонусы до процента, остальное с основного; иначе бонусами вся цена.
+        [JsonPropertyName("mixed_payment")]
+        public bool MixedPayment { get; set; }
+
         // Ограничение использования: неиспользованное время сохраняется абонементом на столько минут после покупки.
         [JsonPropertyName("usage_limit_minutes")]
         public int? UsageLimitMinutes { get; set; }

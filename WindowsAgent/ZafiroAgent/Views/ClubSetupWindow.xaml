@@ -31,6 +31,34 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
+        <!-- Глаз в поле пароля: показать введённое текстом и скрыть снова. -->
+        <Style x:Key="EyeButton" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#AAA5B8"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Content" Value="&#xE7B3;"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#3D3950"/>
+                                <Setter Property="Foreground" Value="#F5F3FA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- Круглая кнопка-иконка поверх картинки; Tag="armed" — ждёт второго нажатия (красная). -->
         <Style x:Key="PowerButton" TargetType="Button">
             <Setter Property="Width" Value="52"/>
@@ -146,7 +174,9 @@
                     <StackPanel x:Name="PasswordPanel">
                     <TextBlock x:Name="PasswordLabel" Text="Пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
                     <Grid Margin="0,0,0,8">
-                        <PasswordBox x:Name="PasswordBox" Padding="12,9,64,9" MaxLength="256"/>
+                        <PasswordBox x:Name="PasswordBox" Padding="12,9,100,9" MaxLength="256"/>
+                        <TextBox x:Name="PasswordReveal" Padding="12,9,100,9" MaxLength="256" Visibility="Collapsed" IsUndoEnabled="False"/>
+                        <Button x:Name="PasswordEye" Style="{StaticResource EyeButton}" Margin="0,0,58,0"/>
                         <!-- Раскладка клавиатуры Windows: панели задач в киоске нет, клиент видит язык ввода
                              здесь (как в трее). Нажатие — следующий язык, как Alt+Shift. -->
                         <Button x:Name="InputLanguageButton" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"
@@ -157,7 +187,11 @@
 
                     <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed" Margin="0,8,0,0">
                         <TextBlock x:Name="ConfirmLabel" Text="Повторите пароль" Foreground="#E8E5EF" FontSize="13" Margin="0,0,0,7"/>
-                        <PasswordBox x:Name="ConfirmBox" MaxLength="256"/>
+                        <Grid>
+                            <PasswordBox x:Name="ConfirmBox" Padding="12,9,46,9" MaxLength="256"/>
+                            <TextBox x:Name="ConfirmReveal" Padding="12,9,46,9" MaxLength="256" Visibility="Collapsed" IsUndoEnabled="False"/>
+                            <Button x:Name="ConfirmEye" Style="{StaticResource EyeButton}" Margin="0,0,6,0"/>
+                        </Grid>
                     </StackPanel>
 
                     <TextBlock x:Name="NoticeText" Visibility="Collapsed" Foreground="#86EFAC" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0"/>

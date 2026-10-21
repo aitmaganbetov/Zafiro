@@ -324,7 +324,10 @@
 			<label for="transferAmount" data-i18n="Сумма с основного счёта">Сумма с основного счёта</label>
 			<input id="transferAmount" inputmode="decimal" maxlength="13" autocomplete="off" required>
 			<label for="transferPassword" data-i18n="Пароль от аккаунта">Пароль от аккаунта</label>
-			<input id="transferPassword" type="password" maxlength="256" autocomplete="current-password" required>
+			<div class="password-field">
+			  <input id="transferPassword" type="password" maxlength="256" autocomplete="current-password" required>
+			  <button class="password-eye" id="transferPasswordEye" type="button" aria-pressed="false" aria-label="Показать пароль" data-i18n-aria-label="Показать пароль" title="Показать пароль" data-i18n-title="Показать пароль"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+			</div>
 			<p class="friends-status" id="transferStatus" role="status" aria-live="polite"></p>
 			<button class="primary" id="transferSubmit" type="submit" data-i18n="Перевести">Перевести</button>
 		  </form>
@@ -349,7 +352,7 @@
 		  <button class="primary seat-confirm" id="seatConfirm" type="button" disabled data-i18n="Выберите свободный ПК">Выберите свободный ПК</button>
 		</dialog>
 
-		<!-- Оплата времени: с основного баланса или бонусами (до процента клуба, остальное — с основного). -->
+		<!-- Оплата времени: с основного баланса или бонусами (смешанная оплата в клубе — бонусы до процента, остальное с основного). -->
 		<dialog class="cart-dialog confirm-dialog" id="payDialog" aria-labelledby="payTitle">
 		  <h2 id="payTitle"></h2>
 		  <p class="dialog-note" id="payText"></p>

@@ -126,6 +126,7 @@ test('a customer who has spent enough gets the level discount, the larger of per
 test('bonus payments do not count as spending', function () {
     [$customer, $membership, $computer, $tariff, $headers] = loyaltyCustomer();
     MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 400, 'bonus_balance' => 1000]);
+    allowMixedPayment();
 
     $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id], $headers)->assertOk();
 

@@ -98,7 +98,7 @@ class CashRegisterController extends Controller
     {
         $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->firstOrFail();
 
-        return view('cash-register.report', ['shift' => $shift, 'totals' => $this->cash->totals($shift), 'details' => app(ShiftReport::class)->for($shift), 'reportType' => 'X']);
+        return view('cash-register.report', ['shift' => $shift, 'totals' => $this->cash->totals($shift), 'details' => app(ShiftReport::class)->for($shift), 'reportType' => 'X'] + $this->people($shift));
     }
 
     public function close(CashShift $cashShift): RedirectResponse
@@ -124,7 +124,24 @@ class CashRegisterController extends Controller
             'details' => app(ShiftReport::class)->for($cashShift),
             'reportType' => 'Z',
             'printNonce' => $nonce,
-        ]);
+        ] + $this->people($cashShift));
+    }
+
+    /**
+     * Names on the report: the cashier who opened the shift (and who closed it, when someone
+     * else did) and the operator — the staff member who forms and prints this report.
+     *
+     * @return array{cashierName: ?string, closedByName: ?string, operatorName: string}
+     */
+    private function people(CashShift $shift): array
+    {
+        $names = User::query()->whereKey(array_filter([$shift->opened_by, $shift->closed_by]))->pluck('name', 'id');
+
+        return [
+            'cashierName' => $names->get($shift->opened_by),
+            'closedByName' => $shift->closed_by !== null && (int) $shift->closed_by !== (int) $shift->opened_by ? $names->get($shift->closed_by) : null,
+            'operatorName' => (string) request()->user()->name,
+        ];
     }
 
     public function markZReportPrinted(Request $request, CashShift $cashShift, ActivityLogger $activity): JsonResponse

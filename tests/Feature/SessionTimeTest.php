@@ -62,7 +62,7 @@ function endSessionOf(ClubComputer $computer, array $headers)
 
 test('unused minutes go back to the balances they were paid from when the customer ends the session', function () {
     [$customer, $computer, $headers] = timeCustomer(main: 1000, bonus: 1000);
-    timeFinances(['bonus_max_percent' => 50]);
+    timeFinances(['bonus_max_percent' => 50, 'allow_mixed_payment' => true]);
 
     // An hour for 600: half with bonuses (the club allows 50%), half from the main balance.
     $this->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 60, 'balance' => 'bonus'], $headers)->assertOk();
@@ -119,14 +119,14 @@ test('a tariff without a usage limit is not refunded; minutes bought on top are,
 
 test('the customer picks the balance: main, or bonuses up to the club percent; some tariffs take no bonuses', function () {
     [$customer, $computer, $headers] = timeCustomer(main: 2000, bonus: 500);
-    timeFinances(['bonus_max_percent' => 30]);
+    timeFinances(['bonus_max_percent' => 30, 'allow_mixed_payment' => true]);
     $tariff = timeTariff();
     $mainOnly = timeTariff(['name' => 'Только деньги', 'payment_method' => 'main_balance_only']);
 
     $this->getJson(route('api.tariffs.index'), $headers)->assertOk()
         ->assertJsonPath('data.0.bonus_allowed', true)->assertJsonPath('data.0.bonus_max_percent', 30)
-        ->assertJsonPath('data.1.bonus_allowed', false);
-    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('bonus_max_percent', 30);
+        ->assertJsonPath('data.0.mixed_payment', true)->assertJsonPath('data.1.bonus_allowed', false);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('bonus_max_percent', 30)->assertJsonPath('mixed_payment', true);
 
     // 30% of 1000 with bonuses, the rest from the main balance.
     $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'bonus'], $headers)->assertOk()
@@ -141,6 +141,33 @@ test('the customer picks the balance: main, or bonuses up to the club percent; s
     timeFinances(['bonus_max_percent' => 0]);
     $this->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 10, 'balance' => 'bonus'], $headers)
         ->assertUnprocessable()->assertJsonValidationErrors('balance');
+});
+
+test('without mixed payment a purchase is paid from one balance: the main one or bonuses for the whole price', function () {
+    [$customer, $computer, $headers] = timeCustomer(main: 2000, bonus: 500);
+    $tariff = timeTariff();
+
+    // Bonuses may pay only 30%: without mixed payment the agent does not offer them at all.
+    timeFinances(['bonus_max_percent' => 30]);
+    $this->getJson(route('api.tariffs.index'), $headers)->assertOk()
+        ->assertJsonPath('data.0.bonus_allowed', false)->assertJsonPath('data.0.bonus_max_percent', 0)->assertJsonPath('data.0.mixed_payment', false);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('bonus_max_percent', 0);
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'bonus'], $headers)
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+
+    // 100%: bonuses pay the whole price or nothing.
+    timeFinances(['bonus_max_percent' => 100]);
+    $this->getJson(route('api.tariffs.index'), $headers)->assertJsonPath('data.0.bonus_allowed', true)->assertJsonPath('data.0.bonus_max_percent', 100);
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'bonus'], $headers)
+        ->assertUnprocessable()->assertJsonPath('message', 'Бонусов не хватает на всю цену. Оплатите с основного баланса.');
+    MemberBalance::query()->where('user_id', $customer->id)->update(['bonus_balance' => 1500]);
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'bonus'], $headers)->assertOk()
+        ->assertJson(['new_balance' => '2000.00', 'new_bonus' => '500.00']);
+
+    // Older agents (no choice): the main balance while it is enough.
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id], $headers)->assertOk()
+        ->assertJson(['new_balance' => '1000.00', 'new_bonus' => '500.00']);
+    expect(balances($customer))->toBe(['1000.00', '500.00']);
 });
 
 test('the club chooses where the discount works: tariffs, hourly time or both', function () {
@@ -165,8 +192,9 @@ test('the club chooses where the discount works: tariffs, hourly time or both', 
 test('the finance page saves where the discount works and the bonus percent', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'hourly', 'bonus_max_percent' => 40])->assertSessionHasNoErrors();
-    expect(app(CurrentClub::class)->get()->fresh()->settings['finances'])->toMatchArray(['discount_scope' => 'hourly', 'bonus_max_percent' => 40]);
+    $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'hourly', 'bonus_max_percent' => 40, 'allow_mixed_payment' => '1'])->assertSessionHasNoErrors();
+    expect(app(CurrentClub::class)->get()->fresh()->settings['finances'])->toMatchArray(['discount_scope' => 'hourly', 'bonus_max_percent' => 40, 'allow_mixed_payment' => true]);
+    $this->get(route('settings.finances'))->assertOk()->assertSee('name="allow_mixed_payment" value="1" class="settings-switch" checked', false);
     $this->get(route('settings.finances'))->assertOk()->assertSee('value="hourly" selected', false)->assertSee('href="#payment-rules"', false);
 
     $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'never', 'bonus_max_percent' => 140])

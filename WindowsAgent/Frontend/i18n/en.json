@@ -299,14 +299,18 @@
         "Ваши абонементы": "Your passes",
         "Неиспользованное время тарифа — запустите его, пока не сгорело.": "Unused tariff time — start it before it burns.",
         "С основного баланса": "From the main balance",
-        "К оплате :price. Бонусами можно оплатить до :percent% цены, остальное — с основного баланса.": "To pay: :price. Bonuses may pay up to :percent% of the price, the rest comes from the main balance.",
-        "Бонусами (до :percent%)": "With bonuses (up to :percent%)",
         "Осталось :time · до :date": ":time left · until :date",
         "Запустить": "Start",
         "Запускаем абонемент…": "Starting the pass…",
         "Минуты, купленные поминутно, вернутся на баланс, а остаток тарифа с ограничением использования сохранится абонементом. Остальное время тарифа не возвращается.": "Minutes bought by the minute go back to the balance, and the rest of a tariff with a usage limit is kept as a pass. Other tariff time is not refunded.",
         "Возвращено на баланс: :amount": "Returned to the balance: :amount",
         "Возвращено бонусов: :amount": "Bonuses returned: :amount",
-        "Сохранено в абонементах: :time": "Kept in passes: :time"
+        "Сохранено в абонементах: :time": "Kept in passes: :time",
+        "Показать пароль": "Show password",
+        "Скрыть пароль": "Hide password",
+        "К оплате :price. Можно оплатить смешанно: бонусами до :percent% цены, остальное — с основного баланса.": "To pay: :price. You can pay mixed: bonuses up to :percent% of the price, the rest from the main balance.",
+        "К оплате :price. Оплата целиком с одного баланса: основного или бонусного.": "To pay: :price. Paid entirely from one balance: the main or the bonus one.",
+        "Смешанно: бонусы до :percent% + основной": "Mixed: bonuses up to :percent% + main",
+        "С бонусного баланса": "From the bonus balance"
     }
 }

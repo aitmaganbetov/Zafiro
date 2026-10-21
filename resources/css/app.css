@@ -1059,6 +1059,8 @@ body {
     border: 1px solid #e3e9e4;
     border-radius: 20px;
     background: #fff;
+    /* White paper in the dark theme too: the text must not take the theme's light color. */
+    color: #1c2520;
     box-shadow: 0 18px 55px rgba(32, 55, 40, .08)
 }
 
@@ -1305,7 +1307,7 @@ body {
     .report-note,
     .report-type,
     .sidebar,
-    header,
+    header:not(.report-head),
     nav {
         display: none !important
     }

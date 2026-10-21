@@ -232,6 +232,7 @@ class SettingsController extends Controller
                 'topup_bonus_levels',
                 'discount_scope',
                 'bonus_max_percent',
+                'allow_mixed_payment',
             ],
             'guests' => [
                 'show_qr_code_on_login',
@@ -245,6 +246,7 @@ class SettingsController extends Controller
         $booleanFields = [
             'loyalty_enabled',
             'topup_bonus_enabled',
+            'allow_mixed_payment',
             'show_qr_code_on_login',
             'allow_guest_self_transfer',
             'allow_adding_friends',
@@ -350,6 +352,7 @@ class SettingsController extends Controller
                 // Paying for time — see PaymentRules.
                 'discount_scope' => 'tariffs',
                 'bonus_max_percent' => 100,
+                'allow_mixed_payment' => false,
             ],
             'guests' => [
                 'show_qr_code_on_login' => false,
@@ -384,6 +387,7 @@ class SettingsController extends Controller
                 'topup_bonus_levels' => __('Уровни бонусов за пополнение'),
                 'discount_scope' => __('Где действует скидка клиента'),
                 'bonus_max_percent' => __('Сколько процентов цены можно оплатить бонусами'),
+                'allow_mixed_payment' => __('Разрешить смешанную оплату'),
             ],
             'guests' => [
                 'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),

@@ -84,6 +84,8 @@ namespace ZafiroAgent.Views
             ForgotToggle.Click += (_, _) => SetRecovery(_recovery == Recovery.Phone ? Recovery.None : Recovery.Phone);
             PhoneBox.TextChanged += (_, _) => FormatPhone();
             InputLanguageButton.Click += (_, _) => NextInputLanguage();
+            AttachReveal(PasswordBox, PasswordReveal, PasswordEye);
+            AttachReveal(ConfirmBox, ConfirmReveal, ConfirmEye);
             ShutdownButton.Click += (_, _) => PowerClicked(restart: false);
             RestartButton.Click += (_, _) => PowerClicked(restart: true);
             _powerArmTimer.Tick += (_, _) => SetPowerArmed(null);
@@ -157,7 +159,8 @@ namespace ZafiroAgent.Views
             }
 
             ShowInputLanguage();
-            if (PasswordBox.IsVisible) PasswordBox.Focus();
+            if (PasswordReveal.IsVisible) PasswordReveal.Focus();
+            else if (PasswordBox.IsVisible) PasswordBox.Focus();
         }
 
         private bool _formattingPhone;
@@ -207,10 +210,52 @@ namespace ZafiroAgent.Views
             PhoneHint.Visibility = formatted.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        /// <summary>
+        /// Глаз у поля пароля: пароль виден текстом в поле поверх, оба поля держат одно значение.
+        /// Очищенный пароль (вход, смена режима) снова скрыт — следующий клиент не увидит свой ввод открытым.
+        /// </summary>
+        private void AttachReveal(PasswordBox box, TextBox reveal, Button eye)
+        {
+            eye.Click += (_, _) => SetRevealed(box, reveal, eye, reveal.Visibility != Visibility.Visible, focus: true);
+            reveal.TextChanged += (_, _) =>
+            {
+                if (box.Password != reveal.Text) box.Password = reveal.Text;
+            };
+            box.PasswordChanged += (_, _) =>
+            {
+                if (reveal.Text != box.Password) reveal.Text = box.Password;
+                if (box.Password.Length == 0 && !reveal.IsKeyboardFocusWithin) SetRevealed(box, reveal, eye, false, focus: false);
+            };
+            SetRevealed(box, reveal, eye, false, focus: false);
+        }
+
+        private static void SetRevealed(PasswordBox box, TextBox reveal, Button eye, bool revealed, bool focus)
+        {
+            reveal.Visibility = revealed ? Visibility.Visible : Visibility.Collapsed;
+            box.Visibility = revealed ? Visibility.Hidden : Visibility.Visible;
+            ShowEyeText(eye, revealed);
+            if (!focus) return;
+            if (revealed)
+            {
+                reveal.Focus();
+                reveal.CaretIndex = reveal.Text.Length;
+            }
+            else box.Focus();
+        }
+
+        private static void ShowEyeText(Button eye, bool revealed)
+        {
+            eye.Content = revealed ? "\uED1A" : "\uE7B3";
+            eye.ToolTip = revealed ? L.T("Скрыть пароль") : L.T("Показать пароль");
+            System.Windows.Automation.AutomationProperties.SetName(eye, (string)eye.ToolTip);
+        }
+
         /// <summary>Все тексты окна на текущем языке: при смене языка окно не теряет введённые данные.</summary>
         private void ApplyTexts()
         {
             Title = L.T("Подключение к клубу Zafiro");
+            ShowEyeText(PasswordEye, PasswordReveal.Visibility == Visibility.Visible);
+            ShowEyeText(ConfirmEye, ConfirmReveal.Visibility == Visibility.Visible);
             ShowComputer();
             (HeaderText.Text, ClubText.Text) = _mode switch
             {

@@ -39,3 +39,18 @@ test('an empty shift says no goods were sold', function () {
 
     $this->actingAs($cashier)->get(route('cash-register.z-report', $shift))->assertOk()->assertSee('За смену товары не продавались.');
 });
+
+test('the report names the cashier of the shift, who closed it and the operator who prints it', function () {
+    $owner = User::factory()->create(['name' => 'Азат']); // the first user owns the club
+    $cashier = User::factory()->create(['name' => 'Айгерим']);
+    $cash = app(CashRegisterService::class);
+    $shift = $cash->open(0, $cashier->id);
+
+    $this->actingAs($owner)->get(route('cash-register.x-report'))->assertOk()
+        ->assertSeeInOrder(['Номер смены', '#'.$shift->id, 'Кассир', 'Айгерим', 'Оператор', 'Азат'])
+        ->assertDontSee('Закрыл смену');
+
+    $cash->close($shift, $owner->id);
+    $this->get(route('cash-register.z-report', $shift))->assertOk()
+        ->assertSeeInOrder(['Кассир', 'Айгерим', 'Закрыл смену', 'Азат', 'Оператор', 'Азат']);
+});

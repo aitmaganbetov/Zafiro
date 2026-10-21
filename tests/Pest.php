@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,4 +50,11 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/** Mixed payment in the current club: bonuses for a part of a price, the rest from the main balance. */
+function allowMixedPayment(): void
+{
+    $club = app(CurrentClub::class)->get();
+    $club->forceFill(['settings' => array_replace_recursive($club->settings ?? [], ['finances' => ['allow_mixed_payment' => true]])])->save();
 }
