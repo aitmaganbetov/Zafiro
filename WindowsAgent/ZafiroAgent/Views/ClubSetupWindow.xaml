@@ -120,6 +120,8 @@
                         <StackPanel>
                             <TextBlock x:Name="ComputerText" FontSize="28" FontWeight="Bold" Foreground="#FFFFFF"/>
                             <TextBlock x:Name="ZoneText" FontSize="17" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="#C9BEF5"/>
+                            <!-- Версия агента: сотрудник видит на самом ПК, обновился ли он. -->
+                            <TextBlock x:Name="VersionText" FontSize="13" Margin="0,8,0,0" Foreground="#AAA5B8"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

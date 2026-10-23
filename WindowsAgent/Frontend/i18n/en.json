@@ -311,6 +311,7 @@
         "К оплате :price. Можно оплатить смешанно: бонусами до :percent% цены, остальное — с основного баланса.": "To pay: :price. You can pay mixed: bonuses up to :percent% of the price, the rest from the main balance.",
         "К оплате :price. Оплата целиком с одного баланса: основного или бонусного.": "To pay: :price. Paid entirely from one balance: the main or the bonus one.",
         "Смешанно: бонусы до :percent% + основной": "Mixed: bonuses up to :percent% + main",
-        "С бонусного баланса": "From the bonus balance"
+        "С бонусного баланса": "From the bonus balance",
+        "Версия агента: :version": "Agent version: :version"
     }
 }

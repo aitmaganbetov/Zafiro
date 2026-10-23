@@ -2044,5 +2044,6 @@ return [
         'К оплате :price. Оплата целиком с одного баланса: основного или бонусного.' => 'To pay: :price. Paid entirely from one balance: the main or the bonus one.',
         'Смешанно: бонусы до :percent% + основной' => 'Mixed: bonuses up to :percent% + main',
         'С бонусного баланса' => 'From the bonus balance',
+        'Версия агента: :version' => 'Agent version: :version',
     ],
 ];

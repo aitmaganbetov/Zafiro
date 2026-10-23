@@ -252,6 +252,7 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .profile-balance small{color:var(--muted);font-size:0.8125rem;font-weight:500}
 .profile-bonus strong{color:#86d7c3}
 .profile-session{border-top:1px solid rgba(255,255,255,0.08)}
+.profile-version{margin:18px 0 0;color:var(--muted);font-size:0.75rem}
 .profile-session h2{margin:0;padding:18px 0;font-size:1.0625rem}
 .profile-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;border-top:1px solid rgba(255,255,255,0.06)}
 .profile-details>div{display:grid;align-content:start;gap:8px;min-height:78px;padding:15px 14px 15px 0;border-bottom:1px solid rgba(255,255,255,0.06)}

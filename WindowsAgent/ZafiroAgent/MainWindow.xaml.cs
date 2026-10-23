@@ -792,7 +792,8 @@ namespace ZafiroAgent
             bonus = session.BonusBalance,
             tariff = session.TariffName,
             startedAt = session.StartedAt?.ToString("o"),
-            remainingMinutes = session.Remaining?.TotalMinutes
+            remainingMinutes = session.Remaining?.TotalMinutes,
+            agentVersion = DeviceInfo.AgentVersion
         };
 
         private async Task SendSessionDataAsync(string sessionId)

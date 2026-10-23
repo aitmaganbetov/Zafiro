@@ -1609,8 +1609,11 @@
 
     if (event.data?.type !== 'sessionData' || !event.data.session) return;
 
-    const { balance, bonus, userName: name, tariff, startedAt, remainingMinutes } = event.data.session;
+    const { balance, bonus, userName: name, tariff, startedAt, remainingMinutes, agentVersion } = event.data.session;
     applyBalances(balance ?? 0, bonus ?? 0);
+    const profileVersion = document.getElementById('profileVersion');
+    profileVersion.hidden = !agentVersion;
+    if (agentVersion) profileVersion.textContent = t('Версия агента: :version', { version: agentVersion });
     document.getElementById('profileTariff').textContent = tariff || '—';
     // Сессию ПК присылает сервер (sessionSync); профиль её не отменяет.
     const sessionActive = Number(remainingMinutes) > 0 || (sessionEndsAt !== null && sessionEndsAt > serverNow());

@@ -120,6 +120,7 @@ namespace ZafiroAgent.Views
             var zone = _mode == Mode.Connected ? _connectedZone : _setup.Zone;
             ComputerText.Text = L.T("ПК: :computer", ("computer", string.IsNullOrWhiteSpace(computer) ? L.T("не задан") : computer));
             ZoneText.Text = L.T("Зона: :zone", ("zone", string.IsNullOrWhiteSpace(zone) ? L.T("не задана") : zone));
+            VersionText.Text = L.T("Версия агента: :version", ("version", DeviceInfo.AgentVersion));
         }
 
         private void OnLanguageChanged() => Dispatcher.BeginInvoke(ApplyTexts);
