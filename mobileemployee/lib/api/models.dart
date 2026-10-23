@@ -298,6 +298,8 @@ class Computer {
     this.status = 'offline',
     this.connection = 'offline',
     this.agentState,
+    this.agentVersion,
+    this.agentOutdated = false,
     this.reserved = false,
     this.bookedNow = false,
     this.session,
@@ -315,6 +317,8 @@ class Computer {
       status: toStr(json['status']),
       connection: toStr(json['connection']),
       agentState: json['agent_state'] as String?,
+      agentVersion: json['agent_version'] as String?,
+      agentOutdated: toBool(json['agent_outdated']),
       reserved: toBool(json['reserved']),
       bookedNow: toBool(json['booked_now']),
       session: session is Map<String, dynamic>
@@ -339,6 +343,10 @@ class Computer {
 
   /// idle | in_session | locked | shutting_down
   final String? agentState;
+
+  /// Версия агента на ПК (null — агент её не сообщал) и устарела ли она.
+  final String? agentVersion;
+  final bool agentOutdated;
   final bool reserved;
   final bool bookedNow;
   final PcSession? session;

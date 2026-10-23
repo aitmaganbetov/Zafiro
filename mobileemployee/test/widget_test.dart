@@ -181,6 +181,10 @@ void main() {
         ...extra,
       });
       expect(pc({}).state, PcState.free);
+      expect(pc({}).agentVersion, isNull);
+      final old = pc({'agent_version': '0.0.58', 'agent_outdated': true});
+      expect(old.agentVersion, '0.0.58');
+      expect(old.agentOutdated, isTrue);
       expect(
         pc({'connection': 'offline', 'status': 'offline'}).state,
         PcState.offline,

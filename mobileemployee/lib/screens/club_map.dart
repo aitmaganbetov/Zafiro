@@ -671,6 +671,14 @@ class _PcSheetState extends State<_PcSheet> {
         const SizedBox(height: 12),
         if (pc.agentState != null && _agentStates[pc.agentState] != null)
           InfoRow('Состояние сессии', _agentStates[pc.agentState]!),
+        if (pc.agentVersion != null)
+          InfoRow(
+            'Версия агента',
+            pc.agentOutdated
+                ? '${pc.agentVersion} · устарела'
+                : pc.agentVersion!,
+            valueColor: pc.agentOutdated ? Brand.warning : null,
+          ),
         if (zone != null && zone.pricePerHour > 0)
           InfoRow('Цена за час', money(zone.pricePerHour, _currency)),
         if (session != null) ...[

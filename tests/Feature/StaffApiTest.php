@@ -79,7 +79,7 @@ test('the sign-in tells the role in each club, so the app keeps the staff ones',
 test('the club map shows PCs with sessions, staff visits and tariffs; control and end session use the panel actions', function () {
     $customer = User::factory()->create(['name' => 'Ерлан']);
     $busy = staffApiComputer(1);
-    $busy->forceFill(['current_session_id' => 'sess-1', 'current_session_user_id' => $customer->id, 'session_ends_at' => now()->addHour(), 'agent_state' => 'in_session'])->save();
+    $busy->forceFill(['current_session_id' => 'sess-1', 'current_session_user_id' => $customer->id, 'session_ends_at' => now()->addHour(), 'agent_state' => 'in_session', 'agent_version' => '0.0.61'])->save();
     $free = staffApiComputer(2);
     $free->forceFill(['last_seen_at' => now()->subMinutes(10)])->save();
     $tariff = Tariff::query()->create(['name' => 'Час', 'duration_minutes' => 60, 'price' => 800, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
@@ -88,6 +88,7 @@ test('the club map shows PCs with sessions, staff visits and tariffs; control an
     staffApi('GET', route('api.staff.computers.index'), $operator)->assertOk()
         ->assertJsonPath('computers.0.session.user.name', 'Ерлан')
         ->assertJsonPath('computers.0.connection', 'online')
+        ->assertJsonPath('computers.0.agent_version', '0.0.61')->assertJsonPath('computers.1.agent_version', null)
         ->assertJsonPath('computers.1.session', null)
         ->assertJsonPath('computers.1.connection', 'offline')
         ->assertJsonPath('tariffs.0.id', $tariff->id)

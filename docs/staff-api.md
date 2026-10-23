@@ -60,6 +60,7 @@ every `/staff` endpoint. `GET /staff/me` returns `permissions` — the app shows
     "status": "online",          // online | offline | reserved | restarting (currentStatus)
     "connection": "online",      // online | offline (heartbeat in the last 90 s)
     "agent_state": "in_session", // idle | in_session | locked | shutting_down | null
+    "agent_version": "0.0.62", "agent_outdated": false, // версия агента на ПК (null — агент не сообщал); устарела ли она
     "reserved": false, "booked_now": false,
     "session": {"id": "uuid", "ends_at": "2026-10-19T12:30:00Z", "guest": false, "user": {"id": 9, "name": "Ерлан"}},
     "staff_visit": {"until": "2026-10-19T10:15:00Z", "name": "Админ"}
