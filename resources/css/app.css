@@ -1575,6 +1575,10 @@ body {
     font-weight: 600
 }
 
+.cm-info-list dd.cm-info-warning {
+    color: #b45309
+}
+
 .cm-info-section {
     margin-top: 16px;
     border-top: 1px solid #e7ece8;

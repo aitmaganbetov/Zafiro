@@ -1650,6 +1650,8 @@ return [
         '100 — бонусами можно оплатить всю цену, 0 — бонусами за время платить нельзя.' => '100 — bonuses may pay the whole price, 0 — bonuses do not pay for time.',
         'Включено — клиент платит за тариф сразу с двух балансов: бонусами (до процента выше), остальное — с основного. Выключено — целиком с одного баланса: основного или бонусного (бонусами — только если можно оплатить 100% цены).' => 'On — the customer pays for a tariff from both balances at once: bonuses (up to the percent above), the rest from the main one. Off — entirely from one balance: the main or the bonus one (with bonuses only if they may pay 100% of the price).',
         'Закрыл смену' => 'Closed the shift by',
+        'Версия агента' => 'Agent version',
+        ':version · устарела' => ':version · outdated',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

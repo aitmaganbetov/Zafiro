@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateClubZoneRequest;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Services\ActivityLogger;
+use App\Services\AgentUpdate;
 use App\Services\ClubZoneLayoutService;
 use App\Services\ComputerReservations;
 use App\Services\CurrentClub;
@@ -25,7 +26,7 @@ class ClubZoneController extends Controller
         private ActivityLogger $activity,
     ) {}
 
-    public function index(ComputerReservations $reservations): View
+    public function index(ComputerReservations $reservations, AgentUpdate $agentUpdate): View
     {
         $zones = ClubZone::query()->with(['computers.staffUser:id,name', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get();
         $booked = $reservations->heldComputerIds();
@@ -39,6 +40,8 @@ class ClubZoneController extends Controller
         return view('club-map.index', [
             'zones' => $zones,
             'tariffs' => Tariff::query()->orderBy('name')->get(),
+            'agentVersions' => $agentUpdate,
+            'latestAgent' => $agentUpdate->latestVersion(),
         ]);
     }
 

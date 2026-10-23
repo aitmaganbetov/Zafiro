@@ -98,3 +98,15 @@ test('only an https download link is shown', function () {
         ->assertDontSee('javascript:alert(1)', false)
         ->assertDontSee(__('Скачать установщик'));
 });
+
+test('the PC panel on the club map shows the agent version and whether it is too old', function () {
+    $owner = User::factory()->create();
+    releaseAgent('1.2.0');
+    pcWithAgent(1, '1.1.9');
+    pcWithAgent(2, '1.2.0');
+
+    $this->actingAs($owner)->get(route('club-map.index'))->assertOk()
+        ->assertSee('data-agent-version="1.1.9" data-agent-outdated="true"', false)
+        ->assertSee('data-agent-version="1.2.0" data-agent-outdated="false"', false)
+        ->assertSee('id="computer-info-agent-version"', false);
+});
