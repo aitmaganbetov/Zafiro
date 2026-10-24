@@ -36,7 +36,7 @@ test('authenticated users can create and view tariffs', function () {
         ->assertSee('>Тарифы</span>', false)
         ->assertDontSee('name="currency"', false)
         ->assertSee('class="tariff-validity-period"', false)
-        ->assertSeeInOrder(['data-add-validity-period', 'data-remove-period'], false)
+        ->assertSeeInOrder(['data-add-period', 'data-remove-period'], false)
         ->assertSee('value="'.$zone->id.'"', false)
         ->assertSee('Зал')
         ->assertDontSee('Пустая зона');

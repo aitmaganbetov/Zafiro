@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToClub;
 use App\Models\Concerns\UsesClubTimezone;
 use App\Services\CurrentClub;
+use App\Support\WeeklyPeriods;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 
-#[Fillable(['name', 'description', 'duration_minutes', 'price', 'is_active', 'payment_method', 'currency', 'discount_enabled', 'color', 'club_name', 'usage_limit_enabled', 'usage_limit_minutes', 'quantity_limit_enabled', 'quantity_limit', 'validity_periods', 'sale_starts_at', 'sale_ends_at'])]
+#[Fillable(['name', 'description', 'duration_minutes', 'price', 'is_active', 'payment_method', 'currency', 'discount_enabled', 'color', 'club_name', 'usage_limit_enabled', 'usage_limit_minutes', 'quantity_limit_enabled', 'quantity_limit', 'validity_periods', 'sale_periods'])]
 class Tariff extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -29,16 +31,20 @@ class Tariff extends Model
             'quantity_limit_enabled' => 'boolean',
             'quantity_limit' => 'integer',
             'validity_periods' => 'array',
-            'sale_starts_at' => 'datetime',
-            'sale_ends_at' => 'datetime',
+            'sale_periods' => 'array',
         ];
     }
 
-    /** Within its sale time: started (or no start) and not ended (or no end). */
+    /** Now (club time) is within its sale days and times; none set — always on sale. */
     public function onSale(): bool
     {
-        return ($this->sale_starts_at === null || ! $this->sale_starts_at->isFuture())
-            && ($this->sale_ends_at === null || $this->sale_ends_at->isFuture());
+        return WeeklyPeriods::contains($this->sale_periods, Carbon::now(app(CurrentClub::class)->timezone()));
+    }
+
+    /** Now (club time) is within its validity days and times: the tariff time may be used. */
+    public function inValidityPeriod(): bool
+    {
+        return WeeklyPeriods::contains($this->validity_periods, Carbon::now(app(CurrentClub::class)->timezone()));
     }
 
     public function zones(): BelongsToMany

@@ -41,9 +41,11 @@ class StoreTariffRequest extends FormRequest
             'validity_periods.*.start_time' => ['required', 'date_format:H:i'],
             'validity_periods.*.end_day' => ['required', Rule::in(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])],
             'validity_periods.*.end_time' => ['required', 'date_format:H:i'],
-            // Club local time from the form (datetime-local).
-            'sale_starts_at' => ['nullable', 'date_format:Y-m-d\\TH:i'],
-            'sale_ends_at' => array_filter(['nullable', 'date_format:Y-m-d\\TH:i', $this->filled('sale_starts_at') ? 'after:sale_starts_at' : null]),
+            'sale_periods' => ['nullable', 'array', 'max:50'],
+            'sale_periods.*.start_day' => ['required', Rule::in(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])],
+            'sale_periods.*.start_time' => ['required', 'date_format:H:i'],
+            'sale_periods.*.end_day' => ['required', Rule::in(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])],
+            'sale_periods.*.end_time' => ['required', 'date_format:H:i'],
             'is_active' => ['required', 'boolean'],
         ];
     }

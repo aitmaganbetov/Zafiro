@@ -23,7 +23,7 @@
         // Form values: the old input, else the tariff being edited, else the default.
         $value = fn (string $key, mixed $default = null): mixed => old($key, $editing !== null ? ($editingValues[$key] ?? $default) : $default);
         $weekdays = ['mon' => __('Пн'), 'tue' => __('Вт'), 'wed' => __('Ср'), 'thu' => __('Чт'), 'fri' => __('Пт'), 'sat' => __('Сб'), 'sun' => __('Вс')];
-        $periods = $value('validity_periods', [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']]);
+        $alwaysPeriods = [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']];
         $tariffColors = ['#ff0169', '#e11d48', '#c026d3', '#9333ea', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#14b8a6', '#22c55e', '#84cc16', '#a3e635', '#eab308', '#facc15', '#f97316', '#fb7185', '#fda4af', '#fbcfe8', '#e9d5ff', '#c4b5fd', '#bfdbfe', '#bae6fd', '#a5f3fc', '#99f6e4', '#bbf7d0', '#d9f99d', '#fef08a', '#fef3c7', '#fed7aa', '#fdba74'];
     @endphp
     {{-- Editing opens the same form filled in; closing it goes back to the list. --}}
@@ -106,42 +106,15 @@
                 </div>
             </div>
 
-            {{-- Sale time: before the start and after the end the tariff is not shown or sold. --}}
+            {{-- Sale time: outside these days and times the tariff is not shown or sold. --}}
             <section class="border-t border-gray-200 pt-6 dark:border-gray-800">
-                <h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Время продажи') }}</h5>
-                <p class="mb-3 text-xs text-gray-500">{{ __('До начала и после окончания тариф не показывается в агенте и на кассе. Пусто — без ограничения.') }}</p>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <label class="text-xs text-gray-500">{{ __('Продажа с') }}<input name="sale_starts_at" type="datetime-local" value="{{ $value('sale_starts_at') }}" class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></label>
-                    <label class="text-xs text-gray-500">{{ __('Продажа до') }}<input name="sale_ends_at" type="datetime-local" value="{{ $value('sale_ends_at') }}" class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></label>
-                </div>
+                <div class="mb-3"><h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Время продажи') }}</h5><p class="text-xs text-gray-500">{{ __('Дни и время, когда тариф продаётся в агенте и на кассе. В другое время он не показывается.') }}</p></div>
+                @include('tariffs.periods', ['field' => 'sale_periods', 'periods' => $value('sale_periods', $alwaysPeriods)])
             </section>
 
             <section class="border-t border-gray-200 pt-6 dark:border-gray-800">
-                <div class="mb-3 flex items-center justify-between gap-3">
-                    <div><h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Период действия') }}</h5><p class="text-xs text-gray-500">{{ __('Дни и время, когда абонемент можно использовать.') }}</p></div>
-                </div>
-                <div id="validity-periods" class="tariff-period-list space-y-3">
-                    @foreach($periods as $periodIndex => $period)
-                        <div class="tariff-validity-period" data-validity-period>
-                            <label class="text-xs text-gray-500">{{ __('С') }}<select name="validity_periods[{{ $periodIndex }}][start_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}" @selected(($period['start_day'] ?? 'mon') === $day)>{{ $dayName }}</option>@endforeach</select></label>
-                            <label class="text-xs text-gray-500">{{ __('Время') }}<input name="validity_periods[{{ $periodIndex }}][start_time]" type="time" value="{{ $period['start_time'] ?? '00:00' }}" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                            <label class="text-xs text-gray-500">{{ __('До') }}<select name="validity_periods[{{ $periodIndex }}][end_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}" @selected(($period['end_day'] ?? 'sun') === $day)>{{ $dayName }}</option>@endforeach</select></label>
-                            <label class="text-xs text-gray-500">{{ __('Время') }}<input name="validity_periods[{{ $periodIndex }}][end_time]" type="time" value="{{ $period['end_time'] ?? '23:59' }}" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                            <button type="button" data-add-validity-period class="brand-period-add mb-1 grid h-9 w-9 place-items-center rounded-lg" aria-label="{{ __('Добавить период') }}"><i class="fas fa-plus"></i></button>
-                            <button type="button" data-remove-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" aria-label="{{ __('Удалить период') }}"><i class="fas fa-trash"></i></button>
-                        </div>
-                    @endforeach
-                </div>
-                <template id="validity-period-template">
-                    <div class="tariff-validity-period" data-validity-period>
-                        <label class="text-xs text-gray-500">{{ __('С') }}<select name="validity_periods[__INDEX__][start_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}">{{ $dayName }}</option>@endforeach</select></label>
-                        <label class="text-xs text-gray-500">{{ __('Время') }}<input name="validity_periods[__INDEX__][start_time]" type="time" value="00:00" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                        <label class="text-xs text-gray-500">{{ __('До') }}<select name="validity_periods[__INDEX__][end_day]" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800">@foreach($weekdays as $day => $dayName)<option value="{{ $day }}">{{ $dayName }}</option>@endforeach</select></label>
-                        <label class="text-xs text-gray-500">{{ __('Время') }}<input name="validity_periods[__INDEX__][end_time]" type="time" value="23:59" required class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800"></label>
-                        <button type="button" data-add-validity-period class="brand-period-add mb-1 grid h-9 w-9 place-items-center rounded-lg" aria-label="{{ __('Добавить период') }}"><i class="fas fa-plus"></i></button>
-                        <button type="button" data-remove-period class="mb-1 grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" aria-label="{{ __('Удалить период') }}"><i class="fas fa-trash"></i></button>
-                    </div>
-                </template>
+                <div class="mb-3"><h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Период действия') }}</h5><p class="text-xs text-gray-500">{{ __('Дни и время, когда абонемент можно использовать.') }}</p></div>
+                @include('tariffs.periods', ['field' => 'validity_periods', 'periods' => $value('validity_periods', $alwaysPeriods)])
             </section>
 
             <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5 dark:border-gray-800">
@@ -184,9 +157,17 @@
     </section>
 
     <section>
-        <div class="mb-3 flex items-baseline justify-between gap-3">
-            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Список тарифов') }}</h4>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $tariffs->count() }}</span>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Список тарифов') }} <span class="text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariffs->count() }}</span></h4>
+            {{-- The tariffs that work in one zone: its own and those of every zone. --}}
+            <form method="GET" action="{{ route('tariffs.index') }}" class="flex items-center gap-2">
+                <label for="tariff-zone-filter" class="text-sm text-gray-600 dark:text-gray-400">{{ __('Зона') }}</label>
+                <select id="tariff-zone-filter" name="zone" onchange="this.form.submit()" class="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    <option value="">{{ __('Все зоны') }}</option>
+                    @foreach($zones as $zone)<option value="{{ $zone->id }}" @selected($zoneFilter === $zone->id)>{{ $zone->name }}</option>@endforeach
+                </select>
+                <noscript><button type="submit" class="text-sm">{{ __('Показать') }}</button></noscript>
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[600px] text-left text-sm">
@@ -196,7 +177,7 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse ($tariffs as $tariff)
                         <tr>
-                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · {{ __('Со скидкой') }}@endif</span>@if($tariff->sale_starts_at?->isFuture())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Продажа с :date', ['date' => $tariff->sale_starts_at->format('d.m.Y H:i')]) }}</span>@elseif($tariff->sale_ends_at !== null)<span class="mt-1 block text-xs font-normal {{ $tariff->sale_ends_at->isFuture() ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400' }}">{{ $tariff->sale_ends_at->isFuture() ? __('Продажа до :date', ['date' => $tariff->sale_ends_at->format('d.m.Y H:i')]) : __('Продажа закончилась :date', ['date' => $tariff->sale_ends_at->format('d.m.Y H:i')]) }}</span>@endif</td>
+                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · {{ __('Со скидкой') }}@endif</span>@unless($tariff->onSale())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне времени продажи') }}</span>@endunless</td>
                             <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->zones->pluck('name')->join(', ') ?: __('Все зоны') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ __(':minutes мин.', ['minutes' => $tariff->duration_minutes]) }}</td>
                             <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>
@@ -204,7 +185,7 @@
                             <td class="whitespace-nowrap px-3 py-3 text-right"><a href="{{ route('tariffs.edit', $tariff) }}" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400">{{ __('Изменить') }}</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('Тарифов пока нет.') }}</td></tr>
+                        <tr><td colspan="6" class="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">{{ $zoneFilter !== null ? __('В этой зоне тарифов нет.') : __('Тарифов пока нет.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -215,6 +196,6 @@
 
 @push('scripts')
 <script>
-(()=>{const dialog=document.getElementById('tariff-dialog'),list=document.getElementById('validity-periods'),template=document.getElementById('validity-period-template');document.getElementById('open-tariff-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-tariff-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();dialog.addEventListener('close',()=>{if(dialog.dataset.closeHref)location.href=dialog.dataset.closeHref});let nextIndex=list.querySelectorAll('[data-validity-period]').length;list.addEventListener('click',event=>{const add=event.target.closest('[data-add-validity-period]');if(add){list.insertAdjacentHTML('beforeend',template.innerHTML.replaceAll('__INDEX__',String(nextIndex++)));return}const remove=event.target.closest('[data-remove-period]');if(remove&&list.querySelectorAll('[data-validity-period]').length>1)remove.closest('[data-validity-period]').remove()})})();
+(()=>{const dialog=document.getElementById('tariff-dialog');document.getElementById('open-tariff-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-tariff-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();dialog.addEventListener('close',()=>{if(dialog.dataset.closeHref)location.href=dialog.dataset.closeHref});document.querySelectorAll('[data-period-list]').forEach(list=>{const template=list.nextElementSibling;let nextIndex=list.querySelectorAll('[data-period]').length;list.addEventListener('click',event=>{const add=event.target.closest('[data-add-period]');if(add){list.insertAdjacentHTML('beforeend',template.innerHTML.replaceAll('__INDEX__',String(nextIndex++)));return}const remove=event.target.closest('[data-remove-period]');if(remove&&list.querySelectorAll('[data-period]').length>1)remove.closest('[data-period]').remove()})})})();
 </script>
 @endpush

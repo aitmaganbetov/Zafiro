@@ -8,6 +8,7 @@ use App\Models\Tariff;
 use App\Models\User;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -72,30 +73,52 @@ test('the manager changes a tariff; the name stays unique in the club', function
         ->and(ActivityLog::query()->where('event', 'tariff.updated')->sole()->details['changed'])->toBe(['price', 'duration_minutes', 'is_active', 'zones']);
 });
 
-test('a tariff is on sale only within its sale time: the agent, the cash register and purchases follow it', function () {
-    $this->freezeTime();
+test('a tariff is on sale only on its sale days and times: the agent, the cash register and purchases follow it', function () {
+    // Wednesday 12:00 in the club.
     $owner = User::factory()->create();
     $this->actingAs($owner);
     $club = app(CurrentClub::class);
-    $local = fn (string $modify) => now($club->timezone())->modify($modify)->format('Y-m-d\TH:i');
+    $this->travelTo(Carbon::parse('2026-10-28 12:00', $club->timezone()));
+    $period = fn (string $from, string $fromTime, string $to, string $toTime) => [['start_day' => $from, 'start_time' => $fromTime, 'end_day' => $to, 'end_time' => $toTime]];
 
-    // Entered in the club's local time, shown back the same.
-    $this->post(route('tariffs.store'), tariffForm(['name' => 'Скоро', 'is_active' => '1', 'sale_starts_at' => $local('+1 day')]))->assertSessionHasNoErrors();
-    $this->post(route('tariffs.store'), tariffForm(['name' => 'Сейчас', 'is_active' => '1', 'sale_starts_at' => $local('-1 day'), 'sale_ends_at' => $local('+1 day')]))->assertSessionHasNoErrors();
-    $this->post(route('tariffs.store'), tariffForm(['name' => 'Прошёл', 'is_active' => '1', 'sale_ends_at' => $local('-1 hour')]))->assertSessionHasNoErrors();
-    $this->post(route('tariffs.store'), tariffForm(['name' => 'Криво', 'sale_starts_at' => $local('+2 days'), 'sale_ends_at' => $local('+1 day')]))->assertSessionHasErrors('sale_ends_at');
-    $soon = Tariff::query()->where('name', 'Скоро')->sole();
-    expect($soon->sale_starts_at->format('Y-m-d\TH:i'))->toBe($local('+1 day'));
-    $this->get(route('tariffs.edit', $soon))->assertOk()->assertSee('value="'.$local('+1 day').'"', false)->assertSee('Продажа с ');
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Ночь', 'is_active' => '1', 'sale_periods' => $period('sat', '22:00', 'sun', '06:00')]))->assertSessionHasNoErrors();
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Будни', 'is_active' => '1', 'sale_periods' => $period('mon', '09:00', 'fri', '18:00')]))->assertSessionHasNoErrors();
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Всегда', 'is_active' => '1']))->assertSessionHasNoErrors();
+    $night = Tariff::query()->where('name', 'Ночь')->sole();
+    expect($night->sale_periods)->toBe($period('sat', '22:00', 'sun', '06:00'));
+    $this->get(route('tariffs.edit', $night))->assertOk()
+        ->assertSee('name="sale_periods[0][start_time]" type="time" value="22:00"', false)
+        ->assertSee('Сейчас не продаётся: вне времени продажи');
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Криво', 'sale_periods' => $period('xyz', '25:00', 'sun', '23:59')]))->assertSessionHasErrors(['sale_periods.0.start_day', 'sale_periods.0.start_time']);
 
     $headers = ['Authorization' => 'Bearer '.$owner->createToken('agent', ['club:'.$club->id()])->plainTextToken];
-    $names = collect($this->getJson(route('api.tariffs.index'), $headers)->assertOk()->json('data'))->pluck('name')->all();
-    expect($names)->toBe(['Сейчас']);
+    $names = fn () => collect($this->getJson(route('api.tariffs.index'), $headers)->assertOk()->json('data'))->pluck('name')->sort()->values()->all();
+    expect($names())->toBe(['Будни', 'Всегда']);
 
     $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 1]);
-    $this->get(route('club-map.index'))->assertOk()->assertSee('value="tariff:'.Tariff::query()->where('name', 'Сейчас')->value('id').'"', false)
-        ->assertDontSee('value="tariff:'.$soon->id.'"', false);
+    $this->get(route('club-map.index'))->assertOk()->assertDontSee('value="tariff:'.$night->id.'"', false);
     CashShift::query()->forceCreate(['opened_by' => $owner->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
-    $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $soon->id, 'payment_method' => 'cash'])
+    $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $night->id, 'payment_method' => 'cash'])
         ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+
+    // Saturday 23:00: the night tariff is on sale, the weekday one is not.
+    $this->travelTo(Carbon::parse('2026-10-31 23:00', $club->timezone()));
+    expect($names())->toBe(['Всегда', 'Ночь']);
+});
+
+test('the tariff list is filtered by zone: its own tariffs and those of every zone', function () {
+    $this->actingAs(User::factory()->create());
+    $hall = ClubZone::query()->create(['name' => 'Зал']);
+    $vip = ClubZone::query()->create(['name' => 'VIP']);
+    foreach ([$hall, $vip] as $number => $zone) {
+        ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => $number + 1]);
+    }
+    editableTariff(['name' => 'Зальный'])->zones()->syncWithPivotValues([$hall->id], ['club_id' => $hall->club_id]);
+    editableTariff(['name' => 'Випный'])->zones()->syncWithPivotValues([$vip->id], ['club_id' => $hall->club_id]);
+    editableTariff(['name' => 'Общий']);
+
+    $this->get(route('tariffs.index'))->assertOk()->assertSee('Зальный')->assertSee('Випный')->assertSee('Общий');
+    $this->get(route('tariffs.index', ['zone' => $vip->id]))->assertOk()
+        ->assertSee('<option value="'.$vip->id.'" selected>VIP</option>', false)
+        ->assertSee('Випный')->assertSee('Общий')->assertDontSee('Зальный');
 });

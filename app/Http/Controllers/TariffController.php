@@ -9,7 +9,6 @@ use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -71,9 +70,18 @@ class TariffController extends Controller
 
     private function page(?Tariff $editing): View
     {
+        $zones = ClubZone::query()->whereHas('computers')->orderBy('name')->get();
+        // Zone filter: the tariffs that work in the zone — its own and those of every zone.
+        $zoneFilter = $zones->firstWhere('id', (int) request()->query('zone'))?->id;
+
         return view('tariffs.index', [
-            'tariffs' => Tariff::query()->with('zones')->orderBy('duration_minutes')->orderBy('name')->get(),
-            'zones' => ClubZone::query()->whereHas('computers')->orderBy('name')->get(),
+            'tariffs' => Tariff::query()->with('zones')
+                ->when($zoneFilter, fn ($query, int $zoneId) => $query->where(fn ($query) => $query
+                    ->whereHas('zones', fn ($zones) => $zones->whereKey($zoneId))
+                    ->orWhereDoesntHave('zones')))
+                ->orderBy('duration_minutes')->orderBy('name')->get(),
+            'zones' => $zones,
+            'zoneFilter' => $zoneFilter,
             'currency' => data_get($this->currentClub->settings() ?: [], 'finances.currency', 'KZT'),
             'editing' => $editing,
             'editingValues' => $editing === null ? [] : $this->formValues($editing),
@@ -94,10 +102,6 @@ class TariffController extends Controller
             : null;
         if (! $data['quantity_limit_enabled']) {
             $data['quantity_limit'] = null;
-        }
-        // The sale time is entered in the club's time; stored in UTC.
-        foreach (['sale_starts_at', 'sale_ends_at'] as $field) {
-            $data[$field] = empty($data[$field]) ? null : Carbon::createFromFormat('Y-m-d\\TH:i', $data[$field], $this->currentClub->timezone());
         }
         unset($data['zone_ids'], $data['duration_value'], $data['duration_unit'], $data['usage_limit_value'], $data['usage_limit_unit']);
 
@@ -125,8 +129,7 @@ class TariffController extends Controller
             'usage_limit_unit' => $usageUnit,
             'quantity_limit_enabled' => $tariff->quantity_limit_enabled ? '1' : '0',
             'quantity_limit' => $tariff->quantity_limit,
-            'sale_starts_at' => $tariff->sale_starts_at?->format('Y-m-d\\TH:i'),
-            'sale_ends_at' => $tariff->sale_ends_at?->format('Y-m-d\\TH:i'),
+            'sale_periods' => is_array($tariff->sale_periods) && $tariff->sale_periods !== [] ? $tariff->sale_periods : null,
             'validity_periods' => is_array($tariff->validity_periods) && $tariff->validity_periods !== [] ? $tariff->validity_periods : null,
             'is_active' => $tariff->is_active ? '1' : '0',
         ];

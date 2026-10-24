@@ -184,7 +184,7 @@ class AgentTariffPurchaseService
             if ($tariff !== null && $tariff->zones()->exists() && ! $tariff->zones()->whereKey($computer->club_zone_id)->exists()) {
                 throw ValidationException::withMessages(['package' => __('Абонемент не действует на этом компьютере.')]);
             }
-            if ($tariff !== null && ! $this->inValidityPeriod($tariff)) {
+            if ($tariff !== null && ! $tariff->inValidityPeriod()) {
                 throw ValidationException::withMessages(['package' => __('Абонемент сейчас не действует: проверьте дни и время тарифа.')]);
             }
 
@@ -325,36 +325,7 @@ class AgentTariffPurchaseService
             return false;
         }
 
-        return $this->inValidityPeriod($tariff);
-    }
-
-    /** Now is within the tariff's days and times (its "validity period"); none set — always. */
-    private function inValidityPeriod(Tariff $tariff): bool
-    {
-        $periods = $tariff->validity_periods;
-        if (! is_array($periods) || $periods === []) {
-            return true;
-        }
-
-        $localNow = Carbon::now($this->currentClub->timezone());
-        $dayNumbers = ['mon' => 0, 'tue' => 1, 'wed' => 2, 'thu' => 3, 'fri' => 4, 'sat' => 5, 'sun' => 6];
-        $minuteOfWeek = ($localNow->dayOfWeekIso - 1) * 1440 + $localNow->hour * 60 + $localNow->minute;
-
-        foreach ($periods as $period) {
-            $startDay = $dayNumbers[$period['start_day'] ?? ''] ?? null;
-            $endDay = $dayNumbers[$period['end_day'] ?? ''] ?? null;
-            if ($startDay === null || $endDay === null) {
-                continue;
-            }
-
-            $start = $startDay * 1440 + $this->minutesFromTime($period['start_time'] ?? '');
-            $end = $endDay * 1440 + $this->minutesFromTime($period['end_time'] ?? '');
-            if ($start <= $end ? $minuteOfWeek >= $start && $minuteOfWeek <= $end : $minuteOfWeek >= $start || $minuteOfWeek <= $end) {
-                return true;
-            }
-        }
-
-        return false;
+        return $tariff->inValidityPeriod();
     }
 
     private function purchaseCount(Tariff $tariff): int
@@ -416,15 +387,6 @@ class AgentTariffPurchaseService
         [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '00');
 
         return ((int) $whole * 100) + (int) str_pad(substr($fraction, 0, 2), 2, '0');
-    }
-
-    private function minutesFromTime(string $time): int
-    {
-        if (! preg_match('/^(\d{2}):(\d{2})$/', $time, $matches)) {
-            return 0;
-        }
-
-        return (int) $matches[1] * 60 + (int) $matches[2];
     }
 
     public static function formatCents(int $cents): string
