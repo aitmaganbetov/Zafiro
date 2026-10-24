@@ -59,7 +59,7 @@ test('pick an employee, then tick rights: a cashier may create products but not 
     $this->get(route('settings.permissions.edit', $cashier))->assertOk()
         ->assertSee('Права: Айгерим')->assertSeeInOrder(['Просмотр', 'Создание', 'Изменение', 'Удаление'])
         ->assertSee('name="rights[warehouse][create]" value="1"', false)
-        ->assertDontSee('name="rights[warehouse][delete]"', false);
+        ->assertDontSee('name="rights[stock][delete]"', false);
 
     $this->put(route('settings.permissions.update', $cashier), rightsForm($cashier, ['warehouse.view' => true, 'warehouse.create' => true, 'cash.view' => false]))
         ->assertRedirect(route('settings.permissions.edit', $cashier))->assertSessionHas('status', 'Права сохранены.');

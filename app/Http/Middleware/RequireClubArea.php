@@ -38,6 +38,7 @@ class RequireClubArea
         'warehouse.view' => ['warehouse'],
         'warehouse.create' => ['warehouse.products.store', 'warehouse.categories.store'],
         'warehouse.update' => ['warehouse.products.update', 'warehouse.stock-movements.store'],
+        'warehouse.delete' => ['warehouse.products.destroy'],
         'stock.view' => ['stock.index'],
         'stock.create' => ['stock.receive'],
         'orders.view' => ['shop-orders.index', 'shop-orders.state'],

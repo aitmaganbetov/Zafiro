@@ -1807,6 +1807,12 @@ return [
         'Вернуть права по роли' => 'Back to the rights of the role',
         'В заказ' => 'To order',
         'Добавить в заказ: :product' => 'Add to the order: :product',
+        'Удалить товар' => 'Delete a product',
+        'Удалён товар: :product' => 'Product deleted: :product',
+        'Товар «:product» удалён.' => 'Product “:product” deleted.',
+        'Удаление товара' => 'Product deletion',
+        'Товар пропадёт из кассы, склада и магазина агента. История движения и чеки сохранятся.' => 'The product leaves the cash register, the warehouse and the agent shop. Its stock history and receipts are kept.',
+        'Удалить товар «:product»? Он пропадёт из кассы, склада и магазина агента.' => 'Delete the product “:product”? It leaves the cash register, the warehouse and the agent shop.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

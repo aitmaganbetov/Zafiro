@@ -24,6 +24,7 @@ use App\Http\Controllers\PasswordRecoveryController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductDeleteController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\QrLoginController;
 use App\Http\Controllers\SettingsController;
@@ -226,6 +227,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::get('/tariffs/{tariff}/edit', [TariffController::class, 'edit'])->name('tariffs.edit');
         Route::patch('/tariffs/{tariff}', [TariffController::class, 'update'])->name('tariffs.update');
         Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->name('tariffs.destroy');
+        Route::delete('/warehouse/products/{product}', ProductDeleteController::class)->name('warehouse.products.destroy');
     });
 
     // Settings → Rights: the owner (and admins, not for admins) set the rights of an employee.

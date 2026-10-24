@@ -37,6 +37,7 @@ class ActivityLog extends Model
         'tariff.created' => 'Создание тарифа',
         'tariff.updated' => 'Изменение тарифа',
         'tariff.deleted' => 'Удаление тарифа',
+        'product.deleted' => 'Удаление товара',
         'permissions.updated' => 'Изменение прав сотрудника',
         'tariff.purchased' => 'Покупка тарифа',
         'time.purchased' => 'Покупка времени поминутно',

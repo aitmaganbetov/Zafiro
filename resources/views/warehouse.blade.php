@@ -86,6 +86,26 @@
         </form>
     </div>
 
+    {{-- The owner (the "warehouse.delete" right) deletes a product; its stock history stays. --}}
+    @if($currentMembership->hasPermission('warehouse.delete') && $products->isNotEmpty())
+    <div class="mb-6 animate-slide rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <h3 class="mb-1 text-xl font-bold text-gray-900 dark:text-white">{{ __('Удаление товара') }}</h3>
+        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{{ __('Товар пропадёт из кассы, склада и магазина агента. История движения и чеки сохранятся.') }}</p>
+        <form method="POST" data-delete-product class="flex flex-wrap items-end gap-3" onsubmit="const option=this.elements.product.selectedOptions[0];if(!option||!confirm(option.dataset.confirm))return false;this.action=option.dataset.action">
+            @csrf @method('DELETE')
+            <div class="min-w-[240px] flex-1">
+                <label for="delete-product" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Товар') }}</label>
+                <select id="delete-product" name="product" required class="brand-focus w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                    @foreach ($products as $product)
+                        <option value="{{ $product->id }}" data-action="{{ route('warehouse.products.destroy', $product) }}" data-confirm="{{ __('Удалить товар «:product»? Он пропадёт из кассы, склада и магазина агента.', ['product' => $product->name]) }}">{{ $product->name }} · {{ $product->sku }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="rounded-lg border border-red-300 px-5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20">{{ __('Удалить товар') }}</button>
+        </form>
+    </div>
+    @endif
+
     <div class="animate-slide rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <h3 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">{{ __('Склад') }}</h3>
         <p class="mb-6 text-gray-600 dark:text-gray-400">{{ __('Товаров на складе: :count', ['count' => $stock->total()]) }}</p>

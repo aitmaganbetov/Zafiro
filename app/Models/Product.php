@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['sku', 'name', 'category', 'product_category_id', 'price', 'quantity'])]
 class Product extends Model
@@ -36,4 +37,7 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class);
     }
+
+    // Deleted by the owner: off the cash register, warehouse and agent; stock history stays.
+    use SoftDeletes;
 }
