@@ -6,6 +6,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubZone;
 use App\Models\ComputerReservation;
+use App\Models\SessionPurchase;
 use App\Models\Tariff;
 use App\Models\User;
 use App\Services\ClubComputerSessions;
@@ -117,4 +118,21 @@ test('the start tariff dialog knows the zones of each tariff, so it shows the ta
     openShift($cashier);
     $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [ClubComputer::query()->value('id')], 'tariff_id' => $hallOnly->id, 'payment_method' => 'cash'])
         ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+});
+
+test('the club map shows who sits at a PC and what they bought', function () {
+    $cashier = guestCashier();
+    $customer = User::factory()->create(['name' => 'Арман', 'phone' => '+77010000001']);
+    $hall = ClubZone::query()->create(['name' => 'Hall']);
+    $pc = ClubComputer::query()->create(['club_zone_id' => $hall->id, 'number' => 1]);
+    $guestPc = ClubComputer::query()->create(['club_zone_id' => $hall->id, 'number' => 2]);
+    $pc->forceFill(['current_session_id' => 'session-1', 'current_session_user_id' => $customer->id, 'session_guest' => false, 'session_ends_at' => now()->addHour()])->save();
+    $guestPc->forceFill(['current_session_id' => 'session-2', 'session_guest' => true, 'session_ends_at' => now()->addHour()])->save();
+    SessionPurchase::query()->create(['session_id' => 'session-1', 'user_id' => $customer->id, 'kind' => 'tariff', 'name' => 'Ночной', 'minutes' => 300, 'main_cents' => 100000, 'bonus_cents' => 0]);
+    SessionPurchase::query()->create(['session_id' => 'session-1', 'user_id' => $customer->id, 'kind' => 'minutes', 'name' => 'Hall', 'minutes' => 30, 'main_cents' => 30000, 'bonus_cents' => 0]);
+
+    $this->actingAs($cashier)->get(route('club-map.index'))->assertOk()
+        ->assertSee('data-session-user="Арман · +77010000001" data-session-tariff="Ночной, Поминутно: 30 мин."', false)
+        ->assertSee('data-session-user="Гость без аккаунта" data-session-tariff="Оплачено на кассе"', false)
+        ->assertSee('id="computer-info-session-user"', false);
 });

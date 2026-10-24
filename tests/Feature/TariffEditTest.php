@@ -1,10 +1,12 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\CashShift;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Models\User;
+use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -68,4 +70,32 @@ test('the manager changes a tariff; the name stays unique in the club', function
         ->is_active->toBeFalse()
         ->and($tariff->zones->modelKeys())->toBe([$zone->id])
         ->and(ActivityLog::query()->where('event', 'tariff.updated')->sole()->details['changed'])->toBe(['price', 'duration_minutes', 'is_active', 'zones']);
+});
+
+test('a tariff is on sale only within its sale time: the agent, the cash register and purchases follow it', function () {
+    $this->freezeTime();
+    $owner = User::factory()->create();
+    $this->actingAs($owner);
+    $club = app(CurrentClub::class);
+    $local = fn (string $modify) => now($club->timezone())->modify($modify)->format('Y-m-d\TH:i');
+
+    // Entered in the club's local time, shown back the same.
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Скоро', 'is_active' => '1', 'sale_starts_at' => $local('+1 day')]))->assertSessionHasNoErrors();
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Сейчас', 'is_active' => '1', 'sale_starts_at' => $local('-1 day'), 'sale_ends_at' => $local('+1 day')]))->assertSessionHasNoErrors();
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Прошёл', 'is_active' => '1', 'sale_ends_at' => $local('-1 hour')]))->assertSessionHasNoErrors();
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Криво', 'sale_starts_at' => $local('+2 days'), 'sale_ends_at' => $local('+1 day')]))->assertSessionHasErrors('sale_ends_at');
+    $soon = Tariff::query()->where('name', 'Скоро')->sole();
+    expect($soon->sale_starts_at->format('Y-m-d\TH:i'))->toBe($local('+1 day'));
+    $this->get(route('tariffs.edit', $soon))->assertOk()->assertSee('value="'.$local('+1 day').'"', false)->assertSee('Продажа с ');
+
+    $headers = ['Authorization' => 'Bearer '.$owner->createToken('agent', ['club:'.$club->id()])->plainTextToken];
+    $names = collect($this->getJson(route('api.tariffs.index'), $headers)->assertOk()->json('data'))->pluck('name')->all();
+    expect($names)->toBe(['Сейчас']);
+
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 1]);
+    $this->get(route('club-map.index'))->assertOk()->assertSee('value="tariff:'.Tariff::query()->where('name', 'Сейчас')->value('id').'"', false)
+        ->assertDontSee('value="tariff:'.$soon->id.'"', false);
+    CashShift::query()->forceCreate(['opened_by' => $owner->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
+    $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $soon->id, 'payment_method' => 'cash'])
+        ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
 });

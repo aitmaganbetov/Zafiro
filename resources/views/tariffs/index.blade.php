@@ -106,6 +106,16 @@
                 </div>
             </div>
 
+            {{-- Sale time: before the start and after the end the tariff is not shown or sold. --}}
+            <section class="border-t border-gray-200 pt-6 dark:border-gray-800">
+                <h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Время продажи') }}</h5>
+                <p class="mb-3 text-xs text-gray-500">{{ __('До начала и после окончания тариф не показывается в агенте и на кассе. Пусто — без ограничения.') }}</p>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <label class="text-xs text-gray-500">{{ __('Продажа с') }}<input name="sale_starts_at" type="datetime-local" value="{{ $value('sale_starts_at') }}" class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></label>
+                    <label class="text-xs text-gray-500">{{ __('Продажа до') }}<input name="sale_ends_at" type="datetime-local" value="{{ $value('sale_ends_at') }}" class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"></label>
+                </div>
+            </section>
+
             <section class="border-t border-gray-200 pt-6 dark:border-gray-800">
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <div><h5 class="text-sm font-semibold text-gray-900 dark:text-white">{{ __('Период действия') }}</h5><p class="text-xs text-gray-500">{{ __('Дни и время, когда абонемент можно использовать.') }}</p></div>
@@ -186,7 +196,7 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse ($tariffs as $tariff)
                         <tr>
-                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · {{ __('Со скидкой') }}@endif</span></td>
+                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · {{ __('Со скидкой') }}@endif</span>@if($tariff->sale_starts_at?->isFuture())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Продажа с :date', ['date' => $tariff->sale_starts_at->format('d.m.Y H:i')]) }}</span>@elseif($tariff->sale_ends_at !== null)<span class="mt-1 block text-xs font-normal {{ $tariff->sale_ends_at->isFuture() ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400' }}">{{ $tariff->sale_ends_at->isFuture() ? __('Продажа до :date', ['date' => $tariff->sale_ends_at->format('d.m.Y H:i')]) : __('Продажа закончилась :date', ['date' => $tariff->sale_ends_at->format('d.m.Y H:i')]) }}</span>@endif</td>
                             <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->zones->pluck('name')->join(', ') ?: __('Все зоны') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ __(':minutes мин.', ['minutes' => $tariff->duration_minutes]) }}</td>
                             <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>

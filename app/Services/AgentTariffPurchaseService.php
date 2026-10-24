@@ -312,6 +312,10 @@ class AgentTariffPurchaseService
 
     private function isAvailable(Tariff $tariff, ClubMembership $membership, int $purchaseCount): bool
     {
+        if (! $tariff->onSale()) {
+            return false;
+        }
+
         if ($tariff->quantity_limit_enabled && $tariff->quantity_limit !== null && $purchaseCount >= $tariff->quantity_limit) {
             return false;
         }

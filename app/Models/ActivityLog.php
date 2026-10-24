@@ -57,6 +57,7 @@ class ActivityLog extends Model
         'user.created' => 'Создание пользователя',
         'user.balance_topped_up' => 'Пополнение баланса пользователя',
         'user.balance_refunded' => 'Возврат пополнения баланса',
+        'user.balance_written_off' => 'Списание баланса без кассы',
         'user.updated' => 'Изменение клиента',
         'user.registered' => 'Регистрация клиента на ПК',
         'user.joined_club' => 'Клиент другого клуба присоединился на ПК',

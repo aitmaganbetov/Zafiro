@@ -40,7 +40,7 @@ class GuestSessions
             }
 
             $tariff = $tariffId === null ? null : Tariff::query()->with('zones:id')->where('is_active', true)->find($tariffId);
-            if ($tariffId !== null && $tariff === null) {
+            if ($tariffId !== null && ($tariff === null || ! $tariff->onSale())) {
                 throw ValidationException::withMessages(['tariff_id' => __('Тариф недоступен.')]);
             }
             $duration = $tariff !== null ? $this->tariffs->effectiveMinutes($tariff) : (int) $minutes;

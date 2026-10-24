@@ -20,12 +20,12 @@ class GuestHistory
     private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
-    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'user.balance_refunded', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
+    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'user.balance_refunded', 'user.balance_written_off', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
 
     /** Filters of the history page in the agent: [own events, received events]. */
     public const FILTERS = [
         'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded'], ['shop.order_cancelled', 'time.refunded']],
-        'top_ups' => [[], ['user.balance_topped_up', 'user.balance_refunded']],
+        'top_ups' => [[], ['user.balance_topped_up', 'user.balance_refunded', 'user.balance_written_off']],
         'transfers' => [['balance.transferred'], ['balance.transferred']],
         'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
     ];
@@ -118,6 +118,11 @@ class GuestHistory
                 if (! $bonusField && (float) ($details['bonus_taken_back'] ?? 0) > 0) {
                     $entry['bonus_amount'] = self::negative($details['bonus_taken_back']);
                 }
+                break;
+            case 'user.balance_written_off':
+                $entry['kind'] = 'top_up';
+                $entry['title'] = __('Списание с баланса администрацией клуба');
+                $entry[($details['balance_field'] ?? 'balance') === 'bonus_balance' ? 'bonus_amount' : 'amount'] = self::negative($details['amount'] ?? null);
                 break;
             case 'balance.transferred':
                 $outgoing = (int) $log->user_id === $userId;

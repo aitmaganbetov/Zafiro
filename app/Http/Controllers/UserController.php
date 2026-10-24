@@ -95,9 +95,12 @@ class UserController extends Controller
             'discount' => [self::canSetMoney() ? 'nullable' : 'prohibited', 'numeric', 'min:0', 'max:100'],
             'top_up_amount' => [self::canTopUpWithoutCash() ? 'nullable' : 'prohibited', 'numeric', 'min:0.01', 'max:10000000'],
             'top_up_balance' => ['nullable', 'required_with:top_up_amount', Rule::in(['balance', 'bonus_balance'])],
+            // The same amount adds to the balance or (the owner only too) writes it off.
+            'balance_action' => [self::canTopUpWithoutCash() ? 'nullable' : 'prohibited', Rule::in(['top_up', 'write_off'])],
         ], [
             'discount.prohibited' => __('Скидку клиента задаёт менеджер.'),
-            'top_up_amount.prohibited' => __('Пополнять баланс без кассы может только владелец клуба.'),
+            'top_up_amount.prohibited' => __('Пополнять и списывать баланс без кассы может только владелец клуба.'),
+            'balance_action.prohibited' => __('Пополнять и списывать баланс без кассы может только владелец клуба.'),
         ]);
         // A worker of another club: the name and email are of the account — this club changes only
         // its own discount and balance.
@@ -105,8 +108,9 @@ class UserController extends Controller
             throw ValidationException::withMessages(['name' => __('Это сотрудник другого клуба: имя и email меняет он сам. Здесь меняются только скидка и баланс.')]);
         }
         $topUp = isset($data['top_up_amount']) ? round((float) $data['top_up_amount'], 2) : 0.0;
+        $writeOff = ($data['balance_action'] ?? 'top_up') === 'write_off';
 
-        DB::transaction(function () use ($user, $membership, $data, $topUp, $request, $activity): void {
+        DB::transaction(function () use ($user, $membership, $data, $topUp, $writeOff, $request, $activity): void {
             $before = ['name' => $user->name, 'email' => $user->email, 'discount' => (string) $membership->discount];
             $user->fill(['name' => $data['name'], 'email' => $data['email'] ?? null])->save();
             if (array_key_exists('discount', $data) && $data['discount'] !== null) {
@@ -119,7 +123,22 @@ class UserController extends Controller
                 $activity->record('user.updated', __('Изменён клиент: :user', ['user' => $user->name]), $request->user()->getKey(), $user, $changes);
             }
 
-            if ($topUp > 0) {
+            if ($topUp > 0 && $writeOff) {
+                $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
+                $field = $data['top_up_balance'];
+                if ((float) $balance->{$field} < $topUp) {
+                    throw ValidationException::withMessages(['top_up_amount' => __('На балансе клиента меньше суммы списания: :amount.', ['amount' => number_format((float) $balance->{$field}, 2, '.', ' ')])]);
+                }
+                $balance->decrement($field, $topUp);
+                $label = $field === 'balance' ? __('основной баланс') : __('бонусный баланс');
+                $activity->record('user.balance_written_off', __('Списание :balance без кассы: :user', ['balance' => $label, 'user' => $user->name]), $request->user()->getKey(), $user, [
+                    'amount' => $topUp,
+                    'balance_field' => $field,
+                    'balance_type' => $label,
+                    'new_balance' => (float) $balance->refresh()->{$field},
+                    'without_cash' => true,
+                ]);
+            } elseif ($topUp > 0) {
                 $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
                 $field = $data['top_up_balance'];
                 $balance->increment($field, $topUp);
@@ -135,9 +154,13 @@ class UserController extends Controller
             }
         });
 
-        return back()->with('status', $topUp > 0
-            ? __('Данные клиента сохранены. Баланс пополнен на :amount без кассы.', ['amount' => number_format($topUp, 2, '.', ' ')])
-            : __('Данные клиента сохранены.'));
+        $amount = number_format($topUp, 2, '.', ' ');
+
+        return back()->with('status', match (true) {
+            $topUp > 0 && $writeOff => __('Данные клиента сохранены. С баланса списано :amount без кассы.', ['amount' => $amount]),
+            $topUp > 0 => __('Данные клиента сохранены. Баланс пополнен на :amount без кассы.', ['amount' => $amount]),
+            default => __('Данные клиента сохранены.'),
+        });
     }
 
     /**

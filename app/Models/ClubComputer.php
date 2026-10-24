@@ -59,6 +59,12 @@ class ClubComputer extends Model
         return $this->belongsTo(User::class, 'staff_user_id');
     }
 
+    /** The customer whose paid session runs on this PC (none for a guest session from the cash register). */
+    public function sessionUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'current_session_user_id');
+    }
+
     public function currentStatus(): string
     {
         if ($this->is_reserved || $this->bookedNow) {

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
 use App\Models\ClubZone;
+use App\Models\SessionPurchase;
 use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\AgentUpdate;
@@ -28,7 +29,16 @@ class ClubZoneController extends Controller
 
     public function index(ComputerReservations $reservations, AgentUpdate $agentUpdate): View
     {
-        $zones = ClubZone::query()->with(['computers.staffUser:id,name', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get();
+        $zones = ClubZone::query()->with(['computers.staffUser:id,name', 'computers.sessionUser:id,name,phone', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get();
+        // What the customer bought for the running sessions: tariffs and per-minute time, oldest first.
+        $sessionIds = $zones->pluck('computers')->flatten()->pluck('current_session_id')->filter()->values();
+        $sessionPurchases = $sessionIds->isEmpty() ? collect() : SessionPurchase::query()
+            ->whereIn('session_id', $sessionIds)->orderBy('id')
+            ->get(['session_id', 'kind', 'name', 'minutes'])
+            ->groupBy('session_id')
+            ->map(fn ($parts) => $parts->map(fn (SessionPurchase $part): string => $part->kind === SessionPurchase::KIND_TARIFF
+                ? $part->name
+                : __('Поминутно: :count мин.', ['count' => $part->minutes]))->implode(', '));
         $booked = $reservations->heldComputerIds();
         // foreach, not each(): each() stops at the first PC whose callback returns false.
         foreach ($zones as $zone) {
@@ -39,6 +49,7 @@ class ClubZoneController extends Controller
 
         return view('club-map.index', [
             'zones' => $zones,
+            'sessionPurchases' => $sessionPurchases,
             'tariffs' => Tariff::query()->orderBy('name')->get(),
             'agentVersions' => $agentUpdate,
             'latestAgent' => $agentUpdate->latestVersion(),

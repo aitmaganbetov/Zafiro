@@ -9,6 +9,7 @@ use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -94,6 +95,10 @@ class TariffController extends Controller
         if (! $data['quantity_limit_enabled']) {
             $data['quantity_limit'] = null;
         }
+        // The sale time is entered in the club's time; stored in UTC.
+        foreach (['sale_starts_at', 'sale_ends_at'] as $field) {
+            $data[$field] = empty($data[$field]) ? null : Carbon::createFromFormat('Y-m-d\\TH:i', $data[$field], $this->currentClub->timezone());
+        }
         unset($data['zone_ids'], $data['duration_value'], $data['duration_unit'], $data['usage_limit_value'], $data['usage_limit_unit']);
 
         return [$data, $zoneIds];
@@ -120,6 +125,8 @@ class TariffController extends Controller
             'usage_limit_unit' => $usageUnit,
             'quantity_limit_enabled' => $tariff->quantity_limit_enabled ? '1' : '0',
             'quantity_limit' => $tariff->quantity_limit,
+            'sale_starts_at' => $tariff->sale_starts_at?->format('Y-m-d\\TH:i'),
+            'sale_ends_at' => $tariff->sale_ends_at?->format('Y-m-d\\TH:i'),
             'validity_periods' => is_array($tariff->validity_periods) && $tariff->validity_periods !== [] ? $tariff->validity_periods : null,
             'is_active' => $tariff->is_active ? '1' : '0',
         ];

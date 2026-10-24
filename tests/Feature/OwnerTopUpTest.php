@@ -89,3 +89,26 @@ test('a superadmin playing in a club gets a discount and a top-up like any custo
     expect($membership->fresh()->discount)->toBe('5.00')
         ->and(MemberBalance::query()->where('user_id', $customer->id)->sole()->balance)->toBe('150.00');
 });
+
+test('the owner writes off the main or the bonus balance without the cash register', function () {
+    [$owner, $customer, $membership] = topUpCustomer();
+
+    $this->actingAs($owner)->get(route('users.index'))->assertOk()->assertSee('name="balance_action"', false);
+    $this->patch(route('users.update', $membership), ['name' => 'Арман', 'balance_action' => 'write_off', 'top_up_amount' => '30', 'top_up_balance' => 'balance'])
+        ->assertSessionHasNoErrors()->assertSessionHas('status', 'Данные клиента сохранены. С баланса списано 30.00 без кассы.');
+    $this->patch(route('users.update', $membership), ['name' => 'Арман', 'balance_action' => 'write_off', 'top_up_amount' => '10', 'top_up_balance' => 'bonus_balance'])->assertSessionHasNoErrors();
+    // Not below zero.
+    $this->patch(route('users.update', $membership), ['name' => 'Арман', 'balance_action' => 'write_off', 'top_up_amount' => '500', 'top_up_balance' => 'balance'])->assertSessionHasErrors('top_up_amount');
+
+    $balance = MemberBalance::query()->where('user_id', $customer->id)->sole();
+    expect($balance->balance)->toBe('70.00')->and($balance->bonus_balance)->toBe('0.00')
+        ->and(CashTransaction::query()->exists())->toBeFalse()
+        ->and(ActivityLog::query()->where('event', 'user.balance_written_off')->count())->toBe(2);
+    expect(app(GuestHistory::class)->page($customer)['data'][0])->toMatchArray(['title' => 'Списание с баланса администрацией клуба', 'bonus_amount' => '-10.00']);
+
+    // Not the managers.
+    $manager = User::factory()->create();
+    ClubMembership::query()->where('user_id', $manager->id)->update(['role' => 'manager']);
+    $this->actingAs($manager)->patch(route('users.update', $membership), ['name' => 'Арман', 'balance_action' => 'write_off', 'top_up_amount' => '5', 'top_up_balance' => 'balance'])
+        ->assertSessionHasErrors(['top_up_amount', 'balance_action']);
+});
