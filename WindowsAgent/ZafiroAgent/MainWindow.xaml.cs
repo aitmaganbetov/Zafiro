@@ -983,6 +983,21 @@ namespace ZafiroAgent
                     if (!string.IsNullOrEmpty(password)) SafeLog.Register(password);
                     await GuestCallAsync("transferResult", HttpMethod.Post, $"friends/{id}/transfer", new { amount = amount ?? string.Empty, password = password ?? string.Empty });
                 }
+                else if (type == "updateProfileName")
+                {
+                    var name = doc.RootElement.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(name)) return;
+                    await GuestCallAsync("profileNameResult", HttpMethod.Post, "profile/name", new { name });
+                }
+                else if (type == "changePassword")
+                {
+                    // Пароли — только в теле запроса к серверу, не в журнал и не в настройки.
+                    var current = doc.RootElement.TryGetProperty("current", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+                    var password = doc.RootElement.TryGetProperty("password", out var pw) && pw.ValueKind == JsonValueKind.String ? pw.GetString() : null;
+                    if (!string.IsNullOrEmpty(current)) SafeLog.Register(current);
+                    if (!string.IsNullOrEmpty(password)) SafeLog.Register(password);
+                    await GuestCallAsync("passwordResult", HttpMethod.Post, "profile/password", new { current_password = current ?? string.Empty, password = password ?? string.Empty, password_confirmation = password ?? string.Empty });
+                }
                 else if (type == "requestChat")
                 {
                     var after = doc.RootElement.TryGetProperty("after", out var a) && a.ValueKind == JsonValueKind.Number && a.TryGetInt64(out var id) && id > 0 ? id : 0;

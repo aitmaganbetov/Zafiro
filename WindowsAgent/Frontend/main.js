@@ -1236,7 +1236,63 @@
     document.getElementById('userName').textContent = name;
     document.getElementById('profileDisplayName').textContent = name;
     document.getElementById('profileAvatarText').textContent = name.trim().charAt(0).toLocaleUpperCase(intlLocale()) || '?';
+    // Имя и пароль меняет только вошедший клиент; поле имени — с текущим именем, пока его не правят.
+    profileAccount.hidden = userName === null;
+    if (document.activeElement !== profileNameInput) profileNameInput.value = userName ?? '';
   }
+
+  // Профиль: своё имя и пароль аккаунта (пароль — с текущим, другие устройства выйдут).
+  const profileAccount = document.getElementById('profileAccount');
+  const profileNameForm = document.getElementById('profileNameForm');
+  const profileNameInput = document.getElementById('profileNameInput');
+  const profileNameSubmit = document.getElementById('profileNameSubmit');
+  const profilePasswordForm = document.getElementById('profilePasswordForm');
+  const profilePasswordStatus = document.getElementById('profilePasswordStatus');
+  const profilePasswordSubmit = document.getElementById('profilePasswordSubmit');
+  const profilePasswords = ['profileCurrentPassword', 'profileNewPassword', 'profileRepeatPassword'].map((id) => document.getElementById(id));
+  const showPasswordField = (button, shown) => {
+    button.previousElementSibling.type = shown ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(shown));
+    const label = shown ? t('Скрыть пароль') : t('Показать пароль');
+    button.title = label;
+    button.setAttribute('aria-label', label);
+  };
+  document.querySelectorAll('[data-password-eye]').forEach((button) => button.addEventListener('click', () => {
+    showPasswordField(button, button.previousElementSibling.type === 'password');
+    button.previousElementSibling.focus();
+  }));
+  const clearProfilePasswords = () => {
+    profilePasswords.forEach((input) => { input.value = ''; });
+    document.querySelectorAll('[data-password-eye]').forEach((button) => showPasswordField(button, false));
+    setStatus(profilePasswordStatus, null);
+  };
+  profileNameForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = profileNameInput.value.trim();
+    if (name.length < 2) {
+      toastKey('Имя — не короче 2 символов.', 'warning');
+      return;
+    }
+    if (!webview) return;
+    profileNameSubmit.disabled = true;
+    webview.postMessage({ type: 'updateProfileName', name });
+  });
+  profilePasswordForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const [current, next, repeat] = profilePasswords.map((input) => input.value);
+    if (next.length < 6) {
+      setStatus(profilePasswordStatus, 'Пароль — не короче 6 символов.');
+      return;
+    }
+    if (next !== repeat) {
+      setStatus(profilePasswordStatus, 'Пароли не совпадают.');
+      return;
+    }
+    if (!webview) return;
+    profilePasswordSubmit.disabled = true;
+    setStatus(profilePasswordStatus, 'Сохраняем…');
+    webview.postMessage({ type: 'changePassword', current, password: next });
+  });
 
   const showPcLabel = () => {
     const label = document.getElementById('pcLabel');
@@ -1483,6 +1539,28 @@
       }
     }
 
+    if (event.data?.type === 'profileNameResult') {
+      profileNameSubmit.disabled = false;
+      if (event.data.ok) {
+        if (typeof event.data.data?.name === 'string') userName = event.data.data.name;
+        profileNameInput.blur();
+        showProfileName();
+        toast(event.data.message ?? '', 'success');
+      } else {
+        toast(event.data.message ?? t('Не удалось выполнить действие.'));
+      }
+    }
+
+    if (event.data?.type === 'passwordResult') {
+      profilePasswordSubmit.disabled = false;
+      if (event.data.ok) {
+        clearProfilePasswords();
+        toast(event.data.message ?? '', 'success');
+      } else {
+        setServerStatus(profilePasswordStatus, event.data.message ?? t('Не удалось выполнить действие.'));
+      }
+    }
+
     if (event.data?.type === 'transferResult') {
       transferSubmit.disabled = false;
       if (event.data.ok) {
@@ -1558,6 +1636,7 @@
       renderCart();
       setStatus(actionStatus, null);
       clearTransferPassword();
+      clearProfilePasswords();
       if (confirmResolve) finishConfirm(false);
       historyFilter = '';
       document.querySelectorAll('[data-history-filter]').forEach((item) => {

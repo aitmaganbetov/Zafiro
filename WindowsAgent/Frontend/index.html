@@ -242,6 +242,36 @@
 			  <div><dt data-i18n="Осталось времени">Осталось времени</dt><dd id="profileRemaining">—</dd></div>
 			</dl>
 		  </section>
+		  <!-- Имя и пароль своего аккаунта Zafiro (один аккаунт во всех клубах); пароль — с текущим. -->
+		  <section class="profile-account" id="profileAccount" aria-labelledby="profileAccountTitle" hidden>
+			<h2 id="profileAccountTitle" data-i18n="Аккаунт">Аккаунт</h2>
+			<div class="profile-account-forms">
+			  <form class="transfer-form" id="profileNameForm">
+				<label for="profileNameInput" data-i18n="Имя">Имя</label>
+				<input id="profileNameInput" maxlength="255" autocomplete="name" required>
+				<button class="primary" id="profileNameSubmit" type="submit" data-i18n="Сохранить имя">Сохранить имя</button>
+			  </form>
+			  <form class="transfer-form" id="profilePasswordForm">
+			<label for="profileCurrentPassword" data-i18n="Текущий пароль">Текущий пароль</label>
+			<div class="password-field">
+			  <input id="profileCurrentPassword" type="password" maxlength="256" autocomplete="current-password" required>
+			  <button class="password-eye" type="button" data-password-eye aria-pressed="false" aria-label="Показать пароль" data-i18n-aria-label="Показать пароль" title="Показать пароль" data-i18n-title="Показать пароль"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+			</div>
+			<label for="profileNewPassword" data-i18n="Новый пароль">Новый пароль</label>
+			<div class="password-field">
+			  <input id="profileNewPassword" type="password" maxlength="256" autocomplete="new-password" required>
+			  <button class="password-eye" type="button" data-password-eye aria-pressed="false" aria-label="Показать пароль" data-i18n-aria-label="Показать пароль" title="Показать пароль" data-i18n-title="Показать пароль"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+			</div>
+			<label for="profileRepeatPassword" data-i18n="Повторите новый пароль">Повторите новый пароль</label>
+			<div class="password-field">
+			  <input id="profileRepeatPassword" type="password" maxlength="256" autocomplete="new-password" required>
+			  <button class="password-eye" type="button" data-password-eye aria-pressed="false" aria-label="Показать пароль" data-i18n-aria-label="Показать пароль" title="Показать пароль" data-i18n-title="Показать пароль"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+			</div>
+				<p class="friends-status" id="profilePasswordStatus" role="status" aria-live="polite"></p>
+				<button class="primary" id="profilePasswordSubmit" type="submit" data-i18n="Сменить пароль">Сменить пароль</button>
+			  </form>
+			</div>
+		  </section>
 		  <p class="profile-version" id="profileVersion" hidden></p>
 		</section>
 

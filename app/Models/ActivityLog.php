@@ -60,6 +60,8 @@ class ActivityLog extends Model
         'user.balance_written_off' => 'Списание баланса без кассы',
         'user.updated' => 'Изменение клиента',
         'user.registered' => 'Регистрация клиента на ПК',
+        'user.profile_updated' => 'Клиент изменил имя',
+        'user.password_changed' => 'Клиент сменил пароль',
         'user.joined_club' => 'Клиент другого клуба присоединился на ПК',
         'user.password_reset' => 'Сброс пароля клиента',
         'auth.login_failed' => 'Неудачный вход',
