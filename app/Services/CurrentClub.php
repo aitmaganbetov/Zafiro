@@ -48,6 +48,17 @@ class CurrentClub
         return $this->club?->getKey();
     }
 
+    /**
+     * The club's own time zone for rules of local time (tariff days and hours), also in APIs —
+     * unlike timezone(), which APIs keep at UTC for the times they return. UTC outside a club.
+     */
+    public function localTimezone(): string
+    {
+        $timezone = $this->club?->getAttributes()['timezone'] ?? null;
+
+        return is_string($timezone) && $timezone !== '' ? $timezone : config('app.timezone');
+    }
+
     /** Time zone for showing times: the club's, or UTC outside a club (queue jobs, guests) and in APIs. */
     public function timezone(): string
     {

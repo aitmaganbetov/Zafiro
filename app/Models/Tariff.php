@@ -40,13 +40,13 @@ class Tariff extends Model
     /** Now (club time) is within its sale days and times; none set — always on sale. */
     public function onSale(): bool
     {
-        return WeeklyPeriods::contains($this->sale_periods, Carbon::now(app(CurrentClub::class)->timezone()));
+        return WeeklyPeriods::contains($this->sale_periods, Carbon::now(app(CurrentClub::class)->localTimezone()));
     }
 
     /** Now (club time) is within its validity days and times: the tariff time may be used. */
     public function inValidityPeriod(): bool
     {
-        return WeeklyPeriods::contains($this->validity_periods, Carbon::now(app(CurrentClub::class)->timezone()));
+        return WeeklyPeriods::contains($this->validity_periods, Carbon::now(app(CurrentClub::class)->localTimezone()));
     }
 
     public function zones(): BelongsToMany

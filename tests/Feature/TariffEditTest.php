@@ -2,9 +2,11 @@
 
 use App\Models\ActivityLog;
 use App\Models\CashShift;
+use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubZone;
+use App\Models\MemberBalance;
 use App\Models\Tariff;
 use App\Models\TimePackage;
 use App\Models\User;
@@ -214,4 +216,27 @@ test('only the owner deletes tariffs', function () {
     $this->actingAs($manager)->get(route('tariffs.index'))->assertOk()->assertDontSee('Удалить тариф');
     $this->delete(route('tariffs.destroy', $tariff))->assertForbidden();
     expect($tariff->fresh()->trashed())->toBeFalse();
+});
+
+test('the agent keeps to the club local days and hours of a tariff, not UTC', function () {
+    $owner = User::factory()->create();
+    $club = Club::query()->findOrFail(app(CurrentClub::class)->id());
+    $club->forceFill(['timezone' => 'Asia/Almaty'])->save(); // UTC+5
+    $tariff = editableTariff(['name' => 'Дневной', 'usage_limit_enabled' => false,
+        'sale_periods' => [['start_day' => 'sat', 'start_time' => '08:00', 'end_day' => 'sat', 'end_time' => '15:00']],
+        'validity_periods' => [['start_day' => 'sat', 'start_time' => '08:00', 'end_day' => 'sat', 'end_time' => '18:00']]]);
+    MemberBalance::query()->where('user_id', $owner->id)->update(['balance' => 10000]);
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Main'])->id, 'number' => 5]);
+    $headers = ['Authorization' => 'Bearer '.$owner->createToken('PC-05', ['club:'.$club->id])->plainTextToken];
+    app(CurrentClub::class)->clear();
+
+    // Saturday 19:00 in Almaty is 14:00 UTC: inside the hours only in UTC — not on sale.
+    $this->travelTo(Carbon::parse('2026-10-24 19:00', 'Asia/Almaty'));
+    $this->getJson(route('api.tariffs.index'), $headers)->assertOk()->assertJsonCount(0, 'data');
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $pc->id], $headers)->assertUnprocessable();
+
+    // Saturday 12:00 in Almaty.
+    $this->travelTo(Carbon::parse('2026-10-24 12:00', 'Asia/Almaty'));
+    app('auth')->forgetGuards();
+    $this->getJson(route('api.tariffs.index'), $headers)->assertOk()->assertJsonPath('data.0.name', 'Дневной');
 });
