@@ -151,5 +151,5 @@ test('a PC on the club map glows by who uses it', function () {
     foreach ([1 => 'online pc-free', 2 => 'online pc-account', 3 => 'online pc-guest', 4 => 'online pc-staff', 5 => 'offline'] as $number => $classes) {
         $page->assertSee('<span class="cm-computer '.$classes.'" data-id="'.ClubComputer::query()->where('number', $number)->value('id').'"', false);
     }
-    $page->assertSee('Гость по чеку');
+    $page->assertSee('Гостевая сессия');
 });

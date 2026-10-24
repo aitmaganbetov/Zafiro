@@ -1697,7 +1697,7 @@ return [
         'Цвета ПК' => 'PC colors',
         'Включён, свободен' => 'On, free',
         'Клиент с аккаунтом' => 'Customer with an account',
-        'Гость по чеку' => 'Guest paid by receipt',
+        'Гостевая сессия' => 'Guest session',
         'Сотрудник, снят по PIN' => 'Staff, opened with the PIN',
     ],
     'pagination' => [
