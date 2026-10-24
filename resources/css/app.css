@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
-/* Dark styles apply only under an explicit .dark class (no theme switcher yet).
-   Following the OS preference mixed dark Tailwind cards with the light custom UI. */
+/* Dark styles apply under the .dark class on <html>: the day / night switch in the top bar
+   (layouts/admin), not the OS preference. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -2068,7 +2068,7 @@ body {
     height: 31px;
     flex: 0 0 38px;
     border-radius: 5px 5px 3px 3px;
-    background: #1e293b;
+    background: var(--pc-bg, #1e293b);
     color: #bfdbfe;
     text-align: center;
     font-size: 14px;
@@ -2157,8 +2157,8 @@ body {
 .cm-page:not(.edit-mode) .cm-computer.selected {
     z-index: var(--z-map-selected);
     transform: scale(1.12);
-    outline: 2px solid #4ade80;
-    box-shadow: 0 0 0 6px rgba(34, 197, 94, .18), 0 8px 18px rgba(15, 23, 42, .28)
+    outline: 3px solid #4ade80;
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, .3), 0 0 16px rgba(34, 197, 94, .55)
 }
 
 
@@ -2576,7 +2576,7 @@ body {
     width: 14px;
     height: 11px;
     border-radius: 3px;
-    background: #1e293b
+    background: var(--pc-bg, #1e293b)
 }
 
 .cm-legend .pc-free {
@@ -2597,6 +2597,144 @@ body {
 
 .cm-legend .pc-reserved {
     background: #80551a
+}
+
+/* A selected glowing PC gets the grey of an off PC around it (a green ring would vanish on green). */
+.cm-page:not(.edit-mode) .cm-computer.selected:is(.pc-free, .pc-account, .pc-guest, .pc-staff) {
+    outline: 3px solid var(--pc-off);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 6px rgba(100, 116, 139, .35), 0 8px 18px rgba(15, 23, 42, .28)
+}
+
+/* Night theme of the club map. */
+.cm-page {
+    --pc-off: #1e293b
+}
+
+.dark .cm-page {
+    --pc-off: #94a3b8;
+    --pc-bg: #2c3644;
+    background: var(--canvas);
+    color: #e8eee9
+}
+
+.dark .cm-head p,
+.dark .cm-legend,
+.dark .cm-zone small,
+.dark .cm-capacity,
+.dark .cm-zone:has(.cm-computers)>.cm-capacity,
+.dark .cm-empty,
+.dark .cm-field-hint,
+.dark .cm-guest-option small {
+    color: #95a098
+}
+
+.dark .cm-board,
+.dark .cm-info-panel,
+.dark .cm-dialog {
+    border-color: #283129;
+    background: #121914;
+    color: #e8eee9;
+    box-shadow: none
+}
+
+.dark .cm-plan {
+    background-image: radial-gradient(#26302a 1px, transparent 1px)
+}
+
+.dark .cm-zone {
+    border-color: #2b362e;
+    background: #161e18
+}
+
+.dark .cm-zone.green {
+    border-color: rgba(74, 222, 128, .28);
+    background: rgba(22, 163, 74, .08)
+}
+
+.dark .cm-zone.yellow {
+    border-color: rgba(250, 204, 21, .28);
+    background: rgba(234, 179, 8, .08)
+}
+
+.dark .cm-zone.purple {
+    border-color: rgba(167, 139, 250, .3);
+    background: rgba(139, 92, 246, .1)
+}
+
+.dark .cm-zone.blue {
+    border-color: rgba(96, 165, 250, .3);
+    background: rgba(59, 130, 246, .1)
+}
+
+.dark .cm-zone.sofa .cm-zone-info {
+    background: rgba(18, 25, 20, .86)
+}
+
+.dark .cm-icon,
+.dark .cm-status,
+.dark .cm-tool,
+.dark .cm-editor-switch,
+.dark .cm-cancel,
+.dark .cm-info-close {
+    border-color: #303a32;
+    background: #18201a;
+    color: #e8eee9;
+    box-shadow: none
+}
+
+.dark .cm-icon {
+    color: var(--brand)
+}
+
+.dark .cm-tool.delete {
+    color: #f87171
+}
+
+.dark .cm-switch-track {
+    background: #3a463d
+}
+
+.dark .cm-info-list dt,
+.dark .cm-field label,
+.dark .cm-guest-note,
+.dark .cm-guest-options legend {
+    color: #a3ada6
+}
+
+.dark .cm-info-list dd {
+    color: #e8eee9
+}
+
+.dark .cm-info-section {
+    border-color: #283129
+}
+
+.dark .cm-info-section p {
+    color: #4ade80
+}
+
+.dark .cm-field input,
+.dark .cm-field select,
+.dark .cm-field textarea,
+.dark .cm-guest-minutes {
+    border-color: #303a32;
+    background: #18201a;
+    color: #e8eee9
+}
+
+.dark .cm-alert.ok {
+    background: rgba(22, 163, 74, .14);
+    color: #86efac
+}
+
+.dark .cm-alert.error {
+    background: rgba(220, 38, 38, .14);
+    color: #fca5a5
+}
+
+.dark .cm-computer:after {
+    background: #475569
 }
 
 .cm-control-button.reserve {
@@ -2977,6 +3115,149 @@ body {
     background: #151d17
 }
 
+/* The report and the receipt stay white paper in the night theme. */
+.dark .admin-content .report-paper thead th {
+    background: none
+}
+
+.dark .admin-mobile-toggle,
+.dark .admin-clock,
+.dark .admin-notifications-panel,
+.dark .admin-notifications-head {
+    border-color: #303a32;
+    background: #18201a;
+    color: #e8eee9
+}
+
+.dark .admin-clock-time {
+    color: #f2f6f3
+}
+
+.dark .admin-clock-date {
+    color: #95a098
+}
+
+.dark .report-page,
+.dark .receipt-page {
+    background: var(--canvas)
+}
+
+.dark .report-back {
+    color: #a3ada6
+}
+
+.dark .report-btn,
+.dark .receipt-actions a {
+    background: #18201a;
+    color: #e8eee9
+}
+
+.dark .report-btn.primary {
+    background: var(--brand);
+    color: #fff
+}
+
+/* Night theme of the cash register. */
+.dark .pos-page {
+    background: var(--canvas);
+    color: #e8eee9
+}
+
+.dark .pos-status,
+.dark .pos-category small,
+.dark .pos-category.active small,
+.dark .pos-product-meta,
+.dark .pos-empty,
+.dark .pos-cart-sub,
+.dark .pos-summary-row,
+.dark .pos-balance-form label,
+.dark .pos-user-picker,
+.dark .pos-view-tab,
+.dark .pos-user-option small,
+.dark .pos-user-no-results {
+    color: #95a098
+}
+
+.dark .pos-actions a,
+.dark .pos-actions button,
+.dark .pos-main,
+.dark .pos-order,
+.dark .pos-category,
+.dark .pos-product,
+.dark .pos-payment,
+.dark .pos-open,
+.dark .pos-summary {
+    border-color: #283129;
+    background: #121914;
+    color: #e8eee9
+}
+
+.dark .pos-actions .danger {
+    color: #f87171
+}
+
+.dark .pos-category.active,
+.dark .pos-payment.active {
+    border-color: rgba(74, 222, 128, .3);
+    background: rgba(22, 163, 74, .18);
+    color: #e8eee9
+}
+
+.dark .pos-product img,
+.dark .pos-cart-item img,
+.dark .pos-qty button {
+    background: #1b241e
+}
+
+.dark .pos-add {
+    background: rgba(22, 163, 74, .18);
+    color: #86efac
+}
+
+.dark .pos-stock {
+    color: #4ade80
+}
+
+.dark .pos-stock.low {
+    color: #f87171
+}
+
+.dark .pos-product.selected {
+    border-color: #47ba70
+}
+
+.dark .pos-cart-price {
+    color: #4ade80
+}
+
+.dark .pos-view-tabs,
+.dark .pos-modes {
+    background: #18201a
+}
+
+.dark .pos-view-tab.active,
+.dark .pos-mode.active {
+    background: #26302a;
+    color: #e8eee9;
+    box-shadow: none
+}
+
+.dark .pos-mode {
+    color: #a3ada6
+}
+
+.dark .pos-balance-input,
+.dark .pos-open input {
+    border-color: #303a32;
+    background: #18201a;
+    color: #e8eee9
+}
+
+.dark .pos-cart-item,
+.dark .pos-summary-total {
+    border-color: #283129
+}
+
 @media(max-width:768px) {
     .admin-mobile-toggle {
         display: grid;
@@ -2987,8 +3268,16 @@ body {
         padding: 12px 12px
     }
 
+    /* A long page title is cut, not broken inside a word, next to the top bar buttons. */
+    .admin-title-wrap {
+        min-width: 0
+    }
+
     .admin-title {
-        font-size: 18px
+        overflow: hidden;
+        font-size: 18px;
+        white-space: nowrap;
+        text-overflow: ellipsis
     }
 
     .admin-search {

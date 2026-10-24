@@ -15,3 +15,12 @@ test('the sidebar can be toggled and closed from the admin layout', function () 
         ->assertSee('data-sidebar-close', false)
         ->assertSee('zafiro.sidebarCollapsed', false);
 });
+
+test('the top bar switches the day and night theme, chosen before the styles load', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('dashboard'))->assertOk()
+        ->assertSeeInOrder(["localStorage.getItem('zafiro.theme')==='dark'", 'build/assets/app-'], false)
+        ->assertSee('data-theme-toggle aria-pressed="false" aria-label="Ночная тема"', false)
+        ->assertSee('data-label-light="Дневная тема"', false);
+});

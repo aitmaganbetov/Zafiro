@@ -1699,6 +1699,8 @@ return [
         'Клиент с аккаунтом' => 'Customer with an account',
         'Гостевая сессия' => 'Guest session',
         'Сотрудник, снят по PIN' => 'Staff, opened with the PIN',
+        'Ночная тема' => 'Night theme',
+        'Дневная тема' => 'Day theme',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

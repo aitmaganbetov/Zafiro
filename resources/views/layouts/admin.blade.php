@@ -6,6 +6,8 @@
     <title>@yield('page-title', __('Панель управления')) · {{ config('app.name') }}</title>
     @include('partials.fonts')
     @include('partials.pwa')
+    {{-- Day or night theme, chosen with the button in the top bar (kept in this browser); before the styles, so the page does not flash. --}}
+    <script>try{if(localStorage.getItem('zafiro.theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
@@ -35,6 +37,7 @@
                             <span class="admin-clock-time"><span data-clock-hm>{{ $clubTime->format('H:i') }}</span><span class="admin-clock-seconds" data-clock-seconds>:{{ $clubTime->format('s') }}</span></span>
                             <span class="admin-clock-date" data-clock-date>{{ $clubTime->translatedFormat('D, j M') }}</span>
                         </time>
+                        <button type="button" class="admin-icon-button" data-theme-toggle aria-pressed="false" aria-label="{{ __('Ночная тема') }}" title="{{ __('Ночная тема') }}" data-label-dark="{{ __('Ночная тема') }}" data-label-light="{{ __('Дневная тема') }}"><i class="fas fa-moon" aria-hidden="true"></i></button>
                         <div class="admin-notifications" data-notifications data-url="{{ route('notifications.index') }}" data-seen-url="{{ route('notifications.seen') }}" data-csrf="{{ csrf_token() }}">
                             <button type="button" id="notifications-button" class="admin-icon-button" aria-label="{{ __('Уведомления') }}" aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel"><i class="far fa-bell"></i><span class="dot" data-notifications-dot hidden></span></button>
                             <div id="notifications-panel" class="admin-notifications-panel" role="region" aria-label="{{ __('Уведомления') }}" hidden>
@@ -59,6 +62,16 @@
         </main>
     </div>
     @stack('scripts')
+    <script>
+        (()=>{
+            // Day / night theme: the .dark class on <html> switches every dark: style.
+            const button=document.querySelector('[data-theme-toggle]');
+            if(!button)return;
+            const show=()=>{const dark=document.documentElement.classList.contains('dark'),label=dark?button.dataset.labelLight:button.dataset.labelDark;button.setAttribute('aria-pressed',String(dark));button.title=label;button.setAttribute('aria-label',label);button.firstElementChild.className=dark?'fas fa-sun':'fas fa-moon'};
+            button.addEventListener('click',()=>{const dark=document.documentElement.classList.toggle('dark');try{localStorage.setItem('zafiro.theme',dark?'dark':'light')}catch(e){}show()});
+            show();
+        })();
+    </script>
     <script>
         (()=>{
             const root=document.querySelector('[data-notifications]');
