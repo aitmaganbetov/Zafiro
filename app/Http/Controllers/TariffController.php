@@ -10,6 +10,7 @@ use App\Models\Tariff;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -69,6 +70,20 @@ class TariffController extends Controller
         return redirect()->route('tariffs.index')->with('status', __('Тариф сохранён.'));
     }
 
+    /** The owner only: off sale everywhere; history and passes already bought keep it. */
+    public function destroy(Request $request, Tariff $tariff, ActivityLogger $activity): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $tariff, $activity): void {
+            $tariff->delete();
+            $activity->record('tariff.deleted', __('Удалён тариф: :tariff', ['tariff' => $tariff->name]), $request->user()->getKey(), $tariff, [
+                'price' => (float) $tariff->price,
+                'duration_minutes' => $tariff->duration_minutes,
+            ]);
+        });
+
+        return redirect()->route('tariffs.index')->with('status', __('Тариф «:tariff» удалён.', ['tariff' => $tariff->name]));
+    }
+
     private function page(?Tariff $editing): View
     {
         $zones = ClubZone::query()->whereHas('computers')->orderBy('name')->get();
@@ -93,6 +108,7 @@ class TariffController extends Controller
             'currency' => data_get($this->currentClub->settings() ?: [], 'finances.currency', 'KZT'),
             'editing' => $editing,
             'editingValues' => $editing === null ? [] : $this->formValues($editing),
+            'canDelete' => $this->currentClub->membership()?->role === 'owner',
         ]);
     }
 

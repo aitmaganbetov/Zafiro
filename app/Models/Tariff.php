@@ -9,12 +9,14 @@ use App\Support\WeeklyPeriods;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 #[Fillable(['name', 'description', 'duration_minutes', 'price', 'is_active', 'payment_method', 'currency', 'discount_enabled', 'usage_limit_enabled', 'usage_limit_minutes', 'quantity_limit_enabled', 'quantity_limit', 'validity_periods', 'sale_periods'])]
 class Tariff extends Model
 {
-    use BelongsToClub, UsesClubTimezone;
+    // Deleted by the owner: off sale everywhere, kept for purchase history and kept passes.
+    use BelongsToClub, SoftDeletes, UsesClubTimezone;
 
     protected $attributes = ['is_active' => true];
 

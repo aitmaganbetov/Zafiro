@@ -160,7 +160,7 @@ class GuestHistory
             ->filter()->unique()->all();
 
         return [
-            'tariffs' => $tariffIds === [] ? [] : Tariff::query()->whereKey($tariffIds)->pluck('name', 'id')->all(),
+            'tariffs' => $tariffIds === [] ? [] : Tariff::withTrashed()->whereKey($tariffIds)->pluck('name', 'id')->all(),
             'users' => $userIds === [] ? [] : User::query()->whereKey($userIds)->pluck('name', 'id')->all(),
         ];
     }

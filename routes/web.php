@@ -223,6 +223,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
         Route::get('/tariffs/{tariff}/edit', [TariffController::class, 'edit'])->name('tariffs.edit');
         Route::patch('/tariffs/{tariff}', [TariffController::class, 'update'])->name('tariffs.update');
+        Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->middleware('club-role:owner')->name('tariffs.destroy');
     });
 
     // Settings → API and integrations: the owner and members with the integrations permission.

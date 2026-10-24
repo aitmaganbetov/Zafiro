@@ -21,6 +21,7 @@ class TimePackage extends Model
 
     public function tariff(): BelongsTo
     {
-        return $this->belongsTo(Tariff::class);
+        // A pass of a deleted tariff still works, within that tariff's zones and validity.
+        return $this->belongsTo(Tariff::class)->withTrashed();
     }
 }

@@ -1713,6 +1713,10 @@ return [
         'Клиент сменил пароль в агенте: :user' => 'The customer changed the password in the agent: :user',
         'Клиент изменил имя' => 'Customer changed the name',
         'Клиент сменил пароль' => 'Customer changed the password',
+        'Удалён тариф: :tariff' => 'Tariff deleted: :tariff',
+        'Тариф «:tariff» удалён.' => 'Tariff “:tariff” deleted.',
+        'Удалить тариф «:tariff»? Он пропадёт из агента и кассы. Купленные абонементы и история покупок сохранятся.' => 'Delete the tariff “:tariff”? It disappears from the agent and the cash register. Passes already bought and the purchase history are kept.',
+        'Удаление тарифа' => 'Tariff deletion',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

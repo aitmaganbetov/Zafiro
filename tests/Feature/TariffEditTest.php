@@ -3,11 +3,14 @@
 use App\Models\ActivityLog;
 use App\Models\CashShift;
 use App\Models\ClubComputer;
+use App\Models\ClubMembership;
 use App\Models\ClubZone;
 use App\Models\Tariff;
+use App\Models\TimePackage;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\GuestHistory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -175,4 +178,40 @@ test('the tariff list says why a tariff is not offered now: sold out or outside 
     $this->get(route('tariffs.index'))->assertOk()
         ->assertSee('Продано 2 из 2 — лимит количества исчерпан, тариф не продаётся')
         ->assertSee('Сейчас не продаётся: вне периода действия');
+});
+
+test('the owner deletes a tariff: off sale everywhere, history and passes keep it', function () {
+    $owner = User::factory()->create();
+    $this->actingAs($owner);
+    $club = app(CurrentClub::class);
+    $tariff = editableTariff(['name' => 'Ночь']);
+    $customer = User::factory()->create();
+    ClubMembership::query()->where('user_id', $customer->id)->update(['role' => 'client']);
+    app(ActivityLogger::class)->record('tariff.purchased', 'x', $customer->id, $tariff, ['amount' => '1500.00']);
+    $pass = TimePackage::query()->create(['user_id' => $customer->id, 'tariff_id' => $tariff->id, 'name' => 'Ночь', 'minutes_left' => 60, 'expires_at' => now()->addDay()]);
+
+    $this->get(route('tariffs.index'))->assertOk()->assertSee('Удалить тариф «Ночь»?');
+    $this->delete(route('tariffs.destroy', $tariff))->assertRedirect(route('tariffs.index'))->assertSessionHas('status', 'Тариф «Ночь» удалён.');
+
+    expect(Tariff::query()->exists())->toBeFalse()
+        ->and(Tariff::withTrashed()->find($tariff->id))->not->toBeNull()
+        ->and($pass->fresh()->tariff?->name)->toBe('Ночь')
+        ->and(ActivityLog::query()->where('event', 'tariff.deleted')->exists())->toBeTrue();
+    expect(app(GuestHistory::class)->page($customer)['data'][0]['title'])->toBe('Покупка тарифа «Ночь»');
+    $headers = ['Authorization' => 'Bearer '.$customer->createToken('PC', ['club:'.$club->id()])->plainTextToken];
+    $this->getJson(route('api.tariffs.index'), $headers)->assertOk()->assertJsonCount(0, 'data');
+
+    // The name is free again.
+    $this->post(route('tariffs.store'), tariffForm(['name' => 'Ночь']))->assertSessionHasNoErrors();
+});
+
+test('only the owner deletes tariffs', function () {
+    User::factory()->create(); // the owner
+    $manager = User::factory()->create();
+    ClubMembership::query()->where('user_id', $manager->id)->update(['role' => 'manager']);
+    $tariff = editableTariff();
+
+    $this->actingAs($manager)->get(route('tariffs.index'))->assertOk()->assertDontSee('Удалить тариф');
+    $this->delete(route('tariffs.destroy', $tariff))->assertForbidden();
+    expect($tariff->fresh()->trashed())->toBeFalse();
 });

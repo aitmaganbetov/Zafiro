@@ -13,7 +13,7 @@ class UpdateTariffRequest extends StoreTariffRequest
     {
         return [
             ...parent::rules(),
-            'name' => ['required', 'string', 'max:100', Rule::unique((new Tariff)->getTable(), 'name')->where('club_id', app(CurrentClub::class)->id())->ignore($this->route('tariff'))],
+            'name' => ['required', 'string', 'max:100', Rule::unique((new Tariff)->getTable(), 'name')->where('club_id', app(CurrentClub::class)->id())->whereNull('deleted_at')->ignore($this->route('tariff'))],
         ];
     }
 }

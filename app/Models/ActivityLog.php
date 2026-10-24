@@ -36,6 +36,7 @@ class ActivityLog extends Model
         'cash.shift_closed' => 'Закрытие смены',
         'tariff.created' => 'Создание тарифа',
         'tariff.updated' => 'Изменение тарифа',
+        'tariff.deleted' => 'Удаление тарифа',
         'tariff.purchased' => 'Покупка тарифа',
         'time.purchased' => 'Покупка времени поминутно',
         'todo.created' => 'Новая задача',

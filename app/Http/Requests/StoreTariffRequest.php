@@ -20,7 +20,7 @@ class StoreTariffRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:100', Rule::unique((new Tariff)->getTable(), 'name')->where('club_id', app(CurrentClub::class)->id())],
+            'name' => ['required', 'string', 'max:100', Rule::unique((new Tariff)->getTable(), 'name')->where('club_id', app(CurrentClub::class)->id())->whereNull('deleted_at')],
             'description' => ['nullable', 'string', 'max:500'],
             'duration_value' => ['required', 'integer', 'min:1', 'max:10080'],
             'duration_unit' => ['required', Rule::in(['minutes', 'hours', 'days'])],
