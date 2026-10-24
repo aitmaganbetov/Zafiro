@@ -140,7 +140,9 @@
                 </StackPanel>
             </Grid>
 
-            <Border Grid.Column="1" Background="Transparent">
+            <!-- Форма входа — карточка с полупрозрачным тёмным фоном: картинка видна, текст читается. -->
+            <Border Grid.Column="1" VerticalAlignment="Top" Margin="0,24,24,24" CornerRadius="16"
+                    Background="#B3141220" BorderBrush="#26FFFFFF" BorderThickness="1">
                 <!-- Прокрутка нужна только на маленьких экранах или при крупном масштабе Windows. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="38,28">
                 <StackPanel VerticalAlignment="Top" HorizontalAlignment="Stretch" MaxWidth="420">
