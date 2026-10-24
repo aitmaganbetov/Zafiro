@@ -136,3 +136,20 @@ test('the club map shows who sits at a PC and what they bought', function () {
         ->assertSee('data-session-user="Гость без аккаунта" data-session-tariff="Оплачено на кассе"', false)
         ->assertSee('id="computer-info-session-user"', false);
 });
+
+test('a PC on the club map glows by who uses it', function () {
+    $cashier = guestCashier();
+    $hall = ClubZone::query()->create(['name' => 'Hall']);
+    $make = fn (int $number, array $state) => tap(ClubComputer::query()->create(['club_zone_id' => $hall->id, 'number' => $number]))->forceFill($state + ['status' => 'available', 'last_seen_at' => now()])->save();
+    $make(1, []);
+    $make(2, ['current_session_id' => 's-2', 'current_session_user_id' => $cashier->id, 'session_guest' => false, 'session_ends_at' => now()->addHour()]);
+    $make(3, ['current_session_id' => 's-3', 'session_guest' => true, 'session_ends_at' => now()->addHour()]);
+    $make(4, ['staff_until' => now()->addHour(), 'staff_kind' => 'pin']);
+    $make(5, ['last_seen_at' => now()->subHour()]);
+
+    $page = $this->actingAs($cashier)->get(route('club-map.index'))->assertOk();
+    foreach ([1 => 'online pc-free', 2 => 'online pc-account', 3 => 'online pc-guest', 4 => 'online pc-staff', 5 => 'offline'] as $number => $classes) {
+        $page->assertSee('<span class="cm-computer '.$classes.'" data-id="'.ClubComputer::query()->where('number', $number)->value('id').'"', false);
+    }
+    $page->assertSee('Гость по чеку');
+});

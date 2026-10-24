@@ -2087,25 +2087,6 @@ body {
     background: #334155
 }
 
-.cm-computer:before {
-    content: '';
-    position: absolute;
-    right: 3px;
-    top: 3px;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #22c55e
-}
-
-.cm-zone.busy .cm-computer:before {
-    background: #ef4444
-}
-
-.cm-zone.service .cm-computer:before {
-    background: #f59e0b
-}
-
 .cm-zone:has(.cm-computers)>.cm-capacity {
     font-weight: 700;
     color: #647067
@@ -2157,11 +2138,6 @@ body {
     font-size: 11px
 }
 
-.cm-page.edit-mode .cm-computer:before {
-    right: auto;
-    left: 3px
-}
-
 .cm-computer.moving {
     z-index: var(--z-map-dragging);
     box-shadow: 0 8px 18px rgba(15, 23, 42, .35);
@@ -2181,23 +2157,10 @@ body {
 .cm-page:not(.edit-mode) .cm-computer.selected {
     z-index: var(--z-map-selected);
     transform: scale(1.12);
-    background: #087c38;
-    color: #fff;
     outline: 2px solid #4ade80;
     box-shadow: 0 0 0 6px rgba(34, 197, 94, .18), 0 8px 18px rgba(15, 23, 42, .28)
 }
 
-.cm-computer.online:before {
-    background: #22c55e !important
-}
-
-.cm-computer.offline:before {
-    background: #64748b !important
-}
-
-.cm-computer.restarting:before {
-    background: #f59e0b !important
-}
 
 .cm-control-panel {
     position: fixed;
@@ -2568,27 +2531,78 @@ body {
     outline: 2px solid #f4c35e
 }
 
-.cm-computer.reserved:before {
-    background: #f4c35e !important
+/* The whole PC glows by who uses it: on and free, a customer with an account, a guest paid at
+   the cash register, staff (agent closed with the PIN or a staff sign-in). Off — dark. */
+.cm-computer.pc-free {
+    background: #16a34a;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(22, 163, 74, .55)
 }
 
-/* Сотрудник работает на ПК (выход по PIN-коду или вход сотрудника). */
-.cm-computer.staff-visit {
-    outline: 2px dashed #60a5fa;
-    outline-offset: 1px
+.cm-computer.pc-account {
+    background: #db2777;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(219, 39, 119, .55)
+}
+
+.cm-computer.pc-guest {
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(37, 99, 235, .55)
+}
+
+.cm-computer.pc-staff {
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(220, 38, 38, .55)
+}
+
+.cm-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #647067
+}
+
+.cm-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px
+}
+
+.cm-legend i {
+    width: 14px;
+    height: 11px;
+    border-radius: 3px;
+    background: #1e293b
+}
+
+.cm-legend .pc-free {
+    background: #16a34a
+}
+
+.cm-legend .pc-account {
+    background: #db2777
+}
+
+.cm-legend .pc-guest {
+    background: #2563eb
+}
+
+.cm-legend .pc-staff {
+    background: #dc2626
+}
+
+.cm-legend .pc-reserved {
+    background: #80551a
 }
 
 .cm-control-button.reserve {
     background: #80551a
 }
 
-.cm-computer:before {
-    background: #64748b
-}
-
-.cm-computer.online:before {
-    background: #22c55e !important
-}
 
 
 /* Extracted from resources/views/layouts/admin.blade.php */

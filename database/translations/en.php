@@ -1694,6 +1694,11 @@ return [
         'Дни и время, когда тариф продаётся в агенте и на кассе. В другое время он не показывается.' => 'Days and times when the tariff is sold in the agent and at the cash register. At other times it is not shown.',
         'Сейчас не продаётся: вне времени продажи' => 'Not on sale now: outside the sale time',
         'В этой зоне тарифов нет.' => 'No tariffs in this zone.',
+        'Цвета ПК' => 'PC colors',
+        'Включён, свободен' => 'On, free',
+        'Клиент с аккаунтом' => 'Customer with an account',
+        'Гость по чеку' => 'Guest paid by receipt',
+        'Сотрудник, снят по PIN' => 'Staff, opened with the PIN',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

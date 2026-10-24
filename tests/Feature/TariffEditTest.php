@@ -122,3 +122,33 @@ test('the tariff list is filtered by zone: its own tariffs and those of every zo
         ->assertSee('<option value="'.$vip->id.'" selected>VIP</option>', false)
         ->assertSee('Випный')->assertSee('Общий')->assertDontSee('Зальный');
 });
+
+test('period rows saved until Monday by mistake end on their own day again', function () {
+    $this->actingAs(User::factory()->create());
+    $day = editableTariff(['name' => 'День', 'validity_periods' => [
+        ['start_day' => 'mon', 'start_time' => '10:00', 'end_day' => 'mon', 'end_time' => '17:00'],
+        ['start_day' => 'thu', 'start_time' => '10:00', 'end_day' => 'mon', 'end_time' => '17:00'],
+        ['start_day' => 'sun', 'start_time' => '22:00', 'end_day' => 'mon', 'end_time' => '06:00'],
+        ['start_day' => 'fri', 'start_time' => '23:00', 'end_day' => 'mon', 'end_time' => '06:00'],
+    ]]);
+    $week = editableTariff(['name' => 'Неделя', 'validity_periods' => [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']]]);
+
+    (require database_path('migrations/2026_10_27_100000_fix_tariff_periods_ending_on_monday.php'))->up();
+
+    expect(collect($day->fresh()->validity_periods)->pluck('end_day')->all())->toBe(['mon', 'thu', 'mon', 'sat'])
+        ->and($week->fresh()->validity_periods[0]['end_day'])->toBe('sun');
+});
+
+test('the cash register does not start a tariff outside its validity period', function () {
+    $owner = User::factory()->create();
+    $this->actingAs($owner);
+    $club = app(CurrentClub::class);
+    $this->travelTo(Carbon::parse('2026-10-28 23:00', $club->timezone()));
+    $day = editableTariff(['name' => 'День', 'validity_periods' => [['start_day' => 'wed', 'start_time' => '10:00', 'end_day' => 'wed', 'end_time' => '17:00']]]);
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 1]);
+    CashShift::query()->forceCreate(['opened_by' => $owner->id, 'status' => 'open', 'open_marker' => true, 'opening_balance' => 0, 'opened_at' => now()]);
+
+    $this->get(route('club-map.index'))->assertOk()->assertDontSee('value="tariff:'.$day->id.'"', false);
+    $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $day->id, 'payment_method' => 'cash'])
+        ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+});
