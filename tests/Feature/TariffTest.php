@@ -49,8 +49,6 @@ test('authenticated users can create and view tariffs', function () {
         'price' => 3500,
         'payment_method' => 'main_or_bonus',
         'discount_enabled' => 1,
-        'color' => '#2563eb',
-        'club_name' => 'Xanexe',
         'zone_ids' => [$zone->id],
         'usage_limit_enabled' => 1,
         'usage_limit_value' => 2,
@@ -72,8 +70,6 @@ test('authenticated users can create and view tariffs', function () {
         ->and($tariff->is_active)->toBeTrue()
         ->and($tariff->payment_method)->toBe('main_or_bonus')
         ->and($tariff->discount_enabled)->toBeTrue()
-        ->and($tariff->color)->toBe('#2563eb')
-        ->and($tariff->club_name)->toBe('Xanexe')
         ->and($tariff->usage_limit_minutes)->toBe(120)
         ->and($tariff->quantity_limit)->toBe(5)
         ->and($tariff->validity_periods[0]['start_time'])->toBe('09:00')
@@ -98,8 +94,6 @@ test('tariff fields are validated', function () {
             'price' => -1,
             'payment_method' => 'invalid',
             'discount_enabled' => 0,
-            'color' => 'red',
-            'club_name' => '',
             'zone_ids' => [$emptyZone->id],
             'usage_limit_enabled' => 1,
             'usage_limit_value' => 0,
@@ -108,7 +102,7 @@ test('tariff fields are validated', function () {
             'quantity_limit' => 0,
             'validity_periods' => [],
             'is_active' => 'invalid',
-        ])->assertSessionHasErrors(['name', 'duration_value', 'duration_unit', 'price', 'payment_method', 'color', 'club_name', 'zone_ids.0', 'usage_limit_value', 'usage_limit_unit', 'quantity_limit', 'validity_periods', 'is_active']);
+        ])->assertSessionHasErrors(['name', 'duration_value', 'duration_unit', 'price', 'payment_method', 'zone_ids.0', 'usage_limit_value', 'usage_limit_unit', 'quantity_limit', 'validity_periods', 'is_active']);
 
     expect(Tariff::query()->count())->toBe(0);
 });

@@ -27,8 +27,6 @@ class StoreTariffRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'payment_method' => ['required', Rule::in(['main_balance_only', 'main_or_bonus'])],
             'discount_enabled' => ['required', 'boolean'],
-            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'club_name' => ['required', 'string', 'max:100'],
             'zone_ids' => ['nullable', 'array', 'max:100'],
             'zone_ids.*' => ['required', 'integer', 'distinct', Rule::in(ClubZone::query()->whereHas('computers')->pluck('id')->all())],
             'usage_limit_enabled' => ['required', 'boolean'],

@@ -121,8 +121,6 @@ class TariffController extends Controller
             'duration_unit' => $durationUnit,
             'price' => (string) $tariff->price,
             'discount_enabled' => $tariff->discount_enabled ? '1' : '0',
-            'color' => $tariff->color,
-            'club_name' => $tariff->club_name,
             'zone_ids' => $tariff->zones->modelKeys(),
             'usage_limit_enabled' => $tariff->usage_limit_enabled ? '1' : '0',
             'usage_limit_value' => $tariff->usage_limit_enabled ? $usage : null,

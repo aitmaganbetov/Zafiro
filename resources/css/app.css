@@ -4016,142 +4016,38 @@ body {
     max-height: 300px
 }
 
-.tariff-color-swatch {
-    display: block;
-    width: 20px;
-    height: 20px;
-    border: 1px solid rgba(0, 0, 0, .1);
-    border-radius: 50%
-}
 
-.tariff-color-radio:checked+.tariff-color-swatch {
-    outline: 2px solid #6b7280;
-    outline-offset: 2px
-}
 
-.tariff-color-ef4444 {
-    background: #ef4444
-}
 
-.tariff-color-ff0169 {
-    background: #ff0169;
-}
 
-.tariff-color-e11d48 {
-    background: #e11d48
-}
 
-.tariff-color-c026d3 {
-    background: #c026d3
-}
 
-.tariff-color-9333ea {
-    background: #9333ea
-}
 
-.tariff-color-6366f1 {
-    background: #6366f1
-}
 
-.tariff-color-2563eb {
-    background: #2563eb
-}
 
-.tariff-color-0ea5e9 {
-    background: #0ea5e9
-}
 
-.tariff-color-06b6d4 {
-    background: #06b6d4
-}
 
-.tariff-color-14b8a6 {
-    background: #14b8a6
-}
 
-.tariff-color-22c55e {
-    background: #22c55e
-}
 
-.tariff-color-84cc16 {
-    background: #84cc16
-}
 
-.tariff-color-a3e635 {
-    background: #a3e635
-}
 
-.tariff-color-eab308 {
-    background: #eab308
-}
 
-.tariff-color-facc15 {
-    background: #facc15
-}
 
-.tariff-color-f97316 {
-    background: #f97316
-}
 
-.tariff-color-fb7185 {
-    background: #fb7185
-}
 
-.tariff-color-fda4af {
-    background: #fda4af
-}
 
-.tariff-color-fbcfe8 {
-    background: #fbcfe8
-}
 
-.tariff-color-e9d5ff {
-    background: #e9d5ff
-}
 
-.tariff-color-c4b5fd {
-    background: #c4b5fd
-}
 
-.tariff-color-bfdbfe {
-    background: #bfdbfe
-}
 
-.tariff-color-bae6fd {
-    background: #bae6fd
-}
 
-.tariff-color-a5f3fc {
-    background: #a5f3fc
-}
 
-.tariff-color-99f6e4 {
-    background: #99f6e4
-}
 
-.tariff-color-bbf7d0 {
-    background: #bbf7d0
-}
 
-.tariff-color-d9f99d {
-    background: #d9f99d
-}
 
-.tariff-color-fef08a {
-    background: #fef08a
-}
 
-.tariff-color-fef3c7 {
-    background: #fef3c7
-}
 
-.tariff-color-fed7aa {
-    background: #fed7aa
-}
 
-.tariff-color-fdba74 {
-    background: #fdba74
-}
 /* Layout baseline: readable body text, form controls that iOS does not zoom */
 body {
     font-size: 16px;

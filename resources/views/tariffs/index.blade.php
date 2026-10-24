@@ -24,7 +24,6 @@
         $value = fn (string $key, mixed $default = null): mixed => old($key, $editing !== null ? ($editingValues[$key] ?? $default) : $default);
         $weekdays = ['mon' => __('Пн'), 'tue' => __('Вт'), 'wed' => __('Ср'), 'thu' => __('Чт'), 'fri' => __('Пт'), 'sat' => __('Сб'), 'sun' => __('Вс')];
         $alwaysPeriods = [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']];
-        $tariffColors = ['#ff0169', '#e11d48', '#c026d3', '#9333ea', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#14b8a6', '#22c55e', '#84cc16', '#a3e635', '#eab308', '#facc15', '#f97316', '#fb7185', '#fda4af', '#fbcfe8', '#e9d5ff', '#c4b5fd', '#bfdbfe', '#bae6fd', '#a5f3fc', '#99f6e4', '#bbf7d0', '#d9f99d', '#fef08a', '#fef3c7', '#fed7aa', '#fdba74'];
     @endphp
     {{-- Editing opens the same form filled in; closing it goes back to the list. --}}
     <dialog id="tariff-dialog" class="tariff-dialog" @if($errors->any() || $editing !== null) data-open-on-load @endif @if($editing !== null) data-close-href="{{ route('tariffs.index') }}" @endif>
@@ -68,21 +67,9 @@
                     <input type="hidden" name="discount_enabled" value="0"><input id="discount-enabled" type="checkbox" name="discount_enabled" value="1" @checked($value('discount_enabled', '0') === '1') class="brand-check rounded border-gray-300">
                     <label for="discount-enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Применять скидку') }}</label>
                 </div>
-                <div>
-                    <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Цвет') }}</span>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach($tariffColors as $color)
-                            <label class="cursor-pointer"><input class="tariff-color-radio peer sr-only" type="radio" name="color" value="{{ $color }}" @checked($value('color', '#ff0169') === $color)><span class="tariff-color-swatch tariff-color-{{ substr($color, 1) }}"></span></label>
-                        @endforeach
-                    </div>
-                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 border-t border-gray-200 pt-6 dark:border-gray-800 md:grid-cols-2">
-                <div>
-                    <label for="club-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Клуб') }}</label>
-                    <input id="club-name" name="club_name" value="{{ $value('club_name', config('app.name')) }}" required maxlength="100" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-                </div>
                 <div>
                     <label for="tariff-zones" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Зоны') }}</label>
                     <select id="tariff-zones" name="zone_ids[]" multiple size="3" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
@@ -177,7 +164,7 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse ($tariffs as $tariff)
                         <tr>
-                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ $tariff->club_name }}@if($tariff->discount_enabled) · {{ __('Со скидкой') }}@endif</span>@unless($tariff->onSale())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне времени продажи') }}</span>@endunless</td>
+                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}@if($tariff->discount_enabled)<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ __('Со скидкой') }}</span>@endif @unless($tariff->onSale())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне времени продажи') }}</span>@endunless</td>
                             <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->zones->pluck('name')->join(', ') ?: __('Все зоны') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ __(':minutes мин.', ['minutes' => $tariff->duration_minutes]) }}</td>
                             <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>

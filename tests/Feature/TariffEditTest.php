@@ -16,7 +16,7 @@ function editableTariff(array $attributes = []): Tariff
 {
     return Tariff::query()->create($attributes + [
         'name' => 'Вечер', 'duration_minutes' => 180, 'price' => 1500, 'currency' => 'KZT',
-        'payment_method' => 'main_or_bonus', 'discount_enabled' => true, 'is_active' => true, 'color' => '#2563eb', 'club_name' => 'Zafiro',
+        'payment_method' => 'main_or_bonus', 'discount_enabled' => true, 'is_active' => true,
         'usage_limit_enabled' => true, 'usage_limit_minutes' => 30 * 1440, 'quantity_limit_enabled' => false,
         'validity_periods' => [['start_day' => 'fri', 'start_time' => '18:00', 'end_day' => 'sun', 'end_time' => '23:59']],
     ]);
@@ -26,7 +26,7 @@ function tariffForm(array $overrides = []): array
 {
     return $overrides + [
         'payment_method' => 'main_balance_only', 'name' => 'Вечер+', 'duration_value' => 4, 'duration_unit' => 'hours',
-        'price' => '1800', 'discount_enabled' => '0', 'color' => '#ff0169', 'club_name' => 'Zafiro',
+        'price' => '1800', 'discount_enabled' => '0',
         'usage_limit_enabled' => '0', 'quantity_limit_enabled' => '1', 'quantity_limit' => 50,
         'validity_periods' => [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'sun', 'end_time' => '23:59']],
         'is_active' => '0',
@@ -151,4 +151,11 @@ test('the cash register does not start a tariff outside its validity period', fu
     $this->get(route('club-map.index'))->assertOk()->assertDontSee('value="tariff:'.$day->id.'"', false);
     $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $day->id, 'payment_method' => 'cash'])
         ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+});
+
+test('the tariff form has no color and no club name', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('tariffs.index'))->assertOk()
+        ->assertDontSee('name="color"', false)->assertDontSee('name="club_name"', false);
 });
