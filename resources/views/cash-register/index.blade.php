@@ -26,9 +26,9 @@
             <div class="pos-layout">
                 <main class="pos-main">
                     <div class="pos-categories">
-                        <button class="pos-category active" data-category="all"><span class="pos-category-icon">⌘</span><strong>{{ __('Все') }}</strong><small>{{ trans_choice(':count товар|:count товара|:count товаров', $products->count()) }}</small></button>
+                        <button class="pos-category active" data-category="all" title="{{ trans_choice(':count товар|:count товара|:count товаров', $products->count()) }}"><i class="fas fa-border-all pos-category-icon" aria-hidden="true"></i><strong>{{ __('Все') }}</strong><small>{{ $products->count() }}</small></button>
                         @foreach($categories->take(5) as $category)
-                            <button class="pos-category" data-category="{{ $category }}"><span class="pos-category-icon">♨</span><strong>{{ $category }}</strong><small>{{ trans_choice(':count товар|:count товара|:count товаров', $products->where('category', $category)->count()) }}</small></button>
+                            <button class="pos-category" data-category="{{ $category }}" title="{{ trans_choice(':count товар|:count товара|:count товаров', $products->where('category', $category)->count()) }}"><i class="fas {{ \App\Support\CategoryIcon::for($category) }} pos-category-icon" aria-hidden="true"></i><strong>{{ $category }}</strong><small>{{ $products->where('category', $category)->count() }}</small></button>
                         @endforeach
                     </div>
                     <div class="pos-products">
