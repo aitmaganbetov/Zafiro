@@ -6,6 +6,7 @@ use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -158,4 +159,20 @@ test('the tariff form has no color and no club name', function () {
 
     $this->get(route('tariffs.index'))->assertOk()
         ->assertDontSee('name="color"', false)->assertDontSee('name="club_name"', false);
+});
+
+test('the tariff list says why a tariff is not offered now: sold out or outside its validity period', function () {
+    $owner = User::factory()->create();
+    $this->actingAs($owner);
+    $club = app(CurrentClub::class);
+    $this->travelTo(Carbon::parse('2026-10-31 16:00', $club->timezone())); // Saturday
+    $limited = editableTariff(['name' => '3+2 main', 'quantity_limit_enabled' => true, 'quantity_limit' => 2,
+        'validity_periods' => [['start_day' => 'mon', 'start_time' => '00:00', 'end_day' => 'tue', 'end_time' => '23:59']]]);
+    foreach ([1, 2] as $ignored) {
+        app(ActivityLogger::class)->record('tariff.purchased', 'x', $owner->id, $limited);
+    }
+
+    $this->get(route('tariffs.index'))->assertOk()
+        ->assertSee('Продано 2 из 2 — лимит количества исчерпан, тариф не продаётся')
+        ->assertSee('Сейчас не продаётся: вне периода действия');
 });

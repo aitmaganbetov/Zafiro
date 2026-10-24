@@ -1701,6 +1701,9 @@ return [
         'Сотрудник, снят по PIN' => 'Staff, opened with the PIN',
         'Ночная тема' => 'Night theme',
         'Дневная тема' => 'Day theme',
+        'Продано :sold из :limit — лимит количества исчерпан, тариф не продаётся' => 'Sold :sold of :limit — the quantity limit is reached, the tariff is not sold',
+        'Продано :sold из :limit' => 'Sold :sold of :limit',
+        'Сейчас не продаётся: вне периода действия' => 'Not on sale now: outside the validity period',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

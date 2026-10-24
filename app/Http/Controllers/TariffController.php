@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTariffRequest;
 use App\Http\Requests\UpdateTariffRequest;
+use App\Models\ActivityLog;
 use App\Models\ClubZone;
 use App\Models\Tariff;
 use App\Services\ActivityLogger;
@@ -74,14 +75,21 @@ class TariffController extends Controller
         // Zone filter: the tariffs that work in the zone — its own and those of every zone.
         $zoneFilter = $zones->firstWhere('id', (int) request()->query('zone'))?->id;
 
+        $tariffs = Tariff::query()->with('zones')
+            ->when($zoneFilter, fn ($query, int $zoneId) => $query->where(fn ($query) => $query
+                ->whereHas('zones', fn ($zones) => $zones->whereKey($zoneId))
+                ->orWhereDoesntHave('zones')))
+            ->orderBy('duration_minutes')->orderBy('name')->get();
+
         return view('tariffs.index', [
-            'tariffs' => Tariff::query()->with('zones')
-                ->when($zoneFilter, fn ($query, int $zoneId) => $query->where(fn ($query) => $query
-                    ->whereHas('zones', fn ($zones) => $zones->whereKey($zoneId))
-                    ->orWhereDoesntHave('zones')))
-                ->orderBy('duration_minutes')->orderBy('name')->get(),
+            'tariffs' => $tariffs,
             'zones' => $zones,
             'zoneFilter' => $zoneFilter,
+            // Sold so far, for tariffs with a quantity limit (the agent counts the same way).
+            'purchaseCounts' => ActivityLog::query()->where('event', 'tariff.purchased')
+                ->where('subject_type', (new Tariff)->getMorphClass())
+                ->whereIn('subject_id', $tariffs->where('quantity_limit_enabled', true)->modelKeys())
+                ->selectRaw('subject_id, COUNT(*) AS sold')->groupBy('subject_id')->pluck('sold', 'subject_id'),
             'currency' => data_get($this->currentClub->settings() ?: [], 'finances.currency', 'KZT'),
             'editing' => $editing,
             'editingValues' => $editing === null ? [] : $this->formValues($editing),

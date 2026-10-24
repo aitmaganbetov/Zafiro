@@ -164,7 +164,11 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse ($tariffs as $tariff)
                         <tr>
-                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}@if($tariff->discount_enabled)<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ __('Со скидкой') }}</span>@endif @unless($tariff->onSale())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне времени продажи') }}</span>@endunless</td>
+                            <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ $tariff->name }}@if($tariff->discount_enabled)<span class="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">{{ __('Со скидкой') }}</span>@endif {{-- Why the agent and the cash register do not offer it now (the list shows every tariff). --}}
+@php($sold = (int) ($purchaseCounts[$tariff->id] ?? 0))
+@if($tariff->quantity_limit_enabled && $tariff->quantity_limit !== null)<span class="mt-1 block text-xs font-normal {{ $sold >= $tariff->quantity_limit ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">{{ $sold >= $tariff->quantity_limit ? __('Продано :sold из :limit — лимит количества исчерпан, тариф не продаётся', ['sold' => $sold, 'limit' => $tariff->quantity_limit]) : __('Продано :sold из :limit', ['sold' => $sold, 'limit' => $tariff->quantity_limit]) }}</span>@endif
+@unless($tariff->onSale())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне времени продажи') }}</span>@endunless
+@unless($tariff->inValidityPeriod())<span class="mt-1 block text-xs font-normal text-amber-600 dark:text-amber-400">{{ __('Сейчас не продаётся: вне периода действия') }}</span>@endunless</td>
                             <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ $tariff->zones->pluck('name')->join(', ') ?: __('Все зоны') }}</td>
                             <td class="whitespace-nowrap px-3 py-3 text-gray-700 dark:text-gray-300">{{ __(':minutes мин.', ['minutes' => $tariff->duration_minutes]) }}</td>
                             <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{{ number_format((float) $tariff->price, 2, ',', ' ') }} {{ $tariff->currency }}</td>
