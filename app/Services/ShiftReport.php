@@ -13,11 +13,10 @@ use App\Models\User;
  */
 class ShiftReport
 {
-    /** POS sales are marked with this description (a marker, not translated). */
-    private const POS_SALE = 'Продажа POS';
+    private const POS_SALE = CashTransaction::POS_SALE;
 
     /**
-     * @return array{kinds: list<array{label: string, count: int, amount: float}>, items: list<array{name: string, quantity: int, amount: float}>, items_total: float, discount: float, staff: list<array{name: string, count: int, income: float, expense: float}>}
+     * @return array{kinds: list<array{label: string, count: int, amount: float}>, items: list<array{name: string, quantity: int, amount: float}>, items_total: float, discount: float, refunds: array{count: int, amount: float}, staff: list<array{name: string, count: int, income: float, expense: float}>}
      */
     public function for(CashShift $shift): array
     {
@@ -49,10 +48,16 @@ class ShiftReport
             $rows[] = ['label' => __('Прочий приход'), 'count' => (int) $all->count - $counted, 'amount' => round((float) $all->amount - $countedAmount, 2)];
         }
 
-        // Goods: the lines of each sale's receipt (JSON), summed for the one shift.
+        // Refunds: expenses of the shift that return an income (goods back to the stock, a top-up).
+        $refunds = (clone $transactions)->whereNotNull('refund_of_id')
+            ->selectRaw('COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount')->first();
+
+        // Goods: the lines of each sale's receipt (JSON), summed for the one shift; returned sales are not sold.
         $items = [];
         $discount = 0.0;
-        foreach ((clone $income)->where('description', self::POS_SALE)->whereNotNull('receipt_data')->cursor(['receipt_data']) as $sale) {
+        $sales = (clone $income)->where('description', self::POS_SALE)->whereNotNull('receipt_data')
+            ->whereNotIn('id', CashTransaction::query()->whereNotNull('refund_of_id')->select('refund_of_id'));
+        foreach ($sales->cursor(['receipt_data']) as $sale) {
             $receipt = is_array($sale->receipt_data) ? $sale->receipt_data : [];
             $discount += (float) ($receipt['discount_amount'] ?? 0);
             foreach ($receipt['items'] ?? [] as $line) {
@@ -75,6 +80,7 @@ class ShiftReport
             'items' => array_values($items),
             'items_total' => round(array_sum(array_column($items, 'amount')), 2),
             'discount' => round($discount, 2),
+            'refunds' => ['count' => (int) $refunds->count, 'amount' => (float) $refunds->amount],
             'staff' => $staff->map(fn ($row): array => [
                 'name' => $names[$row->user_id] ?? '—',
                 'count' => (int) $row->count,

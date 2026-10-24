@@ -27,8 +27,11 @@ class AgentTariffPurchaseService
 
     public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private ComputerReservations $reservations, private LoyaltyProgram $loyalty, private PaymentRules $rules) {}
 
-    /** @return Collection<int, array<string, mixed>> */
-    public function availableFor(User $user): Collection
+    /**
+     * @param  ?int  $zoneId  the zone of the customer's PC: only its tariffs (and tariffs of no zone); null — all
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function availableFor(User $user, ?int $zoneId = null): Collection
     {
         $membership = $user->currentMembership()->firstOrFail();
 
@@ -46,6 +49,7 @@ class AgentTariffPurchaseService
             ->pluck('purchases_count', 'subject_id');
 
         return $tariffs
+            ->filter(fn (Tariff $tariff): bool => $zoneId === null || $tariff->zones->isEmpty() || $tariff->zones->contains('id', $zoneId))
             ->filter(fn (Tariff $tariff): bool => $this->isAvailable($tariff, $membership, (int) $purchases->get($tariff->getKey(), 0)))
             ->map(fn (Tariff $tariff): array => $this->representation($tariff, $membership))
             ->values();

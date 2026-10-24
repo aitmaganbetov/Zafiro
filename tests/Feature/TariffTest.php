@@ -178,3 +178,26 @@ test('agent can list and purchase an eligible tariff for its active computer ses
         Carbon::setTestNow();
     }
 });
+
+test('the agent lists only the tariffs of its PC zone; tariffs without zones are everywhere', function () {
+    $user = User::factory()->create();
+    $membership = ClubMembership::query()->where('user_id', $user->id)->firstOrFail();
+    $headers = ['Authorization' => 'Bearer '.$user->createToken('agent', ['club:'.$membership->club_id])->plainTextToken];
+    $hall = ClubZone::query()->create(['name' => 'Зал']);
+    $vip = ClubZone::query()->create(['name' => 'VIP']);
+    $hallPc = ClubComputer::query()->create(['club_zone_id' => $hall->id, 'number' => 1]);
+    $vipPc = ClubComputer::query()->create(['club_zone_id' => $vip->id, 'number' => 2]);
+    $make = fn (string $name, array $zones) => Tariff::query()->create(['name' => $name, 'duration_minutes' => 60, 'price' => 100, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true])
+        ->zones()->syncWithPivotValues($zones, ['club_id' => $membership->club_id]);
+    $make('Зальный', [$hall->id]);
+    $make('Випный', [$vip->id]);
+    $make('Везде', []);
+    $names = fn (array $query = []) => collect($this->getJson(route('api.tariffs.index', $query), $headers)->assertOk()->json('data'))->pluck('name')->sort()->values()->all();
+
+    expect($names(['computer_id' => $hallPc->id]))->toBe(['Везде', 'Зальный'])
+        ->and($names(['computer_id' => $vipPc->id]))->toBe(['Везде', 'Випный'])
+        // Older agents send no PC: the PC of the customer's session, else every tariff.
+        ->and($names())->toBe(['Везде', 'Випный', 'Зальный']);
+    $vipPc->update(['current_session_user_id' => $user->id]);
+    expect($names())->toBe(['Везде', 'Випный']);
+});

@@ -69,7 +69,10 @@ namespace ZafiroAgent.Services
             if (string.IsNullOrWhiteSpace(token))
                 throw new UnauthorizedAccessException(L.T("Выполните вход, чтобы загрузить тарифы."));
 
-            var tariffsUri = new Uri($"{ApiRoot(config)}/tariffs");
+            // Тарифы зоны этого ПК: сервер отдаёт только те, что действуют в его зоне.
+            var tariffsUri = long.TryParse(config.ComputerId, NumberStyles.None, CultureInfo.InvariantCulture, out var computerId) && computerId > 0
+                ? new Uri($"{ApiRoot(config)}/tariffs?computer_id={computerId.ToString(CultureInfo.InvariantCulture)}")
+                : new Uri($"{ApiRoot(config)}/tariffs");
             using var request = new HttpRequestMessage(HttpMethod.Get, tariffsUri);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);

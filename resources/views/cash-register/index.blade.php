@@ -21,7 +21,7 @@
         <div class="pos-page">
             <div class="pos-top">
                 <div class="pos-status">{{ __('Смена #:id', ['id' => $shift->id]) }} · {{ __('В кассе:') }} <strong>{{ number_format($totals['balance'], 2, ',', ' ') }} KZT</strong></div>
-                <div class="pos-actions"><a href="{{ route('cash-register.x-report') }}">{{ __('X-отчёт') }}</a><a class="danger" href="{{ route('cash-register.z-report', $shift) }}">{{ __('Закрыть смену · Z-отчёт') }}</a></div>
+                <div class="pos-actions"><a href="{{ route('cash-register.operations') }}">{{ __('Операции смены') }}</a><a href="{{ route('cash-register.x-report') }}">{{ __('X-отчёт') }}</a><a class="danger" href="{{ route('cash-register.z-report', $shift) }}">{{ __('Закрыть смену · Z-отчёт') }}</a></div>
             </div>
             <div class="pos-layout">
                 <main class="pos-main">

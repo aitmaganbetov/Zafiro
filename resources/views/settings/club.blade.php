@@ -75,6 +75,14 @@
             </div>
         @endforeach
     </div>
+    <div class="mt-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+            <label for="allow_cashier_refunds" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Разрешить кассирам делать возвраты') }}</label>
+            <input type="hidden" name="allow_cashier_refunds" value="0">
+            <input id="allow_cashier_refunds" type="checkbox" role="switch" name="allow_cashier_refunds" value="1" class="settings-switch" @checked(old('allow_cashier_refunds', $settings['club']['allow_cashier_refunds'] ?? false))>
+        </div>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Касса → «Операции смены»: возврат продажи (товар вернётся на склад) или пополнения баланса (сумма спишется с баланса клиента). Деньги выдаются из открытой смены. Владелец, администратор и менеджер делают возвраты всегда.') }}</p>
+    </div>
 </x-settings.card>
 
 <x-settings.card id="club-key" aria-labelledby="club-key-title">

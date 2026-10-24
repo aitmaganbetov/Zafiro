@@ -5,7 +5,8 @@
 @section('content')
 <div class="receipt-page"><div class="receipt-wrap">
     @if(session('status'))<div class="mb-3 rounded-lg bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
-    <div class="receipt-actions"><a href="{{ route('cash-register.index') }}">{{ __('В кассу') }}</a><button type="button" onclick="window.print()">{{ __('Распечатать чек') }}</button></div>
+    <div class="receipt-actions"><a href="{{ route('cash-register.index') }}">{{ __('В кассу') }}</a><button type="button" onclick="window.print()">{{ __('Распечатать чек') }}</button>@include('cash-register.refund-button', ['operation' => $transaction])</div>
+    @error('refund')<div class="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
     <article class="receipt">
         <div class="receipt-logo"><strong>ZAFIRO</strong><span>{{ __('Кассовый чек') }}</span></div><div class="receipt-dash"></div>
         <div class="receipt-row"><span>{{ __('Чек') }}</span><strong>№{{ $transaction->id }}</strong></div><div class="receipt-row"><span>{{ __('Смена') }}</span><strong>№{{ $transaction->cash_shift_id }}</strong></div><div class="receipt-row"><span>{{ __('Дата') }}</span><strong>{{ $transaction->created_at->format('d.m.Y H:i') }}</strong></div><div class="receipt-dash"></div>

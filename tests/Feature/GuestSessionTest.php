@@ -99,3 +99,22 @@ test('the agent sees the guest session in the heartbeat; a customer cannot buy o
     ClubMembership::query()->withoutGlobalScope('club')->where('user_id', $operator->id)->update(['role' => 'operator']);
     $this->actingAs($operator)->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'minutes' => 30, 'payment_method' => 'cash'])->assertForbidden();
 });
+
+test('the start tariff dialog knows the zones of each tariff, so it shows the tariffs of the selected PCs', function () {
+    $cashier = guestCashier();
+    $hall = ClubZone::query()->create(['name' => 'Hall']);
+    $vip = ClubZone::query()->create(['name' => 'VIP']);
+    $hallOnly = Tariff::query()->create(['name' => 'Зальный', 'duration_minutes' => 60, 'price' => 700, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+    $hallOnly->zones()->syncWithPivotValues([$hall->id], ['club_id' => $hall->club_id]);
+    Tariff::query()->create(['name' => 'Везде', 'duration_minutes' => 60, 'price' => 500, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+    ClubComputer::query()->create(['club_zone_id' => $vip->id, 'number' => 3]);
+
+    $this->actingAs($cashier)->get(route('club-map.index'))->assertOk()
+        ->assertSee('data-tariff-zones="'.$hall->id.'"><input type="radio" name="choice" value="tariff:'.$hallOnly->id.'"', false)
+        ->assertSee('data-tariff-zones=""><input type="radio"', false);
+
+    // The server keeps the rule too: a tariff of another zone is not started.
+    openShift($cashier);
+    $this->postJson(route('club-computers.guest-session'), ['computer_ids' => [ClubComputer::query()->value('id')], 'tariff_id' => $hallOnly->id, 'payment_method' => 'cash'])
+        ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+});

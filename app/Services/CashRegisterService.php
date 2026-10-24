@@ -32,6 +32,8 @@ class CashRegisterService
                 }
                 $total += (float) $product->price * $quantity;
                 $receiptItems[] = [
+                    // The product comes back to the stock on a refund.
+                    'product_id' => $product->id,
                     'name' => $product->name,
                     'quantity' => $quantity,
                     'price' => (float) $product->price,
@@ -47,7 +49,7 @@ class CashRegisterService
                 'user_id' => $userId,
                 'type' => CashTransaction::TYPE_INCOME,
                 'amount' => $total,
-                'description' => 'Продажа POS',
+                'description' => CashTransaction::POS_SALE,
                 'receipt_data' => ['items' => $receiptItems],
             ]);
             $itemsSummary = collect($receiptItems)
@@ -104,6 +106,8 @@ class CashRegisterService
                 'type' => CashTransaction::TYPE_INCOME,
                 'amount' => $amount,
                 'description' => __('Пополнение :balance: :user (:payment)', ['balance' => $balanceLabel, 'user' => $user->name, 'payment' => $paymentLabels[$paymentMethod]]),
+                // A refund takes the amount (and the top-up bonus) back from this customer's balance.
+                'receipt_data' => ['top_up' => ['user_id' => $user->getKey(), 'balance_type' => $balanceType, 'bonus' => $bonus['cents'] / 100]],
             ]);
 
             $details = [
@@ -120,6 +124,86 @@ class CashRegisterService
 
             return $transaction;
         });
+    }
+
+    /**
+     * Returns an income of the open shift to the customer: the money leaves the cash register as
+     * an expense of the shift. A sale puts its goods back to the stock; a top-up takes its amount
+     * (and the bonus it gave, as far as it is left) from the customer's balance.
+     */
+    public function refund(CashTransaction $income, int $userId): CashTransaction
+    {
+        return DB::transaction(function () use ($income, $userId): CashTransaction {
+            $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->lockForUpdate()->first();
+            $income = CashTransaction::query()->lockForUpdate()->findOrFail($income->getKey());
+            $kind = $income->refundKind();
+            if ($kind === null) {
+                throw ValidationException::withMessages(['refund' => __('Эту операцию вернуть нельзя.')]);
+            }
+            if ($shift === null || $income->cash_shift_id !== $shift->getKey()) {
+                throw ValidationException::withMessages(['refund' => __('Вернуть можно только операцию открытой смены.')]);
+            }
+            if ($income->refund()->exists()) {
+                throw ValidationException::withMessages(['refund' => __('Эта операция уже возвращена.')]);
+            }
+            if ((float) $income->amount > $this->balance($shift)) {
+                throw ValidationException::withMessages(['refund' => __('В кассе недостаточно средств.')]);
+            }
+
+            $details = ['amount' => (float) $income->amount, 'receipt' => $income->getKey()];
+            if ($kind === 'sale') {
+                foreach ($income->receipt_data['items'] as $line) {
+                    $this->returnToStock($line, $userId);
+                }
+            } else {
+                $topUp = $income->receipt_data['top_up'];
+                $field = $topUp['balance_type'] === 'bonus_balance' ? 'bonus_balance' : 'balance';
+                $balance = MemberBalance::query()->where('user_id', $topUp['user_id'])->lockForUpdate()->first();
+                if ($balance === null || (float) $balance->{$field} < (float) $income->amount) {
+                    throw ValidationException::withMessages(['refund' => __('Клиент уже потратил часть пополнения: на балансе меньше суммы возврата.')]);
+                }
+                $balance->decrement($field, (float) $income->amount);
+                $bonus = min((float) ($topUp['bonus'] ?? 0), (float) $balance->refresh()->bonus_balance);
+                if ($bonus > 0) {
+                    $balance->decrement('bonus_balance', $bonus);
+                }
+                $balance->refresh();
+                $details += ['balance_field' => $field, 'new_balance' => (float) $balance->{$field}, 'bonus_taken_back' => $bonus];
+                if (($customer = $balance->user()->first()) !== null) {
+                    $this->activity->record('user.balance_refunded', __('Возврат пополнения: :user', ['user' => $customer->name]), $userId, $customer, $details);
+                }
+            }
+
+            $refund = $shift->transactions()->create([
+                'refund_of_id' => $income->getKey(),
+                'user_id' => $userId,
+                'type' => CashTransaction::TYPE_EXPENSE,
+                'amount' => $income->amount,
+                'description' => __('Возврат по чеку №:number', ['number' => $income->getKey()]),
+            ]);
+            $this->activity->record('cash.refund', $refund->description, $userId, $refund, $details);
+
+            return $refund;
+        });
+    }
+
+    /** @param  array{product_id?: int, name?: string, quantity?: int}  $line */
+    private function returnToStock(array $line, int $userId): void
+    {
+        $quantity = (int) ($line['quantity'] ?? 0);
+        // Sales before refunds kept only the product name.
+        $product = isset($line['product_id'])
+            ? Product::query()->lockForUpdate()->find($line['product_id'])
+            : Product::query()->lockForUpdate()->where('name', $line['name'] ?? '')->first();
+        if ($product === null || $quantity <= 0) {
+            return;
+        }
+
+        $product->increment('quantity', $quantity);
+        $balanceAfter = $product->refresh()->quantity;
+        StockMovement::create(['product_id' => $product->id, 'user_id' => $userId, 'type' => StockMovement::TYPE_RECEIPT, 'quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Возврат POS']);
+        $this->activity->record('stock.received', __('Возврат товара на склад: :product, :quantity шт.', ['product' => $product->name, 'quantity' => $quantity]), $userId, $product, ['quantity' => $quantity, 'balance_after' => $balanceAfter, 'note' => 'Возврат POS']);
+        $this->webhooks->dispatch('stock.changed', ['product_id' => $product->id, 'sku' => $product->sku, 'change' => $quantity, 'quantity' => $balanceAfter, 'reason' => 'refund']);
     }
 
     public function transact(array $data, int $userId): CashTransaction

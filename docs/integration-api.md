@@ -104,7 +104,8 @@
 - События и места отправки:
   - `product.created` — `CreateProductAction`;
   - `product.updated` — `UpdateProductAction`;
-  - `stock.changed` — `AdjustStockAction`, `CreateProductAction` и `CashRegisterService::sale`;
+  - `stock.changed` — `AdjustStockAction`, `CreateProductAction`, `CashRegisterService::sale` и
+    `CashRegisterService::refund` (возврат товара, `reason: refund`);
   - `sale.completed` — `CashRegisterService::sale`;
   - `computer.reservation_changed` и `computer.controlled` — web `ClubComputerController::control` и API.
 

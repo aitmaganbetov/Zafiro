@@ -28,6 +28,7 @@ class SaveSettingsRequest extends FormRequest
             'booking_interval' => ['required_if:section,club', 'numeric', 'min:0', 'max:10080'],
             'max_cashiers_on_shift' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'max_operators_on_shift' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'allow_cashier_refunds' => ['nullable', 'boolean'],
             'currency' => ['required_if:section,finances', Rule::in(['KZT', 'RUB', '$'])],
             'loyalty_enabled' => ['nullable', 'boolean'],
             'loyalty_levels' => ['nullable', 'array', 'max:'.LoyaltyProgram::MAX_LEVELS],

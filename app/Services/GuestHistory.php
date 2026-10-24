@@ -20,12 +20,12 @@ class GuestHistory
     private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
-    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
+    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'user.balance_refunded', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
 
     /** Filters of the history page in the agent: [own events, received events]. */
     public const FILTERS = [
         'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded'], ['shop.order_cancelled', 'time.refunded']],
-        'top_ups' => [[], ['user.balance_topped_up']],
+        'top_ups' => [[], ['user.balance_topped_up', 'user.balance_refunded']],
         'transfers' => [['balance.transferred'], ['balance.transferred']],
         'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
     ];
@@ -107,6 +107,16 @@ class GuestHistory
                 // A bonus for topping up the main balance (Settings → Finances).
                 if (! $bonus && isset($details['bonus_amount'])) {
                     $entry['bonus_amount'] = self::positive($details['bonus_amount']);
+                }
+                break;
+            case 'user.balance_refunded':
+                // The cash register gave a top-up back: the amount (and its bonus) left the balance.
+                $entry['kind'] = 'top_up';
+                $entry['title'] = __('Возврат пополнения на кассе');
+                $bonusField = ($details['balance_field'] ?? 'balance') === 'bonus_balance';
+                $entry[$bonusField ? 'bonus_amount' : 'amount'] = self::negative($details['amount'] ?? null);
+                if (! $bonusField && (float) ($details['bonus_taken_back'] ?? 0) > 0) {
+                    $entry['bonus_amount'] = self::negative($details['bonus_taken_back']);
                 }
                 break;
             case 'balance.transferred':

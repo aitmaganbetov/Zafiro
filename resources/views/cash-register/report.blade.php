@@ -24,7 +24,7 @@
             <section class="report-section"><h2>{{ __('Приход по видам') }}</h2>
                 <table class="report-table"><thead><tr><th>{{ __('Вид') }}</th><th class="num">{{ __('Операций') }}</th><th class="num">{{ __('Сумма') }}</th></tr></thead><tbody>
                 @foreach($details['kinds'] as $kind)<tr><td>{{ $kind['label'] }}</td><td class="num">{{ $kind['count'] }}</td><td class="num">{{ number_format($kind['amount'],2,',',' ') }} KZT</td></tr>@endforeach
-                </tbody></table>
+                </tbody>@if($details['refunds']['count'] > 0)<tfoot><tr><td>{{ __('Возвраты (расход)') }}</td><td class="num">{{ $details['refunds']['count'] }}</td><td class="num">− {{ number_format($details['refunds']['amount'],2,',',' ') }} KZT</td></tr></tfoot>@endif</table>
             </section>
             <section class="report-section"><h2>{{ __('Продано товаров') }}</h2>
                 @if($details['items'] === [])

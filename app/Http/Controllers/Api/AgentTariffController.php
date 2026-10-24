@@ -12,9 +12,18 @@ use Illuminate\Http\Request;
 
 class AgentTariffController extends Controller
 {
+    /**
+     * Tariffs on sale at the customer's PC: only those of its zone (tariffs without zones work
+     * everywhere). Agents before the zone filter send no PC: the PC of the customer's session.
+     */
     public function index(Request $request, AgentTariffPurchaseService $tariffs): JsonResponse
     {
-        return response()->json(['data' => $tariffs->availableFor($request->user())]);
+        $computerId = $request->validate(['computer_id' => ['nullable', 'integer']])['computer_id'] ?? null;
+        $computer = $computerId !== null
+            ? ClubComputer::query()->find((int) $computerId, ['id', 'club_zone_id'])
+            : ClubComputer::query()->where('current_session_user_id', $request->user()->getKey())->first(['id', 'club_zone_id']);
+
+        return response()->json(['data' => $tariffs->availableFor($request->user(), $computer?->club_zone_id)]);
     }
 
     public function purchase(PurchaseAgentTariffRequest $request, Tariff $tariff, AgentTariffPurchaseService $purchases): JsonResponse

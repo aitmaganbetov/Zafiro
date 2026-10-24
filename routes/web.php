@@ -257,6 +257,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/cash-register/sales', [CashRegisterController::class, 'sale'])->name('cash-register.sales.store');
         Route::post('/cash-register/balance-top-ups', [CashRegisterController::class, 'topUpBalance'])->name('cash-register.balance-top-ups.store');
         Route::get('/cash-register/receipts/{cashTransaction}', [CashRegisterController::class, 'receipt'])->name('cash-register.receipt');
+        Route::get('/cash-register/operations', [CashRegisterController::class, 'operations'])->name('cash-register.operations');
+        Route::post('/cash-register/receipts/{cashTransaction}/refund', [CashRegisterController::class, 'refund'])->name('cash-register.refund');
         Route::get('/cash-register/reports/x', [CashRegisterController::class, 'xReport'])->name('cash-register.x-report');
         Route::post('/cash-register/shifts/{cashShift}/close', [CashRegisterController::class, 'close'])->name('cash-register.shifts.close');
         Route::get('/cash-register/shifts/{cashShift}/z-report', [CashRegisterController::class, 'zReport'])->name('cash-register.z-report');

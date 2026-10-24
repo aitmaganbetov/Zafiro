@@ -220,6 +220,7 @@ class SettingsController extends Controller
                 'booking_interval',
                 'max_cashiers_on_shift',
                 'max_operators_on_shift',
+                'allow_cashier_refunds',
                 'agent_idle_logout_minutes',
                 'agent_shop_enabled',
                 'agent_auto_update',
@@ -254,6 +255,7 @@ class SettingsController extends Controller
             'agent_shop_enabled',
             'agent_auto_update',
             'guest_mode_enabled',
+            'allow_cashier_refunds',
         ];
 
         $minuteFields = [
@@ -335,6 +337,8 @@ class SettingsController extends Controller
                 // How many cashiers / operators may be signed in to the panel at once; 0 — no limit.
                 'max_cashiers_on_shift' => 0,
                 'max_operators_on_shift' => 0,
+                // Cashiers make refunds at the cash register (managers always may).
+                'allow_cashier_refunds' => false,
                 // A customer signed in on a PC without a paid session is signed out after these minutes; 0 — never.
                 'agent_idle_logout_minutes' => GuestFeatures::DEFAULT_IDLE_LOGOUT_MINUTES,
                 'agent_shop_enabled' => true,
@@ -375,6 +379,7 @@ class SettingsController extends Controller
                 'booking_interval' => __('Интервал между бронированиями (в минутах)'),
                 'max_cashiers_on_shift' => __('Сколько кассиров может быть на смене'),
                 'max_operators_on_shift' => __('Сколько операторов может быть на смене'),
+                'allow_cashier_refunds' => __('Разрешить кассирам делать возвраты'),
                 'agent_idle_logout_minutes' => __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)'),
                 'agent_shop_enabled' => __('Включить магазин в агенте'),
                 'agent_auto_update' => __('Автообновление агента'),

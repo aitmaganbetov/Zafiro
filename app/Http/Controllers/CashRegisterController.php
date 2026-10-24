@@ -90,8 +90,44 @@ class CashRegisterController extends Controller
         abort_unless($cashTransaction->type === CashTransaction::TYPE_INCOME, 404);
 
         return view('cash-register.receipt', [
-            'transaction' => $cashTransaction->load('shift'),
+            'transaction' => $cashTransaction->load(['shift', 'refund']),
+            'canRefund' => self::canRefund(),
         ]);
+    }
+
+    /**
+     * Refunds: the owner, admins and managers always; cashiers when the club allows it
+     * (Settings → Club → Staff on shift).
+     */
+    public static function canRefund(): bool
+    {
+        $club = app(CurrentClub::class);
+
+        return match ($club->membership()?->role) {
+            'owner', 'admin', 'manager' => true,
+            'cashier' => (bool) data_get($club->settings(), 'club.allow_cashier_refunds', false),
+            default => false,
+        };
+    }
+
+    /** Income of the open shift, newest first, with what was returned: the place to make a refund. */
+    public function operations(): View
+    {
+        $shift = CashShift::query()->where('status', CashShift::STATUS_OPEN)->firstOrFail();
+        $operations = $shift->transactions()->where('type', CashTransaction::TYPE_INCOME)
+            ->with('refund:id,refund_of_id,created_at')
+            ->latest('id')
+            ->paginate(25);
+
+        return view('cash-register.operations', ['shift' => $shift, 'operations' => $operations, 'canRefund' => self::canRefund()]);
+    }
+
+    public function refund(Request $request, CashTransaction $cashTransaction): RedirectResponse
+    {
+        abort_unless(self::canRefund(), 403, __('Возвраты кассирам выключены в настройках клуба.'));
+        $this->cash->refund($cashTransaction, $request->user()->getKey());
+
+        return back()->with('status', __('Возврат проведён: :amount KZT выданы из кассы.', ['amount' => number_format((float) $cashTransaction->amount, 2, ',', ' ')]));
     }
 
     public function xReport(): View
