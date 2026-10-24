@@ -26,7 +26,7 @@ function refundCashier(): User
 /** The owner gives (or takes) the refund right of this cashier (Settings → Rights). */
 function giveRefunds(User $cashier, bool $allowed): void
 {
-    ClubMembership::query()->where('user_id', $cashier->id)->sole()->forceFill(['permissions' => ['cash_refunds' => $allowed]])->save();
+    ClubMembership::query()->where('user_id', $cashier->id)->sole()->forceFill(['permissions' => ['cash.delete' => $allowed]])->save();
     app(CurrentClub::class)->clear();
 }
 

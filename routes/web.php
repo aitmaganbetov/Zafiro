@@ -168,13 +168,13 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
     // Staff only: customers sign in on the site just to confirm a PC sign-in (QR code).
-    Route::middleware('club-can:billing')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
+    Route::middleware('club-area')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
     Route::middleware('club-role:owner,admin,manager,cashier,operator')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
     });
-    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
-        Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/todos', [TodoController::class, 'index'])->name('todos.index');
         Route::get('/todos/state', [TodoController::class, 'state'])->name('todos.state');
         Route::post('/todos/{task}/toggle', [TodoController::class, 'toggle'])->name('todos.toggle');
@@ -225,13 +225,14 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/tariffs', [TariffController::class, 'store'])->name('tariffs.store');
         Route::get('/tariffs/{tariff}/edit', [TariffController::class, 'edit'])->name('tariffs.edit');
         Route::patch('/tariffs/{tariff}', [TariffController::class, 'update'])->name('tariffs.update');
-        Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->middleware('club-role:owner')->name('tariffs.destroy');
+        Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->name('tariffs.destroy');
     });
 
-    // Settings → Rights: the owner gives rights to employees.
-    Route::middleware(['subscription', 'club-role:owner'])->group(function () {
+    // Settings → Rights: the owner (and admins, not for admins) set the rights of an employee.
+    Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
         Route::get('/settings/permissions', [PermissionController::class, 'index'])->name('settings.permissions');
-        Route::post('/settings/permissions', [PermissionController::class, 'update'])->name('settings.permissions.update');
+        Route::get('/settings/permissions/{membership}', [PermissionController::class, 'edit'])->name('settings.permissions.edit');
+        Route::put('/settings/permissions/{membership}', [PermissionController::class, 'update'])->name('settings.permissions.update');
         Route::post('/settings/permissions/{membership}/reset', [PermissionController::class, 'reset'])->name('settings.permissions.reset');
     });
 
@@ -275,8 +276,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/cash-register/shifts/{cashShift}/z-report/printed', [CashRegisterController::class, 'markZReportPrinted'])->name('cash-register.z-report.printed');
     });
 
-    // PC bookings: everyone who works at the front desk.
-    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
+    // PC bookings and customers: the front desk by default.
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/reservations', [ComputerReservationController::class, 'index'])->name('reservations.index');
         // Customers: the front desk registers them too (discount and balance only by managers).
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -291,7 +292,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     });
 
     // The front desk works with the PCs: the club map (no editor), the PC list, power and reserving.
-    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier,operator'])->group(function () {
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/club-map', [ClubZoneController::class, 'index'])->name('club-map.index');
         Route::get('/club-computers', ClubComputerListController::class)->name('club-computers.index');
         Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');

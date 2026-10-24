@@ -30,7 +30,7 @@ class SettingsController extends Controller
             'clubTimezone' => $this->currentClub->get()->timezone,
             'agentPinSetAt' => $this->currentClub->get()->agent_exit_pin_hash === null ? null : $this->currentClub->get()->agent_exit_pin_changed_at,
             'agentStaffMinutes' => $this->currentClub->get()->agent_staff_minutes ?? ClubComputerSessions::DEFAULT_STAFF_MINUTES,
-            'canManageAgentPin' => ClubPermissions::allows(app(CurrentClub::class)->membership(), 'workers'),
+            'canManageAgentPin' => ClubPermissions::allows(app(CurrentClub::class)->membership(), 'workers.update'),
             'timezones' => $this->timezoneOptions(),
         ]);
     }

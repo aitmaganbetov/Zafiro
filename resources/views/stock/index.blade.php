@@ -31,6 +31,7 @@
                         <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">{{ number_format((float) $product->price, 0, ',', ' ') }} ₸</td>
                         <td class="px-5 py-3 text-right font-semibold tabular-nums {{ $product->quantity <= 0 ? 'text-red-600' : ($product->quantity < 5 ? 'text-amber-600' : 'text-gray-900 dark:text-white') }}">{{ $product->quantity }}</td>
                         <td class="px-5 py-3">
+                            @if($currentMembership->hasPermission('stock.create'))
                             <form method="POST" action="{{ route('stock.receive') }}" class="flex items-center gap-2" onsubmit="return confirm(@js(__('Оприходовать :product?', ['product' => $product->name])) + ' +' + this.elements.quantity.value)">
                                 @csrf
                                 <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -38,6 +39,7 @@
                                 <input name="note" maxlength="255" placeholder="{{ __('Комментарий') }}" aria-label="{{ __('Комментарий') }}" class="w-36 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                                 <button type="submit" class="brand-button rounded-lg px-3 py-1.5 text-xs"><i class="fas fa-plus"></i>{{ __('Оприходовать') }}</button>
                             </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

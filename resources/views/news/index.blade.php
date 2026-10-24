@@ -6,6 +6,8 @@
 @php
     $field = 'w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white';
     $label = 'mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400';
+    // In a club — by the employee's rights; the superadmin's platform news — always.
+    $mayNews = fn (string $action): bool => $layout !== 'layouts.admin' || ($currentMembership?->hasPermission('news.'.$action) ?? false);
 @endphp
 {{-- The superadmin layout pads its content itself. --}}
 <div class="{{ $layout === 'layouts.admin' ? 'p-6 lg:p-8' : '' }}">
@@ -17,6 +19,7 @@
     @if(session('status'))<div class="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">{{ session('status') }}</div>@endif
     @if($errors->any())<div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300" role="alert">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
 
+    @if($mayNews('create'))
     <form method="POST" action="{{ route($routes['store']) }}" enctype="multipart/form-data" class="mb-8 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
         @csrf
         <h4 class="font-semibold text-gray-900 dark:text-white">{{ __('Новая новость') }}</h4>
@@ -28,6 +31,7 @@
             <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Добавить новость') }}</button>
         </div>
     </form>
+    @endif
 
     <div class="space-y-3">
         @forelse($items as $item)
@@ -41,6 +45,7 @@
                     <span class="rounded-full px-2 py-1 text-xs font-medium {{ $item->is_published ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">{{ $item->is_published ? __('Опубликована') : __('Черновик') }}</span>
                 </summary>
                 <div class="grid gap-3 border-t border-gray-100 p-4 dark:border-gray-800">
+                    @if($mayNews('update'))
                     <form method="POST" action="{{ route($routes['update'], $item) }}" enctype="multipart/form-data" class="grid gap-3">
                         @csrf @method('PATCH')
                         <div><label for="news-title-{{ $item->id }}" class="{{ $label }}">{{ __('Заголовок') }}</label><input id="news-title-{{ $item->id }}" name="title" maxlength="150" required value="{{ $item->title }}" class="{{ $field }}"></div>
@@ -52,10 +57,13 @@
                             <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Сохранить') }}</button>
                         </div>
                     </form>
+                    @endif
+                    @if($mayNews('delete'))
                     <form method="POST" action="{{ route($routes['destroy'], $item) }}" onsubmit="return confirm(@js(__('Удалить новость?')))">
                         @csrf @method('DELETE')
                         <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Удалить новость') }}</button>
                     </form>
+                    @endif
                 </div>
             </details>
         @empty

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatMessage;
 use App\Models\User;
 use App\Services\CurrentClub;
+use App\Support\ClubPermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,7 +79,7 @@ class ChatController extends Controller
 
     public function reply(Request $request, User $customer): RedirectResponse|JsonResponse
     {
-        abort_unless($this->answers(), 403, __('Отвечают в чате кассиры и операторы.'));
+        abort_unless($this->answers(), 403, __('Нет права отвечать в чате. Его даёт владелец клуба в «Настройки → Права».'));
         abort_unless(ChatMessage::query()->where('customer_id', $customer->id)->exists(), 404);
         $body = trim((string) $request->validate(['body' => ['required', 'string', 'max:'.ChatMessage::MAX_LENGTH]])['body']);
 
@@ -116,9 +117,10 @@ class ChatController extends Controller
         ];
     }
 
+    /** Answers customers (and marks their messages read): the "chat.create" right — the front desk by default. */
     private function answers(): bool
     {
-        return in_array($this->currentClub->membership()?->role, ChatMessage::ANSWERING_ROLES, true);
+        return ClubPermissions::allows($this->currentClub->membership(), 'chat.create');
     }
 
     private function markRead(int $customerId): void

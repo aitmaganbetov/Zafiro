@@ -47,7 +47,7 @@
                         </span>
                     </span>
                 </form>
-                @if($canManage)
+                @if($canDelete)
                     <form method="POST" action="{{ route('todos.destroy', $task) }}" onsubmit="return confirm(@js(__('Удалить задачу?')))">@csrf @method('DELETE')<button type="submit" class="text-gray-400 hover:text-red-600" aria-label="{{ __('Удалить задачу') }}"><i class="fas fa-trash"></i></button></form>
                 @endif
             </li>

@@ -99,7 +99,7 @@ class CashRegisterController extends Controller
     /** Refunds: the owner, admins and managers by default; others when the owner gives the right (Settings → Rights). */
     public static function canRefund(): bool
     {
-        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'cash_refunds');
+        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'cash.delete');
     }
 
     /** Income of the open shift, newest first, with what was returned: the place to make a refund. */

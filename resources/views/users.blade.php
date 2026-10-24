@@ -10,10 +10,10 @@
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Всего: :count', ['count' => $users->total()]) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-            @if($currentMembership->hasPermission('workers'))
+            @if($currentMembership->hasPermission('workers.view'))
                 <a href="{{ route('workers.index') }}" class="min-h-10 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"><i class="fas fa-user-tie"></i>{{ __('Работники') }}</a>
             @endif
-            <button id="open-user-dialog" type="button" class="brand-button min-h-10 px-4"><i class="fas fa-user-plus"></i>{{ __('Добавить клиента') }}</button>
+            @if($currentMembership->hasPermission('customers.create'))<button id="open-user-dialog" type="button" class="brand-button min-h-10 px-4"><i class="fas fa-user-plus"></i>{{ __('Добавить клиента') }}</button>@endif
         </div>
     </div>
 
@@ -100,8 +100,8 @@
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->balance, 2, '.', ' ') }}</td>
                             <td class="px-5 py-4 text-right tabular-nums">{{ number_format((float) $membership->balance?->bonus_balance, 2, '.', ' ') }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-right">
-                                <button type="button" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400" data-edit-user data-action="{{ route('users.update', $membership) }}" data-name="{{ $membership->user->name }}" data-email="{{ $membership->user->email }}" data-discount="{{ $membership->discount }}" @if($staffElsewhere->has($membership->user_id)) data-account-locked @endif>{{ __('Изменить') }}</button>
-                                @unless($staffElsewhere->has($membership->user_id))
+                                @if($currentMembership->hasPermission('customers.update'))<button type="button" class="text-sm font-medium text-green-700 hover:underline dark:text-green-400" data-edit-user data-action="{{ route('users.update', $membership) }}" data-name="{{ $membership->user->name }}" data-email="{{ $membership->user->email }}" data-discount="{{ $membership->discount }}" @if($staffElsewhere->has($membership->user_id)) data-account-locked @endif>{{ __('Изменить') }}</button>@endif
+                                @unless($staffElsewhere->has($membership->user_id) || ! $currentMembership->hasPermission('customers.update'))
                                 <form method="POST" action="{{ route('users.password', $membership) }}" class="ml-3 inline" onsubmit="return confirm(@js(__('Сбросить пароль? Новый пароль покажется на экране один раз.')))">@csrf
                                     <button type="submit" class="text-sm font-medium text-gray-600 hover:underline dark:text-gray-300">{{ __('Сбросить пароль') }}</button>
                                 </form>
@@ -128,6 +128,6 @@
 
 @push('scripts')
 <script>
-(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog').addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();const edit=document.getElementById('user-edit-dialog'),editForm=edit.querySelector('[data-edit-form]');document.querySelectorAll('[data-edit-user]').forEach(button=>button.addEventListener('click',()=>{editForm.action=button.dataset.action;editForm.elements.name.value=button.dataset.name;editForm.elements.email.value=button.dataset.email;const locked=button.hasAttribute('data-account-locked');editForm.elements.name.readOnly=locked;editForm.elements.email.readOnly=locked;editForm.querySelector('[data-account-locked-note]').hidden=!locked;if(editForm.elements.discount)editForm.elements.discount.value=button.dataset.discount;if(editForm.elements.top_up_amount){editForm.elements.top_up_amount.value='';editForm.elements.balance_action.value='top_up'}edit.showModal()}));edit.querySelectorAll('[data-close-edit-dialog]').forEach(button=>button.addEventListener('click',()=>edit.close()));edit.addEventListener('click',event=>{if(event.target===edit)edit.close()})})();
+(()=>{const dialog=document.getElementById('user-create-dialog');document.getElementById('open-user-dialog')?.addEventListener('click',()=>dialog.showModal());document.querySelectorAll('[data-close-user-dialog]').forEach(button=>button.addEventListener('click',()=>dialog.close()));dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});if(dialog.hasAttribute('data-open-on-load'))dialog.showModal();const edit=document.getElementById('user-edit-dialog'),editForm=edit.querySelector('[data-edit-form]');document.querySelectorAll('[data-edit-user]').forEach(button=>button.addEventListener('click',()=>{editForm.action=button.dataset.action;editForm.elements.name.value=button.dataset.name;editForm.elements.email.value=button.dataset.email;const locked=button.hasAttribute('data-account-locked');editForm.elements.name.readOnly=locked;editForm.elements.email.readOnly=locked;editForm.querySelector('[data-account-locked-note]').hidden=!locked;if(editForm.elements.discount)editForm.elements.discount.value=button.dataset.discount;if(editForm.elements.top_up_amount){editForm.elements.top_up_amount.value='';editForm.elements.balance_action.value='top_up'}edit.showModal()}));edit.querySelectorAll('[data-close-edit-dialog]').forEach(button=>button.addEventListener('click',()=>edit.close()));edit.addEventListener('click',event=>{if(event.target===edit)edit.close()})})();
 </script>
 @endpush

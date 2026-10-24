@@ -45,8 +45,8 @@
                 <p class="mb-3 flex justify-between text-sm font-semibold text-gray-900 dark:text-white"><span>{{ __('Итого, оплачено с баланса') }}</span><span>{{ $money($order->amount) }}</span></p>
                 @if($order->status === 'new')
                     <div class="flex flex-wrap gap-2">
-                        <form method="POST" action="{{ route('shop-orders.done', $order) }}" class="flex-1">@csrf<button type="submit" class="brand-button w-full rounded-lg px-4 py-2 text-sm"><i class="fas fa-check"></i>{{ __('Выдан') }}</button></form>
-                        <form method="POST" action="{{ route('shop-orders.cancel', $order) }}" data-confirm="{{ __('Отменить заказ №:id? Деньги вернутся на счёт клиента, товар — на склад.', ['id' => $order->id]) }}">@csrf<button type="submit" class="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 dark:border-red-800 dark:text-red-300">{{ __('Отменить') }}</button></form>
+                        @if($currentMembership->hasPermission('orders.update'))<form method="POST" action="{{ route('shop-orders.done', $order) }}" class="flex-1">@csrf<button type="submit" class="brand-button w-full rounded-lg px-4 py-2 text-sm"><i class="fas fa-check"></i>{{ __('Выдан') }}</button></form>@endif
+                        @if($currentMembership->hasPermission('orders.delete'))<form method="POST" action="{{ route('shop-orders.cancel', $order) }}" data-confirm="{{ __('Отменить заказ №:id? Деньги вернутся на счёт клиента, товар — на склад.', ['id' => $order->id]) }}">@csrf<button type="submit" class="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 dark:border-red-800 dark:text-red-300">{{ __('Отменить') }}</button></form>@endif
                     </div>
                 @else
                     <p class="text-xs text-gray-500">{{ $badgeText[$order->status] ?? '' }}: {{ $order->handler?->name ?? '—' }}, {{ $order->handled_at?->format('d.m H:i') }}</p>

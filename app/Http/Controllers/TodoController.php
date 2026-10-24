@@ -31,7 +31,8 @@ class TodoController extends Controller
             'day' => $day,
             'isToday' => $day->isSameDay($this->today()),
             'tasks' => $this->tasks($day),
-            'canManage' => ClubPermissions::allows($this->currentClub->membership(), 'todos_manage'),
+            'canManage' => ClubPermissions::allows($this->currentClub->membership(), 'todos.create'),
+            'canDelete' => ClubPermissions::allows($this->currentClub->membership(), 'todos.delete'),
         ]);
     }
 

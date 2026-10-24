@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Models\ChatMessage;
 use App\Models\ClubMembership;
 use App\Services\ClubComputerSessions;
 
@@ -20,16 +19,16 @@ final class StaffPermissions
     {
         $role = $membership?->role;
         $is = fn (array $roles): bool => in_array($role, $roles, true);
-        $cash = ClubPermissions::allows($membership, 'cash_register');
+        $cash = ClubPermissions::allows($membership, 'cash.view') && ClubPermissions::allows($membership, 'cash.create');
 
         return [
             'cash' => $cash,
-            'guest_session' => $guestMode && $cash,
+            'guest_session' => $guestMode && ClubPermissions::allows($membership, 'cash.create'),
             'end_session' => $is(ClubComputerSessions::STAFF_ROLES),
-            'control' => ClubRoles::isStaff($role),
-            'chat_reply' => $is(ChatMessage::ANSWERING_ROLES),
-            'stock_receive' => ClubRoles::isStaff($role),
-            'stock_manage' => ClubPermissions::allows($membership, 'warehouse'),
+            'control' => ClubPermissions::allows($membership, 'pc_control.update'),
+            'chat_reply' => ClubPermissions::allows($membership, 'chat.create'),
+            'stock_receive' => ClubPermissions::allows($membership, 'stock.create'),
+            'stock_manage' => ClubPermissions::allows($membership, 'warehouse.update'),
             'reports' => $is(self::REPORTS),
         ];
     }

@@ -26,7 +26,7 @@ class UserController extends Controller
     /** Discount and opening balance of a customer: the "customer_money" right (managers by default). */
     public static function canSetMoney(): bool
     {
-        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'customer_money');
+        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'customer_money.update');
     }
 
     /** The club owner may top up a customer's balance without the cash register (editing the customer). */

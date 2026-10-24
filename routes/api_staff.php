@@ -23,37 +23,39 @@ Route::get('/me', [MeController::class, 'show'])->name('me');
 
 // Club map
 Route::get('/computers', [ComputerController::class, 'index'])->name('computers.index');
-Route::post('/computers/control', [ClubComputerController::class, 'control'])->name('computers.control');
+Route::post('/computers/control', [ClubComputerController::class, 'control'])->middleware('club-can:pc_control.update')->name('computers.control');
 Route::post('/computers/{computer}/end-session', [ClubComputerController::class, 'endSession'])
     ->middleware($roles(ClubComputerSessions::STAFF_ROLES))->name('computers.end-session');
 Route::post('/computers/guest-session', [GuestSessionController::class, 'store'])
-    ->middleware(['club-can:cash_register', 'throttle:30,1,api.staff.guest-session'])->name('computers.guest-session');
+    ->middleware(['club-can:cash.create', 'throttle:30,1,api.staff.guest-session'])->name('computers.guest-session');
 
 // Cash register
-Route::middleware('club-can:cash_register')->prefix('cash')->name('cash.')->group(function (): void {
+Route::middleware('club-can:cash.view')->prefix('cash')->name('cash.')->group(function (): void {
     Route::get('/', [CashController::class, 'show'])->name('show');
-    Route::post('/shifts', [CashController::class, 'open'])->name('shifts.open');
-    Route::post('/shifts/{shift}/close', [CashController::class, 'close'])->name('shifts.close');
-    Route::post('/top-ups', [CashController::class, 'topUp'])->name('top-ups.store');
-    Route::post('/sales', [CashController::class, 'sale'])->name('sales.store');
-    Route::post('/transactions', [CashController::class, 'transact'])->name('transactions.store');
+    Route::middleware('club-can:cash.create')->group(function (): void {
+        Route::post('/shifts', [CashController::class, 'open'])->name('shifts.open');
+        Route::post('/shifts/{shift}/close', [CashController::class, 'close'])->name('shifts.close');
+        Route::post('/top-ups', [CashController::class, 'topUp'])->name('top-ups.store');
+        Route::post('/sales', [CashController::class, 'sale'])->name('sales.store');
+        Route::post('/transactions', [CashController::class, 'transact'])->name('transactions.store');
+    });
 });
 
 // Customers and goods
 Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-Route::post('/stock/receive', [ProductController::class, 'receive'])->name('stock.receive');
-Route::post('/stock/movements', [ProductController::class, 'move'])->middleware('club-can:warehouse')->name('stock.movements.store');
+Route::post('/stock/receive', [ProductController::class, 'receive'])->middleware('club-can:stock.create')->name('stock.receive');
+Route::post('/stock/movements', [ProductController::class, 'move'])->middleware('club-can:warehouse.update')->name('stock.movements.store');
 
 // Orders from the PC agent
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-Route::post('/orders/{order}/done', [OrderController::class, 'done'])->name('orders.done');
-Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+Route::post('/orders/{order}/done', [OrderController::class, 'done'])->middleware('club-can:orders.update')->name('orders.done');
+Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->middleware('club-can:orders.delete')->name('orders.cancel');
 
 // Chat (reading: everyone; answering: cashiers and operators, checked by the controller)
 Route::get('/chats', [ChatController::class, 'conversationsJson'])->name('chats.index');
 Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
-Route::post('/chat/{customer}', [ChatController::class, 'reply'])->middleware('throttle:60,1,api.staff.chat.reply')->name('chat.reply');
+Route::post('/chat/{customer}', [ChatController::class, 'reply'])->middleware(['club-can:chat.create', 'throttle:60,1,api.staff.chat.reply'])->name('chat.reply');
 
 // Notifications and the day report
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');

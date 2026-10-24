@@ -19,6 +19,7 @@
     @if($errors->any())<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300" role="alert">{{ $errors->first() }}</div>@endif
     @if(session('invite_url'))<div class="mb-4 flex gap-2"><input id="club-invite-url" readonly value="{{ session('invite_url') }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"><button type="button" data-copy-invite class="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium dark:border-gray-700">{{ __('Копировать ссылку') }}</button></div>@endif
 
+    @if($currentMembership->hasPermission('workers.create'))
     <div class="mb-6 grid gap-4 lg:grid-cols-2">
         <form method="POST" action="{{ route('workers.store') }}" class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
             @csrf
@@ -39,6 +40,7 @@
             </div>
         </form>
     </div>
+    @endif
 
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
         @foreach($shiftLimits as $role => $shift)
@@ -59,7 +61,7 @@
                         <td class="px-5 py-3 font-medium text-gray-900 dark:text-white">{{ $worker->user?->name }}</td>
                         <td class="whitespace-nowrap px-5 py-3">{{ $worker->user?->phone }}</td>
                         <td class="px-5 py-3">
-                            @if($manageable)
+                            @if($manageable && $currentMembership->hasPermission('workers.update'))
                                 <form method="POST" action="{{ route('workers.update', $worker) }}" class="flex items-center gap-2">@csrf @method('PATCH')
                                     <select name="role" aria-label="{{ __('Роль') }}" class="{{ $field }}" onchange="this.form.requestSubmit()">@foreach($assignable as $role => $label)<option value="{{ $role }}" @selected($worker->role === $role)>{{ $label }}</option>@endforeach</select>
                                 </form>
@@ -69,8 +71,12 @@
                         </td>
                         <td class="px-5 py-3">@if(in_array($worker->user_id, $onShift, true))<span class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">{{ __('На смене') }}</span>@else<span class="text-gray-400">—</span>@endif</td>
                         <td class="px-5 py-3 text-right">
-                            @if($manageable)
-                                <form method="POST" action="{{ route('workers.destroy', $worker) }}" onsubmit="return confirm(@js(__('Убрать из сотрудников? Аккаунт останется клиентом клуба.')))">@csrf @method('DELETE')<button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Убрать') }}</button></form>
+                            {{-- Rights of the employee: the owner, or an admin for non-admins (PermissionController). --}}
+                            @if($manageable && in_array($currentMembership->role, ['owner', 'admin'], true))
+                                <a href="{{ route('settings.permissions.edit', $worker) }}" class="mr-3 text-sm font-medium text-green-700 hover:underline dark:text-green-400">{{ __('Права') }}</a>
+                            @endif
+                            @if($manageable && $currentMembership->hasPermission('workers.delete'))
+                                <form method="POST" action="{{ route('workers.destroy', $worker) }}" class="inline" onsubmit="return confirm(@js(__('Убрать из сотрудников? Аккаунт останется клиентом клуба.')))">@csrf @method('DELETE')<button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Убрать') }}</button></form>
                             @endif
                         </td>
                     </tr>
