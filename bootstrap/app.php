@@ -9,6 +9,8 @@ use App\Http\Middleware\Api\RequireApiScope;
 use App\Http\Middleware\AuthenticateAgentDevice;
 use App\Http\Middleware\RecordRequestMetrics;
 use App\Http\Middleware\RequireActiveSubscription;
+use App\Http\Middleware\RequireClubArea;
+use App\Http\Middleware\RequireClubPermission;
 use App\Http\Middleware\RequireClubRole;
 use App\Http\Middleware\RequireSuperadmin;
 use App\Http\Middleware\RestrictSuperadminHost;
@@ -36,6 +38,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'current-club' => SetCurrentClub::class,
             'superadmin' => RequireSuperadmin::class,
             'club-role' => RequireClubRole::class,
+            'club-can' => RequireClubPermission::class,
+            'club-area' => RequireClubArea::class,
             'subscription' => RequireActiveSubscription::class,
             'agent.device' => AuthenticateAgentDevice::class,
             'api.log' => LogApiRequest::class,

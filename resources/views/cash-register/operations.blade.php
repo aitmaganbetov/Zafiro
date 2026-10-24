@@ -12,7 +12,7 @@
     </div>
     @if(session('status'))<div class="rounded-lg bg-green-50 p-3 text-sm text-green-700" role="status">{{ session('status') }}</div>@endif
     @error('refund')<div class="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
-    @unless($canRefund)<p class="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ __('Возвраты кассирам выключены в настройках клуба.') }}</p>@endunless
+    @unless($canRefund)<p class="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ __('Нет права на возвраты. Его даёт владелец клуба в «Настройки → Права».') }}</p>@endunless
 
     <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">

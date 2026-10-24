@@ -15,14 +15,17 @@ every `/staff` endpoint. `GET /staff/me` returns `permissions` — the app shows
 
 | permission | roles | what |
 |---|---|---|
-| `cash` | owner, admin, manager, cashier | cash register: shift, top-ups, sales, cash in/out |
-| `guest_session` | owner, admin, manager, cashier (and guest mode on) | time for a guest on PCs |
+| `cash` | owner, admin, manager, cashier (right `cash_register`) | cash register: shift, top-ups, sales, cash in/out |
+| `guest_session` | as `cash` (and guest mode on) | time for a guest on PCs |
 | `end_session` | owner, admin, manager, operator | end a customer's session on a PC |
 | `control` | all staff | reserve / power on / restart / power off PCs |
 | `chat_reply` | cashier, operator | answer customers in the chat (others read only) |
 | `stock_receive` | all staff | receive goods |
-| `stock_manage` | owner, admin, manager | receive and write off goods |
+| `stock_manage` | owner, admin, manager (right `warehouse`) | receive and write off goods |
 | `reports` | owner, admin, manager | day report |
+
+Roles listed with a right are its defaults: the owner gives or takes the right from one employee
+in Settings → Rights (`club_memberships.permissions`, see `App\Support\ClubPermissions`).
 
 ## Sign-in (existing endpoints)
 

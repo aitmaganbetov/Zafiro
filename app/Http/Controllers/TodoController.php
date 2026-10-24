@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TodoTask;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Support\ClubPermissions;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,8 +21,6 @@ use Illuminate\View\View;
  */
 class TodoController extends Controller
 {
-    public const MANAGERS = ['owner', 'admin', 'manager'];
-
     public function __construct(private CurrentClub $currentClub, private ActivityLogger $activity) {}
 
     public function index(Request $request): View
@@ -32,7 +31,7 @@ class TodoController extends Controller
             'day' => $day,
             'isToday' => $day->isSameDay($this->today()),
             'tasks' => $this->tasks($day),
-            'canManage' => in_array($this->currentClub->membership()?->role, self::MANAGERS, true),
+            'canManage' => ClubPermissions::allows($this->currentClub->membership(), 'todos_manage'),
         ]);
     }
 

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
 use App\Services\LoyaltyProgram;
+use App\Support\ClubPermissions;
 use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -22,10 +23,10 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    /** Discount and opening balance of a new customer: managers only, not the front desk. */
+    /** Discount and opening balance of a customer: the "customer_money" right (managers by default). */
     public static function canSetMoney(): bool
     {
-        return in_array(app(CurrentClub::class)->membership()?->role, ['owner', 'admin', 'manager'], true);
+        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'customer_money');
     }
 
     /** The club owner may top up a customer's balance without the cash register (editing the customer). */

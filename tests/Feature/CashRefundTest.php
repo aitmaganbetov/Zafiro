@@ -15,14 +15,19 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function refundCashier(bool $allowed): User
+function refundCashier(): User
 {
-    $club = Club::query()->findOrFail(app(CurrentClub::class)->id());
-    $club->forceFill(['settings' => array_replace_recursive($club->settings ?? [], ['club' => ['allow_cashier_refunds' => $allowed]])])->save();
     $cashier = User::factory()->create(['name' => 'Айгерим']);
     ClubMembership::query()->where('user_id', $cashier->id)->update(['role' => 'cashier']);
 
     return $cashier;
+}
+
+/** The owner gives (or takes) the refund right of this cashier (Settings → Rights). */
+function giveRefunds(User $cashier, bool $allowed): void
+{
+    ClubMembership::query()->where('user_id', $cashier->id)->sole()->forceFill(['permissions' => ['cash_refunds' => $allowed]])->save();
+    app(CurrentClub::class)->clear();
 }
 
 test('a refund of a sale pays the money out of the shift and puts the goods back to the stock', function () {
@@ -74,7 +79,7 @@ test('a refund of a top-up takes the amount and its bonus back from the customer
         ->toMatchArray(['title' => 'Возврат пополнения на кассе', 'amount' => '-2000.00', 'bonus_amount' => '-200.00']);
 });
 
-test('cashiers refund only when the club allows it; other income is not refunded', function () {
+test('cashiers refund only with the right from the owner; other income is not refunded', function () {
     $owner = User::factory()->create();
     $cash = app(CashRegisterService::class);
     $cash->open(5000, $owner->id);
@@ -82,22 +87,14 @@ test('cashiers refund only when the club allows it; other income is not refunded
     $sale = $cash->sale([['product_id' => $cola->id, 'quantity' => 1]], $owner->id);
     $other = $cash->transact(['type' => 'income', 'amount' => 300, 'description' => 'Разное'], $owner->id);
 
-    $cashier = refundCashier(false);
+    $cashier = refundCashier();
     $this->actingAs($cashier)->get(route('cash-register.operations'))->assertOk()
-        ->assertSee('Возвраты кассирам выключены в настройках клуба.')->assertDontSee(route('cash-register.refund', $sale), false);
+        ->assertSee('Нет права на возвраты. Его даёт владелец клуба в «Настройки → Права».')->assertDontSee(route('cash-register.refund', $sale), false);
     $this->post(route('cash-register.refund', $sale))->assertForbidden();
 
-    refundCashier(true);
+    giveRefunds($cashier, true);
     $this->get(route('cash-register.operations'))->assertOk()->assertSee(route('cash-register.refund', $sale), false)->assertDontSee(route('cash-register.refund', $other), false);
     $this->post(route('cash-register.refund', $other))->assertSessionHasErrors('refund');
     $this->post(route('cash-register.refund', $sale))->assertSessionHasNoErrors();
     expect(CashTransaction::query()->where('refund_of_id', $sale->id)->value('user_id'))->toBe($cashier->id);
-});
-
-test('the club settings save whether cashiers make refunds', function () {
-    $this->actingAs(User::factory()->create());
-
-    $this->post(route('settings.save'), ['section' => 'club', 'pc_restart_after_session_end' => 1, 'session_auto_terminate_when_pc_unavailable' => 5, 'booking_interval' => 30, 'session_idle_timeout' => 15, 'allow_cashier_refunds' => '1'])->assertSessionHasNoErrors();
-    expect(app(CurrentClub::class)->get()->fresh()->settings['club']['allow_cashier_refunds'])->toBeTrue();
-    $this->get(route('settings.club'))->assertOk()->assertSee('name="allow_cashier_refunds" value="1" class="settings-switch" checked', false);
 });

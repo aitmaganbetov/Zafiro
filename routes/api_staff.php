@@ -15,7 +15,8 @@ use App\Support\StaffPermissions;
 use Illuminate\Support\Facades\Route;
 
 // Staff mobile app (docs/staff-api.md). Every route: a staff member of the token's club; the
-// narrower groups use the role lists of the same pages of the web panel (routes/web.php).
+// narrower groups use the rules of the same pages of the web panel (routes/web.php): roles, or
+// the employee's rights (ClubPermissions) for the cash register and the warehouse.
 $roles = fn (array $roles): string => 'club-role:'.implode(',', $roles);
 
 Route::get('/me', [MeController::class, 'show'])->name('me');
@@ -26,10 +27,10 @@ Route::post('/computers/control', [ClubComputerController::class, 'control'])->n
 Route::post('/computers/{computer}/end-session', [ClubComputerController::class, 'endSession'])
     ->middleware($roles(ClubComputerSessions::STAFF_ROLES))->name('computers.end-session');
 Route::post('/computers/guest-session', [GuestSessionController::class, 'store'])
-    ->middleware([$roles(StaffPermissions::CASH), 'throttle:30,1,api.staff.guest-session'])->name('computers.guest-session');
+    ->middleware(['club-can:cash_register', 'throttle:30,1,api.staff.guest-session'])->name('computers.guest-session');
 
 // Cash register
-Route::middleware($roles(StaffPermissions::CASH))->prefix('cash')->name('cash.')->group(function (): void {
+Route::middleware('club-can:cash_register')->prefix('cash')->name('cash.')->group(function (): void {
     Route::get('/', [CashController::class, 'show'])->name('show');
     Route::post('/shifts', [CashController::class, 'open'])->name('shifts.open');
     Route::post('/shifts/{shift}/close', [CashController::class, 'close'])->name('shifts.close');
@@ -42,7 +43,7 @@ Route::middleware($roles(StaffPermissions::CASH))->prefix('cash')->name('cash.')
 Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::post('/stock/receive', [ProductController::class, 'receive'])->name('stock.receive');
-Route::post('/stock/movements', [ProductController::class, 'move'])->middleware($roles(StaffPermissions::STOCK_MANAGE))->name('stock.movements.store');
+Route::post('/stock/movements', [ProductController::class, 'move'])->middleware('club-can:warehouse')->name('stock.movements.store');
 
 // Orders from the PC agent
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');

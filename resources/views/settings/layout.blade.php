@@ -12,7 +12,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6">
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 h-fit animate-slide shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto">
             <div class="space-y-2">
-                @if (in_array($currentMembership?->role, ['owner', 'admin', 'manager'], true))
+                @if ($currentMembership?->hasPermission('settings'))
                 <a href="{{ route('settings.club') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.club') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-building w-4"></i>{{ __('Настройка клуба') }}
                 </a>
@@ -30,6 +30,11 @@
                 </a>
                 <a href="{{ route('settings.api') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.api') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-code w-4"></i>API
+                </a>
+                @endif
+                @if ($currentMembership?->role === 'owner')
+                <a href="{{ route('settings.permissions') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.permissions') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
+                    <i class="fas fa-user-shield w-4"></i>{{ __('Права') }}
                 </a>
                 @endif
                 @can('manage-integrations')

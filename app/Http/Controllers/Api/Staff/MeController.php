@@ -25,7 +25,7 @@ class MeController extends StaffApiController
     {
         $club = $this->currentClub->get();
         $membership = $this->currentClub->membership();
-        $permissions = StaffPermissions::for($membership?->role, $features->guestModeEnabled());
+        $permissions = StaffPermissions::for($membership, $features->guestModeEnabled());
         $shift = $permissions['cash'] ? CashShift::query()->where('status', CashShift::STATUS_OPEN)->first() : null;
 
         return response()->json([

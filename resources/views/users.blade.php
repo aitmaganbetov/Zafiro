@@ -10,7 +10,7 @@
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Всего: :count', ['count' => $users->total()]) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-            @if(in_array($currentMembership->role, ['owner', 'admin'], true))
+            @if($currentMembership->hasPermission('workers'))
                 <a href="{{ route('workers.index') }}" class="min-h-10 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"><i class="fas fa-user-tie"></i>{{ __('Работники') }}</a>
             @endif
             <button id="open-user-dialog" type="button" class="brand-button min-h-10 px-4"><i class="fas fa-user-plus"></i>{{ __('Добавить клиента') }}</button>

@@ -21,6 +21,7 @@ use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PasswordRecoveryController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PwaController;
@@ -167,7 +168,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
     // Staff only: customers sign in on the site just to confirm a PC sign-in (QR code).
-    Route::middleware('club-role:owner,admin,manager')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
+    Route::middleware('club-can:billing')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
     Route::middleware('club-role:owner,admin,manager,cashier,operator')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
@@ -186,7 +187,8 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/shop-orders/{order}/cancel', [ShopOrderController::class, 'cancel'])->name('shop-orders.cancel');
     });
 
-    Route::middleware(['subscription', 'club-role:owner,admin,manager'])->group(function () {
+    // Each page by the right it needs (RequireClubArea; rights — Settings → Rights).
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/warehouse', WarehouseController::class)->name('warehouse');
         Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('/club-invitations', [ClubInvitationController::class, 'store'])->name('club-invitations.store');
@@ -226,6 +228,13 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->middleware('club-role:owner')->name('tariffs.destroy');
     });
 
+    // Settings → Rights: the owner gives rights to employees.
+    Route::middleware(['subscription', 'club-role:owner'])->group(function () {
+        Route::get('/settings/permissions', [PermissionController::class, 'index'])->name('settings.permissions');
+        Route::post('/settings/permissions', [PermissionController::class, 'update'])->name('settings.permissions.update');
+        Route::post('/settings/permissions/{membership}/reset', [PermissionController::class, 'reset'])->name('settings.permissions.reset');
+    });
+
     // Settings → API and integrations: the owner and members with the integrations permission.
     Route::middleware(['subscription', 'can:manage-integrations'])->prefix('settings/integrations')->name('settings.integrations')->group(function () {
         Route::get('/', [IntegrationController::class, 'index']);
@@ -240,7 +249,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::patch('/members/{membership}', [IntegrationController::class, 'updatePermission'])->name('.permissions.update');
     });
 
-    Route::middleware(['subscription', 'club-role:owner,admin'])->group(function () {
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::post('/settings/agent-pin', [SettingsController::class, 'agentPin'])->name('settings.agent-pin');
         Route::post('/settings/agent-staff-time', [SettingsController::class, 'agentStaffTime'])->name('settings.agent-staff-time');
         Route::get('/workers', [WorkerController::class, 'index'])->name('workers.index');
@@ -249,7 +258,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::delete('/workers/{membership}', [WorkerController::class, 'destroy'])->name('workers.destroy');
     });
 
-    Route::middleware(['subscription', 'club-role:owner,admin,manager,cashier'])->group(function () {
+    Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/cash-register', [CashRegisterController::class, 'index'])->name('cash-register.index');
         // Time for a guest without an account, from the club map, paid into the open shift.
         Route::post('/club-computers/guest-session', [GuestSessionController::class, 'store'])->middleware('throttle:30,1,club-computers.guest-session')->name('club-computers.guest-session');

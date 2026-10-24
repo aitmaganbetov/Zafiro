@@ -16,6 +16,7 @@ use App\Services\CashRegisterService;
 use App\Services\CurrentClub;
 use App\Services\ShiftReport;
 use App\Services\TopUpBonus;
+use App\Support\ClubPermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,19 +96,10 @@ class CashRegisterController extends Controller
         ]);
     }
 
-    /**
-     * Refunds: the owner, admins and managers always; cashiers when the club allows it
-     * (Settings → Club → Staff on shift).
-     */
+    /** Refunds: the owner, admins and managers by default; others when the owner gives the right (Settings → Rights). */
     public static function canRefund(): bool
     {
-        $club = app(CurrentClub::class);
-
-        return match ($club->membership()?->role) {
-            'owner', 'admin', 'manager' => true,
-            'cashier' => (bool) data_get($club->settings(), 'club.allow_cashier_refunds', false),
-            default => false,
-        };
+        return ClubPermissions::allows(app(CurrentClub::class)->membership(), 'cash_refunds');
     }
 
     /** Income of the open shift, newest first, with what was returned: the place to make a refund. */
@@ -124,7 +116,7 @@ class CashRegisterController extends Controller
 
     public function refund(Request $request, CashTransaction $cashTransaction): RedirectResponse
     {
-        abort_unless(self::canRefund(), 403, __('Возвраты кассирам выключены в настройках клуба.'));
+        abort_unless(self::canRefund(), 403, __('Нет права на возвраты. Его даёт владелец клуба в «Настройки → Права».'));
         $this->cash->refund($cashTransaction, $request->user()->getKey());
 
         return back()->with('status', __('Возврат проведён: :amount KZT выданы из кассы.', ['amount' => number_format((float) $cashTransaction->amount, 2, ',', ' ')]));

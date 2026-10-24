@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToClub;
 use App\Models\Concerns\UsesClubTimezone;
+use App\Support\ClubPermissions;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,12 +17,18 @@ class ClubMembership extends Model
 
     protected function casts(): array
     {
-        return ['discount' => 'decimal:2', 'total_spent' => 'decimal:2', 'notifications_seen_at' => 'datetime', 'can_manage_integrations' => 'boolean'];
+        return ['discount' => 'decimal:2', 'total_spent' => 'decimal:2', 'notifications_seen_at' => 'datetime', 'can_manage_integrations' => 'boolean', 'permissions' => 'array'];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** A right in the panel (ClubPermissions): by the role, or as the owner set it. */
+    public function hasPermission(string $right): bool
+    {
+        return ClubPermissions::allows($this, $right);
     }
 
     public function canManageIntegrations(): bool
