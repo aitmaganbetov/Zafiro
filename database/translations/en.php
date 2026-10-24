@@ -1805,6 +1805,8 @@ return [
         'Роль: :role. Отметьте, что сотрудник может в каждом разделе. Отличия от прав роли отмечены рамкой; «—» — такого действия в разделе нет.' => 'Role: :role. Mark what the employee may do in each section. Differences from the role have a frame; “—” — the section has no such action.',
         'Раздел' => 'Section',
         'Вернуть права по роли' => 'Back to the rights of the role',
+        'В заказ' => 'To order',
+        'Добавить в заказ: :product' => 'Add to the order: :product',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',

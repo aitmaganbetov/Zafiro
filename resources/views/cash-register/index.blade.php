@@ -38,7 +38,7 @@
                                 <h4>{{ $product->name }}</h4>
                                 <p class="pos-product-meta">{{ $product->category ?: __('Без категории') }}</p>
                                 <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: :count шт.', ['count' => $product->quantity]) : __('Нет в наличии · 0 шт.') }}</span></div>
-                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" data-image="{{ $product->photo_url }}" {{ $product->quantity < 1 ? 'disabled' : '' }}>{{ __('Добавить в заказ') }}</button>
+                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" data-image="{{ $product->photo_url }}" aria-label="{{ __('Добавить в заказ: :product', ['product' => $product->name]) }}" {{ $product->quantity < 1 ? 'disabled' : '' }}><i class="fas fa-plus" aria-hidden="true"></i> {{ __('В заказ') }}</button>
                             </article>
                         @endforeach
                     </div>
