@@ -99,7 +99,8 @@
                 <ColumnDefinition Width="0.7*" MinWidth="440"/>
             </Grid.ColumnDefinitions>
 
-            <Grid Grid.Column="0">
+            <!-- Картинка клуба — на всё окно; форма входа справа сверху поверх неё, без своего фона. -->
+            <Grid Grid.Column="0" Grid.ColumnSpan="2">
                 <!-- Картинку клуба (настройки клуба → «Картинка экрана входа») окно подставляет вместо этой. -->
                 <Image x:Name="SignInImage" Source="pack://siteoforigin:,,,/Frontend/gaming-setup.jpg" Stretch="UniformToFill"/>
                 <Rectangle>
@@ -139,10 +140,20 @@
                 </StackPanel>
             </Grid>
 
-            <Border Grid.Column="1" Background="#211F2D">
+            <Border Grid.Column="1" Background="Transparent">
                 <!-- Прокрутка нужна только на маленьких экранах или при крупном масштабе Windows. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="38,28">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="420">
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Stretch" MaxWidth="420">
+                    <!-- Тень у подписей (не у полей ввода): белый текст читается на светлой картинке клуба. -->
+                    <StackPanel.Resources>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.8" Color="#000000"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Resources>
                     <TextBlock Text="ZAFIRO CLUB" Margin="0,0,0,14" FontSize="13" FontWeight="Bold" Foreground="#A78BFA"/>
                     <TextBlock x:Name="HeaderText" Text="Подключение к клубу" FontSize="30" FontWeight="SemiBold" Foreground="#F5F3FA" TextWrapping="Wrap"/>
                     <TextBlock x:Name="ClubText" Margin="0,9,0,26" Foreground="#AAA5B8" FontSize="14" TextWrapping="Wrap"/>
