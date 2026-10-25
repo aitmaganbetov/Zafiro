@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ClubComputer;
+use App\Models\ClubMembership;
 use App\Models\ClubZone;
 use App\Models\User;
 use App\Services\ClubComputerSessions;
@@ -104,4 +105,36 @@ test('staff are told when the agents are too old to carry the commands out', fun
         ->assertOk()->assertJsonPath('message', 'Агент на этих ПК устарел и не выполнит команду: обновите его до версии 0.0.66 или новее.');
     $this->postJson(route('club-computers.control'), ['computer_ids' => [$oldRelay->id, $newPc->id], 'action' => 'power_off'])
         ->assertOk()->assertJsonPath('message', 'Выключение: ПК получит команду в течение минуты (1 ПК). На 1 ПК агент устарел (нужна версия 0.0.66): они команду не выполнят.');
+});
+
+test('the technical mode reaches the agent as Ctrl+Alt+P: a staff visit, and the service keeps the agent closed', function () {
+    $staff = User::factory()->create(['name' => 'Азат']);
+    [$pc, $device] = powerPc(1, null, true, ComputerPower::SERVICE_AGENT_VERSION);
+    [$old] = powerPc(2, null, true, '0.0.70');
+
+    $this->actingAs($staff)->postJson(route('club-computers.control'), ['computer_ids' => [$pc->id, $old->id], 'action' => 'service'])
+        ->assertOk()->assertJsonPath('status', null)->assertJsonPath('queued', 2)->assertJsonPath('outdated', 1)
+        ->assertJsonPath('message', 'Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (1 ПК). На 1 ПК агент устарел (нужна версия '.ComputerPower::SERVICE_AGENT_VERSION.'): они команду не выполнят.');
+
+    expect($pc->fresh())->staff_kind->toBe('panel')->staff_user_id->toBe($staff->id)
+        ->and($pc->fresh()->hasStaffVisit())->toBeTrue();
+
+    powerBeat($device)->assertJsonPath('power_command', 'service')->assertJsonPath('staff_minutes', ClubComputerSessions::DEFAULT_STAFF_MINUTES);
+    powerBeat($device)->assertJsonPath('power_command', null)->assertJsonMissingPath('staff_minutes');
+});
+
+test('staff end the sessions of the selected PCs from the map', function () {
+    $owner = User::factory()->create();
+    [$pc] = powerPc(1, null, true);
+    [$free] = powerPc(2, null, true);
+    $pc->forceFill(['current_session_id' => 'guest-1', 'session_guest' => true, 'session_ends_at' => now()->addHour()])->save();
+
+    $this->actingAs($owner)->postJson(route('club-computers.end-sessions'), ['computer_ids' => [$pc->id, $free->id]])
+        ->assertOk()->assertJsonPath('ended', 1)->assertJsonPath('message', 'Сессия завершена на 1 ПК. Неиспользованное время вернулось клиенту.');
+    expect($pc->fresh()->current_session_id)->toBeNull();
+
+    // A cashier ends sessions only with the right from the owner.
+    $cashier = User::factory()->create();
+    ClubMembership::query()->where('user_id', $cashier->id)->update(['role' => 'cashier']);
+    $this->actingAs($cashier)->postJson(route('club-computers.end-sessions'), ['computer_ids' => [$pc->id]])->assertForbidden();
 });

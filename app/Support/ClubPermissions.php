@@ -27,7 +27,8 @@ final class ClubPermissions
         'customer_money' => ['update' => self::MANAGERS],
         'reservations' => ['view' => self::STAFF, 'create' => self::STAFF, 'update' => self::STAFF, 'delete' => self::STAFF],
         'club_map' => ['view' => self::STAFF, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => self::MANAGERS],
-        'pc_control' => ['update' => self::STAFF],
+        // Ending a customer's session: as in the staff app (ClubComputerSessions::STAFF_ROLES).
+        'pc_control' => ['update' => self::STAFF, 'delete' => ['admin', 'manager', 'operator']],
         'tariffs' => ['view' => self::MANAGERS, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => []],
         'warehouse' => ['view' => self::MANAGERS, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => []],
         'stock' => ['view' => self::STAFF, 'create' => self::STAFF],
@@ -108,7 +109,7 @@ final class ClubPermissions
             'customer_money' => ['label' => __('Скидка и баланс клиента'), 'actions' => ['update' => __('Персональная скидка и начальный баланс')]],
             'reservations' => ['label' => __('Брони'), 'actions' => ['view' => __('Список броней'), 'create' => __('Забронировать ПК'), 'update' => __('Отметить приход'), 'delete' => __('Отменить бронь')]],
             'club_map' => ['label' => __('Карта клуба и ПК'), 'actions' => ['view' => __('Карта и список ПК'), 'create' => __('Добавить зону или ПК'), 'update' => __('Изменить зоны, ПК, расстановку'), 'delete' => __('Удалить зону или ПК')]],
-            'pc_control' => ['label' => __('Управление ПК'), 'actions' => ['update' => __('Включить, выключить, перезагрузить, забронировать')]],
+            'pc_control' => ['label' => __('Управление ПК'), 'actions' => ['update' => __('Включить, выключить, перезагрузить, забронировать, техрежим'), 'delete' => __('Завершить сессию клиента')]],
             'tariffs' => ['label' => __('Тарифы'), 'actions' => ['view' => __('Список тарифов'), 'create' => __('Добавить тариф'), 'update' => __('Изменить тариф'), 'delete' => __('Удалить тариф')]],
             'warehouse' => ['label' => __('Склад: каталог'), 'actions' => ['view' => __('Каталог товаров'), 'create' => __('Добавить товар или категорию'), 'update' => __('Изменить товар, списать или оприходовать'), 'delete' => __('Удалить товар')]],
             'stock' => ['label' => __('Приход товара'), 'actions' => ['view' => __('Остатки на складе'), 'create' => __('Принять товар')]],

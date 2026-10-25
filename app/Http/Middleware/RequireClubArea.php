@@ -31,6 +31,7 @@ class RequireClubArea
         'club_map.update' => ['club-map.update', 'club-map.layout', 'club-map.align', 'club-computers.update', 'club-computers.layout'],
         'club_map.delete' => ['club-map.destroy', 'club-computers.destroy'],
         'pc_control.update' => ['club-computers.control'],
+        'pc_control.delete' => ['club-computers.end-sessions'],
         'tariffs.view' => ['tariffs.index', 'tariffs.edit'],
         'tariffs.create' => ['tariffs.store'],
         'tariffs.update' => ['tariffs.update'],

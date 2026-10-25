@@ -13,10 +13,10 @@ namespace ZafiroAgent.Services
         private static readonly Regex MacPattern = new("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOptions.CultureInvariant);
         private const int MaxWakeTargets = 50;
 
-        /// <summary>"restart", "shutdown" или null.</summary>
+        /// <summary>"restart", "shutdown", "service" (техрежим, как Ctrl+Alt+P с PIN) или null.</summary>
         public static string? PowerCommand(JsonElement root) =>
             root.ValueKind == JsonValueKind.Object && root.TryGetProperty("power_command", out var value) && value.ValueKind == JsonValueKind.String
-            && value.GetString() is "restart" or "shutdown" ? value.GetString() : null;
+            && value.GetString() is "restart" or "shutdown" or "service" ? value.GetString() : null;
 
         public static IReadOnlyList<string> WakeMacs(JsonElement root)
         {

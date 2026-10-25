@@ -2187,7 +2187,9 @@ body {
     bottom: 22px;
     z-index: var(--z-dropdown);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     transform: translate(-50%, 140%);
     border: 1px solid #29364a;
@@ -2205,6 +2207,13 @@ body {
     transform: translate(-50%, 0);
     opacity: 1;
     pointer-events: auto
+}
+
+/* Centred on the screen, it stays clear of the left menu: two rows when the buttons do not fit. */
+@media(min-width:768px) {
+    .cm-control-panel {
+        max-width: calc(100vw - 520px)
+    }
 }
 
 /* Keep the bottom of the map reachable while the floating control panel is shown */
@@ -2757,6 +2766,11 @@ body {
 
 .cm-control-button.reserve {
     background: #80551a
+}
+
+/* The technical mode (as Ctrl+Alt+P with the staff PIN). */
+.cm-control-button.service {
+    background: #5b21b6
 }
 
 

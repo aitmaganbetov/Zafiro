@@ -196,25 +196,35 @@ namespace ZafiroAgent
                 var window = new StaffPinWindow(VerifyPinAsync);
                 if (window.ShowDialog() != true) return;
 
-                ExitAuthorized = true;
-                Keyboard.Enabled = false;
-                Covers.Update(null, false);
-                KioskPolicy.EnableTaskManager();
-                SafeLog.Write("[Kiosk] staff exit confirmed");
-
-                if (MainWindow is MainWindow main)
-                {
-                    main.Close();
-                }
-                else
-                {
-                    foreach (Window open in Windows) open.Close();
-                    Shutdown();
-                }
+                ExitForStaff("staff exit confirmed");
             }
             finally
             {
                 _pinOpen = false;
+            }
+        }
+
+        /// <summary>
+        /// Агент закрывается для сотрудника: после PIN-кода или по команде «Техрежим» из панели
+        /// (служба по ответу сервера сама не поднимает агент, пока идёт время сотрудника).
+        /// </summary>
+        internal void ExitForStaff(string reason)
+        {
+            if (ExitAuthorized) return;
+            ExitAuthorized = true;
+            Keyboard.Enabled = false;
+            Covers.Update(null, false);
+            KioskPolicy.EnableTaskManager();
+            SafeLog.Write("[Kiosk] " + reason);
+
+            if (MainWindow is MainWindow main)
+            {
+                main.Close();
+            }
+            else
+            {
+                foreach (Window open in Windows) open.Close();
+                Shutdown();
             }
         }
 

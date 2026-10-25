@@ -9,6 +9,7 @@ use App\Http\Requests\ResolveClubComputerRequest;
 use App\Http\Requests\UpdateClubComputerLayoutRequest;
 use App\Http\Requests\UpdateClubComputerRequest;
 use App\Models\ChatMessage;
+use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\Friendship;
@@ -143,7 +144,7 @@ class ClubComputerController extends Controller
         return back()->with('status', __('ПК :computer удалён.', ['computer' => $name]))->with('edit_mode', true);
     }
 
-    public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks, ComputerPower $power): JsonResponse
+    public function control(ControlClubComputersRequest $request, ActivityLogger $activity, WebhookDispatcher $webhooks, ComputerPower $power, ClubComputerSessions $sessions): JsonResponse
     {
         $data = $request->validated();
         $logControl = function (string $action, int $updated) use ($data, $request, $activity): void {
@@ -175,14 +176,20 @@ class ClubComputerController extends Controller
 
         // A PC being turned on stays offline until its agent reports; the others show the command.
         $status = match ($data['action']) {
-            'power_on' => null,
+            'power_on', 'service' => null,
             'restart' => 'restarting',
             'power_off' => 'offline',
         };
 
-        $result = DB::transaction(function () use ($data, $status, $logControl, $webhooks, $power): array {
+        $result = DB::transaction(function () use ($data, $status, $logControl, $webhooks, $power, $request, $sessions): array {
             if ($status !== null) {
                 ClubComputer::query()->whereKey($data['computer_ids'])->update(['status' => $status]);
+            }
+            // The technical mode, as Ctrl+Alt+P with the staff PIN: the PC is a staff visit from now.
+            if ($data['action'] === 'service') {
+                foreach (ClubComputer::query()->whereKey($data['computer_ids'])->get() as $computer) {
+                    $sessions->startStaffVisit($computer, $request->user(), 'panel');
+                }
             }
             $result = $power->queue(array_values($data['computer_ids']), $data['action']);
             $logControl($data['action'], count($data['computer_ids']));
@@ -203,16 +210,19 @@ class ClubComputerController extends Controller
     private function controlMessage(string $action, array $result): string
     {
         if ($action !== 'power_on') {
+            $version = $action === 'service' ? ComputerPower::SERVICE_AGENT_VERSION : ComputerPower::AGENT_VERSION;
             $ready = $result['queued'] - $result['outdated'];
             if ($ready === 0) {
-                return __('Агент на этих ПК устарел и не выполнит команду: обновите его до версии :version или новее.', ['version' => ComputerPower::AGENT_VERSION]);
+                return __('Агент на этих ПК устарел и не выполнит команду: обновите его до версии :version или новее.', ['version' => $version]);
             }
-            $message = $action === 'restart'
-                ? trans_choice('Перезагрузка: ПК получит команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).', $ready)
-                : trans_choice('Выключение: ПК получит команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).', $ready);
+            $message = match ($action) {
+                'restart' => trans_choice('Перезагрузка: ПК получит команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).|Перезагрузка: ПК получат команду в течение минуты (:count ПК).', $ready),
+                'service' => trans_choice('Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).|Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).|Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).', $ready),
+                default => trans_choice('Выключение: ПК получит команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).|Выключение: ПК получат команду в течение минуты (:count ПК).', $ready),
+            };
 
             return $result['outdated'] > 0
-                ? $message.' '.__('На :count ПК агент устарел (нужна версия :version): они команду не выполнят.', ['count' => $result['outdated'], 'version' => ComputerPower::AGENT_VERSION])
+                ? $message.' '.__('На :count ПК агент устарел (нужна версия :version): они команду не выполнят.', ['count' => $result['outdated'], 'version' => $version])
                 : $message;
         }
 
@@ -298,6 +308,10 @@ class ClubComputerController extends Controller
             'power_command' => $power->take($result['computer']),
             'wake_macs' => $power->wakeTargets($result['computer']),
         ] : [];
+        // The technical mode: the agent service keeps the agent closed this long (as after the PIN).
+        if (($commands['power_command'] ?? null) === 'service') {
+            $commands['staff_minutes'] = (int) (Club::query()->whereKey($computer->club_id)->value('agent_staff_minutes') ?? ClubComputerSessions::DEFAULT_STAFF_MINUTES);
+        }
 
         return $this->heartbeatResponse(
             $result,
@@ -334,6 +348,27 @@ class ClubComputerController extends Controller
             'friend_requests' => Friendship::query()->where('addressee_id', $user->getKey())->whereNull('accepted_at')->count(),
             'chat_last_staff_id' => (int) ChatMessage::query()->where('customer_id', $user->getKey())->where('from_staff', true)->max('id'),
         ];
+    }
+
+    /** Staff end the sessions of the selected PCs (the map): unused time goes back as in the agent. */
+    public function endSessions(Request $request, ClubComputerSessions $sessions): JsonResponse
+    {
+        $ids = $request->validate([
+            'computer_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'computer_ids.*' => ['required', 'integer', 'distinct'],
+        ])['computer_ids'];
+        $ended = 0;
+        foreach (ClubComputer::query()->whereKey($ids)->whereNotNull('current_session_id')->get() as $computer) {
+            $sessions->end($computer, (string) $computer->current_session_id, $request->user(), true);
+            $ended++;
+        }
+
+        return response()->json([
+            'ended' => $ended,
+            'message' => $ended === 0
+                ? __('На выбранных ПК нет активной сессии.')
+                : trans_choice('Сессия завершена на :count ПК. Неиспользованное время вернулось клиенту.|Сессии завершены на :count ПК. Неиспользованное время вернулось клиентам.|Сессии завершены на :count ПК. Неиспользованное время вернулось клиентам.', $ended),
+        ]);
     }
 
     /** Ends the paid session early: its owner or club staff. */

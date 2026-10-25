@@ -706,7 +706,13 @@ namespace ZafiroAgent.Views
                         ShowSignInImage();
                         ApplyGuestSession(check.Value);
                         // Сотрудник перезагрузил или выключил ПК из панели или приложения.
-                        if (_setup.TakePowerCommand() is { } command)
+                        var staffCommand = _setup.TakePowerCommand();
+                        if (staffCommand is "service")
+                        {
+                            // Техрежим из панели — как Ctrl+Alt+P с PIN-кодом сотрудника.
+                            App.Instance.ExitForStaff("technical mode from the panel (sign-in screen)");
+                        }
+                        else if (staffCommand is { } command)
                         {
                             SafeLog.Write("[Power] " + command + " by staff from the sign-in screen");
                             if (!PowerControl.Run(command == "restart"))

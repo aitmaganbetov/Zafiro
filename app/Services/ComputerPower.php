@@ -19,8 +19,11 @@ class ComputerPower
     /** The first agent version that asks for commands and carries them out. */
     public const AGENT_VERSION = '0.0.66';
 
+    /** The first agent version that opens the technical mode on a command (as the staff PIN does). */
+    public const SERVICE_AGENT_VERSION = '0.0.72';
+
     /** Agent commands by panel action. */
-    private const COMMANDS = ['restart' => 'restart', 'power_off' => 'shutdown'];
+    private const COMMANDS = ['restart' => 'restart', 'power_off' => 'shutdown', 'service' => 'service'];
 
     /**
      * @param  list<int>  $ids
@@ -32,7 +35,7 @@ class ComputerPower
             $queued = ClubComputer::query()->whereKey($ids)
                 ->update(['power_command' => self::COMMANDS[$action], 'power_command_at' => now()]);
             $outdated = ClubComputer::query()->whereKey($ids)->pluck('agent_version')
-                ->filter(fn (?string $version): bool => ! $this->carriesOut($version))->count();
+                ->filter(fn (?string $version): bool => ! $this->carriesOut($version, $action))->count();
 
             return ['queued' => $queued, 'outdated' => $outdated];
         }
@@ -47,10 +50,12 @@ class ComputerPower
         return ['woken' => $woken, 'without_mac' => count($ids) - $woken, 'relays' => $relays, 'old_relays' => $running->count() - $relays];
     }
 
-    /** The agent of this version takes staff commands with its heartbeat. */
-    public function carriesOut(?string $version): bool
+    /** The agent of this version takes staff commands (this one, when given) with its heartbeat. */
+    public function carriesOut(?string $version, ?string $action = null): bool
     {
-        return $version !== null && ! app(AgentUpdate::class)->isOutdated($version, self::AGENT_VERSION);
+        $minimum = $action === 'service' ? self::SERVICE_AGENT_VERSION : self::AGENT_VERSION;
+
+        return $version !== null && ! app(AgentUpdate::class)->isOutdated($version, $minimum);
     }
 
     /** The command for this PC, given once: the first heartbeat that takes it clears it. */

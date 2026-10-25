@@ -276,6 +276,16 @@ public sealed class DeviceVaultTests : IDisposable
         Assert.Equal(TimeSpan.FromMinutes(minutes), VaultServer.StaffTime(body));
     }
 
+    [Theory]
+    [InlineData("""{"power_command":"service","staff_minutes":20}""", true)]
+    [InlineData("""{"power_command":"restart"}""", false)]
+    [InlineData("""{"power_command":null}""", false)]
+    [InlineData("not json", false)]
+    public void TechnicalMode_IsTheServiceCommandInTheHeartbeatAnswer(string body, bool technicalMode)
+    {
+        Assert.Equal(technicalMode, VaultServer.IsTechnicalMode(body));
+    }
+
     private DeviceVaultClient StartVault(StubHandler server, Action<uint, TimeSpan>? staffExit = null)
     {
         var vault = new VaultServer(_pipe, new DeviceVaultStore(_dir, restrictAccess: false), new HttpClient(server), staffExit);

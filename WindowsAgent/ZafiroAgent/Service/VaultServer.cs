@@ -488,6 +488,12 @@ namespace ZafiroAgent.Service
                     SafeLog.Write("[Service] staff exit confirmed, restart paused for session " + clientSession);
                     _staffExit(clientSession, StaffTime(body));
                 }
+                else if (VaultProtocol.IsHeartbeat(target) && response.StatusCode == HttpStatusCode.OK && IsTechnicalMode(body))
+                {
+                    // «Техрежим» из панели: сервер сам прислал команду, агент закроется — как после PIN.
+                    SafeLog.Write("[Service] technical mode from the panel, restart paused for session " + clientSession);
+                    _staffExit(clientSession, StaffTime(body));
+                }
 
                 return new VaultMessage { Ok = true, Status = (int)response.StatusCode, Body = body, ContentType = response.Content.Headers.ContentType?.MediaType };
             }
@@ -498,6 +504,20 @@ namespace ZafiroAgent.Service
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 return Fail("network");
+            }
+        }
+
+        /// <summary>Ответ heartbeat несёт команду «Техрежим» для этого ПК.</summary>
+        public static bool IsTechnicalMode(string body)
+        {
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                return ZafiroAgent.Services.StaffCommands.PowerCommand(json.RootElement) == "service";
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return false;
             }
         }
 

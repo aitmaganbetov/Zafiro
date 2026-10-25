@@ -72,6 +72,8 @@ namespace ZafiroAgent.Service
 
         public static bool IsExitPin(Uri target) => target.AbsolutePath == "/api/agent/exit-pin";
 
+        public static bool IsHeartbeat(Uri target) => target.AbsolutePath == "/api/agent/heartbeat";
+
         public static bool IsUserLogin(Uri target) => target.AbsolutePath == "/api/agent/user/login";
 
         public static async Task WriteAsync(Stream stream, VaultMessage message, CancellationToken cancellationToken)
