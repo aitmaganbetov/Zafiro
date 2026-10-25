@@ -51,6 +51,14 @@
         </div>
         <p class="mt-2 text-xs text-gray-500">{{ __('Включено — клиент платит за тариф сразу с двух балансов: бонусами (до процента выше), остальное — с основного. Выключено — целиком с одного баланса: основного или бонусного (бонусами — только если можно оплатить 100% цены).') }}</p>
     </div>
+    <div class="mt-4 max-w-2xl rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+            <label for="allow_whole_balance" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Разрешить игру на весь баланс') }}</label>
+            <input type="hidden" name="allow_whole_balance" value="0">
+            <input id="allow_whole_balance" type="checkbox" role="switch" name="allow_whole_balance" value="1" class="settings-switch" @checked(old('allow_whole_balance', $settings['finances']['allow_whole_balance'] ?? false))>
+        </div>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Клиент без тарифа нажимает в агенте «На весь баланс» и играет, пока хватает денег на основном балансе, по цене часа своей зоны: 2000 при цене 1000 за час — 2 часа (не больше 12 часов за раз). Ушёл раньше — неиспользованные минуты вернутся на баланс.') }}</p>
+    </div>
 </x-settings.card>
 
 <x-settings.card id="loyalty">

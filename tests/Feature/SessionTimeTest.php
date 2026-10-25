@@ -200,3 +200,28 @@ test('the finance page saves where the discount works and the bonus percent', fu
     $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'never', 'bonus_max_percent' => 140])
         ->assertSessionHasErrors(['discount_scope', 'bonus_max_percent']);
 });
+
+test('with "play on the whole balance" the agent is told so, and the minutes the balance pays for are sold', function () {
+    [$customer, $computer, $headers] = timeCustomer(main: 2000); // 600 an hour
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('whole_balance', false);
+
+    timeFinances(['allow_whole_balance' => true]);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)->assertJsonPath('whole_balance', true);
+
+    // 2000 at 600 an hour: 200 minutes (2000.00); the agent sends them from the main balance.
+    $this->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 200, 'balance' => 'main'], $headers)
+        ->assertOk()->assertJsonPath('new_balance', '0.00')->assertJsonPath('minutes_added', 200);
+
+    // Left after an hour: the other 140 minutes come back.
+    $this->travel(60)->minutes();
+    endSessionOf($computer, $headers)->assertOk()->assertJson(['refunded' => '1400.00']);
+    expect(balances($customer)[0])->toBe('1400.00');
+});
+
+test('the finance page saves "play on the whole balance"', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->post(route('settings.save'), ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'tariffs', 'bonus_max_percent' => 100, 'allow_whole_balance' => '1'])->assertSessionHasNoErrors();
+    expect(app(CurrentClub::class)->get()->fresh()->settings['finances']['allow_whole_balance'])->toBeTrue();
+    $this->get(route('settings.finances'))->assertOk()->assertSee('name="allow_whole_balance" value="1" class="settings-switch" checked', false);
+});

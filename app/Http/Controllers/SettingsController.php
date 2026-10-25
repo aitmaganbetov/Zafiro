@@ -234,6 +234,7 @@ class SettingsController extends Controller
                 'discount_scope',
                 'bonus_max_percent',
                 'allow_mixed_payment',
+                'allow_whole_balance',
             ],
             'guests' => [
                 'show_qr_code_on_login',
@@ -248,6 +249,7 @@ class SettingsController extends Controller
             'loyalty_enabled',
             'topup_bonus_enabled',
             'allow_mixed_payment',
+            'allow_whole_balance',
             'show_qr_code_on_login',
             'allow_guest_self_transfer',
             'allow_adding_friends',
@@ -354,6 +356,8 @@ class SettingsController extends Controller
                 'discount_scope' => 'tariffs',
                 'bonus_max_percent' => 100,
                 'allow_mixed_payment' => false,
+                // The agent offers minutes for the whole main balance (GuestMinutesController).
+                'allow_whole_balance' => false,
             ],
             'guests' => [
                 'show_qr_code_on_login' => false,
@@ -389,6 +393,7 @@ class SettingsController extends Controller
                 'discount_scope' => __('Где действует скидка клиента'),
                 'bonus_max_percent' => __('Сколько процентов цены можно оплатить бонусами'),
                 'allow_mixed_payment' => __('Разрешить смешанную оплату'),
+                'allow_whole_balance' => __('Разрешить игру на весь баланс'),
             ],
             'guests' => [
                 'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),

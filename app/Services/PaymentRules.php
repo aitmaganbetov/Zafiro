@@ -39,6 +39,12 @@ class PaymentRules
         return is_numeric($percent) ? max(0, min(100, (int) $percent)) : 100;
     }
 
+    /** A customer may buy as many minutes as the main balance pays for, without picking a tariff. */
+    public function wholeBalanceAllowed(): bool
+    {
+        return (bool) data_get($this->currentClub->settings(), 'finances.allow_whole_balance', false);
+    }
+
     /** Bonuses for a part of the price and the rest from the main balance; off — one balance per purchase. */
     public function mixedPaymentAllowed(): bool
     {

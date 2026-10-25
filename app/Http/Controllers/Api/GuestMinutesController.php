@@ -34,6 +34,8 @@ class GuestMinutesController extends Controller
             'currency' => data_get($currentClub->settings(), 'finances.currency', 'KZT'),
             'min_minutes' => 1,
             'max_minutes' => self::MAX_MINUTES,
+            // "Play on the whole balance": the agent offers as many minutes as the main balance pays for.
+            'whole_balance' => $rules->wholeBalanceAllowed(),
         ]);
     }
 

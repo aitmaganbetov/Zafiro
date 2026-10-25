@@ -37,6 +37,7 @@ class SaveSettingsRequest extends FormRequest
             'discount_scope' => ['sometimes', Rule::in(PaymentRules::DISCOUNT_SCOPES)],
             'bonus_max_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'allow_mixed_payment' => ['nullable', 'boolean'],
+            'allow_whole_balance' => ['nullable', 'boolean'],
             'topup_bonus_enabled' => ['nullable', 'boolean'],
             'topup_bonus_levels' => ['nullable', 'array', 'max:'.TopUpBonus::MAX_LEVELS],
             'topup_bonus_levels.*' => ['array:amount,percent'],

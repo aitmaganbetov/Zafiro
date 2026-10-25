@@ -199,9 +199,11 @@
   const serverNow = () => Date.now() + clockOffset;
 
   let balances = [null, null];
+  let onBalances = () => {};
   const formatBalance = (value) => value === null ? '—' : Number(value ?? 0).toLocaleString(intlLocale(), { maximumFractionDigits: 2 });
   const applyBalances = (balance, bonus) => {
     balances = [balance, bonus];
+    onBalances();
     const text = { balanceBig: balance, historyBalance: balance, profileBalance: balance, bonusSmall: bonus, historyBonus: bonus, profileBonus: bonus };
     Object.entries(text).forEach(([id, value]) => {
       document.getElementById(id).textContent = formatBalance(value);
@@ -958,7 +960,39 @@
       ? t('Введите от 1 до :max минут', { max: minuteInput.max })
       : t(':minutes мин — :price', { minutes, price: formatPrice(Math.floor((hourCents * minutes + 30) / 60) / 100, currency) });
     minuteBuy.disabled = minutes === null;
+    renderWholeBalance(hourCents, currency);
   };
+  // «На весь баланс»: столько минут, сколько оплачивает основной баланс (цена — как у сервера).
+  const minuteWhole = document.getElementById('minuteWhole');
+  const minuteWholeBuy = document.getElementById('minuteWholeBuy');
+  let wholeMinutes = 0;
+  let wholePrice = '';
+  const minutesPrice = (hourCents, minutes) => Math.floor((hourCents * minutes + 30) / 60);
+  const renderWholeBalance = (hourCents, currency) => {
+    const balanceCents = Math.round(Number(balances[0] ?? 0) * 100);
+    wholeMinutes = 0;
+    if (minuteOffer?.whole_balance === true && hourCents > 0 && balanceCents > 0) {
+      wholeMinutes = Math.min(Number(minuteOffer.max_minutes) || 720, Math.floor(balanceCents * 60 / hourCents));
+      while (wholeMinutes > 0 && minutesPrice(hourCents, wholeMinutes) > balanceCents) wholeMinutes--;
+    }
+    minuteWhole.hidden = wholeMinutes < 1;
+    if (wholeMinutes >= 1) {
+      wholePrice = formatPrice(minutesPrice(hourCents, wholeMinutes) / 100, currency);
+      minuteWholeBuy.textContent = t('На весь баланс: :time — :price', { time: formatMinutes(wholeMinutes), price: wholePrice });
+    }
+  };
+  onBalances = () => { if (minuteOffer?.available) renderMinutes(); };
+  minuteWholeBuy.addEventListener('click', async () => {
+    if (wholeMinutes < 1 || !webview) return;
+    const minutes = wholeMinutes;
+    const ok = await askConfirm(t('На весь баланс'), t('Купить :time за :price с основного баланса? Ушли раньше — неиспользованные минуты вернутся на баланс.', { time: formatMinutes(minutes), price: wholePrice }), t('Купить'));
+    if (!ok) return;
+    minuteWholeBuy.disabled = true;
+    minuteBuy.disabled = true;
+    tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => { item.disabled = true; });
+    setStatus(tariffPageStatus, 'Оформляем тариф…');
+    webview.postMessage({ type: 'purchaseMinutes', minutes, balance: 'main' });
+  });
   const requestMinutes = () => webview?.postMessage({ type: 'requestMinutes' });
 
   minuteInput.addEventListener('input', renderMinutes);
@@ -1433,6 +1467,7 @@
       tariffCatalog.querySelectorAll('.tariff-purchase').forEach((item) => {
         item.disabled = false;
       });
+      minuteWholeBuy.disabled = false;
       renderMinutes();
       setStatus(tariffPageStatus, null);
       toast(event.data.message ?? t(event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.'), event.data.success ? 'success' : 'error');

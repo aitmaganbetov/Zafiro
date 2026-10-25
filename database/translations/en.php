@@ -1824,6 +1824,8 @@ return [
         'Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).|Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).|Техрежим: агент на ПК закроется в течение минуты, как по PIN-коду (:count ПК).' => 'Tech mode: the agent closes within a minute, as with the PIN (:count PC).|Tech mode: the agent closes within a minute, as with the PIN (:count PCs).',
         'Включить, выключить, перезагрузить, забронировать, техрежим' => 'Turn on, turn off, restart, reserve, tech mode',
         'Завершить сессию клиента' => 'End a customer session',
+        'Разрешить игру на весь баланс' => 'Allow playing on the whole balance',
+        'Клиент без тарифа нажимает в агенте «На весь баланс» и играет, пока хватает денег на основном балансе, по цене часа своей зоны: 2000 при цене 1000 за час — 2 часа (не больше 12 часов за раз). Ушёл раньше — неиспользованные минуты вернутся на баланс.' => 'A customer without a tariff presses “Whole balance” in the agent and plays while the main balance lasts, at the hourly price of their zone: 2000 at 1000 an hour is 2 hours (at most 12 hours at a time). Leaving earlier, the unused minutes come back to the balance.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
@@ -2225,5 +2227,9 @@ return [
         'Повторите новый пароль' => 'Repeat the new password',
         'Сохраняем…' => 'Saving…',
         'Имя — не короче 2 символов.' => 'The name must be at least 2 characters.',
+        'Без тарифа: играйте, пока хватает денег на основном балансе. Ушли раньше — остаток вернётся.' => 'No tariff: play while the main balance lasts. Leave earlier and the rest comes back.',
+        'На весь баланс: :time — :price' => 'Whole balance: :time — :price',
+        'На весь баланс' => 'Whole balance',
+        'Купить :time за :price с основного баланса? Ушли раньше — неиспользованные минуты вернутся на баланс.' => 'Buy :time for :price from the main balance? Leave earlier and the unused minutes come back to the balance.',
     ],
 ];

@@ -173,6 +173,8 @@ html,body,#app{height:100%;margin:0;background:radial-gradient(ellipse at 10% 10
 .minute-buy{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
 .minute-buy strong{font-size:1rem;font-variant-numeric:tabular-nums}
 .minute-buy .primary:disabled{opacity:0.5;cursor:default}
+.minute-whole{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid rgba(139,92,246,0.25)}
+.minute-whole p{margin:0;color:var(--muted);font-size:0.875rem}
 .news-card{position:relative;width:100%;margin:0;border:1px solid rgba(255,255,255,0.02);font:inherit;color:inherit;text-align:left;cursor:pointer}
 .news-card:disabled{cursor:default}
 .news-card:not(:disabled):hover,.news-card:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
