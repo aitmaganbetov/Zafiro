@@ -50,6 +50,9 @@ namespace ZafiroAgent
         private static readonly int[] SessionWarningMinutes = { 10, 5, 3, 1 };
         private DateTimeOffset? _warnedForEnd;
         private int _warnedMinutes = int.MaxValue;
+        // Последний ответ клуба в чате, о котором клиент уже знает (первый heartbeat после входа);
+        // более новые показываются уведомлением. null — клиент только что вошёл.
+        private long? _chatStaffSeen;
         private DateTime _sessionAdoptedAtUtc;
 
         // Часы сервера минус часы ПК: если часы ПК спешат или отстают, сессия всё равно
@@ -297,6 +300,7 @@ namespace ZafiroAgent
             if (window.ShowDialog() != true || window.Session is null) return false;
 
             // Новый клиент: интерфейс загружается заново, без данных прежнего.
+            _chatStaffSeen = null;
             WebView.CoreWebView2?.Navigate(AppOrigin + "index.html");
             return true;
         }
@@ -329,13 +333,14 @@ namespace ZafiroAgent
                     {
                         if (hb.PowerCommand is "service") App.Instance.ExitForStaff("technical mode from the panel");
                         else if (hb.PowerCommand is { } command) _ = RunStaffPowerCommandAsync(command);
-                        if (hb.StaffMessage is { } message) Views.StaffMessageNotice.Show(message);
+                        if (hb.StaffMessage is { } message) Views.CornerNotice.Show(Views.CornerNotice.Kind.StaffMessage, L.T("Сообщение администратора"), message);
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
                         if (hb.Customer is { } customer)
                         {
                             // Баланс и счётчики пришли с heartbeat: отдельно сервер не спрашиваем.
                             _balanceRefreshedAtUtc = DateTime.UtcNow;
+                            _chatStaffSeen ??= customer.ChatLastStaffId;
                             SendMessageToWeb(JsonSerializer.Serialize(new { type = "balance", balance = customer.Balance, bonus = customer.BonusBalance, manual = false }));
                             SendMessageToWeb(JsonSerializer.Serialize(new { type = "customerCounters", friendRequests = customer.FriendRequests, chatLastStaffId = customer.ChatLastStaffId }));
                         }
@@ -436,7 +441,7 @@ namespace ZafiroAgent
             RestoreFromTray(); // также включает блокировку клавиш и окно поверх всех
             ScheduleAfterSessionAction();
             // После агента: уведомление должно быть поверх его окна.
-            if (timeIsUp) Views.SessionTimeNotice.Show(L.T("Истекло время сессии"), final: true);
+            if (timeIsUp) Views.CornerNotice.Show(Views.CornerNotice.Kind.SessionOver, null, L.T("Ваша сессия закончилась"));
         }
 
         private static bool IsPowerAction(string action) => action is "restart" or "shutdown";
@@ -559,7 +564,7 @@ namespace ZafiroAgent
 
             _warnedMinutes = reached;
             var count = Math.Max(1, (int)Math.Ceiling(left.TotalMinutes));
-            Views.SessionTimeNotice.Show(L.T("До конца сессии осталось :count мин.", ("count", count)), final: false);
+            Views.CornerNotice.Show(Views.CornerNotice.Kind.SessionTime, null, L.T("До конца сессии осталось :count мин.", ("count", count)));
         }
 
         // 401: вход обновляется один раз; повторный 401 после нового входа цикл не запускает.
@@ -878,6 +883,27 @@ namespace ZafiroAgent
             return result;
         }
 
+        /// <summary>Новый ответ клуба в чате — уведомление со звуком в правом верхнем углу, даже поверх игры.</summary>
+        private void NotifyNewChatReplies(GuestApiResult chat)
+        {
+            if (_chatStaffSeen is not { } seen || !chat.Success || chat.Data is not { } data ||
+                !data.TryGetProperty("messages", out var messages) || messages.ValueKind != JsonValueKind.Array) return;
+
+            string? latest = null;
+            foreach (var message in messages.EnumerateArray())
+            {
+                if (!message.TryGetProperty("from_staff", out var fromStaff) || fromStaff.ValueKind != JsonValueKind.True ||
+                    !message.TryGetProperty("id", out var idValue) || idValue.ValueKind != JsonValueKind.Number || !idValue.TryGetInt64(out var id) || id <= seen) continue;
+                seen = id;
+                latest = message.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String ? body.GetString() : null;
+            }
+
+            _chatStaffSeen = seen;
+            // Агент открыт перед клиентом: ответ и так виден в чате.
+            if (!string.IsNullOrWhiteSpace(latest) && !(IsActive && WindowState != WindowState.Minimized))
+                Views.CornerNotice.Show(Views.CornerNotice.Kind.Chat, L.T("Новое сообщение в чате"), latest.Length > 300 ? latest[..300] + "…" : latest);
+        }
+
         /// <summary>Выбор клиента на странице: main или bonus; иначе null (сервер возьмёт как раньше).</summary>
         private static string? PaymentBalance(JsonElement message) =>
             message.TryGetProperty("balance", out var b) && b.ValueKind == JsonValueKind.String && b.GetString() is "main" or "bonus" ? b.GetString() : null;
@@ -1003,7 +1029,8 @@ namespace ZafiroAgent
                 else if (type == "requestChat")
                 {
                     var after = doc.RootElement.TryGetProperty("after", out var a) && a.ValueKind == JsonValueKind.Number && a.TryGetInt64(out var id) && id > 0 ? id : 0;
-                    await GuestCallAsync("chat", HttpMethod.Get, after > 0 ? $"chat?after={after.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "chat");
+                    var chat = await GuestCallAsync("chat", HttpMethod.Get, after > 0 ? $"chat?after={after.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "chat");
+                    NotifyNewChatReplies(chat);
                 }
                 else if (type == "sendChat")
                 {

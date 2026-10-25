@@ -40,6 +40,9 @@ namespace ZafiroAgent.Views
         private GuestSession? _guest;
         private Window? _guestOverlay;
         private TextBlock? _guestOverlayText;
+        private static readonly int[] GuestWarningMinutes = { 10, 5, 3, 1 };
+        private DateTimeOffset? _guestWarnedFor;
+        private int _guestWarnedMinutes = int.MaxValue;
         private readonly System.Windows.Threading.DispatcherTimer _guestTick = new() { Interval = TimeSpan.FromSeconds(1) };
         private static readonly TimeSpan GuestWatchInterval = TimeSpan.FromSeconds(15);
         // Выключение/перезагрузка ждёт второго нажатия: null — ничего, true — перезагрузка, false — выключение.
@@ -108,6 +111,7 @@ namespace ZafiroAgent.Views
                 _guestTick.Stop();
                 _powerArmTimer.Stop();
                 _guestOverlay?.Close();
+                CornerNotice.ReservedTop = 0;
                 L.Changed -= OnLanguageChanged;
                 InputLanguageManager.Current.InputLanguageChanged -= OnInputLanguageChanged;
             };
@@ -718,7 +722,7 @@ namespace ZafiroAgent.Views
                             if (!PowerControl.Run(command == "restart"))
                                 ErrorText.Text = L.T("Windows не дал выключить ПК. Обратитесь к администратору клуба.");
                         }
-                        if (_setup.TakeStaffMessage() is { } message) StaffMessageNotice.Show(message);
+                        if (_setup.TakeStaffMessage() is { } message) CornerNotice.Show(CornerNotice.Kind.StaffMessage, L.T("Сообщение администратора"), message);
                         // Клуб включил QR, пока экран входа открыт: код появляется без перезапуска.
                         if (_relogin && _setup.QrLoginEnabled == true && !_qrRunning) _ = RunQrLoginAsync();
                     }
@@ -772,6 +776,7 @@ namespace ZafiroAgent.Views
             _guestTick.Stop();
             _guestOverlay?.Close();
             _guestOverlay = null;
+            CornerNotice.ReservedTop = 0;
             try { SHMinimizeAll(); } catch (Exception ex) { SafeLog.Write("[Guest] could not minimize windows: " + ex.Message); }
             WindowState = WindowState.Maximized;
             Topmost = App.Instance.KioskEnabled;
@@ -781,6 +786,30 @@ namespace ZafiroAgent.Views
             PhoneBox.Focus();
         }
 
+        /// <summary>
+        /// За 10, 5, 3 и 1 минуту до конца гостевой сессии — уведомление со звуком, каждое один раз.
+        /// Время продлили — отсчёт заново, но без уведомления сразу после покупки.
+        /// </summary>
+        private void WarnGuestTime(TimeSpan left)
+        {
+            if (_guest is null) return;
+            var reached = int.MaxValue;
+            foreach (var minutes in GuestWarningMinutes)
+                if (left <= TimeSpan.FromMinutes(minutes)) reached = Math.Min(reached, minutes);
+
+            if (_guestWarnedFor != _guest.EndsAtUtc)
+            {
+                _guestWarnedFor = _guest.EndsAtUtc;
+                _guestWarnedMinutes = reached;
+                return;
+            }
+            if (reached >= _guestWarnedMinutes) return;
+
+            _guestWarnedMinutes = reached;
+            var count = Math.Max(1, (int)Math.Ceiling(left.TotalMinutes));
+            CornerNotice.Show(CornerNotice.Kind.SessionTime, null, L.T("До конца сессии осталось :count мин.", ("count", count)));
+        }
+
         private void ShowGuestTime()
         {
             if (_guest is null || _guestOverlayText is null) return;
@@ -788,8 +817,11 @@ namespace ZafiroAgent.Views
             if (left <= TimeSpan.Zero)
             {
                 EndGuestSession();
+                // После окна входа: уведомление должно быть поверх него.
+                CornerNotice.Show(CornerNotice.Kind.SessionOver, null, L.T("Ваша сессия закончилась"));
                 return;
             }
+            WarnGuestTime(left);
 
             _guestOverlayText.Text = L.T("Гостевая сессия · осталось :time", ("time", left.TotalHours >= 1 ? left.ToString(@"h\:mm\:ss") : left.ToString(@"mm\:ss")));
             _guestOverlayText.Foreground = left <= TimeSpan.FromMinutes(5) ? new SolidColorBrush(Color.FromRgb(0xFF, 0xB4, 0x54)) : Brushes.White;
@@ -815,7 +847,12 @@ namespace ZafiroAgent.Views
                 Left = area.Right - 300,
                 Top = area.Top + 12
             };
-            _guestOverlay.Loaded += (_, _) => _guestOverlay.Left = area.Right - _guestOverlay.ActualWidth - 12;
+            _guestOverlay.Loaded += (_, _) =>
+            {
+                _guestOverlay.Left = area.Right - _guestOverlay.ActualWidth - 12;
+                // Уведомления встают под таймером гостевой сессии.
+                CornerNotice.ReservedTop = _guestOverlay.ActualHeight;
+            };
             _guestOverlay.Show();
         }
 
