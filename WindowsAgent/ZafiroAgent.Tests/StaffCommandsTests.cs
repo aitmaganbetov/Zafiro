@@ -25,7 +25,7 @@ public sealed class StaffCommandsTests
         Assert.Null(StaffCommands.PowerCommand(Root("""{}""")));
 
         Assert.Equal("Закрываемся", StaffCommands.StaffMessage(Root("""{"staff_message":"  Закрываемся "}""")));
-        Assert.Equal(300, StaffCommands.StaffMessage(Root($"""{{"staff_message":"{new string('a', 400)}"}}"""))!.Length);
+        Assert.Equal(300, StaffCommands.StaffMessage(Root($$"""{"staff_message":"{{new string('a', 400)}}"}"""))!.Length);
         Assert.Null(StaffCommands.StaffMessage(Root("""{"staff_message":"   "}""")));
         Assert.Null(StaffCommands.StaffMessage(Root("""{"staff_message":7}""")));
 
