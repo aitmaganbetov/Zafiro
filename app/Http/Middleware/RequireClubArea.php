@@ -26,7 +26,7 @@ class RequireClubArea
         'reservations.create' => ['reservations.store', 'reservations.store-many'],
         'reservations.update' => ['reservations.arrive'],
         'reservations.delete' => ['reservations.cancel'],
-        'club_map.view' => ['club-map.index', 'club-computers.index'],
+        'club_map.view' => ['club-map.index', 'club-map.state', 'club-computers.index'],
         'club_map.create' => ['club-map.store', 'club-computers.store'],
         'club_map.update' => ['club-map.update', 'club-map.layout', 'club-map.align', 'club-computers.update', 'club-computers.layout'],
         'club_map.delete' => ['club-map.destroy', 'club-computers.destroy'],

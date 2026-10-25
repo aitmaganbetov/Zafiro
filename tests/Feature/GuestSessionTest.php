@@ -153,3 +153,21 @@ test('a PC on the club map glows by who uses it', function () {
     }
     $page->assertSee('Гостевая сессия');
 });
+
+test('the open club map learns that a PC went off', function () {
+    $cashier = guestCashier();
+    $hall = ClubZone::query()->create(['name' => 'Hall']);
+    $pc = ClubComputer::query()->create(['club_zone_id' => $hall->id, 'number' => 1]);
+    $pc->forceFill(['status' => 'online', 'last_seen_at' => now()])->save();
+
+    $this->actingAs($cashier)->get(route('club-map.index'))->assertOk()
+        ->assertSee('<span class="cm-computer online pc-free" data-id="'.$pc->id.'"', false)
+        ->assertSee(json_encode(route('club-map.state')), false);
+    $this->getJson(route('club-map.state'))->assertOk()->assertJsonPath("computers.{$pc->id}.classes", 'online pc-free');
+
+    // No heartbeat for longer than the timeout: off, no glow.
+    $this->travel(ClubComputer::HEARTBEAT_TIMEOUT_SECONDS + 5)->seconds();
+    $this->getJson(route('club-map.state'))->assertOk()
+        ->assertJsonPath("computers.{$pc->id}.classes", 'offline')
+        ->assertJsonPath("computers.{$pc->id}.connection", 'offline');
+});

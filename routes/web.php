@@ -296,6 +296,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     // The front desk works with the PCs: the club map (no editor), the PC list, power and reserving.
     Route::middleware(['subscription', 'club-area'])->group(function () {
         Route::get('/club-map', [ClubZoneController::class, 'index'])->name('club-map.index');
+        Route::get('/club-map/state', [ClubZoneController::class, 'state'])->name('club-map.state');
         Route::get('/club-computers', ClubComputerListController::class)->name('club-computers.index');
         Route::post('/club-computers/control', [ClubComputerController::class, 'control'])->name('club-computers.control');
         // Stock for the front desk, read-only (the warehouse itself is for managers).

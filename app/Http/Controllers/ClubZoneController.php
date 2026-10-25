@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClubZoneRequest;
 use App\Http\Requests\UpdateClubZoneLayoutRequest;
 use App\Http\Requests\UpdateClubZoneRequest;
+use App\Models\ClubComputer;
 use App\Models\ClubZone;
 use App\Models\SessionPurchase;
 use App\Models\Tariff;
@@ -16,6 +17,7 @@ use App\Services\CurrentClub;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -30,9 +32,36 @@ class ClubZoneController extends Controller
     public function index(ComputerReservations $reservations, AgentUpdate $agentUpdate): View
     {
         $zones = ClubZone::query()->with(['computers.staffUser:id,name', 'computers.sessionUser:id,name,phone', 'tariffs'])->orderBy('sort_order')->orderBy('id')->get();
+
+        return view('club-map.index', [
+            'zones' => $zones,
+            'states' => $this->computerStates($zones->pluck('computers')->flatten(), $reservations, $agentUpdate),
+            'tariffs' => Tariff::query()->orderBy('name')->get(),
+            'agentVersions' => $agentUpdate,
+            'latestAgent' => $agentUpdate->latestVersion(),
+        ]);
+    }
+
+    /** The PCs as the map shows them now: the open map asks for this every few seconds. */
+    public function state(ComputerReservations $reservations, AgentUpdate $agentUpdate): JsonResponse
+    {
+        $computers = ClubComputer::query()->with(['staffUser:id,name', 'sessionUser:id,name,phone'])->get();
+
+        return response()->json(['computers' => $this->computerStates($computers, $reservations, $agentUpdate)]);
+    }
+
+    /**
+     * What the map shows of each PC: status, glow (staff, a session of an account or a guest, on
+     * and free), the session and who sits there.
+     *
+     * @param  SupportCollection<int, ClubComputer>  $computers
+     * @return array<int, array<string, mixed>> PC id => state
+     */
+    private function computerStates(SupportCollection $computers, ComputerReservations $reservations, AgentUpdate $agentUpdate): array
+    {
         // What the customer bought for the running sessions: tariffs and per-minute time, oldest first.
-        $sessionIds = $zones->pluck('computers')->flatten()->pluck('current_session_id')->filter()->values();
-        $sessionPurchases = $sessionIds->isEmpty() ? collect() : SessionPurchase::query()
+        $sessionIds = $computers->pluck('current_session_id')->filter()->values();
+        $purchases = $sessionIds->isEmpty() ? collect() : SessionPurchase::query()
             ->whereIn('session_id', $sessionIds)->orderBy('id')
             ->get(['session_id', 'kind', 'name', 'minutes'])
             ->groupBy('session_id')
@@ -40,20 +69,35 @@ class ClubZoneController extends Controller
                 ? $part->name
                 : __('Поминутно: :count мин.', ['count' => $part->minutes]))->implode(', '));
         $booked = $reservations->heldComputerIds();
-        // foreach, not each(): each() stops at the first PC whose callback returns false.
-        foreach ($zones as $zone) {
-            foreach ($zone->computers as $computer) {
-                $computer->bookedNow = in_array($computer->id, $booked, true);
-            }
+        $latest = $agentUpdate->latestVersion();
+
+        $states = [];
+        foreach ($computers as $computer) {
+            $computer->bookedNow = in_array($computer->id, $booked, true);
+            $status = $computer->currentStatus();
+            $staff = $computer->hasStaffVisit();
+            $session = $computer->current_session_id !== null;
+            $light = $staff ? 'pc-staff' : ($computer->hasPaidSession() ? ($computer->session_guest ? 'pc-guest' : 'pc-account') : ($status === 'online' ? 'pc-free' : ''));
+            $states[$computer->id] = [
+                'classes' => trim($status.' '.$light),
+                'status' => $status,
+                'connection' => $computer->connectionStatus(),
+                'agent_state' => $computer->agent_state ?? '',
+                'has_session' => $session,
+                'session_ends_at' => $computer->session_ends_at?->toIso8601String(),
+                'session_user' => ! $session ? '' : ($computer->session_guest ? __('Гость без аккаунта') : trim(($computer->sessionUser?->name ?? '').' · '.($computer->sessionUser?->phone ?? ''), ' ·')),
+                'session_tariff' => ! $session ? '' : ($purchases[$computer->current_session_id] ?? ($computer->session_guest ? __('Оплачено на кассе') : '')),
+                'is_reserved' => (bool) $computer->is_reserved,
+                'last_seen' => $computer->last_seen_at?->toIso8601String(),
+                'staff_until' => $staff ? $computer->staff_until->toIso8601String() : '',
+                'staff_name' => $staff ? (string) $computer->staffUser?->name : '',
+                'staff_kind' => $staff ? (string) $computer->staff_kind : '',
+                'agent_version' => (string) $computer->agent_version,
+                'agent_outdated' => $agentUpdate->isOutdated($computer->agent_version, $latest),
+            ];
         }
 
-        return view('club-map.index', [
-            'zones' => $zones,
-            'sessionPurchases' => $sessionPurchases,
-            'tariffs' => Tariff::query()->orderBy('name')->get(),
-            'agentVersions' => $agentUpdate,
-            'latestAgent' => $agentUpdate->latestVersion(),
-        ]);
+        return $states;
     }
 
     public function store(StoreClubZoneRequest $request): RedirectResponse
