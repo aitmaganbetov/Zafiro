@@ -9,6 +9,7 @@ use App\Http\Requests\StorePosSaleRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\ClubService;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -42,7 +43,9 @@ class CashRegisterController extends Controller
             ->orderBy('users.name')
             ->get(['users.id', 'users.name', 'users.phone', 'member_balances.balance', 'member_balances.bonus_balance']);
 
-        return view('cash-register.index', ['shift' => $shift, 'totals' => $shift ? $this->cash->totals($shift) : null, 'products' => $products, 'users' => $users]);
+        $services = ClubService::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'price', 'unit']);
+
+        return view('cash-register.index', ['services' => $services, 'shift' => $shift, 'totals' => $shift ? $this->cash->totals($shift) : null, 'products' => $products, 'users' => $users]);
     }
 
     public function open(OpenCashShiftRequest $request): RedirectResponse

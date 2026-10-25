@@ -31,6 +31,7 @@ final class ClubPermissions
         'pc_control' => ['update' => self::STAFF, 'delete' => ['admin', 'manager', 'operator']],
         'tariffs' => ['view' => self::MANAGERS, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => []],
         'warehouse' => ['view' => self::MANAGERS, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => []],
+        'services' => ['view' => self::MANAGERS, 'create' => self::MANAGERS, 'update' => self::MANAGERS, 'delete' => self::MANAGERS],
         'stock' => ['view' => self::STAFF, 'create' => self::STAFF],
         'orders' => ['view' => self::STAFF, 'update' => self::STAFF, 'delete' => self::STAFF],
         // Customers are answered by the front desk (ChatMessage::ANSWERING_ROLES); others read.
@@ -112,6 +113,7 @@ final class ClubPermissions
             'pc_control' => ['label' => __('Управление ПК'), 'actions' => ['update' => __('Включить, выключить, перезагрузить, забронировать, техрежим'), 'delete' => __('Завершить сессию клиента')]],
             'tariffs' => ['label' => __('Тарифы'), 'actions' => ['view' => __('Список тарифов'), 'create' => __('Добавить тариф'), 'update' => __('Изменить тариф'), 'delete' => __('Удалить тариф')]],
             'warehouse' => ['label' => __('Склад: каталог'), 'actions' => ['view' => __('Каталог товаров'), 'create' => __('Добавить товар или категорию'), 'update' => __('Изменить товар, списать или оприходовать'), 'delete' => __('Удалить товар')]],
+            'services' => ['label' => __('Услуги'), 'actions' => ['view' => __('Список услуг'), 'create' => __('Добавить услугу'), 'update' => __('Изменить цену и название'), 'delete' => __('Удалить услугу')]],
             'stock' => ['label' => __('Приход товара'), 'actions' => ['view' => __('Остатки на складе'), 'create' => __('Принять товар')]],
             'orders' => ['label' => __('Заказы из агента'), 'actions' => ['view' => __('Список заказов'), 'update' => __('Отметить «Выдан»'), 'delete' => __('Отменить заказ')]],
             'chat' => ['label' => __('Чат с клиентами'), 'actions' => ['view' => __('Читать чат'), 'create' => __('Отвечать')]],

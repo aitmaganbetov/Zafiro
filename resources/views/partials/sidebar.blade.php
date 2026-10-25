@@ -20,6 +20,7 @@
         @endif
         <span class="sidebar-label">{{ __('Учёт') }}</span>
         @if($can('warehouse.view') || $can('stock.view'))<a href="{{ $can('warehouse.view') ? route('warehouse') : route('stock.index') }}" class="sidebar-link {{ request()->routeIs('warehouse*', 'stock.*') ? 'active' : '' }}"><i class="fas fa-boxes-stacked"></i><span>{{ __('Склад') }}</span></a>@endif
+        @if($can('services.view'))<a href="{{ route('services.index') }}" class="sidebar-link {{ request()->routeIs('services.*') ? 'active' : '' }}"><i class="fas fa-bell-concierge"></i><span>{{ __('Услуги') }}</span></a>@endif
         @if($can('club_map.view'))<a href="{{ route('club-computers.index') }}" class="sidebar-link {{ request()->routeIs('club-computers.index') ? 'active' : '' }}"><i class="fas fa-computer"></i><span>{{ __('Список ПК') }}</span></a>@endif
         @if($can('activity_logs.view'))<a href="{{ route('activity-logs.index') }}" class="sidebar-link {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}"><i class="fas fa-clock-rotate-left"></i><span>{{ __('Логи') }}</span></a>@endif
         @if($can('settings.view') || $can('news.view') || $can('billing.view') || $can('tariffs.view') || in_array($currentMembership->role, ['owner', 'admin'], true))<span class="sidebar-label">{{ __('Система') }}</span>@endif

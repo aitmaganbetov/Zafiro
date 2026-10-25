@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\ClubService;
 use App\Models\MemberBalance;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -25,6 +26,21 @@ class CashRegisterService
             $total = 0.0;
             $receiptItems = [];
             foreach ($items as $item) {
+                // A service has no stock: its line goes to the receipt and the shift only.
+                if (! empty($item['service_id'])) {
+                    $service = ClubService::query()->where('is_active', true)->findOrFail($item['service_id']);
+                    $quantity = (int) $item['quantity'];
+                    $total += (float) $service->price * $quantity;
+                    $receiptItems[] = [
+                        'service_id' => $service->id,
+                        'name' => $service->name,
+                        'quantity' => $quantity,
+                        'price' => (float) $service->price,
+                        'total' => (float) $service->price * $quantity,
+                    ];
+
+                    continue;
+                }
                 $product = Product::query()->lockForUpdate()->findOrFail($item['product_id']);
                 $quantity = (int) $item['quantity'];
                 if ($quantity > $product->quantity) {
@@ -190,6 +206,10 @@ class CashRegisterService
     /** @param  array{product_id?: int, name?: string, quantity?: int}  $line */
     private function returnToStock(array $line, int $userId): void
     {
+        // A service has no stock to return to.
+        if (isset($line['service_id'])) {
+            return;
+        }
         $quantity = (int) ($line['quantity'] ?? 0);
         // Sales before refunds kept only the product name.
         $product = isset($line['product_id'])

@@ -26,7 +26,9 @@ class StorePosSaleRequest extends FormRequest
     {
         return [
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('club_id', app(CurrentClub::class)->id())],
+            // A line is a product (from the stock) or a service (no stock: PlayStation, printing…).
+            'items.*.product_id' => ['required_without:items.*.service_id', 'nullable', 'integer', 'distinct', Rule::exists('products', 'id')->where('club_id', app(CurrentClub::class)->id())->whereNull('deleted_at')],
+            'items.*.service_id' => ['required_without:items.*.product_id', 'nullable', 'integer', 'distinct', Rule::exists('club_services', 'id')->where('club_id', app(CurrentClub::class)->id())->where('is_active', true)],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ];
     }

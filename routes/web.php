@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubLogoController;
+use App\Http\Controllers\ClubServiceController;
 use App\Http\Controllers\ClubSignInImageController;
 use App\Http\Controllers\ClubZoneController;
 use App\Http\Controllers\ComputerReservationController;
@@ -228,6 +229,10 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::patch('/tariffs/{tariff}', [TariffController::class, 'update'])->name('tariffs.update');
         Route::delete('/tariffs/{tariff}', [TariffController::class, 'destroy'])->name('tariffs.destroy');
         Route::delete('/warehouse/products/{product}', ProductDeleteController::class)->name('warehouse.products.destroy');
+        Route::get('/services', [ClubServiceController::class, 'index'])->name('services.index');
+        Route::post('/services', [ClubServiceController::class, 'store'])->name('services.store');
+        Route::patch('/services/{service}', [ClubServiceController::class, 'update'])->name('services.update');
+        Route::delete('/services/{service}', [ClubServiceController::class, 'destroy'])->name('services.destroy');
     });
 
     // Settings → Rights: the owner (and admins, not for admins) set the rights of an employee.

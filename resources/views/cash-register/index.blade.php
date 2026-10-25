@@ -30,15 +30,26 @@
                         @foreach($categories->take(5) as $category)
                             <button class="pos-category" data-category="{{ $category }}" title="{{ trans_choice(':count товар|:count товара|:count товаров', $products->where('category', $category)->count()) }}"><i class="fas {{ \App\Support\CategoryIcon::for($category) }} pos-category-icon" aria-hidden="true"></i><strong>{{ $category }}</strong><small>{{ $products->where('category', $category)->count() }}</small></button>
                         @endforeach
+                        @if($services->isNotEmpty())<button class="pos-category" data-category="__services" title="{{ __('Услуги клуба: PlayStation, распечатка…') }}"><i class="fas fa-bell-concierge pos-category-icon" aria-hidden="true"></i><strong>{{ __('Услуги') }}</strong><small>{{ $services->count() }}</small></button>@endif
                     </div>
                     <div class="pos-products">
                         @foreach($products as $product)
-                            <article class="pos-product" data-product-id="{{ $product->id }}" data-category="{{ $product->category }}">
+                            <article class="pos-product" data-cart-key="p{{ $product->id }}" data-category="{{ $product->category }}">
                                 <img src="{{ $product->photo_url }}" alt="{{ $product->name }}" loading="lazy">
                                 <h4>{{ $product->name }}</h4>
                                 <p class="pos-product-meta">{{ $product->category ?: __('Без категории') }}</p>
                                 <div class="pos-product-price"><span>{{ number_format((float)$product->price, 0, ',', ' ') }} ₸</span><span class="pos-stock {{ $product->quantity < 5 ? 'low' : '' }}">{{ $product->quantity > 0 ? __('В наличии: :count шт.', ['count' => $product->quantity]) : __('Нет в наличии · 0 шт.') }}</span></div>
-                                <button type="button" class="pos-add add-product" data-id="{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" data-image="{{ $product->photo_url }}" aria-label="{{ __('Добавить в заказ: :product', ['product' => $product->name]) }}" {{ $product->quantity < 1 ? 'disabled' : '' }}><i class="fas fa-plus" aria-hidden="true"></i> {{ __('В заказ') }}</button>
+                                <button type="button" class="pos-add add-product" data-key="p{{ $product->id }}" data-name="{{ $product->name }}" data-price="{{ (float)$product->price }}" data-stock="{{ $product->quantity }}" data-image="{{ $product->photo_url }}" aria-label="{{ __('Добавить в заказ: :product', ['product' => $product->name]) }}" {{ $product->quantity < 1 ? 'disabled' : '' }}><i class="fas fa-plus" aria-hidden="true"></i> {{ __('В заказ') }}</button>
+                            </article>
+                        @endforeach
+                        {{-- Services: no stock, no picture — sold by the unit (an hour, a page…). --}}
+                        @foreach($services as $service)
+                            <article class="pos-product pos-service" data-cart-key="s{{ $service->id }}" data-category="__services">
+                                <div class="pos-service-icon" aria-hidden="true"><i class="fas fa-bell-concierge"></i></div>
+                                <h4>{{ $service->name }}</h4>
+                                <p class="pos-product-meta">{{ __('Услуга') }}@if($service->unit) · {{ $service->unit }}@endif</p>
+                                <div class="pos-product-price"><span>{{ number_format((float)$service->price, 0, ',', ' ') }} ₸</span></div>
+                                <button type="button" class="pos-add add-product" data-key="s{{ $service->id }}" data-name="{{ $service->name }}" data-price="{{ (float)$service->price }}" data-stock="9999" data-image="" aria-label="{{ __('Добавить в заказ: :product', ['product' => $service->name]) }}"><i class="fas fa-plus" aria-hidden="true"></i> {{ __('В заказ') }}</button>
                             </article>
                         @endforeach
                     </div>
@@ -183,7 +194,7 @@
         let total = 0;
         cart.forEach((item, id) => {
             total += item.price * item.qty;
-            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${escapeHtml(item.image || placeholder)}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">${escapeHtml(@json(__('Без модификаторов')))}</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-id="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-id="${id}">+</button></div></div></div></div>`);
+            box.insertAdjacentHTML('beforeend', `<div class="pos-cart-item"><img src="${escapeHtml(item.image || placeholder)}" alt=""><div><div class="pos-cart-name">${escapeHtml(item.name)}</div><div class="pos-cart-sub">${escapeHtml(@json(__('Без модификаторов')))}</div><div class="pos-cart-line"><span class="pos-cart-price">${money(item.price * item.qty)}</span><div class="pos-qty"><button type="button" data-change="-1" data-key="${id}">−</button><span>${item.qty}</span><button type="button" data-change="1" data-key="${id}">+</button></div></div></div></div>`);
         });
         if (!cart.size) box.innerHTML = '<div class="pos-empty">' + escapeHtml(@json(__('Добавьте товары в заказ'))) + '</div>';
         document.getElementById('subtotal').textContent = money(total);
@@ -192,12 +203,13 @@
         document.getElementById('checkout').disabled = !cart.size;
         const inputs = document.getElementById('sale-items'); inputs.innerHTML = '';
         let index = 0;
-        cart.forEach((item, id) => { inputs.insertAdjacentHTML('beforeend', `<input type="hidden" name="items[${index}][product_id]" value="${id}"><input type="hidden" name="items[${index}][quantity]" value="${item.qty}">`); index++; });
-        document.querySelectorAll('.pos-product').forEach(card => card.classList.toggle('selected', cart.has(Number(card.dataset.productId))));
+        // Cart keys: "p12" — a product, "s3" — a service.
+        cart.forEach((item, key) => { inputs.insertAdjacentHTML('beforeend', `<input type="hidden" name="items[${index}][${key[0] === 's' ? 'service_id' : 'product_id'}]" value="${Number(key.slice(1))}"><input type="hidden" name="items[${index}][quantity]" value="${item.qty}">`); index++; });
+        document.querySelectorAll('.pos-product').forEach(card => card.classList.toggle('selected', cart.has(card.dataset.cartKey)));
     }
 
-    box.addEventListener('click', event => { const button = event.target.closest('[data-change]'); if (!button) return; const id = Number(button.dataset.id); const item = cart.get(id); if (!item) return; item.qty += Number(button.dataset.change); if (item.qty < 1) cart.delete(id); else item.qty = Math.min(item.qty, item.stock); render(); });
-    document.querySelectorAll('.add-product').forEach(button => button.addEventListener('click', () => { const id = Number(button.dataset.id); const item = cart.get(id) || {name: button.dataset.name, price: Number(button.dataset.price), stock: Number(button.dataset.stock), image: button.dataset.image, qty: 0}; item.qty = Math.min(item.qty + 1, item.stock); cart.set(id, item); render(); }));
+    box.addEventListener('click', event => { const button = event.target.closest('[data-change]'); if (!button) return; const id = button.dataset.key; const item = cart.get(id); if (!item) return; item.qty += Number(button.dataset.change); if (item.qty < 1) cart.delete(id); else item.qty = Math.min(item.qty, item.stock); render(); });
+    document.querySelectorAll('.add-product').forEach(button => button.addEventListener('click', () => { const id = button.dataset.key; const item = cart.get(id) || {name: button.dataset.name, price: Number(button.dataset.price), stock: Number(button.dataset.stock), image: button.dataset.image, qty: 0}; item.qty = Math.min(item.qty + 1, item.stock); cart.set(id, item); render(); }));
     document.querySelectorAll('.pos-category').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-category').forEach(item => item.classList.remove('active')); button.classList.add('active'); document.querySelectorAll('.pos-product').forEach(card => card.style.display = button.dataset.category === 'all' || card.dataset.category === button.dataset.category ? '' : 'none'); }));
     document.querySelectorAll('.pos-mode').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-mode').forEach(item => item.classList.remove('active')); button.classList.add('active'); }));
     document.querySelectorAll('.pos-payment').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.pos-payment').forEach(item => item.classList.remove('active')); button.classList.add('active'); }));

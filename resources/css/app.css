@@ -552,6 +552,22 @@ body {
     object-fit: contain
 }
 
+/* A service card: an icon in the place of the product picture. */
+.pos-service-icon {
+    display: grid;
+    place-items: center;
+    height: 96px;
+    border-radius: 11px;
+    background: #eef6ff;
+    color: #2563eb;
+    font-size: 28px
+}
+
+.dark .pos-service-icon {
+    background: rgba(37, 99, 235, .15);
+    color: #93c5fd
+}
+
 .pos-product h4 {
     min-height: 34px;
     margin: 6px 2px 2px;
