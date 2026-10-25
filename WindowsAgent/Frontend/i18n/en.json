@@ -296,6 +296,7 @@
         "Не удалось восстановить пароль. Повторите попытку или обратитесь к администратору клуба.": "Could not recover the password. Try again or contact the club administrator.",
         "Истекло время сессии": "Session time is over",
         "До конца сессии осталось :count мин.": ":count min left until the session ends",
+        "Сообщение администратора": "Message from the administrator",
         "Ваши абонементы": "Your passes",
         "Неиспользованное время тарифа — запустите его, пока не сгорело.": "Unused tariff time — start it before it burns.",
         "С основного баланса": "From the main balance",

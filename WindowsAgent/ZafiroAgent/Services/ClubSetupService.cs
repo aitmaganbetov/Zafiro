@@ -332,6 +332,7 @@ namespace ZafiroAgent.Services
             RememberQrLogin(root);
             Infrastructure.WakeOnLan.Send(StaffCommands.WakeMacs(root));
             PendingPowerCommand = StaffCommands.PowerCommand(root) ?? PendingPowerCommand;
+            PendingStaffMessage = StaffCommands.StaffMessage(root) ?? PendingStaffMessage;
             var offset = root.TryGetProperty("server_time", out var serverTime) && serverTime.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(serverTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var now)
                 ? now.ToUniversalTime() - DateTimeOffset.UtcNow
@@ -447,6 +448,16 @@ namespace ZafiroAgent.Services
 
         /// <summary>Команда сотрудника с экрана входа (restart, shutdown): её выполняет окно входа.</summary>
         public string? PendingPowerCommand { get; private set; }
+
+        /// <summary>Сообщение сотрудника с карты клуба, пришедшее на экран входа: его показывает окно входа.</summary>
+        public string? PendingStaffMessage { get; private set; }
+
+        public string? TakeStaffMessage()
+        {
+            var message = PendingStaffMessage;
+            PendingStaffMessage = null;
+            return message;
+        }
 
         public string? TakePowerCommand()
         {

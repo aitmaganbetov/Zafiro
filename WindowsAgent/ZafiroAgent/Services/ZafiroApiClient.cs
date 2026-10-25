@@ -616,6 +616,7 @@ namespace ZafiroAgent.Services
             heartbeat.SessionExpired = root.TryGetProperty("session_expired", out var expired) && expired.ValueKind == JsonValueKind.True;
             heartbeat.Customer = ReadCustomer(root);
             heartbeat.PowerCommand = StaffCommands.PowerCommand(root);
+            heartbeat.StaffMessage = StaffCommands.StaffMessage(root);
             heartbeat.WakeMacs = StaffCommands.WakeMacs(root);
             if (TryGetString(root, "server_time", out var serverTime) &&
                 DateTimeOffset.TryParse(serverTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var serverNow))

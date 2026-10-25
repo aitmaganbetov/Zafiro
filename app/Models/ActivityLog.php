@@ -83,6 +83,7 @@ class ActivityLog extends Model
         'computer.deleted' => 'Удаление ПК',
         'computer.registered' => 'Регистрация ПК агентом',
         'computer.controlled' => 'Управление ПК',
+        'computer.messaged' => 'Уведомление на ПК',
         'computer.guest_session' => 'Гостевая сессия с кассы',
         'cash.z_report_printed' => 'Печать Z-отчёта',
         'club.language_changed' => 'Смена языка клуба',

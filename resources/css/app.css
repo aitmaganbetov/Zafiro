@@ -2789,6 +2789,11 @@ body {
     background: #5b21b6
 }
 
+/* A message shown in the top right corner of the PC's screen. */
+.cm-control-button.notify {
+    background: #0e7490
+}
+
 
 
 /* Extracted from resources/views/layouts/admin.blade.php */

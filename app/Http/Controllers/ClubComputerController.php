@@ -308,6 +308,9 @@ class ClubComputerController extends Controller
             'power_command' => $power->take($result['computer']),
             'wake_macs' => $power->wakeTargets($result['computer']),
         ] : [];
+        if ($request->boolean('commands') && ($message = $power->takeMessage($result['computer'])) !== null) {
+            $commands['staff_message'] = $message;
+        }
         // The technical mode: the agent service keeps the agent closed this long (as after the PIN).
         if (($commands['power_command'] ?? null) === 'service') {
             $commands['staff_minutes'] = (int) (Club::query()->whereKey($computer->club_id)->value('agent_staff_minutes') ?? ClubComputerSessions::DEFAULT_STAFF_MINUTES);
@@ -369,6 +372,42 @@ class ClubComputerController extends Controller
                 ? __('На выбранных ПК нет активной сессии.')
                 : trans_choice('Сессия завершена на :count ПК. Неиспользованное время вернулось клиенту.|Сессии завершены на :count ПК. Неиспользованное время вернулось клиентам.|Сессии завершены на :count ПК. Неиспользованное время вернулось клиентам.', $ended),
         ]);
+    }
+
+    /** Staff send a message to the selected PCs (the map): the agent shows it in the top right corner. */
+    public function notify(Request $request, ComputerPower $power, ActivityLogger $activity): JsonResponse
+    {
+        $data = $request->validate([
+            'computer_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'computer_ids.*' => ['required', 'integer', 'distinct'],
+            'message' => ['required', 'string', 'max:300'],
+        ]);
+        $ids = ClubComputer::query()->whereKey($data['computer_ids'])->pluck('id')->all();
+        $message = trim($data['message']);
+
+        $result = DB::transaction(function () use ($ids, $message, $power, $activity, $request): array {
+            $result = $power->message($ids, $message);
+            $names = ClubComputer::query()->whereKey($ids)->orderBy('number')->get()
+                ->map(fn (ClubComputer $computer): string => $computer->displayName())->implode(', ');
+            $activity->record('computer.messaged', __('Уведомление на ПК: :names', ['names' => $names]), $request->user()->getKey(), null, [
+                'computers' => $names,
+                'message' => $message,
+            ]);
+
+            return $result;
+        });
+        $ready = $result['queued'] - $result['outdated'];
+
+        if ($ready === 0) {
+            $text = __('Агент на этих ПК устарел и не покажет уведомление: обновите его до версии :version или новее.', ['version' => ComputerPower::MESSAGE_AGENT_VERSION]);
+        } else {
+            $text = trans_choice('Уведомление появится на экране в течение минуты (:count ПК).|Уведомление появится на экранах в течение минуты (:count ПК).|Уведомление появится на экранах в течение минуты (:count ПК).', $ready);
+            if ($result['outdated'] > 0) {
+                $text .= ' '.__('На :count ПК агент устарел (нужна версия :version): там уведомления не будет.', ['count' => $result['outdated'], 'version' => ComputerPower::MESSAGE_AGENT_VERSION]);
+            }
+        }
+
+        return response()->json(['sent' => $ready, 'message' => $text]);
     }
 
     /** Ends the paid session early: its owner or club staff. */

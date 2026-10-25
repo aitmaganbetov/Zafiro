@@ -24,6 +24,11 @@ public sealed class StaffCommandsTests
         Assert.Null(StaffCommands.PowerCommand(Root("""{"power_command":null}""")));
         Assert.Null(StaffCommands.PowerCommand(Root("""{}""")));
 
+        Assert.Equal("Закрываемся", StaffCommands.StaffMessage(Root("""{"staff_message":"  Закрываемся "}""")));
+        Assert.Equal(300, StaffCommands.StaffMessage(Root($"""{{"staff_message":"{new string('a', 400)}"}}"""))!.Length);
+        Assert.Null(StaffCommands.StaffMessage(Root("""{"staff_message":"   "}""")));
+        Assert.Null(StaffCommands.StaffMessage(Root("""{"staff_message":7}""")));
+
         Assert.Equal(new[] { "AA:BB:CC:00:11:22" }, StaffCommands.WakeMacs(Root("""{"wake_macs":["aa:bb:cc:00:11:22","not-a-mac",7]}""")));
         Assert.Empty(StaffCommands.WakeMacs(Root("""{"wake_macs":null}""")));
     }

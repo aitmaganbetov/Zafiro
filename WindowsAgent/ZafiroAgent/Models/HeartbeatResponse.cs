@@ -36,6 +36,9 @@ namespace ZafiroAgent.Models
 
         // Команда сотрудника этому ПК (restart, shutdown) и MAC-адреса ПК клуба, которые он будит.
         public string? PowerCommand { get; set; }
+
+        // Сообщение сотрудника с карты клуба: агент показывает его в правом верхнем углу экрана.
+        public string? StaffMessage { get; set; }
         public IReadOnlyList<string> WakeMacs { get; set; } = Array.Empty<string>();
         public int? AfterSessionDelaySeconds { get; set; }
 

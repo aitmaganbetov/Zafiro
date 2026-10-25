@@ -38,6 +38,7 @@ class ClubComputer extends Model
             'session_ends_at' => 'datetime',
             'agent_update_offered_at' => 'datetime',
             'power_command_at' => 'datetime',
+            'staff_message_at' => 'datetime',
             'wake_requested_at' => 'datetime',
             'cpu_cores' => 'integer',
             'ram_total_mb' => 'integer',

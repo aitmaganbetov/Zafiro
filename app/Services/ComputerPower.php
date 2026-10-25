@@ -22,6 +22,12 @@ class ComputerPower
     /** The first agent version that opens the technical mode on a command (as the staff PIN does). */
     public const SERVICE_AGENT_VERSION = '0.0.72';
 
+    /** The first agent version that shows a message from the club map. */
+    public const MESSAGE_AGENT_VERSION = '0.0.73';
+
+    /** How long a message waits for the agent: a PC that is off does not show it on the next boot. */
+    public const MESSAGE_TTL_SECONDS = 300;
+
     /** Agent commands by panel action. */
     private const COMMANDS = ['restart' => 'restart', 'power_off' => 'shutdown', 'service' => 'service'];
 
@@ -50,10 +56,53 @@ class ComputerPower
         return ['woken' => $woken, 'without_mac' => count($ids) - $woken, 'relays' => $relays, 'old_relays' => $running->count() - $relays];
     }
 
+    /**
+     * A message for the selected PCs: each agent shows it once, with its next heartbeat.
+     *
+     * @param  list<int>  $ids
+     * @return array{queued: int, outdated: int}
+     */
+    public function message(array $ids, string $text): array
+    {
+        $queued = ClubComputer::query()->whereKey($ids)->update(['staff_message' => $text, 'staff_message_at' => now()]);
+        $outdated = ClubComputer::query()->whereKey($ids)->pluck('agent_version')
+            ->filter(fn (?string $version): bool => ! $this->carriesOut($version, 'message'))->count();
+
+        return ['queued' => $queued, 'outdated' => $outdated];
+    }
+
+    /** The message for this PC, given once: the first heartbeat that takes it clears it. */
+    public function takeMessage(ClubComputer $computer): ?string
+    {
+        $message = $computer->staff_message;
+
+        if ($message === null) {
+            return null;
+        }
+
+        $taken = ClubComputer::query()->whereKey($computer->getKey())
+            ->where('staff_message', $message)
+            ->where('staff_message_at', '>=', now()->subSeconds(self::MESSAGE_TTL_SECONDS))
+            ->update(['staff_message' => null, 'staff_message_at' => null]);
+
+        if ($taken === 0) {
+            ClubComputer::query()->whereKey($computer->getKey())->where('staff_message', $message)
+                ->update(['staff_message' => null, 'staff_message_at' => null]);
+
+            return null;
+        }
+
+        return $message;
+    }
+
     /** The agent of this version takes staff commands (this one, when given) with its heartbeat. */
     public function carriesOut(?string $version, ?string $action = null): bool
     {
-        $minimum = $action === 'service' ? self::SERVICE_AGENT_VERSION : self::AGENT_VERSION;
+        $minimum = match ($action) {
+            'service' => self::SERVICE_AGENT_VERSION,
+            'message' => self::MESSAGE_AGENT_VERSION,
+            default => self::AGENT_VERSION,
+        };
 
         return $version !== null && ! app(AgentUpdate::class)->isOutdated($version, $minimum);
     }

@@ -718,6 +718,7 @@ namespace ZafiroAgent.Views
                             if (!PowerControl.Run(command == "restart"))
                                 ErrorText.Text = L.T("Windows не дал выключить ПК. Обратитесь к администратору клуба.");
                         }
+                        if (_setup.TakeStaffMessage() is { } message) StaffMessageNotice.Show(message);
                         // Клуб включил QR, пока экран входа открыт: код появляется без перезапуска.
                         if (_relogin && _setup.QrLoginEnabled == true && !_qrRunning) _ = RunQrLoginAsync();
                     }

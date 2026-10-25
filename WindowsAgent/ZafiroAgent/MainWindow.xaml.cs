@@ -329,6 +329,7 @@ namespace ZafiroAgent
                     {
                         if (hb.PowerCommand is "service") App.Instance.ExitForStaff("technical mode from the panel");
                         else if (hb.PowerCommand is { } command) _ = RunStaffPowerCommandAsync(command);
+                        if (hb.StaffMessage is { } message) Views.StaffMessageNotice.Show(message);
                         if (hb.ServerTimeUtc is { } serverTime) _clockOffset = serverTime - DateTimeOffset.UtcNow;
                         SyncSessionWithServer(hb);
                         if (hb.Customer is { } customer)

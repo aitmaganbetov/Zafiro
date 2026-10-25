@@ -138,3 +138,39 @@ test('staff end the sessions of the selected PCs from the map', function () {
     ClubMembership::query()->where('user_id', $cashier->id)->update(['role' => 'cashier']);
     $this->actingAs($cashier)->postJson(route('club-computers.end-sessions'), ['computer_ids' => [$pc->id]])->assertForbidden();
 });
+
+test('a message from the map reaches the agent with its heartbeat once', function () {
+    $staff = User::factory()->create();
+    [$pc, $device] = powerPc(1, null, true, ComputerPower::MESSAGE_AGENT_VERSION);
+    [$old] = powerPc(2, null, true, ComputerPower::SERVICE_AGENT_VERSION);
+
+    $this->actingAs($staff)->postJson(route('club-computers.notify'), ['computer_ids' => [$pc->id, $old->id], 'message' => '  Через 10 минут закрываемся  '])
+        ->assertOk()->assertJsonPath('sent', 1)
+        ->assertJsonPath('message', 'Уведомление появится на экране в течение минуты (1 ПК). На 1 ПК агент устарел (нужна версия '.ComputerPower::MESSAGE_AGENT_VERSION.'): там уведомления не будет.');
+
+    // An agent that does not ask for commands does not take it.
+    powerBeat($device, ['state' => 'locked'])->assertJsonMissingPath('staff_message');
+    powerBeat($device)->assertJsonPath('staff_message', 'Через 10 минут закрываемся');
+    powerBeat($device)->assertJsonMissingPath('staff_message');
+    $this->assertDatabaseHas('activity_logs', ['event' => 'computer.messaged']);
+});
+
+test('a message the PC did not take in time is not shown on the next boot', function () {
+    $staff = User::factory()->create();
+    [$pc, $device] = powerPc(1, null, false, ComputerPower::MESSAGE_AGENT_VERSION);
+
+    $this->actingAs($staff)->postJson(route('club-computers.notify'), ['computer_ids' => [$pc->id], 'message' => 'Привет'])->assertOk();
+    $this->travel(ComputerPower::MESSAGE_TTL_SECONDS + 1)->seconds();
+
+    powerBeat($device)->assertJsonMissingPath('staff_message');
+    expect($pc->fresh()->staff_message)->toBeNull();
+});
+
+test('a message needs text of at most 300 characters', function () {
+    $staff = User::factory()->create();
+    [$pc] = powerPc(1, null, true, ComputerPower::MESSAGE_AGENT_VERSION);
+
+    $this->actingAs($staff)->postJson(route('club-computers.notify'), ['computer_ids' => [$pc->id], 'message' => ''])->assertSessionHasErrors('message');
+    $this->actingAs($staff)->postJson(route('club-computers.notify'), ['computer_ids' => [$pc->id], 'message' => str_repeat('а', 301)])->assertSessionHasErrors('message');
+    expect($pc->fresh()->staff_message)->toBeNull();
+});
