@@ -1826,6 +1826,10 @@ return [
         'Завершить сессию клиента' => 'End a customer session',
         'Разрешить игру на весь баланс' => 'Allow playing on the whole balance',
         'Клиент без тарифа нажимает в агенте «На весь баланс» и играет, пока хватает денег на основном балансе, по цене часа своей зоны: 2000 при цене 1000 за час — 2 часа (не больше 12 часов за раз). Ушёл раньше — неиспользованные минуты вернутся на баланс.' => 'A customer without a tariff presses “Whole balance” in the agent and plays while the main balance lasts, at the hourly price of their zone: 2000 at 1000 an hour is 2 hours (at most 12 hours at a time). Leaving earlier, the unused minutes come back to the balance.',
+        'Поминутная оплата сразу после входа' => 'Per-minute billing right after sign-in',
+        'Пауза после входа до начала поминутной оплаты (в минутах)' => 'Pause after sign-in before per-minute billing (minutes)',
+        'Клиент вошёл на ПК и не купил тариф — после паузы начинается поминутная оплата по цене часа зоны с основного баланса. Закончился тариф — поминутная оплата продолжается сразу. Деньги списываются только за сыгранные минуты: при завершении сессии остаток возвращается.' => 'A customer signed in on a PC without a tariff starts paying per minute at the zone’s hourly price from the main balance after the pause. When a tariff runs out, per-minute billing continues at once. Only the minutes played are paid: the rest comes back when the session ends.',
+        'Столько минут после входа клиент может бесплатно выбрать тариф. 0 — оплата начинается сразу.' => 'For this many minutes after sign-in the customer can pick a tariff for free. 0 — billing starts at once.',
     ],
     'pagination' => [
         'previous' => '&laquo; Previous',
@@ -2231,5 +2235,6 @@ return [
         'На весь баланс: :time — :price' => 'Whole balance: :time — :price',
         'На весь баланс' => 'Whole balance',
         'Купить :time за :price с основного баланса? Ушли раньше — неиспользованные минуты вернутся на баланс.' => 'Buy :time for :price from the main balance? Leave earlier and the unused minutes come back to the balance.',
+        'Поминутная оплата через :time' => 'Per-minute billing in :time',
     ],
 ];

@@ -38,6 +38,8 @@ class SaveSettingsRequest extends FormRequest
             'bonus_max_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'allow_mixed_payment' => ['nullable', 'boolean'],
             'allow_whole_balance' => ['nullable', 'boolean'],
+            'auto_billing' => ['nullable', 'boolean'],
+            'auto_billing_pause_minutes' => ['sometimes', 'integer', 'min:0', 'max:60'],
             'topup_bonus_enabled' => ['nullable', 'boolean'],
             'topup_bonus_levels' => ['nullable', 'array', 'max:'.TopUpBonus::MAX_LEVELS],
             'topup_bonus_levels.*' => ['array:amount,percent'],

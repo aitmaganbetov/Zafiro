@@ -39,6 +39,24 @@ class PaymentRules
         return is_numeric($percent) ? max(0, min(100, (int) $percent)) : 100;
     }
 
+    /**
+     * Per-minute billing starts by itself: after the customer signs in (once the pause is over) and
+     * when a tariff runs out while they are still signed in. The agent buys the minutes the main
+     * balance pays for; unused ones come back when the session ends.
+     */
+    public function autoBillingEnabled(): bool
+    {
+        return (bool) data_get($this->currentClub->settings(), 'finances.auto_billing', false);
+    }
+
+    /** Minutes after sign-in before per-minute billing starts: time to pick a tariff. */
+    public function autoBillingPauseMinutes(): int
+    {
+        $minutes = data_get($this->currentClub->settings(), 'finances.auto_billing_pause_minutes', 5);
+
+        return is_numeric($minutes) ? max(0, min(60, (int) $minutes)) : 5;
+    }
+
     /** A customer may buy as many minutes as the main balance pays for, without picking a tariff. */
     public function wholeBalanceAllowed(): bool
     {

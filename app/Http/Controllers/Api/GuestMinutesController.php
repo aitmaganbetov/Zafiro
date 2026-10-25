@@ -36,6 +36,9 @@ class GuestMinutesController extends Controller
             'max_minutes' => self::MAX_MINUTES,
             // "Play on the whole balance": the agent offers as many minutes as the main balance pays for.
             'whole_balance' => $rules->wholeBalanceAllowed(),
+            // Per-minute billing that starts by itself, and the pause after sign-in to pick a tariff.
+            'auto_billing' => $rules->autoBillingEnabled(),
+            'auto_billing_pause_minutes' => $rules->autoBillingPauseMinutes(),
         ]);
     }
 

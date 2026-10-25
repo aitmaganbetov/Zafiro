@@ -225,3 +225,25 @@ test('the finance page saves "play on the whole balance"', function () {
     expect(app(CurrentClub::class)->get()->fresh()->settings['finances']['allow_whole_balance'])->toBeTrue();
     $this->get(route('settings.finances'))->assertOk()->assertSee('name="allow_whole_balance" value="1" class="settings-switch" checked', false);
 });
+
+test('per-minute billing by itself: the agent learns the setting and the pause after sign-in', function () {
+    [, $computer, $headers] = timeCustomer(main: 1000);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)
+        ->assertJsonPath('auto_billing', false)->assertJsonPath('auto_billing_pause_minutes', 5);
+
+    timeFinances(['auto_billing' => true, 'auto_billing_pause_minutes' => 3]);
+    $this->getJson(route('api.guest.minutes', ['computer_id' => $computer->id]), $headers)
+        ->assertJsonPath('auto_billing', true)->assertJsonPath('auto_billing_pause_minutes', 3);
+});
+
+test('the finance page saves per-minute billing after sign-in and its pause', function () {
+    $this->actingAs(User::factory()->create());
+    $form = ['section' => 'finances', 'currency' => 'KZT', 'discount_scope' => 'tariffs', 'bonus_max_percent' => 100];
+
+    $this->post(route('settings.save'), $form + ['auto_billing' => '1', 'auto_billing_pause_minutes' => 7])->assertSessionHasNoErrors();
+    expect(app(CurrentClub::class)->get()->fresh()->settings['finances'])->toMatchArray(['auto_billing' => true, 'auto_billing_pause_minutes' => 7]);
+    $this->get(route('settings.finances'))->assertOk()->assertSee('name="auto_billing" value="1" class="settings-switch" checked', false)
+        ->assertSee('name="auto_billing_pause_minutes" type="number" min="0" max="60" step="1" value="7"', false);
+
+    $this->post(route('settings.save'), $form + ['auto_billing_pause_minutes' => 90])->assertSessionHasErrors('auto_billing_pause_minutes');
+});

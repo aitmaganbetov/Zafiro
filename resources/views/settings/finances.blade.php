@@ -59,6 +59,18 @@
         </div>
         <p class="mt-2 text-xs text-gray-500">{{ __('Клиент без тарифа нажимает в агенте «На весь баланс» и играет, пока хватает денег на основном балансе, по цене часа своей зоны: 2000 при цене 1000 за час — 2 часа (не больше 12 часов за раз). Ушёл раньше — неиспользованные минуты вернутся на баланс.') }}</p>
     </div>
+    <div class="mt-4 max-w-2xl rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+            <label for="auto_billing" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Поминутная оплата сразу после входа') }}</label>
+            <input type="hidden" name="auto_billing" value="0">
+            <input id="auto_billing" type="checkbox" role="switch" name="auto_billing" value="1" class="settings-switch" @checked(old('auto_billing', $settings['finances']['auto_billing'] ?? false))>
+        </div>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Клиент вошёл на ПК и не купил тариф — после паузы начинается поминутная оплата по цене часа зоны с основного баланса. Закончился тариф — поминутная оплата продолжается сразу. Деньги списываются только за сыгранные минуты: при завершении сессии остаток возвращается.') }}</p>
+        <label for="auto_billing_pause_minutes" class="mt-3 mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Пауза после входа до начала поминутной оплаты (в минутах)') }}</label>
+        <input id="auto_billing_pause_minutes" name="auto_billing_pause_minutes" type="number" min="0" max="60" step="1" value="{{ old('auto_billing_pause_minutes', $settings['finances']['auto_billing_pause_minutes'] ?? 5) }}" class="{{ $inputClass }} max-w-[160px]">
+        <p class="mt-1 text-xs text-gray-500">{{ __('Столько минут после входа клиент может бесплатно выбрать тариф. 0 — оплата начинается сразу.') }}</p>
+        @error('auto_billing_pause_minutes')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+    </div>
 </x-settings.card>
 
 <x-settings.card id="loyalty">

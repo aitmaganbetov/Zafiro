@@ -235,6 +235,8 @@ class SettingsController extends Controller
                 'bonus_max_percent',
                 'allow_mixed_payment',
                 'allow_whole_balance',
+                'auto_billing',
+                'auto_billing_pause_minutes',
             ],
             'guests' => [
                 'show_qr_code_on_login',
@@ -250,6 +252,7 @@ class SettingsController extends Controller
             'topup_bonus_enabled',
             'allow_mixed_payment',
             'allow_whole_balance',
+            'auto_billing',
             'show_qr_code_on_login',
             'allow_guest_self_transfer',
             'allow_adding_friends',
@@ -276,7 +279,7 @@ class SettingsController extends Controller
                     in_array($field, $minuteFields, true) => $this->number((float) $request->input($field)),
                     $field === 'loyalty_levels' => LoyaltyProgram::normalize($request->input($field) ?? []),
                     $field === 'topup_bonus_levels' => TopUpBonus::normalize($request->input($field) ?? []),
-                    $field === 'bonus_max_percent' => (int) $request->input($field),
+                    $field === 'bonus_max_percent', $field === 'auto_billing_pause_minutes' => (int) $request->input($field),
                     default => $request->input($field),
                 };
             }
@@ -358,6 +361,9 @@ class SettingsController extends Controller
                 'allow_mixed_payment' => false,
                 // The agent offers minutes for the whole main balance (GuestMinutesController).
                 'allow_whole_balance' => false,
+                // Per-minute billing by itself after sign-in (after the pause) and after a tariff (PaymentRules).
+                'auto_billing' => false,
+                'auto_billing_pause_minutes' => 5,
             ],
             'guests' => [
                 'show_qr_code_on_login' => false,
@@ -394,6 +400,8 @@ class SettingsController extends Controller
                 'bonus_max_percent' => __('Сколько процентов цены можно оплатить бонусами'),
                 'allow_mixed_payment' => __('Разрешить смешанную оплату'),
                 'allow_whole_balance' => __('Разрешить игру на весь баланс'),
+                'auto_billing' => __('Поминутная оплата сразу после входа'),
+                'auto_billing_pause_minutes' => __('Пауза после входа до начала поминутной оплаты (в минутах)'),
             ],
             'guests' => [
                 'show_qr_code_on_login' => __('Отображать QR-код на странице авторизации'),

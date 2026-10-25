@@ -322,6 +322,7 @@
         "Без тарифа: играйте, пока хватает денег на основном балансе. Ушли раньше — остаток вернётся.": "No tariff: play while the main balance lasts. Leave earlier and the rest comes back.",
         "На весь баланс: :time — :price": "Whole balance: :time — :price",
         "На весь баланс": "Whole balance",
-        "Купить :time за :price с основного баланса? Ушли раньше — неиспользованные минуты вернутся на баланс.": "Buy :time for :price from the main balance? Leave earlier and the unused minutes come back to the balance."
+        "Купить :time за :price с основного баланса? Ушли раньше — неиспользованные минуты вернутся на баланс.": "Buy :time for :price from the main balance? Leave earlier and the unused minutes come back to the balance.",
+        "Поминутная оплата через :time": "Per-minute billing in :time"
     }
 }

@@ -968,13 +968,17 @@
   let wholeMinutes = 0;
   let wholePrice = '';
   const minutesPrice = (hourCents, minutes) => Math.floor((hourCents * minutes + 30) / 60);
-  const renderWholeBalance = (hourCents, currency) => {
+  // Сколько минут оплачивает основной баланс по цене часа зоны (как считает сервер).
+  const affordableMinutes = () => {
+    const hourCents = Math.round(Number(minuteOffer?.price_per_hour) * 100);
     const balanceCents = Math.round(Number(balances[0] ?? 0) * 100);
-    wholeMinutes = 0;
-    if (minuteOffer?.whole_balance === true && hourCents > 0 && balanceCents > 0) {
-      wholeMinutes = Math.min(Number(minuteOffer.max_minutes) || 720, Math.floor(balanceCents * 60 / hourCents));
-      while (wholeMinutes > 0 && minutesPrice(hourCents, wholeMinutes) > balanceCents) wholeMinutes--;
-    }
+    if (!minuteOffer?.available || !(hourCents > 0) || !(balanceCents > 0)) return 0;
+    let minutes = Math.min(Number(minuteOffer.max_minutes) || 720, Math.floor(balanceCents * 60 / hourCents));
+    while (minutes > 0 && minutesPrice(hourCents, minutes) > balanceCents) minutes--;
+    return minutes;
+  };
+  const renderWholeBalance = (hourCents, currency) => {
+    wholeMinutes = minuteOffer?.whole_balance === true ? affordableMinutes() : 0;
     minuteWhole.hidden = wholeMinutes < 1;
     if (wholeMinutes >= 1) {
       wholePrice = formatPrice(minutesPrice(hourCents, wholeMinutes) / 100, currency);
@@ -994,6 +998,52 @@
     webview.postMessage({ type: 'purchaseMinutes', minutes, balance: 'main' });
   });
   const requestMinutes = () => webview?.postMessage({ type: 'requestMinutes' });
+
+  // Поминутная оплата сама (настройка клуба): после входа — когда пройдёт пауза на выбор тарифа,
+  // после тарифа — сразу, когда его время вышло. Покупаются минуты на весь основной баланс;
+  // при завершении сессии неиспользованные возвращаются. Клиент сам завершил сессию или её
+  // завершили в клубе — до нового входа поминутная оплата сама не начинается.
+  let autoPauseStart = null;
+  let autoStopped = false;
+  let autoAfterTariff = false;
+  let autoBuying = false;
+  const autoBillingOn = () => minuteOffer?.auto_billing === true && minuteOffer?.available === true;
+  const autoBillingWaits = () => webview && userName !== null && !hasActiveSession && !autoStopped && autoBillingOn() && affordableMinutes() > 0;
+  const startAutoBilling = () => {
+    const minutes = affordableMinutes();
+    if (autoBuying || minutes < 1 || !webview) return;
+    autoBuying = true;
+    autoPauseStart = null;
+    autoAfterTariff = false;
+    setStatus(tariffPageStatus, 'Оформляем тариф…');
+    webview.postMessage({ type: 'purchaseMinutes', minutes, balance: 'main' });
+  };
+  const autoBillingTick = () => {
+    if (userName === null) {
+      autoPauseStart = null;
+      autoStopped = false;
+      autoAfterTariff = false;
+      return;
+    }
+    if (hasActiveSession || !autoBillingWaits()) {
+      if (autoPauseStart !== null && !hasActiveSession) document.getElementById('remainingBig').textContent = t('Нет активной сессии');
+      autoPauseStart = null;
+      return;
+    }
+    if (autoAfterTariff) {
+      startAutoBilling();
+      return;
+    }
+    autoPauseStart ??= Date.now();
+    const left = autoPauseStart + (Number(minuteOffer.auto_billing_pause_minutes) || 0) * 60000 - Date.now();
+    if (left <= 0) {
+      startAutoBilling();
+      return;
+    }
+    const seconds = Math.ceil(left / 1000);
+    document.getElementById('remainingBig').textContent = t('Поминутная оплата через :time', { time: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` });
+  };
+  setInterval(autoBillingTick, 1000);
 
   minuteInput.addEventListener('input', renderMinutes);
   minuteCard.querySelectorAll('[data-minutes]').forEach((button) => button.addEventListener('click', () => {
@@ -1217,7 +1267,8 @@
 
   const idleLogoutTick = () => {
     const minutes = Number(idleLogoutMinutes);
-    if (!webview || userName === null || hasActiveSession || !Number.isFinite(minutes) || minutes <= 0) {
+    // Пока ждёт поминутная оплата (пауза на выбор тарифа), клиента не выводит из аккаунта.
+    if (!webview || userName === null || hasActiveSession || autoBillingWaits() || !Number.isFinite(minutes) || minutes <= 0) {
       idleSince = null;
       idleWarned = false;
       return;
@@ -1468,6 +1519,9 @@
         item.disabled = false;
       });
       minuteWholeBuy.disabled = false;
+      // Поминутная оплата не началась (нет денег, бронь…): сама больше не пробует до нового входа.
+      if (autoBuying && !event.data.success) autoStopped = true;
+      autoBuying = false;
       renderMinutes();
       setStatus(tariffPageStatus, null);
       toast(event.data.message ?? t(event.data.success ? 'Тариф подключён.' : 'Не удалось оформить тариф.'), event.data.success ? 'success' : 'error');
@@ -1524,6 +1578,8 @@
     }
 
     if (event.data?.type === 'sessionEnded') {
+      if (event.data.reason === 'expired') autoAfterTariff = true;
+      else if (event.data.reason !== 'none') autoStopped = true;
       setSessionActive(false);
       clearSessionDetails();
       const ended = sessionEndMessages[event.data.reason] === undefined ? sessionEndMessages.ended : sessionEndMessages[event.data.reason];
@@ -1744,6 +1800,7 @@
       profileRemaining.textContent = '—';
     }
     if (name) {
+      if (userName === null) requestMinutes();
       userName = name;
       showProfileName();
     }
