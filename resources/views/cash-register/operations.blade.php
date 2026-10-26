@@ -26,7 +26,7 @@
                         <td class="whitespace-nowrap px-5 py-3"><a href="{{ route('cash-register.receipt', $operation) }}" class="font-medium text-green-700 hover:underline dark:text-green-400">№{{ $operation->id }}</a></td>
                         <td class="whitespace-nowrap px-5 py-3">{{ $operation->created_at->format('H:i') }}</td>
                         {{-- The description of a POS sale is a marker; it is shown translated. --}}
-                        <td class="px-5 py-3">{{ $operation->description === \App\Models\CashTransaction::POS_SALE ? __('Продажа товаров') : $operation->description }}</td>
+                        <td class="px-5 py-3">{{ $operation->description === \App\Models\CashTransaction::POS_SALE ? __('Продажа товаров') : $operation->description }}@if(is_array($operation->receipt_data['items'] ?? null))<span class="block text-xs text-gray-500 dark:text-gray-400">{{ collect($operation->receipt_data['items'])->map(fn ($item) => ($item['name'] ?? '').' × '.($item['quantity'] ?? 1))->implode(', ') }}</span>@endif</td>
                         <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">{{ number_format((float) $operation->amount, 2, ',', ' ') }} KZT</td>
                         <td class="whitespace-nowrap px-5 py-3 text-right">@include('cash-register.refund-button')</td>
                     </tr>

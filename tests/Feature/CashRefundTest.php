@@ -38,7 +38,7 @@ test('a refund of a sale pays the money out of the shift and puts the goods back
     $sale = $cash->sale([['product_id' => $cola->id, 'quantity' => 3]], $owner->id);
 
     $this->actingAs($owner)->get(route('cash-register.operations'))->assertOk()
-        ->assertSee('№'.$sale->id)->assertSee(route('cash-register.refund', $sale), false);
+        ->assertSee('№'.$sale->id)->assertSee('Coca Cola × 3')->assertSee(route('cash-register.refund', $sale), false);
     $this->post(route('cash-register.refund', $sale))->assertSessionHasNoErrors()
         ->assertSessionHas('status', 'Возврат проведён: 2 100,00 KZT выданы из кассы.');
 
