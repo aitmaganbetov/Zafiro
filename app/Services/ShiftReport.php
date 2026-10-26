@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\CashShift;
 use App\Models\CashTransaction;
+use App\Models\Product;
 use App\Models\User;
 
 /**
@@ -16,7 +17,7 @@ class ShiftReport
     private const POS_SALE = CashTransaction::POS_SALE;
 
     /**
-     * @return array{kinds: list<array{label: string, count: int, amount: float}>, items: list<array{name: string, quantity: int, amount: float}>, items_total: float, discount: float, refunds: array{count: int, amount: float}, staff: list<array{name: string, count: int, income: float, expense: float}>}
+     * @return array{kinds: list<array{label: string, count: int, amount: float}>, items: list<array{name: string, quantity: int, amount: float, stock: ?int}>, items_total: float, discount: float, refunds: array{count: int, amount: float}, staff: list<array{name: string, count: int, income: float, expense: float}>}
      */
     public function for(CashShift $shift): array
     {
@@ -62,12 +63,21 @@ class ShiftReport
             $discount += (float) ($receipt['discount_amount'] ?? 0);
             foreach ($receipt['items'] ?? [] as $line) {
                 $name = (string) ($line['name'] ?? '—');
-                $items[$name] ??= ['name' => $name, 'quantity' => 0, 'amount' => 0.0];
+                $items[$name] ??= ['name' => $name, 'quantity' => 0, 'amount' => 0.0, 'product_id' => null];
+                $items[$name]['product_id'] ??= isset($line['product_id']) ? (int) $line['product_id'] : null;
                 $items[$name]['quantity'] += (int) ($line['quantity'] ?? 0);
                 $items[$name]['amount'] += (float) ($line['total'] ?? 0);
             }
         }
         usort($items, fn (array $a, array $b): int => $b['amount'] <=> $a['amount'] ?: strcmp($a['name'], $b['name']));
+        // What is left in the stock now (a service has no stock).
+        $stock = Product::withTrashed()->whereKey(array_filter(array_column($items, 'product_id')))->pluck('quantity', 'id');
+        $items = array_map(function (array $item) use ($stock): array {
+            $item['stock'] = $item['product_id'] !== null && isset($stock[$item['product_id']]) ? (int) $stock[$item['product_id']] : null;
+            unset($item['product_id']);
+
+            return $item;
+        }, $items);
 
         $staff = (clone $transactions)
             ->selectRaw("user_id, COUNT(*) AS count, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income, COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expense")

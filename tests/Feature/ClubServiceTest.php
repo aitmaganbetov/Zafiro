@@ -31,7 +31,7 @@ test('a manager keeps the services; a cashier sells them with goods in one recei
     expect($sale->amount)->toBe('3500.00')
         ->and(collect($sale->receipt_data['items'])->pluck('name')->all())->toEqualCanonicalizing(['PS5 — 1 час', 'Cola'])
         ->and($cola->fresh()->quantity)->toBe(9);
-    $this->get(route('cash-register.x-report'))->assertOk()->assertSeeInOrder(['Продано товаров', 'PS5 — 1 час', '2', '3 000,00 KZT']);
+    $this->get(route('cash-register.x-report'))->assertOk()->assertSeeInOrder(['Продано товаров', 'PS5 — 1 час', '2', '—']);
 
     // An inactive service is not sold; a cashier does not change the services.
     $this->post(route('cash-register.sales.store'), ['items' => [['service_id' => $old->id, 'quantity' => 1]]])->assertSessionHasErrors('items.0.service_id');

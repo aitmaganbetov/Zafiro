@@ -30,9 +30,9 @@
                 @if($details['items'] === [])
                     <p class="report-empty">{{ __('За смену товары не продавались.') }}</p>
                 @else
-                    <table class="report-table"><thead><tr><th>{{ __('Товар') }}</th><th class="num">{{ __('Кол-во') }}</th><th class="num">{{ __('Сумма') }}</th></tr></thead><tbody>
-                    @foreach($details['items'] as $item)<tr><td>{{ $item['name'] }}</td><td class="num">{{ $item['quantity'] }}</td><td class="num">{{ number_format($item['amount'],2,',',' ') }} KZT</td></tr>@endforeach
-                    </tbody><tfoot><tr><td>{{ __('Всего') }}</td><td class="num">{{ array_sum(array_column($details['items'], 'quantity')) }}</td><td class="num">{{ number_format($details['items_total'],2,',',' ') }} KZT</td></tr>
+                    <table class="report-table"><thead><tr><th>{{ __('Товар') }}</th><th class="num">{{ __('Кол-во') }}</th><th class="num">{{ __('Остаток') }}</th></tr></thead><tbody>
+                    @foreach($details['items'] as $item)<tr><td>{{ $item['name'] }}</td><td class="num">{{ $item['quantity'] }}</td><td class="num">{{ $item['stock'] ?? '—' }}</td></tr>@endforeach
+                    </tbody><tfoot><tr><td>{{ __('Всего') }}</td><td class="num">{{ array_sum(array_column($details['items'], 'quantity')) }}</td><td></td></tr>
                     @if($details['discount'] > 0)<tr><td colspan="2">{{ __('Скидки') }}</td><td class="num">− {{ number_format($details['discount'],2,',',' ') }} KZT</td></tr>@endif
                     </tfoot></table>
                 @endif

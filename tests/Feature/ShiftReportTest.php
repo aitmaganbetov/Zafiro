@@ -28,7 +28,7 @@ test('the X and Z report show what the shift consists of: income by kind, goods 
     foreach ([route('cash-register.x-report'), route('cash-register.z-report', $shift)] as $url) {
         $this->actingAs($cashier)->get($url)->assertOk()
             ->assertSeeInOrder(['Приход по видам', 'Продажа товаров', '2', '4 000,00 KZT', 'Пополнение балансов', '1', '5 000,00 KZT', 'Гостевые сессии', '1', '600,00 KZT'])
-            ->assertSeeInOrder(['Продано товаров', 'Coca Cola', '5', '3 500,00 KZT', 'Чипсы', '1', '500,00 KZT', 'Всего', '6', '4 000,00 KZT'])
+            ->assertSeeInOrder(['Продано товаров', 'Остаток', 'Coca Cola', '5', (string) $cola->fresh()->quantity, 'Чипсы', '1', (string) $chips->fresh()->quantity, 'Всего', '6'])
             ->assertSeeInOrder(['Сотрудники', 'Айгерим', '5', '9 600,00 KZT', '300,00 KZT']);
     }
 });
