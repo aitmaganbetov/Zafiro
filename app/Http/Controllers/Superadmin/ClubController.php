@@ -174,7 +174,7 @@ class ClubController extends Controller
             $subscription->forceFill([
                 'saas_plan_id' => $planId,
                 'status' => 'active',
-                'current_period_ends_at' => $from->copy()->addDays($data['days']),
+                'current_period_ends_at' => $from->copy()->addDays((int) $data['days']),
                 'canceled_at' => null,
             ])->save();
 

@@ -114,8 +114,8 @@ test('the superadmin extends, suspends and moves a club to another plan', functi
     expect($subscription->status)->toBe('active')
         ->and($subscription->current_period_ends_at->toDateString())->toBe(now()->addDays(30)->toDateString());
 
-    // Extending again adds to the paid period, not to today.
-    $this->post(route('superadmin.clubs.extend', $club), ['days' => 10]);
+    // Extending again adds to the paid period, not to today. A form sends the number as a string.
+    $this->post(route('superadmin.clubs.extend', $club), ['days' => '10']);
     expect($subscription->fresh()->current_period_ends_at->toDateString())->toBe(now()->addDays(40)->toDateString());
 
     $this->post(route('superadmin.clubs.plan', $club), ['saas_plan_id' => $plan->id])->assertSessionHasNoErrors();
