@@ -85,7 +85,8 @@ class AgentTariffPurchaseService
                 'expires_at' => $tariff->usage_limit_enabled && $tariff->usage_limit_minutes !== null ? now()->addMinutes($tariff->usage_limit_minutes) : null,
             ];
 
-            return $this->sell($user, $computer, $price, $tariff->payment_method, $balance, $this->effectiveMinutes($tariff), $part, function (array $sale) use ($user, $tariff, $price, $computer): void {
+            $minutes = $this->effectiveMinutes($tariff);
+            $result = $this->sell($user, $computer, $price, $tariff->payment_method, $balance, $minutes, $part, function (array $sale) use ($user, $tariff, $price, $computer): void {
                 $this->activity->record('tariff.purchased', __('Куплен тариф: :tariff', ['tariff' => $tariff->name]), $user->getKey(), $tariff, [
                     'amount' => self::formatCents($price),
                     'currency' => $tariff->currency,
@@ -96,7 +97,14 @@ class AgentTariffPurchaseService
                     'session_id' => $sale['session_id'],
                     'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
                 ]);
-            }, __('Тариф подключён.'));
+            }, __('Тариф подключён.'), $tariff->validityEndsAt());
+
+            // Cut short by the end of the validity period: a usage limit keeps the rest for later.
+            if ($part['expires_at'] !== null && ($rest = $minutes - $result['minutes_added']) > 0) {
+                TimePackage::query()->create(['user_id' => $user->getKey(), 'tariff_id' => $tariff->getKey(), 'name' => $tariff->name, 'minutes_left' => $rest, 'expires_at' => $part['expires_at']]);
+            }
+
+            return $result;
         });
     }
 
@@ -164,7 +172,8 @@ class AgentTariffPurchaseService
 
     /**
      * Starts the customer's kept tariff time on this PC (no charge): as much as is left, but not
-     * past its expiry; within the tariff's zones and periods while the tariff exists.
+     * past its expiry; within the tariff's zones and periods while the tariff exists. Time past
+     * the end of the validity period stays in the package.
      *
      * @return array<string, mixed>
      */
@@ -195,8 +204,9 @@ class AgentTariffPurchaseService
                     'session_id' => $sale['session_id'],
                     'session_ends_at' => $sale['session_ends_at']->toIso8601String(),
                 ]);
-            }, __('Абонемент запущен.'));
-            $package->delete();
+            }, __('Абонемент запущен.'), $tariff?->validityEndsAt());
+            $rest = $package->minutes_left - $result['minutes_added'];
+            $rest > 0 ? $package->update(['minutes_left' => $rest]) : $package->delete();
 
             return $result;
         });
@@ -227,14 +237,26 @@ class AgentTariffPurchaseService
      * bonuses up to the club's percent of the price, the rest from the main balance when the club
      * allows mixed payment (otherwise bonuses pay the whole price); none (older agents) — the main
      * balance first, then bonuses the same way. A tariff "main balance only" takes no bonuses.
-     * The part is written to the session (SessionSettlement).
+     * The part is written to the session (SessionSettlement). A tariff's time stops at $until, the
+     * end of its validity period (bought at 15:00 for 08:00–18:00 — till 18:00), at the same price.
      *
      * @param  array{kind: string, tariff_id: ?int, name: string, expires_at: ?Carbon}  $part
      * @param  callable(array{bonus_payment: int, minutes: int, session_id: string, session_ends_at: Carbon}): void  $log
      * @return array<string, mixed>
      */
-    private function sell(User $user, ClubComputer $computer, int $price, string $paymentMethod, ?string $choice, int $minutes, array $part, callable $log, string $message): array
+    private function sell(User $user, ClubComputer $computer, int $price, string $paymentMethod, ?string $choice, int $minutes, array $part, callable $log, string $message, ?Carbon $until = null): array
     {
+        $hasActiveSession = $computer->hasPaidSession();
+        $startsAt = $hasActiveSession ? $computer->session_ends_at->copy() : now();
+        $sessionEndsAt = $startsAt->copy()->addMinutes($minutes);
+        if ($until !== null && $sessionEndsAt->greaterThan($until)) {
+            if ($until->lessThanOrEqualTo($startsAt)) {
+                throw ValidationException::withMessages(['tariff' => __('Тариф действует до :time, а время на ПК уже оплачено дальше.', ['time' => $until->copy()->setTimezone($this->currentClub->localTimezone())->format('H:i')])]);
+            }
+            $sessionEndsAt = $until->copy();
+            $minutes = (int) ceil(($until->getTimestamp() - $startsAt->getTimestamp()) / 60);
+        }
+
         $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
         $mainBalance = self::amountToCents((string) $balance->balance);
         $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
@@ -268,9 +290,7 @@ class AgentTariffPurchaseService
         $mainBalance -= $mainPayment;
         $bonusBalance -= $bonusPayment;
 
-        $hasActiveSession = $computer->hasPaidSession();
         $sessionId = $hasActiveSession ? $computer->current_session_id : (string) Str::uuid();
-        $sessionEndsAt = ($hasActiveSession ? $computer->session_ends_at->copy() : now())->addMinutes($minutes);
 
         // Time that runs into someone else's booking is not sold; the booked customer may play.
         $booking = $this->reservations->blocking($computer, $user->getKey(), $sessionEndsAt);

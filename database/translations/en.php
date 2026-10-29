@@ -1599,6 +1599,8 @@ return [
         'Абонемент запущен.' => 'The pass has been started.',
         'Абонемент не действует на этом компьютере.' => 'The pass is not valid on this computer.',
         'Абонемент сейчас не действует: проверьте дни и время тарифа.' => 'The pass is not valid now: check the tariff\'s days and times.',
+        'Тариф действует до :time, а время на ПК уже оплачено дальше.' => 'The tariff is valid until :time, and the time on the PC is already paid past that.',
+        'Тариф действует до :time, а время на ПК :computer уже оплачено дальше.' => 'The tariff is valid until :time, and the time on PC :computer is already paid past that.',
         'Везде: на тарифы с отметкой и на почасовую оплату' => 'Everywhere: marked tariffs and hourly time',
         'В клубе бонусами нельзя оплачивать время.' => 'In this club time cannot be paid with bonuses.',
         'Возврат за неиспользованное время' => 'Refund for unused time',

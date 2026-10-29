@@ -171,3 +171,17 @@ test('the open club map learns that a PC went off', function () {
         ->assertJsonPath("computers.{$pc->id}.classes", 'offline')
         ->assertJsonPath("computers.{$pc->id}.connection", 'offline');
 });
+
+test('a guest tariff ends with its validity period, at the same price', function () {
+    $cashier = guestCashier();
+    $timezone = app(CurrentClub::class)->localTimezone();
+    Carbon::setTestNow(Carbon::parse('2026-10-26 15:00', $timezone)); // a Monday
+    $pc = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Hall'])->id, 'number' => 1]);
+    $tariff = Tariff::query()->create(['name' => 'День', 'duration_minutes' => 600, 'price' => 2000, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true,
+        'validity_periods' => [['start_day' => 'mon', 'start_time' => '08:00', 'end_day' => 'mon', 'end_time' => '18:00']]]);
+    openShift($cashier);
+
+    $this->actingAs($cashier)->postJson(route('club-computers.guest-session'), ['computer_ids' => [$pc->id], 'tariff_id' => $tariff->id, 'payment_method' => 'cash'])
+        ->assertOk()->assertJsonPath('amount', '2000.00');
+    expect($pc->fresh()->session_ends_at->getTimestamp())->toBe(Carbon::parse('2026-10-26 18:00', $timezone)->getTimestamp());
+});

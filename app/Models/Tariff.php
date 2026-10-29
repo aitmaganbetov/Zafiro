@@ -49,6 +49,13 @@ class Tariff extends Model
         return WeeklyPeriods::contains($this->validity_periods, Carbon::now(app(CurrentClub::class)->localTimezone()));
     }
 
+    /** When the current validity period ends: tariff time stops then; null — no end (no limit, or outside the periods). */
+    public function validityEndsAt(): ?Carbon
+    {
+        return WeeklyPeriods::endOf($this->validity_periods, Carbon::now(app(CurrentClub::class)->localTimezone()))
+            ?->setTimezone(config('app.timezone'));
+    }
+
     public function zones(): BelongsToMany
     {
         return $this->belongsToMany(ClubZone::class)

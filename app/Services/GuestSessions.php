@@ -45,6 +45,11 @@ class GuestSessions
                 throw ValidationException::withMessages(['tariff_id' => __('Тариф недоступен.')]);
             }
             $duration = $tariff !== null ? $this->tariffs->effectiveMinutes($tariff) : (int) $minutes;
+            // The tariff's time stops with its validity period, at the same price.
+            $until = $tariff?->validityEndsAt();
+            if ($until !== null) {
+                $duration = min($duration, (int) ceil(max(0, $until->getTimestamp() - now()->getTimestamp()) / 60));
+            }
 
             $computers = ClubComputer::query()->whereKey($computerIds)->orderBy('id')->lockForUpdate()->get();
             if ($computers->count() !== count(array_unique($computerIds))) {
@@ -61,7 +66,14 @@ class GuestSessions
                     throw ValidationException::withMessages(['computer_ids' => __('ПК :computer занят или забронирован.', ['computer' => $computer->displayName()])]);
                 }
 
-                $endsAt = ($extend ? $computer->session_ends_at->copy() : $now->copy())->addMinutes($duration);
+                $startsAt = $extend ? $computer->session_ends_at->copy() : $now->copy();
+                if ($until !== null && $until->lessThanOrEqualTo($startsAt)) {
+                    throw ValidationException::withMessages(['tariff_id' => __('Тариф действует до :time, а время на ПК :computer уже оплачено дальше.', ['time' => $until->copy()->setTimezone(app(CurrentClub::class)->localTimezone())->format('H:i'), 'computer' => $computer->displayName()])]);
+                }
+                $endsAt = $startsAt->copy()->addMinutes($duration);
+                if ($until !== null && $endsAt->greaterThan($until)) {
+                    $endsAt = $until->copy();
+                }
                 // No customer sits on a booking; the time must end before someone else's booking.
                 $booking = $this->reservations->blocking($computer, 0, $endsAt);
                 if ($booking !== null) {

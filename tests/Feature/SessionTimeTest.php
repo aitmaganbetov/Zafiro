@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -246,4 +247,39 @@ test('the finance page saves per-minute billing after sign-in and its pause', fu
         ->assertSee('name="auto_billing_pause_minutes" type="number" min="0" max="60" step="1" value="7"', false);
 
     $this->post(route('settings.save'), $form + ['auto_billing_pause_minutes' => 90])->assertSessionHasErrors('auto_billing_pause_minutes');
+});
+
+test('tariff time ends with its validity period: bought at 15:00 for Mon 08:00–18:00, it ends at 18:00', function () {
+    [$customer, $computer, $headers] = timeCustomer();
+    $this->travelTo(Carbon::parse('2026-10-26 15:00', app(CurrentClub::class)->localTimezone())); // a Monday
+    $tariff = timeTariff(['name' => 'День', 'duration_minutes' => 600, 'validity_periods' => [['start_day' => 'mon', 'start_time' => '08:00', 'end_day' => 'mon', 'end_time' => '18:00']]]);
+
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'main'], $headers)->assertOk()->assertJsonPath('minutes_added', 180);
+    expect($computer->fresh()->session_ends_at->getTimestamp())->toBe(Carbon::parse('2026-10-26 18:00', app(CurrentClub::class)->localTimezone())->getTimestamp())
+        ->and(balances($customer))->toBe(['0.00', '0.00'])
+        ->and(TimePackage::query()->exists())->toBeFalse();
+
+    // Time already paid past 18:00: the tariff adds nothing and is not sold.
+    $computer->update(['session_ends_at' => Carbon::parse('2026-10-26 18:30', app(CurrentClub::class)->localTimezone())]);
+    MemberBalance::query()->where('user_id', $customer->id)->update(['balance' => 1000]);
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'main'], $headers)->assertJsonValidationErrors('tariff');
+    expect(balances($customer))->toBe(['1000.00', '0.00']);
+});
+
+test('a usage limit keeps the time past the validity period; the package starts again only up to its end', function () {
+    [$customer, $computer, $headers] = timeCustomer();
+    $timezone = app(CurrentClub::class)->localTimezone();
+    $this->travelTo(Carbon::parse('2026-10-26 17:00', $timezone));
+    $tariff = timeTariff(['usage_limit_enabled' => true, 'usage_limit_minutes' => 30 * 24 * 60, 'validity_periods' => [['start_day' => 'mon', 'start_time' => '08:00', 'end_day' => 'mon', 'end_time' => '18:00'], ['start_day' => 'tue', 'start_time' => '08:00', 'end_day' => 'tue', 'end_time' => '18:00']]]);
+
+    $this->postJson(route('api.tariffs.purchase', $tariff), ['computer_id' => $computer->id, 'balance' => 'main'], $headers)->assertOk()->assertJsonPath('minutes_added', 60);
+    expect(TimePackage::query()->sole()->minutes_left)->toBe(60);
+
+    // Tuesday 17:30: half an hour till the end, the other 30 minutes stay in the package.
+    $this->travelTo(Carbon::parse('2026-10-27 17:30', $timezone));
+    $computer->update(['current_session_id' => null, 'current_session_user_id' => null, 'session_ends_at' => null]);
+    SessionPurchase::query()->delete();
+    $this->postJson(route('api.guest.packages.start', TimePackage::query()->sole()), ['computer_id' => $computer->id], $headers)->assertOk()->assertJsonPath('minutes_added', 30);
+    expect(TimePackage::query()->sole()->minutes_left)->toBe(30)
+        ->and($computer->fresh()->session_ends_at->getTimestamp())->toBe(Carbon::parse('2026-10-27 18:00', $timezone)->getTimestamp());
 });
