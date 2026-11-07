@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\LandingController;
+use App\Models\SaasPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -44,6 +45,19 @@ test('the header menus lead to the features, agent and app pages', function () {
     $this->get(route('product.staff-app'))->assertOk()->assertSee('Приложение для сотрудников')->assertSee('Права как в панели');
 
     $this->actingAs(User::factory()->create())->get(route('product.agent'))->assertOk()->assertSee(route('dashboard'), false);
+});
+
+test('the pricing page lists the plans open for subscription', function () {
+    SaasPlan::query()->create(['slug' => 'club', 'name' => 'Клуб до 30 ПК', 'price_monthly' => 25000, 'trial_days' => 0, 'features' => ['До 30 ПК'], 'is_active' => true]);
+    SaasPlan::query()->create(['slug' => 'old', 'name' => 'Старый тариф', 'price_monthly' => 1000, 'trial_days' => 0, 'is_active' => false]);
+
+    $this->get(route('home'))->assertSee(route('pricing'), false);
+    $this->get(route('pricing'))->assertOk()
+        ->assertSee('Клуб до 30 ПК')
+        ->assertSee('25 000 ₸', false)
+        ->assertSee('До 30 ПК')
+        ->assertDontSee('Старый тариф')
+        ->assertSee(route('auth.show-register'), false);
 });
 
 test('the wiki opens on its own host; the old /wiki and other pages there lead to it', function () {

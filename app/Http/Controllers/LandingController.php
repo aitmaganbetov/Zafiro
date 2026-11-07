@@ -39,6 +39,16 @@ class LandingController extends Controller
         return view('product.staff-app', $this->data());
     }
 
+    /** Plans open for subscription, as the superadmin set them up (free and "on request" ones first). */
+    public function pricing(): View
+    {
+        return view('pricing', $this->data() + [
+            'plans' => SaasPlan::query()->where('is_active', true)
+                ->orderByRaw('price_monthly IS NOT NULL')->orderBy('price_monthly')->orderBy('id')
+                ->get(['id', 'name', 'price_monthly', 'trial_days', 'features']),
+        ]);
+    }
+
     /** @return array{trialDays: int, downloadUrl: string} */
     private function data(): array
     {

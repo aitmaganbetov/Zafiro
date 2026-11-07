@@ -54,6 +54,7 @@
                         </div>
                     </details>
                 @endforeach
+                <a href="{{ route('pricing') }}" class="hover:text-gray-900 {{ request()->routeIs('pricing') ? 'text-gray-900' : '' }}">{{ __('Тарифы') }}</a>
                 <a href="{{ route('wiki') }}" class="hover:text-gray-900">{{ __('Wiki') }}</a>
             </div>
             {{-- Phones: one menu with both groups. --}}
@@ -65,6 +66,7 @@
                         @foreach($links as $link)@include('partials.landing-menu-link', ['link' => $link])@endforeach
                     @endforeach
                     <div class="mt-1 border-t border-gray-200 pt-1">
+                        <a href="{{ route('pricing') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Тарифы') }}</a>
                         <a href="{{ route('wiki') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Wiki') }}</a>
                         @guest<a href="{{ route('auth.show-login') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100 sm:hidden">{{ __('Войти') }}</a>@endguest
                     </div>
@@ -102,6 +104,7 @@
                 <a href="{{ route('product.agent') }}" class="hover:text-gray-900">{{ __('Агент на ПК') }}</a>
                 <a href="{{ route('product.guest-app') }}" class="hover:text-gray-900">{{ __('Приложение для гостей') }}</a>
                 <a href="{{ route('product.staff-app') }}" class="hover:text-gray-900">{{ __('Приложение для сотрудников') }}</a>
+                <a href="{{ route('pricing') }}" class="hover:text-gray-900">{{ __('Тарифы') }}</a>
                 <a href="{{ $home }}#faq" class="hover:text-gray-900">{{ __('Вопросы') }}</a>
                 <a href="{{ route('wiki') }}" class="hover:text-gray-900">{{ __('Wiki') }}</a>
                 <a href="{{ route('auth.show-login') }}" class="hover:text-gray-900">{{ __('Войти') }}</a>
