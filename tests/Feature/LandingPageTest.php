@@ -18,6 +18,28 @@ test('the home page presents Zafiro with sign-up for guests and the panel for si
         ->assertSee('Открыть панель');
 });
 
+test('the "About the product" menu leads to the features and agent pages', function () {
+    $this->get(route('home'))->assertOk()
+        ->assertSee('О продукте')
+        ->assertSee(route('product.features'), false)
+        ->assertSee(route('product.agent'), false);
+
+    $this->get(route('product.features'))->assertOk()
+        ->assertSee('Возможности Zafiro')
+        ->assertSee('Касса и деньги')
+        ->assertSee('Клиенты и лояльность')
+        ->assertSee(route('product.agent'), false)
+        ->assertSee(route('home').'#faq', false);
+
+    $this->get(route('product.agent'))->assertOk()
+        ->assertSee('Агент Zafiro на ПК')
+        ->assertSee('Обойти оплату не получится')
+        ->assertSee(LandingController::AGENT_DOWNLOAD, false)
+        ->assertSee(route('auth.show-register'), false);
+
+    $this->actingAs(User::factory()->create())->get(route('product.agent'))->assertOk()->assertSee(route('dashboard'), false);
+});
+
 test('the wiki opens on its own host; the old /wiki and other pages there lead to it', function () {
     $wiki = 'http://'.config('app.wiki_domain');
     expect(route('wiki'))->toBe($wiki);

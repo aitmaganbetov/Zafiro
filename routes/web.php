@@ -119,6 +119,8 @@ if ($wikiDomain === null) {
 
 // Public routes
 Route::get('/', LandingController::class)->name('home');
+Route::get('/product/features', [LandingController::class, 'features'])->name('product.features');
+Route::get('/product/agent', [LandingController::class, 'agent'])->name('product.agent');
 
 // Installable app: manifest and the page shown without a connection.
 Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
