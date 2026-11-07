@@ -40,29 +40,29 @@
     ];
 @endphp
 <section class="mx-auto max-w-6xl px-4 pb-12 pt-14 sm:px-6 lg:pt-20">
-    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('О продукте') }}</p>
-    <h1 class="mt-3 max-w-3xl bg-gradient-to-r from-white via-white to-[#ff7aa8] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Возможности Zafiro') }}</h1>
-    <p class="mt-6 max-w-2xl text-lg text-white/70">{{ __('Облачная панель для владельца и сотрудников клуба: открывается в браузере, свой сервер не нужен. Каждый клуб видит только свои данные.') }}</p>
+    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('О продукте') }}</p>
+    <h1 class="mt-3 max-w-3xl bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Возможности Zafiro') }}</h1>
+    <p class="mt-6 max-w-2xl text-lg text-gray-600">{{ __('Облачная панель для владельца и сотрудников клуба: открывается в браузере, свой сервер не нужен. Каждый клуб видит только свои данные.') }}</p>
     <nav class="mt-8 flex flex-wrap gap-2 text-sm" aria-label="{{ __('Разделы') }}">
         @foreach($groups as [$id, $title])
-            <a href="#{{ $id }}" class="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-white/75 hover:border-[#ff0169]/50 hover:text-white">{{ $title }}</a>
+            <a href="#{{ $id }}" class="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-gray-700 hover:border-[#ff0169]/50 hover:text-gray-900">{{ $title }}</a>
         @endforeach
     </nav>
 </section>
 
 @foreach($groups as [$id, $title, $lead, $cards])
-    <section id="{{ $id }}" class="scroll-mt-20 border-t border-white/5 py-16">
+    <section id="{{ $id }}" class="scroll-mt-20 border-t border-gray-100 py-16">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 class="text-3xl font-bold">{{ $title }}</h2>
-            <p class="mt-3 max-w-2xl text-white/60">{{ $lead }}</p>
+            <p class="mt-3 max-w-2xl text-gray-600">{{ $lead }}</p>
             <div class="mt-10 grid gap-5 sm:grid-cols-2 {{ count($cards) === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3' }}">
                 @foreach($cards as [$icon, $cardTitle, $points])
-                    <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                        <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#ff4d8f]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
+                    <article class="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                        <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#e6005e]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
                         <h3 class="text-lg font-semibold">{{ $cardTitle }}</h3>
-                        <ul class="mt-3 space-y-2 text-sm leading-relaxed text-white/65">
+                        <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600">
                             @foreach($points as $point)
-                                <li class="flex gap-2"><i class="fas fa-check mt-1 text-xs text-[#ff4d8f]" aria-hidden="true"></i><span>{{ $point }}</span></li>
+                                <li class="flex gap-2"><i class="fas fa-check mt-1 text-xs text-[#e6005e]" aria-hidden="true"></i><span>{{ $point }}</span></li>
                             @endforeach
                         </ul>
                     </article>
@@ -72,13 +72,13 @@
     </section>
 @endforeach
 
-<section class="border-t border-white/5 py-16">
+<section class="border-t border-gray-100 py-16">
     <div class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 sm:px-6 md:flex-row md:items-center">
         <div>
             <h2 class="text-2xl font-bold">{{ __('На каждом ПК — агент Zafiro') }}</h2>
-            <p class="mt-2 max-w-xl text-white/60">{{ __('Клиент сам входит, покупает время и заказывает товары, а ПК закрыт до оплаты.') }}</p>
+            <p class="mt-2 max-w-xl text-gray-600">{{ __('Клиент сам входит, покупает время и заказывает товары, а ПК закрыт до оплаты.') }}</p>
         </div>
-        <a href="{{ route('product.agent') }}" class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#ff0169]/60 px-5 py-3 font-semibold text-[#ff7aa8] hover:bg-[#ff0169] hover:text-white">{{ __('Подробнее об агенте') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+        <a href="{{ route('product.agent') }}" class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#ff0169]/60 px-5 py-3 font-semibold text-[#d90058] hover:bg-[#ff0169] hover:text-white">{{ __('Подробнее об агенте') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
     </div>
 </section>
 @endsection

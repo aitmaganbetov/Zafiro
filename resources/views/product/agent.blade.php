@@ -28,41 +28,41 @@
 @endphp
 <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
     <div>
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('О продукте') }}</p>
-        <h1 class="mt-3 bg-gradient-to-r from-white via-white to-[#ff7aa8] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Агент Zafiro на ПК') }}</h1>
-        <p class="mt-6 max-w-xl text-lg text-white/70">{{ __('Программа для Windows на каждом ПК клуба. Клиент сам входит, покупает время и заказывает товары, а ПК закрыт, пока время не оплачено.') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('О продукте') }}</p>
+        <h1 class="mt-3 bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Агент Zafiro на ПК') }}</h1>
+        <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Программа для Windows на каждом ПК клуба. Клиент сам входит, покупает время и заказывает товары, а ПК закрыт, пока время не оплачено.') }}</p>
         <div class="mt-8 flex flex-wrap gap-3">
-            <a href="{{ $downloadUrl }}" class="inline-flex items-center gap-2 rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e]" rel="noopener"><i class="fab fa-windows" aria-hidden="true"></i>{{ __('Скачать агент для Windows') }}</a>
-            <a href="#install" class="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/90 hover:border-white/40">{{ __('Как установить') }}</a>
+            <a href="{{ $downloadUrl }}" class="inline-flex items-center gap-2 rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e] text-white" rel="noopener"><i class="fab fa-windows" aria-hidden="true"></i>{{ __('Скачать агент для Windows') }}</a>
+            <a href="#install" class="rounded-xl border border-gray-300 px-6 py-3 font-semibold text-gray-800 hover:border-gray-400">{{ __('Как установить') }}</a>
         </div>
         <dl class="mt-10 grid max-w-lg grid-cols-3 gap-4 text-center sm:text-left">
-            <div><dt class="text-sm text-white/50">{{ __('Система') }}</dt><dd class="text-xl font-bold">Windows 10/11</dd></div>
-            <div><dt class="text-sm text-white/50">{{ __('Обновление') }}</dt><dd class="text-xl font-bold">{{ __('само') }}</dd></div>
-            <div><dt class="text-sm text-white/50">{{ __('Языки') }}</dt><dd class="text-xl font-bold">RU · KZ · EN</dd></div>
+            <div><dt class="text-sm text-gray-500">{{ __('Система') }}</dt><dd class="text-xl font-bold">Windows 10/11</dd></div>
+            <div><dt class="text-sm text-gray-500">{{ __('Обновление') }}</dt><dd class="text-xl font-bold">{{ __('само') }}</dd></div>
+            <div><dt class="text-sm text-gray-500">{{ __('Языки') }}</dt><dd class="text-xl font-bold">RU · KZ · EN</dd></div>
         </dl>
     </div>
-    <div class="relative overflow-hidden rounded-3xl border border-white/10">
+    <div class="relative overflow-hidden rounded-3xl border border-gray-200">
         <img src="{{ asset('images/landing/club.jpg') }}" alt="{{ __('Игровое место в компьютерном клубе') }}" class="h-full max-h-[460px] w-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-t from-[#0b0d10] via-transparent to-transparent"></div>
-        <div class="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+        <div class="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-black/50 p-4 text-white backdrop-blur">
             <p class="text-sm text-white/60">{{ __('Осталось времени') }}</p>
             <p class="text-3xl font-bold">{{ __(':hours ч :minutes мин', ['hours' => 1, 'minutes' => 27]) }}</p>
         </div>
     </div>
 </section>
 
-<section class="border-t border-white/5 py-16">
+<section class="border-t border-gray-100 py-16">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Для клиента') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Для клиента') }}</p>
         <h2 class="mt-3 max-w-2xl text-3xl font-bold">{{ __('Клиенту не нужно идти на кассу') }}</h2>
         <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             @foreach($client as [$icon, $title, $points])
-                <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                    <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#ff4d8f]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
+                <article class="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                    <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#e6005e]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
                     <h3 class="text-lg font-semibold">{{ $title }}</h3>
-                    <ul class="mt-3 space-y-2 text-sm leading-relaxed text-white/65">
+                    <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600">
                         @foreach($points as $point)
-                            <li class="flex gap-2"><i class="fas fa-check mt-1 text-xs text-[#ff4d8f]" aria-hidden="true"></i><span>{{ $point }}</span></li>
+                            <li class="flex gap-2"><i class="fas fa-check mt-1 text-xs text-[#e6005e]" aria-hidden="true"></i><span>{{ $point }}</span></li>
                         @endforeach
                     </ul>
                 </article>
@@ -71,26 +71,26 @@
     </div>
 </section>
 
-<section class="border-t border-white/5 py-16">
+<section class="border-t border-gray-100 py-16">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Защита ПК') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Защита ПК') }}</p>
         <h2 class="mt-3 max-w-2xl text-3xl font-bold">{{ __('Обойти оплату не получится') }}</h2>
         <div class="mt-10 grid gap-5 md:grid-cols-2">
             @foreach($protection as [$icon, $title, $text])
-                <article class="flex gap-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#ff4d8f]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
-                    <div><h3 class="text-lg font-semibold">{{ $title }}</h3><p class="mt-2 text-sm leading-relaxed text-white/65">{{ $text }}</p></div>
+                <article class="flex gap-5 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#e6005e]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
+                    <div><h3 class="text-lg font-semibold">{{ $title }}</h3><p class="mt-2 text-sm leading-relaxed text-gray-600">{{ $text }}</p></div>
                 </article>
             @endforeach
         </div>
     </div>
 </section>
 
-<section class="border-t border-white/5 py-16">
+<section class="border-t border-gray-100 py-16">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Из панели клуба') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Из панели клуба') }}</p>
         <h2 class="mt-3 max-w-2xl text-3xl font-bold">{{ __('Весь зал под рукой') }}</h2>
-        <ul class="mt-8 grid gap-4 text-white/75 sm:grid-cols-2">
+        <ul class="mt-8 grid gap-4 text-gray-700 sm:grid-cols-2">
             @foreach([
                 __('Карта клуба: кто на каком ПК и сколько осталось'),
                 __('Включение по сети, перезагрузка и выключение нескольких ПК сразу'),
@@ -105,30 +105,30 @@
     </div>
 </section>
 
-<section id="install" class="scroll-mt-20 border-t border-white/5 py-16">
+<section id="install" class="scroll-mt-20 border-t border-gray-100 py-16">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Установка') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Установка') }}</p>
         <h2 class="mt-3 text-3xl font-bold">{{ __('ПК на карте за пару минут') }}</h2>
         <ol class="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             @foreach($install as [$title, $text])
-                <li class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                    <span class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#ff0169] to-[#ff7aa8] font-bold">{{ $loop->iteration }}</span>
+                <li class="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                    <span class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#ff0169] to-[#ff7aa8] font-bold text-white">{{ $loop->iteration }}</span>
                     <h3 class="text-lg font-semibold">{{ $title }}</h3>
-                    <p class="mt-2 text-sm text-white/60">{{ $text }}</p>
+                    <p class="mt-2 text-sm text-gray-600">{{ $text }}</p>
                 </li>
             @endforeach
         </ol>
         <div class="mt-8 grid gap-5 md:grid-cols-2">
-            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                <h3 class="flex items-center gap-2 text-lg font-semibold"><i class="fas fa-rotate text-[#ff4d8f]" aria-hidden="true"></i>{{ __('Обновление') }}</h3>
-                <p class="mt-2 text-sm leading-relaxed text-white/65">{{ __('С автообновлением новая версия ставится сама, когда ПК свободен. Вручную — новый установщик предложит «Обновить», настройки и подключение ПК сохранятся.') }}</p>
+            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                <h3 class="flex items-center gap-2 text-lg font-semibold"><i class="fas fa-rotate text-[#e6005e]" aria-hidden="true"></i>{{ __('Обновление') }}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-gray-600">{{ __('С автообновлением новая версия ставится сама, когда ПК свободен. Вручную — новый установщик предложит «Обновить», настройки и подключение ПК сохранятся.') }}</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                <h3 class="flex items-center gap-2 text-lg font-semibold"><i class="fas fa-hard-drive text-[#ff4d8f]" aria-hidden="true"></i>{{ __('Бездисковые клубы') }}</h3>
-                <p class="mt-2 text-sm leading-relaxed text-white/65">{{ __('Агент ставится один раз в образ суперклиента. После загрузки каждый ПК сам подключается к клубу по его ключу.') }}</p>
+            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                <h3 class="flex items-center gap-2 text-lg font-semibold"><i class="fas fa-hard-drive text-[#e6005e]" aria-hidden="true"></i>{{ __('Бездисковые клубы') }}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-gray-600">{{ __('Агент ставится один раз в образ суперклиента. После загрузки каждый ПК сам подключается к клубу по его ключу.') }}</p>
             </div>
         </div>
-        <a href="{{ route('wiki') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#ff7aa8] hover:text-white">{{ __('Подробная инструкция в Wiki') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+        <a href="{{ route('wiki') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#d90058] hover:text-gray-900">{{ __('Подробная инструкция в Wiki') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
     </div>
 </section>
 @endsection

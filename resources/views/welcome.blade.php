@@ -39,45 +39,45 @@
     {{-- Hero --}}
     <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
         <div>
-            <p class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ff0169]/40 bg-[#ff0169]/10 px-3 py-1 text-sm text-[#ff7aa8]"><i class="fas fa-bolt" aria-hidden="true"></i>{{ __('Для компьютерных клубов и PS-клубов') }}</p>
-            <h1 class="bg-gradient-to-r from-white via-white to-[#ff7aa8] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl lg:text-6xl">{{ __('Весь клуб — в одном окне') }}</h1>
-            <p class="mt-6 max-w-xl text-lg text-white/70">{{ __('Касса, карта зала, брони, тарифы, магазин и агент на ПК в одной системе. Подключите свой компьютерный клуб за один вечер.') }}</p>
+            <p class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ff0169]/40 bg-[#ff0169]/10 px-3 py-1 text-sm text-[#d90058]"><i class="fas fa-bolt" aria-hidden="true"></i>{{ __('Для компьютерных клубов и PS-клубов') }}</p>
+            <h1 class="bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl lg:text-6xl">{{ __('Весь клуб — в одном окне') }}</h1>
+            <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Касса, карта зала, брони, тарифы, магазин и агент на ПК в одной системе. Подключите свой компьютерный клуб за один вечер.') }}</p>
             <div class="mt-8 flex flex-wrap gap-3">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e]">{{ __('Открыть панель') }}</a>
+                    <a href="{{ route('dashboard') }}" class="rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e] text-white">{{ __('Открыть панель') }}</a>
                 @else
-                    <a href="{{ route('auth.show-register') }}" class="rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e]">{{ __(':days дней бесплатно', ['days' => $trialDays]) }}</a>
+                    <a href="{{ route('auth.show-register') }}" class="rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e] text-white">{{ __(':days дней бесплатно', ['days' => $trialDays]) }}</a>
                 @endauth
-                <a href="{{ route('product.features') }}" class="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/90 hover:border-white/40">{{ __('Посмотреть возможности') }}</a>
+                <a href="{{ route('product.features') }}" class="rounded-xl border border-gray-300 px-6 py-3 font-semibold text-gray-800 hover:border-gray-400">{{ __('Посмотреть возможности') }}</a>
             </div>
             <dl class="mt-10 grid max-w-lg grid-cols-3 gap-4 text-center sm:text-left">
-                <div><dt class="text-sm text-white/50">{{ __('Запуск') }}</dt><dd class="text-xl font-bold">{{ __('1 вечер') }}</dd></div>
-                <div><dt class="text-sm text-white/50">{{ __('Оборудование') }}</dt><dd class="text-xl font-bold">{{ __('не нужно') }}</dd></div>
-                <div><dt class="text-sm text-white/50">{{ __('Языки') }}</dt><dd class="text-xl font-bold">RU · KZ · EN</dd></div>
+                <div><dt class="text-sm text-gray-500">{{ __('Запуск') }}</dt><dd class="text-xl font-bold">{{ __('1 вечер') }}</dd></div>
+                <div><dt class="text-sm text-gray-500">{{ __('Оборудование') }}</dt><dd class="text-xl font-bold">{{ __('не нужно') }}</dd></div>
+                <div><dt class="text-sm text-gray-500">{{ __('Языки') }}</dt><dd class="text-xl font-bold">RU · KZ · EN</dd></div>
             </dl>
         </div>
 
         {{-- A stylised club map, as staff see it in the panel. --}}
         <div class="relative" aria-hidden="true">
-            <div class="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#ff0169]/30 to-transparent blur-2xl"></div>
-            <div class="relative rounded-3xl border border-white/10 bg-[#11151a]/90 p-5 shadow-2xl">
+            <div class="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#ff0169]/15 to-transparent blur-2xl"></div>
+            <div class="relative rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl">
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-[#ff0169]"></span><span class="text-sm font-semibold">{{ __('Карта клуба') }}</span></div>
-                    <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">{{ __('Сейчас занято: :busy из :total', ['busy' => $hallStates->filter(fn ($state) => $state === 'busy')->count(), 'total' => $hallStates->count()]) }}</span>
+                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">{{ __('Сейчас занято: :busy из :total', ['busy' => $hallStates->filter(fn ($state) => $state === 'busy')->count(), 'total' => $hallStates->count()]) }}</span>
                 </div>
                 <div class="grid gap-3">
                     @foreach($hall as $zone)
-                        <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">{{ $zone[0] }}</p>
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $zone[0] }}</p>
                             <div class="flex flex-wrap gap-2">
                                 @foreach(array_slice($zone, 1) as $state)
-                                    <span class="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold {{ ['free' => 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40', 'busy' => 'bg-[#ff0169]/20 text-[#ff7aa8] ring-1 ring-[#ff0169]/50', 'booked' => 'bg-amber-400/15 text-amber-300 ring-1 ring-amber-300/40'][$state] }}">{{ ++$pcNumber }}</span>
+                                    <span class="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold {{ ['free' => 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300', 'busy' => 'bg-[#ff0169]/10 text-[#d90058] ring-1 ring-[#ff0169]/50', 'booked' => 'bg-amber-50 text-amber-700 ring-1 ring-amber-300'][$state] }}">{{ ++$pcNumber }}</span>
                                 @endforeach
                             </div>
                         </div>
                     @endforeach
                 </div>
-                <div class="mt-4 flex flex-wrap gap-4 text-xs text-white/60">
+                <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
                     <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-emerald-400"></i>{{ __('Свободен') }}</span>
                     <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#ff0169]"></i>{{ __('Идёт сессия') }}</span>
                     <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-amber-300"></i>{{ __('Бронь') }}</span>
@@ -87,38 +87,38 @@
     </section>
 
     {{-- Features --}}
-    <section id="features" class="scroll-mt-20 border-t border-white/5 py-20">
+    <section id="features" class="scroll-mt-20 border-t border-gray-100 py-20">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Возможности') }}</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Возможности') }}</p>
             <h2 class="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">{{ __('Всё, что нужно клубу каждый день') }}</h2>
             <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach($features as [$icon, $title, $text])
-                    <article class="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-1 hover:border-[#ff0169]/50 hover:bg-[#ff0169]/[0.06]">
-                        <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#ff4d8f] group-hover:bg-[#ff0169] group-hover:text-white"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
+                    <article class="group rounded-2xl border border-gray-200 bg-gray-50 p-6 transition hover:-translate-y-1 hover:border-[#ff0169]/50 hover:bg-[#ff0169]/[0.06]">
+                        <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#e6005e] group-hover:bg-[#ff0169] group-hover:text-white"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
                         <h3 class="text-lg font-semibold">{{ $title }}</h3>
-                        <p class="mt-2 text-sm leading-relaxed text-white/60">{{ $text }}</p>
+                        <p class="mt-2 text-sm leading-relaxed text-gray-600">{{ $text }}</p>
                     </article>
                 @endforeach
             </div>
-            <a href="{{ route('product.features') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#ff7aa8] hover:text-white">{{ __('Все возможности') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+            <a href="{{ route('product.features') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#d90058] hover:text-gray-900">{{ __('Все возможности') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
         </div>
     </section>
 
     {{-- Agent --}}
     <section id="agent" class="scroll-mt-20 py-20">
         <div class="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
-            <div class="relative overflow-hidden rounded-3xl border border-white/10">
+            <div class="relative overflow-hidden rounded-3xl border border-gray-200">
                 <img src="{{ asset('images/landing/club.jpg') }}" alt="{{ __('Игровое место в компьютерном клубе') }}" class="h-full max-h-[460px] w-full object-cover" loading="lazy">
-                <div class="absolute inset-0 bg-gradient-to-t from-[#0b0d10] via-transparent to-transparent"></div>
-                <div class="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                <div class="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-black/50 p-4 text-white backdrop-blur">
                     <p class="text-sm text-white/60">{{ __('Осталось времени') }}</p>
                     <p class="text-3xl font-bold">{{ __(':hours ч :minutes мин', ['hours' => 1, 'minutes' => 27]) }}</p>
                 </div>
             </div>
             <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Агент на ПК') }}</p>
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Агент на ПК') }}</p>
                 <h2 class="mt-3 text-3xl font-bold sm:text-4xl">{{ __('Клиент сам покупает время, а ПК защищён') }}</h2>
-                <ul class="mt-8 space-y-4 text-white/75">
+                <ul class="mt-8 space-y-4 text-gray-700">
                     @foreach([
                         __('Вход по телефону, QR-коду или регистрация прямо на ПК'),
                         __('Тарифы, оплата поминутно и магазин клуба с оплатой с баланса'),
@@ -128,23 +128,23 @@
                         <li class="flex gap-3"><i class="fas fa-circle-check mt-1 text-[#ff0169]" aria-hidden="true"></i><span>{{ $point }}</span></li>
                     @endforeach
                 </ul>
-                <a href="{{ $downloadUrl }}" class="mt-8 inline-flex items-center gap-2 rounded-xl border border-[#ff0169]/60 px-5 py-3 font-semibold text-[#ff7aa8] hover:bg-[#ff0169] hover:text-white" rel="noopener"><i class="fab fa-windows" aria-hidden="true"></i>{{ __('Скачать агент для Windows') }}</a>
-                <a href="{{ route('product.agent') }}" class="ml-4 mt-8 inline-flex items-center gap-2 font-semibold text-white/80 hover:text-white">{{ __('Подробнее об агенте') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                <a href="{{ $downloadUrl }}" class="mt-8 inline-flex items-center gap-2 rounded-xl border border-[#ff0169]/60 px-5 py-3 font-semibold text-[#d90058] hover:bg-[#ff0169] hover:text-white" rel="noopener"><i class="fab fa-windows" aria-hidden="true"></i>{{ __('Скачать агент для Windows') }}</a>
+                <a href="{{ route('product.agent') }}" class="ml-4 mt-8 inline-flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900">{{ __('Подробнее об агенте') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
             </div>
         </div>
     </section>
 
     {{-- How to start --}}
-    <section id="start" class="scroll-mt-20 border-t border-white/5 py-20">
+    <section id="start" class="scroll-mt-20 border-t border-gray-100 py-20">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#ff4d8f]">{{ __('Как начать') }}</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Как начать') }}</p>
             <h2 class="mt-3 text-3xl font-bold sm:text-4xl">{{ __('Три шага до первой сессии') }}</h2>
             <ol class="mt-12 grid gap-5 md:grid-cols-3">
                 @foreach($steps as [$title, $text])
-                    <li class="relative rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                        <span class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#ff0169] to-[#ff7aa8] font-bold">{{ $loop->iteration }}</span>
+                    <li class="relative rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                        <span class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#ff0169] to-[#ff7aa8] font-bold text-white">{{ $loop->iteration }}</span>
                         <h3 class="text-lg font-semibold">{{ $title }}</h3>
-                        <p class="mt-2 text-sm text-white/60">{{ $text }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ $text }}</p>
                     </li>
                 @endforeach
             </ol>
@@ -157,9 +157,9 @@
             <h2 class="text-center text-3xl font-bold sm:text-4xl">{{ __('Частые вопросы') }}</h2>
             <div class="mt-10 space-y-3">
                 @foreach($faq as [$question, $answer])
-                    <details class="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 open:border-[#ff0169]/40">
-                        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">{{ $question }}<i class="fas fa-plus text-[#ff4d8f] transition group-open:rotate-45" aria-hidden="true"></i></summary>
-                        <p class="mt-3 text-sm leading-relaxed text-white/65">{{ $answer }}</p>
+                    <details class="group rounded-2xl border border-gray-200 bg-gray-50 p-5 open:border-[#ff0169]/40">
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">{{ $question }}<i class="fas fa-plus text-[#e6005e] transition group-open:rotate-45" aria-hidden="true"></i></summary>
+                        <p class="mt-3 text-sm leading-relaxed text-gray-600">{{ $answer }}</p>
                     </details>
                 @endforeach
             </div>
