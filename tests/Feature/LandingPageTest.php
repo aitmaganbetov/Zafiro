@@ -18,7 +18,7 @@ test('the home page presents Zafiro with sign-up for guests and the panel for si
         ->assertSee('Открыть панель');
 });
 
-test('the "About the product" menu leads to the features and agent pages', function () {
+test('the header menus lead to the features, agent and app pages', function () {
     $this->get(route('home'))->assertOk()
         ->assertSee('О продукте')
         ->assertSee(route('product.features'), false)
@@ -36,6 +36,12 @@ test('the "About the product" menu leads to the features and agent pages', funct
         ->assertSee('Обойти оплату не получится')
         ->assertSee(LandingController::AGENT_DOWNLOAD, false)
         ->assertSee(route('auth.show-register'), false);
+
+    $this->get(route('home'))->assertSee('Продукты')
+        ->assertSee(route('product.guest-app'), false)
+        ->assertSee(route('product.staff-app'), false);
+    $this->get(route('product.guest-app'))->assertOk()->assertSee('Приложение для гостей')->assertSee('Вход на ПК по QR-коду');
+    $this->get(route('product.staff-app'))->assertOk()->assertSee('Приложение для сотрудников')->assertSee('Права как в панели');
 
     $this->actingAs(User::factory()->create())->get(route('product.agent'))->assertOk()->assertSee(route('dashboard'), false);
 });

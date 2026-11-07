@@ -28,7 +28,7 @@
 @endphp
 <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
     <div>
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('О продукте') }}</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Продукты') }}</p>
         <h1 class="mt-3 bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Агент Zafiro на ПК') }}</h1>
         <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Программа для Windows на каждом ПК клуба. Клиент сам входит, покупает время и заказывает товары, а ПК закрыт, пока время не оплачено.') }}</p>
         <div class="mt-8 flex flex-wrap gap-3">

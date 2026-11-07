@@ -16,10 +16,21 @@
 </head>
 @php
     $home = request()->routeIs('home') ? '' : route('home');
-    $productPages = [
-        ['product.features', 'fa-layer-group', __('Возможности'), __('Касса, зал, тарифы, клиенты, склад и команда')],
-        ['product.agent', 'fa-desktop', __('Агент на ПК'), __('Что видит клиент и как защищён ПК')],
+    // Header menus: [title, [[url, icon, title, text, route name or null]]].
+    $menus = [
+        [__('О продукте'), [
+            [route('product.features'), 'fa-layer-group', __('Возможности'), __('Касса, зал, тарифы, клиенты, склад и команда'), 'product.features'],
+            [$home.'#start', 'fa-flag-checkered', __('Как начать'), __('Три шага до первой сессии'), null],
+            [$home.'#faq', 'fa-circle-question', __('Вопросы'), __('Сервер, интернет, бездисковые ПК, цена'), null],
+        ]],
+        [__('Продукты'), [
+            [route('product.agent'), 'fa-desktop', __('Агент на ПК'), __('Вход, тарифы, магазин и защита ПК'), 'product.agent'],
+            [route('product.guest-app'), 'fa-mobile-screen', __('Приложение для гостей'), __('Баланс, вход на ПК по QR-коду, друзья'), 'product.guest-app'],
+            [route('product.staff-app'), 'fa-user-tie', __('Приложение для сотрудников'), __('Касса, карта клуба и заказы в телефоне'), 'product.staff-app'],
+        ]],
     ];
+    $summary = 'flex cursor-pointer list-none items-center gap-1.5 rounded-lg py-2 hover:text-gray-900 group-open:text-gray-900';
+    $panel = 'absolute top-full z-40 mt-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl shadow-gray-900/10';
 @endphp
 <body class="min-h-screen bg-white text-gray-900 antialiased" style="font-family: Inter, 'Segoe UI', system-ui, sans-serif">
     <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
@@ -33,28 +44,32 @@
                 <img src="{{ asset('images/logo-dark.svg') }}" alt="" class="h-9 w-auto">
                 <span class="hidden text-lg sm:inline">ZAFIRO</span>
             </a>
-            <div class="flex items-center gap-6 text-sm text-gray-600">
-                <details class="group relative" data-landing-menu>
-                    <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg py-2 hover:text-gray-900 group-open:text-gray-900 {{ request()->routeIs('product.*') ? 'text-gray-900' : '' }}">{{ __('О продукте') }}<i class="fas fa-chevron-down text-xs transition group-open:rotate-180" aria-hidden="true"></i></summary>
-                    <div class="absolute left-1/2 top-full z-40 mt-2 w-72 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl shadow-gray-900/10">
-                        @foreach($productPages as [$name, $icon, $title, $text])
-                            <a href="{{ route($name) }}" class="flex gap-3 rounded-xl p-3 hover:bg-gray-100" @if(request()->routeIs($name)) aria-current="page" @endif>
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#ff0169]/15 text-[#e6005e]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
-                                <span><span class="block font-semibold text-gray-900">{{ $title }}</span><span class="block text-xs text-gray-500">{{ $text }}</span></span>
-                            </a>
-                        @endforeach
-                        <div class="mt-1 border-t border-gray-200 pt-1 md:hidden">
-                            <a href="{{ $home }}#start" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Как начать') }}</a>
-                            <a href="{{ $home }}#faq" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Вопросы') }}</a>
-                            <a href="{{ route('wiki') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Wiki') }}</a>
-                            @guest<a href="{{ route('auth.show-login') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100 sm:hidden">{{ __('Войти') }}</a>@endguest
+            {{-- Wide screens: a dropdown per menu. --}}
+            <div class="hidden items-center gap-6 text-sm text-gray-600 md:flex">
+                @foreach($menus as [$title, $links])
+                    <details class="group relative" data-landing-menu>
+                        <summary class="{{ $summary }}">{{ $title }}<i class="fas fa-chevron-down text-xs transition group-open:rotate-180" aria-hidden="true"></i></summary>
+                        <div class="{{ $panel }} left-1/2 w-80 -translate-x-1/2">
+                            @foreach($links as $link)@include('partials.landing-menu-link', ['link' => $link])@endforeach
                         </div>
-                    </div>
-                </details>
-                <a href="{{ $home }}#start" class="hidden hover:text-gray-900 md:inline">{{ __('Как начать') }}</a>
-                <a href="{{ $home }}#faq" class="hidden hover:text-gray-900 md:inline">{{ __('Вопросы') }}</a>
-                <a href="{{ route('wiki') }}" class="hidden hover:text-gray-900 md:inline">{{ __('Wiki') }}</a>
+                    </details>
+                @endforeach
+                <a href="{{ route('wiki') }}" class="hover:text-gray-900">{{ __('Wiki') }}</a>
             </div>
+            {{-- Phones: one menu with both groups. --}}
+            <details class="group relative text-sm text-gray-600 md:hidden" data-landing-menu>
+                <summary class="{{ $summary }}">{{ __('Меню') }}<i class="fas fa-chevron-down text-xs transition group-open:rotate-180" aria-hidden="true"></i></summary>
+                <div class="{{ $panel }} left-1/2 max-h-[75vh] w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto">
+                    @foreach($menus as [$title, $links])
+                        <p class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{{ $title }}</p>
+                        @foreach($links as $link)@include('partials.landing-menu-link', ['link' => $link])@endforeach
+                    @endforeach
+                    <div class="mt-1 border-t border-gray-200 pt-1">
+                        <a href="{{ route('wiki') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100">{{ __('Wiki') }}</a>
+                        @guest<a href="{{ route('auth.show-login') }}" class="block rounded-xl px-3 py-2 hover:bg-gray-100 sm:hidden">{{ __('Войти') }}</a>@endguest
+                    </div>
+                </div>
+            </details>
             <div class="flex shrink-0 items-center gap-2">
                 @auth
                     <a href="{{ route('dashboard') }}" class="rounded-lg bg-[#ff0169] px-4 py-2 text-sm font-semibold shadow-lg shadow-[#ff0169]/30 hover:bg-[#e6005e] text-white">{{ __('Открыть панель') }}</a>
@@ -85,6 +100,8 @@
             <div class="flex flex-wrap justify-center gap-5">
                 <a href="{{ route('product.features') }}" class="hover:text-gray-900">{{ __('Возможности') }}</a>
                 <a href="{{ route('product.agent') }}" class="hover:text-gray-900">{{ __('Агент на ПК') }}</a>
+                <a href="{{ route('product.guest-app') }}" class="hover:text-gray-900">{{ __('Приложение для гостей') }}</a>
+                <a href="{{ route('product.staff-app') }}" class="hover:text-gray-900">{{ __('Приложение для сотрудников') }}</a>
                 <a href="{{ $home }}#faq" class="hover:text-gray-900">{{ __('Вопросы') }}</a>
                 <a href="{{ route('wiki') }}" class="hover:text-gray-900">{{ __('Wiki') }}</a>
                 <a href="{{ route('auth.show-login') }}" class="hover:text-gray-900">{{ __('Войти') }}</a>
@@ -93,11 +110,14 @@
     </footer>
 
     <script>
-        // The "About the product" menu closes on a click elsewhere and on Escape.
+        // Header menus: one open at a time, closed by a click elsewhere and by Escape.
         (() => {
-            const menu = document.querySelector('[data-landing-menu]');
-            document.addEventListener('click', event => { if (!menu.contains(event.target)) menu.open = false; });
-            document.addEventListener('keydown', event => { if (event.key === 'Escape') menu.open = false; });
+            const menus = [...document.querySelectorAll('[data-landing-menu]')];
+            menus.forEach(menu => menu.addEventListener('toggle', () => {
+                if (menu.open) menus.forEach(other => { if (other !== menu) other.open = false; });
+            }));
+            document.addEventListener('click', event => menus.forEach(menu => { if (!menu.contains(event.target)) menu.open = false; }));
+            document.addEventListener('keydown', event => { if (event.key === 'Escape') menus.forEach(menu => { menu.open = false; }); });
         })();
     </script>
 </body>

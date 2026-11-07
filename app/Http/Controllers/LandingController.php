@@ -29,6 +29,16 @@ class LandingController extends Controller
         return view('product.agent', $this->data());
     }
 
+    public function guestApp(): View
+    {
+        return view('product.guest-app', $this->data());
+    }
+
+    public function staffApp(): View
+    {
+        return view('product.staff-app', $this->data());
+    }
+
     /** @return array{trialDays: int, downloadUrl: string} */
     private function data(): array
     {
