@@ -59,7 +59,7 @@
                 <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ (int) $club->sessions_today }}</td>
                 <td class="px-4 py-3 text-right {{ ($outdated[$club->id] ?? 0) > 0 ? 'text-amber-700' : 'text-gray-500' }}">{{ $latestAgent ? ($outdated[$club->id] ?? 0) : '—' }}</td>
                 <td class="px-4 py-3 text-right {{ $club->webhook_failures > 0 ? 'text-red-600' : 'text-gray-500' }}">{{ (int) $club->webhook_failures }}</td>
-                <td class="px-4 py-3">@include('superadmin.clubs.subscription-badge', ['subscription' => $club->subscription])@if($daysLeft !== null)<div class="mt-1 text-xs {{ $daysLeft <= 3 ? 'text-red-600' : 'text-gray-500' }}">{{ trans_choice('ещё :count день|ещё :count дня|ещё :count дней', $daysLeft) }}</div>@endif</td>
+                <td class="px-4 py-3">@include('superadmin.clubs.subscription-badge', ['subscription' => $club->subscription])@if(($club->subscription?->discountPercent() ?? 0) > 0) <span class="rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800" title="{{ $club->subscription->discount_note }}">−{{ $club->subscription->discountPercent() }}%</span>@endif @if($daysLeft !== null)<div class="mt-1 text-xs {{ $daysLeft <= 3 ? 'text-red-600' : 'text-gray-500' }}">{{ trans_choice('ещё :count день|ещё :count дня|ещё :count дней', $daysLeft) }}</div>@endif</td>
             </tr>
         @empty
             <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">{{ __('Клубы не найдены.') }}</td></tr>

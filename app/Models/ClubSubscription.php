@@ -21,7 +21,23 @@ class ClubSubscription extends Model
             'trial_ends_at' => 'datetime',
             'current_period_ends_at' => 'datetime',
             'canceled_at' => 'datetime',
+            'discount_percent' => 'integer',
+            'discount_until' => 'date',
         ];
+    }
+
+    /** The club's individual discount on the plan price; 0 once its last day has passed. */
+    public function discountPercent(): int
+    {
+        return $this->discount_until === null || ! $this->discount_until->copy()->endOfDay()->isPast() ? $this->discount_percent : 0;
+    }
+
+    /** Monthly price with the discount; null when the plan has no price. */
+    public function monthlyPrice(): ?float
+    {
+        $price = $this->plan?->price_monthly;
+
+        return $price === null ? null : round((float) $price * (100 - $this->discountPercent()) / 100, 2);
     }
 
     /**

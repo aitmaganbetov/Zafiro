@@ -12,6 +12,9 @@
             @if($subscription->status === 'trialing' && $subscription->trial_ends_at)
                 <div><dt class="text-sm text-gray-500">{{ __('Пробный период до') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ $subscription->trial_ends_at->format('d.m.Y H:i') }}</dd></div>
             @endif
+            @if($subscription->monthlyPrice() !== null)
+                <div><dt class="text-sm text-gray-500">{{ __('Стоимость в месяц') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ number_format($subscription->monthlyPrice(), 0, '.', ' ') }} ₸@if($subscription->discountPercent() > 0) <span class="text-sm font-normal text-gray-500">{{ $subscription->discount_until ? __('со скидкой :percent% до :date', ['percent' => $subscription->discountPercent(), 'date' => $subscription->discount_until->format('d.m.Y')]) : __('со скидкой :percent%', ['percent' => $subscription->discountPercent()]) }}</span>@endif</dd></div>
+            @endif
             @if($subscription->current_period_ends_at)
                 <div><dt class="text-sm text-gray-500">{{ __('Оплачено до') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ $subscription->current_period_ends_at->format('d.m.Y') }}</dd></div>
             @endif

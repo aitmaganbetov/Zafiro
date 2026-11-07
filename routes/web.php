@@ -66,6 +66,7 @@ $superadminDomain = SuperadminHost::domain();
         Route::post('/clubs/{club}/subscription/extend', [SuperadminClubController::class, 'extend'])->name('clubs.extend');
         Route::post('/clubs/{club}/subscription/suspend', [SuperadminClubController::class, 'suspend'])->name('clubs.suspend');
         Route::post('/clubs/{club}/subscription/plan', [SuperadminClubController::class, 'changePlan'])->name('clubs.plan');
+        Route::post('/clubs/{club}/subscription/discount', [SuperadminClubController::class, 'discount'])->name('clubs.discount');
         Route::post('/clubs/{club}/view', [SuperadminClubController::class, 'view'])->name('clubs.view');
         Route::post('/leave-club', [SuperadminClubController::class, 'leave'])->name('clubs.leave');
 

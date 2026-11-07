@@ -218,6 +218,39 @@ class ClubController extends Controller
         return back()->with('status', __('Тариф клуба изменён.'));
     }
 
+    /** An individual discount on the plan price, for good or until a date; 0% removes it. */
+    public function discount(Request $request, Club $club): RedirectResponse
+    {
+        $data = $request->validate([
+            'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'discount_until' => ['nullable', 'date', 'after_or_equal:today'],
+            'discount_note' => ['nullable', 'string', 'max:200'],
+        ]);
+        $subscription = $club->subscription;
+        abort_if($subscription === null, 404);
+        $percent = (int) $data['discount_percent'];
+
+        DB::transaction(function () use ($club, $subscription, $data, $percent, $request): void {
+            $subscription->forceFill([
+                'discount_percent' => $percent,
+                'discount_until' => $percent > 0 ? ($data['discount_until'] ?? null) : null,
+                'discount_note' => $percent > 0 ? ($data['discount_note'] ?? null) : null,
+            ])->save();
+
+            $description = match (true) {
+                $percent === 0 => __('Скидка клуба :club снята', ['club' => $club->name]),
+                $subscription->discount_until !== null => __('Скидка клуба :club: :percent% до :date', ['club' => $club->name, 'percent' => $percent, 'date' => $subscription->discount_until->format('d.m.Y')]),
+                default => __('Скидка клуба :club: :percent% бессрочно', ['club' => $club->name, 'percent' => $percent]),
+            };
+            $this->platformLog->record('superadmin.subscription_discount_changed', $description, $request->user(), $club, $subscription, [
+                'percent' => $percent,
+                'until' => $subscription->discount_until?->toDateString(),
+            ]);
+        });
+
+        return back()->with('status', $percent > 0 ? __('Скидка сохранена.') : __('Скидка снята.'));
+    }
+
     /**
      * Open the club's panel read-only. The visit goes to the platform log: the club's own log
      * only takes entries of its members (a database constraint), and a superadmin is not one.

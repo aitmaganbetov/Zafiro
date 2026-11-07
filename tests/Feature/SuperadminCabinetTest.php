@@ -132,6 +132,49 @@ test('the superadmin extends, suspends and moves a club to another plan', functi
         ->toContain('superadmin.subscription_extended', 'superadmin.subscription_plan_changed', 'superadmin.subscription_suspended');
 });
 
+test('the superadmin gives a club an individual discount', function () {
+    $admin = cabinetAdmin();
+    $club = cabinetClub();
+    $plan = SaasPlan::query()->create(['slug' => 'pro', 'name' => 'Pro', 'price_monthly' => 50000, 'trial_days' => 0, 'is_active' => true]);
+    $this->actingAs($admin)->post(route('superadmin.clubs.extend', $club), ['days' => 30, 'saas_plan_id' => $plan->id]);
+    $subscription = ClubSubscription::query()->where('club_id', $club->id)->sole();
+    $subscription->update(['saas_plan_id' => $plan->id]);
+
+    $this->post(route('superadmin.clubs.discount', $club), ['discount_percent' => 101])->assertSessionHasErrors('discount_percent');
+    $this->post(route('superadmin.clubs.discount', $club), ['discount_percent' => 20, 'discount_until' => now()->subDay()->toDateString()])->assertSessionHasErrors('discount_until');
+
+    $this->post(route('superadmin.clubs.discount', $club), ['discount_percent' => '20', 'discount_until' => now()->addDays(10)->toDateString(), 'discount_note' => 'Партнёр'])
+        ->assertSessionHasNoErrors();
+    $subscription->refresh();
+    expect($subscription->discountPercent())->toBe(20)
+        ->and($subscription->monthlyPrice())->toBe(40000.0)
+        ->and($subscription->discount_note)->toBe('Партнёр');
+
+    $this->get(route('superadmin.clubs.index'))->assertOk()->assertSee('−20%');
+    $this->get(route('superadmin.clubs.show', $club))->assertOk()->assertSee('40 000 ₸', false);
+    $owner = User::factory()->create();
+    $this->actingAs($owner)->get(route('billing.show'))->assertOk()->assertSee('40 000 ₸', false);
+
+    // The discount works through its last day (club time) and then the plan price applies again.
+    $this->travelTo($subscription->discount_until->copy()->endOfDay()->subMinute());
+    expect($subscription->fresh()->discountPercent())->toBe(20);
+    $this->travelTo(now()->addDays(2));
+    expect($subscription->fresh()->monthlyPrice())->toBe(50000.0);
+
+    // 0% removes the discount with its date and reason.
+    $this->actingAs($admin)->post(route('superadmin.clubs.discount', $club), ['discount_percent' => 0, 'discount_note' => 'x'])->assertSessionHasNoErrors();
+    expect($subscription->fresh()->only(['discount_percent', 'discount_until', 'discount_note']))
+        ->toBe(['discount_percent' => 0, 'discount_until' => null, 'discount_note' => null])
+        ->and(PlatformLog::query()->where('event', 'superadmin.subscription_discount_changed')->count())->toBe(2);
+});
+
+test('a club without a subscription cannot get a discount', function () {
+    $club = cabinetClub();
+    ClubSubscription::query()->where('club_id', $club->id)->delete();
+
+    $this->actingAs(cabinetAdmin())->post(route('superadmin.clubs.discount', $club), ['discount_percent' => 10])->assertNotFound();
+});
+
 test('a blocked user is signed out everywhere and cannot sign in again', function () {
     $admin = cabinetAdmin();
     $user = User::factory()->create(['phone' => '+77009990002', 'password' => Hash::make('secret-pass')]);

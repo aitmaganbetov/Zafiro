@@ -32,6 +32,10 @@
             {{ __('Тариф: :plan', ['plan' => $club->subscription?->plan?->name ?? '—']) }}
             @if($club->subscription?->current_period_ends_at) · {{ __('оплачено до :date', ['date' => $club->subscription->current_period_ends_at->format('d.m.Y')]) }}@endif
             @if($club->subscription?->status === 'trialing' && $club->subscription->trial_ends_at) · {{ __('пробный период до :date', ['date' => $club->subscription->trial_ends_at->format('d.m.Y')]) }}@endif
+            @if($club->subscription?->monthlyPrice() !== null)
+                · {{ __('к оплате :price ₸ в месяц', ['price' => number_format($club->subscription->monthlyPrice(), 0, '.', ' ')]) }}
+                @if($club->subscription->discountPercent() > 0)<span class="text-gray-500">({{ __('без скидки :price ₸', ['price' => number_format((float) $club->subscription->plan->price_monthly, 0, '.', ' ')]) }})</span>@endif
+            @endif
         </p>
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <form method="POST" action="{{ route('superadmin.clubs.extend', $club) }}" class="space-y-2 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">@csrf
@@ -49,6 +53,19 @@
                         @foreach($plans as $plan)<option value="{{ $plan->id }}" @selected($club->subscription->saas_plan_id === $plan->id)>{{ $plan->name }}@unless($plan->is_active) ({{ __('выключен') }})@endunless</option>@endforeach
                     </select>
                     <button type="submit" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm">{{ __('Сохранить тариф') }}</button>
+                </form>
+                @php($discount = $club->subscription->discountPercent())
+                <form method="POST" action="{{ route('superadmin.clubs.discount', $club) }}" class="space-y-2 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">@csrf
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Индивидуальная скидка') }}</h4>
+                    @if($discount === 0 && $club->subscription->discount_percent > 0)
+                        <p class="text-xs text-gray-500">{{ __('Скидка :percent% закончилась :date.', ['percent' => $club->subscription->discount_percent, 'date' => $club->subscription->discount_until->format('d.m.Y')]) }}</p>
+                    @endif
+                    <label class="block text-sm"><span class="mb-1 block text-gray-600">{{ __('Скидка, %') }}</span><input type="number" name="discount_percent" min="0" max="100" value="{{ old('discount_percent', $discount) }}" required class="w-full {{ $input }}"></label>
+                    <label class="block text-sm"><span class="mb-1 block text-gray-600">{{ __('Действует до (пусто — бессрочно)') }}</span><input type="date" name="discount_until" min="{{ now()->toDateString() }}" value="{{ old('discount_until', $discount > 0 ? $club->subscription->discount_until?->toDateString() : null) }}" class="w-full {{ $input }}"></label>
+                    <label class="block text-sm"><span class="mb-1 block text-gray-600">{{ __('Причина') }}</span><input type="text" name="discount_note" maxlength="200" value="{{ old('discount_note', $discount > 0 ? $club->subscription->discount_note : null) }}" class="w-full {{ $input }}"></label>
+                    @foreach(['discount_percent', 'discount_until', 'discount_note'] as $field)@error($field)<p class="text-xs text-red-600">{{ $message }}</p>@enderror @endforeach
+                    <p class="text-xs text-gray-500">{{ __('0% — снять скидку.') }}</p>
+                    <button type="submit" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm">{{ __('Сохранить скидку') }}</button>
                 </form>
                 @if($club->subscription->isActive())
                     <form method="POST" action="{{ route('superadmin.clubs.suspend', $club) }}" class="space-y-2 rounded-lg bg-red-50 p-4 dark:bg-red-950" onsubmit="return confirm({{ Js::from(__('Приостановить подписку клуба :club? Клуб потеряет доступ к панели и агентам.', ['club' => $club->name])) }})">@csrf
