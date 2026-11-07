@@ -27,7 +27,7 @@
         <div class="absolute bottom-0 right-[-200px] h-[420px] w-[520px] rounded-full bg-[#7c3aed]/10 blur-[140px]"></div>
     </div>
 
-    <header class="sticky top-0 z-30 border-b border-gray-100 bg-white/80 backdrop-blur">
+    <header class="sticky top-0 z-30 border-b border-gray-100 bg-white/80 shadow-[0_2px_12px_rgba(17,24,39,0.06)] backdrop-blur">
         <nav class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2 font-bold tracking-wide">
                 <img src="{{ asset('images/logo-dark.svg') }}" alt="" class="h-9 w-auto">
