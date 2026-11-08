@@ -28,13 +28,6 @@
         [__('Клиент может обойти блокировку?'), __('Агент работает со службой Windows, закрывается только по PIN-коду сотрудника и сам запускается снова.')],
         [__('Сколько это стоит?'), __('Первые :days дней бесплатно. Стоимость подписки зависит от количества ПК — напишите нам.', ['days' => $trialDays])],
     ];
-    $hall = [
-        ['VIP', 'free', 'busy', 'busy', 'free', 'busy', 'booked'],
-        ['Bootcamp', 'busy', 'busy', 'free', 'busy', 'busy', 'busy', 'free', 'busy'],
-        ['PS5', 'busy', 'free'],
-    ];
-    $hallStates = collect($hall)->flatMap(fn (array $zone): array => array_slice($zone, 1));
-    $pcNumber = 0;
 @endphp
     {{-- Hero --}}
     <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
@@ -57,30 +50,16 @@
             </dl>
         </div>
 
-        {{-- A stylised club map, as staff see it in the panel. --}}
-        <div class="relative" aria-hidden="true">
-            <div class="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#ff0169]/15 to-transparent blur-2xl"></div>
+        {{-- The club map, as staff see it in the panel. --}}
+        <div class="relative">
+            <div class="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#ff0169]/15 to-transparent blur-2xl" aria-hidden="true"></div>
             <div class="relative rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl">
-                <div class="mb-4 flex items-center justify-between">
-                    <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-[#ff0169]"></span><span class="text-sm font-semibold">{{ __('Карта клуба') }}</span></div>
-                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">{{ __('Сейчас занято: :busy из :total', ['busy' => $hallStates->filter(fn ($state) => $state === 'busy')->count(), 'total' => $hallStates->count()]) }}</span>
-                </div>
-                <div class="grid gap-3">
-                    @foreach($hall as $zone)
-                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $zone[0] }}</p>
-                            <div class="flex flex-wrap gap-2">
-                                @foreach(array_slice($zone, 1) as $state)
-                                    <span class="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold {{ ['free' => 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300', 'busy' => 'bg-[#ff0169]/10 text-[#d90058] ring-1 ring-[#ff0169]/50', 'booked' => 'bg-amber-50 text-amber-700 ring-1 ring-amber-300'][$state] }}">{{ ++$pcNumber }}</span>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
+                <div class="mb-4 flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-[#ff0169]"></span><span class="text-sm font-semibold">{{ __('Карта клуба') }}</span></div>
+                <img src="{{ asset('images/club-map.webp') }}" width="810" height="800" alt="{{ __('Карта клуба в панели Zafiro: зоны и ПК с их статусами') }}" class="w-full rounded-2xl border border-gray-100">
                 <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
-                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-emerald-400"></i>{{ __('Свободен') }}</span>
+                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-emerald-500"></i>{{ __('Свободен') }}</span>
                     <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#ff0169]"></i>{{ __('Идёт сессия') }}</span>
-                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-amber-300"></i>{{ __('Бронь') }}</span>
+                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-gray-800"></i>{{ __('Выключен') }}</span>
                 </div>
             </div>
         </div>
