@@ -29,7 +29,7 @@
 <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
     <div>
         <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Продукты') }}</p>
-        <h1 class="mt-3 bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Агент Zafiro на ПК') }}</h1>
+        <h1 class="mt-3 text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">{{ __('Агент Zafiro на ПК') }}</h1>
         <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Программа для Windows на каждом ПК клуба. Клиент сам входит, покупает время и заказывает товары, а ПК закрыт, пока время не оплачено.') }}</p>
         <div class="mt-8 flex flex-wrap gap-3">
             <a href="{{ $downloadUrl }}" class="inline-flex items-center gap-2 rounded-xl bg-[#ff0169] px-6 py-3 font-semibold shadow-xl shadow-[#ff0169]/30 hover:bg-[#e6005e] text-white" rel="noopener"><i class="fab fa-windows" aria-hidden="true"></i>{{ __('Скачать агент для Windows') }}</a>

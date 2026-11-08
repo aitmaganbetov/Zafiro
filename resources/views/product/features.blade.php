@@ -41,7 +41,7 @@
 @endphp
 <section class="mx-auto max-w-6xl px-4 pb-12 pt-14 sm:px-6 lg:pt-20">
     <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('О продукте') }}</p>
-    <h1 class="mt-3 max-w-3xl bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Возможности Zafiro') }}</h1>
+    <h1 class="mt-3 max-w-3xl text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">{{ __('Возможности Zafiro') }}</h1>
     <p class="mt-6 max-w-2xl text-lg text-gray-600">{{ __('Облачная панель для владельца и сотрудников клуба: открывается в браузере, свой сервер не нужен. Каждый клуб видит только свои данные.') }}</p>
     <nav class="mt-8 flex flex-wrap gap-2 text-sm" aria-label="{{ __('Разделы') }}">
         @foreach($groups as [$id, $title])

@@ -22,7 +22,7 @@
 <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-20">
     <div>
         <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Продукты') }}</p>
-        <h1 class="mt-3 bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Приложение для гостей') }}</h1>
+        <h1 class="mt-3 text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">{{ __('Приложение для гостей') }}</h1>
         <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Клуб в телефоне гостя: баланс и бонусы, вход на ПК по QR-коду, новости клуба и переводы друзьям.') }}</p>
         <dl class="mt-10 grid max-w-lg grid-cols-3 gap-4 text-center sm:text-left">
             <div><dt class="text-sm text-gray-500">{{ __('Платформа') }}</dt><dd class="text-xl font-bold">Android</dd></div>

@@ -1376,6 +1376,7 @@ return [
         'Вход по телефону, QR-коду или регистрация прямо на ПК' => 'Sign in by phone, QR code or sign up right on the PC',
         'Гости и друзья' => 'Guests and friends',
         'Готовы навести порядок в клубе?' => 'Ready to put your club in order?',
+        'Софт для компьютерных клубов' => 'Software for computer clubs',
         'Карта клуба в панели Zafiro: зоны и ПК с их статусами' => 'The club map in the Zafiro panel: zones and PCs with their status',
         'Тарифы Zafiro — подписка для компьютерного клуба' => 'Zafiro pricing — a subscription for a computer club',
         'Тарифы Zafiro для компьютерных и PS-клубов: пробный период без карты и договора, все возможности в любом тарифе.' => 'Zafiro plans for computer and PlayStation clubs: a free trial without a card or contract, every feature in every plan.',

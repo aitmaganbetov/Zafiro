@@ -32,7 +32,7 @@
     {{-- Hero --}}
     <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
         <div>
-            <p class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ff0169]/40 bg-[#ff0169]/10 px-3 py-1 text-sm text-[#d90058]"><i class="fas fa-bolt" aria-hidden="true"></i>{{ __('Для компьютерных клубов и PS-клубов') }}</p>
+            <p class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ff0169]/40 bg-[#ff0169]/10 px-3 py-1 text-sm text-[#d90058]"><i class="fas fa-bolt" aria-hidden="true"></i>{{ __('Софт для компьютерных клубов') }}</p>
             <h1 class="text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl lg:text-6xl">{{ __('Весь клуб - в одном окне') }}</h1>
             <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Касса, карта зала, брони, тарифы, магазин и агент на ПК в одной системе. Подключите свой компьютерный клуб за один вечер.') }}</p>
             <div class="mt-8 flex flex-wrap gap-3">

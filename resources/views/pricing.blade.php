@@ -25,7 +25,7 @@
 @endphp
 <section class="mx-auto max-w-6xl px-4 pb-12 pt-14 text-center sm:px-6 lg:pt-20">
     <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Тарифы') }}</p>
-    <h1 class="mx-auto mt-3 max-w-3xl bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl">{{ __('Простая подписка для клуба') }}</h1>
+    <h1 class="mx-auto mt-3 max-w-3xl text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">{{ __('Простая подписка для клуба') }}</h1>
     <p class="mx-auto mt-6 max-w-2xl text-lg text-gray-600">{{ __('Начните с :days дней бесплатно, без карты и договора. Все возможности Zafiro — в любом тарифе.', ['days' => $trialDays]) }}</p>
 </section>
 
