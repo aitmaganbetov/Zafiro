@@ -41,7 +41,8 @@ final class ClubPermissions
         'activity_logs' => ['view' => self::MANAGERS],
         'settings' => ['view' => self::MANAGERS, 'update' => self::MANAGERS],
         'workers' => ['view' => ['admin'], 'create' => ['admin'], 'update' => ['admin'], 'delete' => ['admin']],
-        'billing' => ['view' => self::MANAGERS],
+        // Paying is the owner's: others get it only when the owner grants it.
+        'billing' => ['view' => self::MANAGERS, 'pay' => []],
     ];
 
     /** @param  string  $right  "section.action" */
@@ -122,7 +123,7 @@ final class ClubPermissions
             'activity_logs' => ['label' => __('Журнал действий'), 'actions' => ['view' => __('Логи клуба')]],
             'settings' => ['label' => __('Настройки клуба'), 'actions' => ['view' => __('Открыть настройки'), 'update' => __('Сохранить настройки, логотип, картинку')]],
             'workers' => ['label' => __('Работники'), 'actions' => ['view' => __('Список сотрудников'), 'create' => __('Добавить или пригласить'), 'update' => __('Изменить роль, PIN-код агента'), 'delete' => __('Убрать сотрудника')]],
-            'billing' => ['label' => __('Подписка'), 'actions' => ['view' => __('Тариф Zafiro и оплата')]],
+            'billing' => ['label' => __('Подписка'), 'actions' => ['view' => __('Тариф Zafiro и оплата'), 'pay' => __('Выставить и отменить счёт')]],
         ];
     }
 }

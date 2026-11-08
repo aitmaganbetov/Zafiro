@@ -35,6 +35,7 @@ use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\Superadmin\AgentReleaseController as SuperadminAgentReleaseController;
 use App\Http\Controllers\Superadmin\ClubController as SuperadminClubController;
 use App\Http\Controllers\Superadmin\DashboardController as SuperadminDashboardController;
+use App\Http\Controllers\Superadmin\InvoiceController as SuperadminInvoiceController;
 use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageController;
 use App\Http\Controllers\Superadmin\LogController as SuperadminLogController;
 use App\Http\Controllers\Superadmin\NewsController as SuperadminNewsController;
@@ -79,6 +80,11 @@ $superadminDomain = SuperadminHost::domain();
         Route::get('/plans', [SuperadminPlanController::class, 'index'])->name('plans.index');
         Route::post('/plans', [SuperadminPlanController::class, 'store'])->name('plans.store');
         Route::patch('/plans/{plan}', [SuperadminPlanController::class, 'update'])->name('plans.update');
+
+        Route::get('/invoices', [SuperadminInvoiceController::class, 'index'])->name('invoices.index');
+        Route::post('/invoices/kaspi', [SuperadminInvoiceController::class, 'kaspi'])->name('invoices.kaspi');
+        Route::post('/invoices/{invoice}/pay', [SuperadminInvoiceController::class, 'pay'])->whereNumber('invoice')->name('invoices.pay');
+        Route::post('/invoices/{invoice}/cancel', [SuperadminInvoiceController::class, 'cancel'])->whereNumber('invoice')->name('invoices.cancel');
 
         Route::get('/logs', SuperadminLogController::class)->name('logs.index');
         Route::get('/languages', [SuperadminLanguageController::class, 'index'])->name('languages');
@@ -176,7 +182,11 @@ Route::middleware(['auth', 'current-club'])->group(function () {
     Route::post('/clubs/switch', [ClubController::class, 'switch'])->name('clubs.switch');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
     // Staff only: customers sign in on the site just to confirm a PC sign-in (QR code).
-    Route::middleware('club-area')->get('/billing', [BillingController::class, 'show'])->name('billing.show');
+    Route::middleware('club-area')->group(function () {
+        Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
+        Route::post('/billing/invoices', [BillingController::class, 'store'])->middleware('throttle:10,1')->name('billing.invoices.store');
+        Route::post('/billing/invoices/{invoice}/cancel', [BillingController::class, 'cancel'])->name('billing.invoices.cancel');
+    });
     Route::middleware('club-role:owner,admin,manager,cashier,operator')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');

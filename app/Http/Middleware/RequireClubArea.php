@@ -67,6 +67,7 @@ class RequireClubArea
         'workers.update' => ['workers.update', 'settings.agent-pin', 'settings.agent-staff-time'],
         'workers.delete' => ['workers.destroy'],
         'billing.view' => ['billing.show'],
+        'billing.pay' => ['billing.invoices.store', 'billing.invoices.cancel'],
     ];
 
     public static function rightFor(?string $routeName): ?string

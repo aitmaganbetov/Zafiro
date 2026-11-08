@@ -4,6 +4,7 @@ namespace App\Services\Monitoring;
 
 use App\Models\Club;
 use App\Models\PlatformSetting;
+use App\Models\SubscriptionInvoice;
 use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -103,6 +104,27 @@ class TelegramAlerts
                 __('Владелец: :owner, :phone', ['owner' => $owner->name, 'phone' => $owner->phone]),
                 __('Пробный период до :date', ['date' => $club->subscription?->trial_ends_at?->format('d.m.Y') ?? '—']),
                 route('superadmin.clubs.show', $club),
+            ]));
+        } finally {
+            app()->setLocale($locale);
+        }
+    }
+
+    /** Tells the platform chat that a club has opened a bill and is about to pay by Kaspi. */
+    public function invoiceOpened(SubscriptionInvoice $invoice, Club $club): void
+    {
+        if (! $this->configured()) {
+            return;
+        }
+
+        $locale = app()->getLocale();
+        app()->setLocale($this->locale());
+        try {
+            $this->send(implode("\n", [
+                '💳 '.__('Счёт :number: :club', ['number' => $invoice->number(), 'club' => $club->name]),
+                __(':plan, :months мес., :computers ПК', ['plan' => $invoice->plan->name, 'months' => $invoice->months, 'computers' => $invoice->computers]),
+                __('К оплате :amount ₸', ['amount' => number_format((float) $invoice->amount, 0, '.', ' ')]),
+                route('superadmin.invoices.index'),
             ]));
         } finally {
             app()->setLocale($locale);

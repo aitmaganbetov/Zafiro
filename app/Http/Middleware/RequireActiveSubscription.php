@@ -11,7 +11,7 @@ class RequireActiveSubscription
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->routeIs('billing.show', 'auth.logout', 'api.auth.logout', 'clubs.switch')) {
+        if ($request->routeIs('billing.show', 'billing.invoices.store', 'billing.invoices.cancel', 'auth.logout', 'api.auth.logout', 'clubs.switch')) {
             return $next($request);
         }
 
