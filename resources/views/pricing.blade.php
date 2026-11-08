@@ -37,8 +37,8 @@
                 <h2 class="text-lg font-semibold">{{ $plan->name }}</h2>
                 <p class="mt-4">
                     @if($plan->price_monthly !== null)
-                        <span class="text-4xl font-extrabold">{{ number_format((float) $plan->price_monthly, 0, '.', ' ') }} ₸</span>
-                        <span class="text-gray-500">{{ __('за ПК в месяц') }}</span>
+                        <span class="block text-4xl font-extrabold">{{ number_format((float) $plan->price_monthly, 0, '.', ' ') }} ₸</span>
+                        <span class="mt-1 block text-gray-500">{{ __('за ПК в месяц') }}</span>
                     @elseif($free)
                         <span class="text-4xl font-extrabold">{{ __('Бесплатно') }}</span>
                     @else
