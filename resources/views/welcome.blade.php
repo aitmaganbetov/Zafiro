@@ -45,8 +45,8 @@
             </div>
             <dl class="mt-10 grid max-w-lg grid-cols-3 gap-4 text-center sm:text-left">
                 <div><dt class="text-sm text-gray-500">{{ __('Запуск') }}</dt><dd class="text-xl font-bold">{{ __('1 вечер') }}</dd></div>
-                <div><dt class="text-sm text-gray-500">{{ __('Оборудование') }}</dt><dd class="text-xl font-bold">{{ __('не нужно') }}</dd></div>
-                <div><dt class="text-sm text-gray-500">{{ __('Языки') }}</dt><dd class="text-xl font-bold">RU · KZ · EN</dd></div>
+                <div><dt class="text-sm text-gray-500">{{ __('Пробный период') }}</dt><dd class="text-xl font-bold">{{ trans_choice(':count день|:count дня|:count дней', $trialDays) }}</dd></div>
+                <div><dt class="text-sm text-gray-500">{{ __('Сервер') }}</dt><dd class="text-xl font-bold">{{ __('в облаке') }}</dd></div>
             </dl>
         </div>
 
