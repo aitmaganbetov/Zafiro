@@ -222,10 +222,10 @@ test('the superadmin creates and edits platform plans', function () {
     $this->actingAs($admin)->post(route('superadmin.plans.store'), ['slug' => 'bad slug', 'name' => 'X', 'trial_days' => 0])->assertSessionHasErrors('slug');
     $this->post(route('superadmin.plans.store'), [
         'slug' => 'start', 'name' => 'Старт', 'price_monthly' => 15000, 'trial_days' => 14,
-        'features' => "До 20 ПК\n\nАгент Windows", 'is_active' => 1,
+        'features' => "До 20 ПК\r\n\nАгент Windows\nСклад и касса для всех ПК", 'is_active' => 1,
     ])->assertSessionHasNoErrors();
     $plan = SaasPlan::query()->where('slug', 'start')->sole();
-    expect($plan->features)->toBe(['До 20 ПК', 'Агент Windows'])->and($plan->is_active)->toBeTrue();
+    expect($plan->features)->toBe(['До 20 ПК', 'Агент Windows', 'Склад и касса для всех ПК'])->and($plan->is_active)->toBeTrue();
 
     $this->patch(route('superadmin.plans.update', $plan), ['slug' => 'start', 'name' => 'Старт', 'price_monthly' => 17000, 'trial_days' => 7])->assertSessionHasNoErrors();
     expect($plan->fresh())->is_active->toBeFalse()->trial_days->toBe(7)

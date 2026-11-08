@@ -67,7 +67,7 @@ class PlanController extends Controller
         ]);
 
         // One feature per line in the form.
-        $data['features'] = collect(preg_split('/\R/', (string) ($data['features'] ?? '')))->map(fn (string $line): string => trim($line))->filter()->values()->all() ?: null;
+        $data['features'] = collect(preg_split('/\R/u', (string) ($data['features'] ?? '')))->map(fn (string $line): string => trim($line))->filter()->values()->all() ?: null;
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
 
         return $data;
