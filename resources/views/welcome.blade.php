@@ -5,17 +5,6 @@
 
 @section('content')
 @php
-    $features = [
-        ['fa-map-location-dot', __('Карта зала'), __('Зоны и ПК на схеме клуба: кто играет, сколько осталось, что забронировано и где идёт обслуживание.')],
-        ['fa-cash-register', __('Касса и смены'), __('Продажи, пополнения балансов, X- и Z-отчёты с разбивкой по товарам и сотрудникам, печать на 80-мм принтер.')],
-        ['fa-desktop', __('Агент на ПК'), __('Блокирует ПК до оплаты, показывает время и баланс, сам выключает или перезагружает ПК после сессии.')],
-        ['fa-calendar-check', __('Брони'), __('Бронирование ПК на время для клиента: с карты зала или из списка, без накладок.')],
-        ['fa-stopwatch', __('Тарифы и поминутно'), __('Пакеты часов и оплата по минутам по цене часа зоны, бонусный и основной счёт.')],
-        ['fa-bag-shopping', __('Магазин в агенте'), __('Клиент заказывает напитки и еду с ПК и платит с баланса, кассир видит заказ и несёт его к месту.')],
-        ['fa-user-group', __('Гости и друзья'), __('Вход по QR-коду, регистрация прямо на ПК, друзья, переводы и пересадка на свободный ПК.')],
-        ['fa-hard-drive', __('Бездисковые клубы'), __('Один раз настроили суперклиент — остальные ПК подключаются сами после загрузки образа.')],
-        ['fa-plug', __('API и вебхуки'), __('Интеграция с вашими сервисами: ключи с правами, события продаж и склада.')],
-    ];
     $steps = [
         [__('Зарегистрируйте клуб'), __(':days дней бесплатно, без карты и договора.', ['days' => $trialDays])],
         [__('Нарисуйте зал'), __('Создайте зоны, расставьте ПК на карте и задайте тарифы.')],
@@ -59,21 +48,34 @@
         </div>
     </section>
 
-    {{-- Features --}}
-    <section id="features" class="scroll-mt-20 border-t border-gray-100 py-20">
+    {{-- Mobile apps --}}
+    <section id="apps" class="scroll-mt-20 py-20">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('Возможности') }}</p>
-            <h2 class="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">{{ __('Всё, что нужно клубу каждый день') }}</h2>
-            <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach($features as [$icon, $title, $text])
-                    <article class="group rounded-2xl border border-gray-200 bg-gray-50 p-6 transition hover:-translate-y-1 hover:border-[#ff0169]/50 hover:bg-[#ff0169]/[0.06]">
-                        <span class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ff0169]/15 text-xl text-[#e6005e] group-hover:bg-[#ff0169] group-hover:text-white"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
-                        <h3 class="text-lg font-semibold">{{ $title }}</h3>
-                        <p class="mt-2 text-sm leading-relaxed text-gray-600">{{ $text }}</p>
-                    </article>
-                @endforeach
+            <div class="grid items-center gap-12 overflow-hidden rounded-[2rem] bg-gray-950 p-8 text-white sm:p-12 lg:grid-cols-[1.15fr_1fr]">
+                <div>
+                    <h2 class="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">{{ __('Мобильные приложения для гостей и сотрудников') }}</h2>
+                    <p class="mt-4 max-w-xl text-lg text-gray-400">{{ __('Гость пополняет баланс и входит на ПК по QR-коду, а администратор ведёт кассу и карту клуба прямо с телефона.') }}</p>
+                    <ol class="mt-10 space-y-8">
+                        @foreach([
+                            [__('Приложение для гостей'), __('Клуб в телефоне гостя: баланс и бонусы, вход на ПК по QR-коду, новости клуба и переводы друзьям.')],
+                            [__('Приложение для сотрудников'), __('Касса, карта клуба и заказы в телефоне администратора: можно работать, не стоя за стойкой.')],
+                        ] as [$title, $text])
+                            <li class="flex gap-5">
+                                <span class="w-14 shrink-0 text-4xl font-extrabold leading-none text-[#ff0169]">{{ sprintf('%02d', $loop->iteration) }}</span>
+                                <div><h3 class="text-lg font-semibold">{{ $title }}</h3><p class="mt-1 max-w-md text-gray-300">{{ $text }}</p></div>
+                            </li>
+                        @endforeach
+                    </ol>
+                    <div class="mt-10 flex flex-wrap gap-3">
+                        <a href="{{ route('product.guest-app') }}" class="inline-flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-3 font-semibold hover:bg-white/20"><i class="fab fa-android text-xl text-emerald-400" aria-hidden="true"></i>{{ __('Для гостей') }}</a>
+                        <a href="{{ route('product.staff-app') }}" class="inline-flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-3 font-semibold hover:bg-white/20"><i class="fab fa-android text-xl text-emerald-400" aria-hidden="true"></i>{{ __('Для сотрудников') }}</a>
+                    </div>
+                </div>
+                <div class="relative mx-auto h-[400px] w-full max-w-[480px] text-gray-900 sm:h-[460px]" aria-hidden="true">
+                    <div class="absolute left-0 top-8 hidden w-[230px] -rotate-6 sm:block">@include('partials.phone-staff')</div>
+                    <div class="absolute inset-x-0 top-0 mx-auto w-[230px] rotate-6 sm:left-auto sm:right-0 sm:mx-0">@include('partials.phone-guest')</div>
+                </div>
             </div>
-            <a href="{{ route('product.features') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#d90058] hover:text-gray-900">{{ __('Все возможности') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
         </div>
     </section>
 
