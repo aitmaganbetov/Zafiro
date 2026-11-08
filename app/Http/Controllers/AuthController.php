@@ -8,6 +8,7 @@ use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\CurrentClub;
+use App\Services\Monitoring\TelegramAlerts;
 use App\Services\PlatformLogger;
 use App\Services\StaffShifts;
 use App\Support\ClubRoles;
@@ -140,7 +141,7 @@ class AuthController extends Controller
     /**
      * Handle registration
      */
-    public function register(Request $request, ActivityLogger $activity, CurrentClub $currentClub)
+    public function register(Request $request, ActivityLogger $activity, CurrentClub $currentClub, TelegramAlerts $alerts)
     {
         $this->normalizePhone($request);
         $validated = $request->validate([
@@ -187,6 +188,9 @@ class AuthController extends Controller
 
             return [$user, $club];
         });
+
+        // After the response: a slow Telegram must not hold up the new owner.
+        app()->terminating(fn () => $alerts->clubRegistered($club, $user));
 
         Auth::login($user);
         $request->session()->put('current_club_id', $club->getKey());

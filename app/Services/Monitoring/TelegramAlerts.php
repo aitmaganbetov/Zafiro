@@ -2,6 +2,7 @@
 
 namespace App\Services\Monitoring;
 
+use App\Models\Club;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
@@ -85,6 +86,27 @@ class TelegramAlerts
         $settings = $this->settings();
 
         return $settings !== null && $this->deliver($settings['token'], $settings['chat_id'], $text);
+    }
+
+    /** Tells the platform chat about a club that has just signed up on the site. */
+    public function clubRegistered(Club $club, User $owner): void
+    {
+        if (! $this->configured()) {
+            return;
+        }
+
+        $locale = app()->getLocale();
+        app()->setLocale($this->locale());
+        try {
+            $this->send(implode("\n", [
+                '🎉 '.__('Новый клуб: :club', ['club' => $club->name]),
+                __('Владелец: :owner, :phone', ['owner' => $owner->name, 'phone' => $owner->phone]),
+                __('Пробный период до :date', ['date' => $club->subscription?->trial_ends_at?->format('d.m.Y') ?? '—']),
+                route('superadmin.clubs.show', $club),
+            ]));
+        } finally {
+            app()->setLocale($locale);
+        }
     }
 
     private function deliver(string $token, string $chatId, string $text): bool

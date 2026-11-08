@@ -1,10 +1,15 @@
 <?php
 
 use App\Models\Club;
+use App\Models\PlatformSetting;
 use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\CurrentClub;
+use App\Services\Monitoring\TelegramAlerts;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpRequest;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -25,6 +30,28 @@ test('new clubs start with the configured trial plan', function () {
         ->and($subscription->trial_ends_at->isFuture())->toBeTrue();
 
     $this->get(route('dashboard'))->assertSuccessful();
+});
+
+test('a new club is reported to the platform telegram chat', function () {
+    Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []])]);
+    $register = fn (string $phone) => $this->post(route('auth.register'), [
+        'name' => 'Асель', 'club_name' => 'Cyber Arena', 'phone' => $phone,
+        'password' => 'secret123', 'password_confirmation' => 'secret123',
+    ])->assertRedirect('/dashboard');
+
+    $register('7001234567');
+    Http::assertNothingSent();
+
+    auth()->logout();
+    PlatformSetting::write(TelegramAlerts::SETTING, ['token' => Crypt::encryptString('123:abc'), 'chat_id' => '42', 'locale' => 'ru'], null);
+    $register('7001234568');
+
+    $club = Club::query()->where('name', 'Cyber Arena')->latest('id')->firstOrFail();
+    Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/sendMessage')
+        && $request['chat_id'] === '42'
+        && str_contains($request['text'], 'Новый клуб: Cyber Arena')
+        && str_contains($request['text'], 'Асель, +77001234568')
+        && str_contains($request['text'], route('superadmin.clubs.show', $club)));
 });
 
 test('expired clubs are sent to billing and cannot issue api tokens', function () {

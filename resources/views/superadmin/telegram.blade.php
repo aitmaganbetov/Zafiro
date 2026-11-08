@@ -30,6 +30,7 @@
 <section class="mt-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900" aria-labelledby="alerts-title">
     <h3 id="alerts-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Оповещения о сбоях') }}</h3>
     <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Бот пишет в чат, когда планировщик молчит больше 5 минут, диск заполнен больше чем на 85%, растёт доля ошибок 5xx, копится очередь или клуб целиком ушёл офлайн, и ещё раз — когда всё наладилось.') }}</p>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Ещё бот сообщает о каждом новом клубе, зарегистрированном на сайте.') }}</p>
     @if($alerts)
         <p class="mb-3 text-sm text-gray-700 dark:text-gray-300">{{ __('Оповещения включены, чат :chat.', ['chat' => $alerts['chat_id']]) }}</p>
     @else
