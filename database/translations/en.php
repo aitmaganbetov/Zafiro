@@ -1368,7 +1368,7 @@ return [
         'Блокировка Windows до оплаты и выход сотрудника только по PIN-коду' => 'Windows is locked until payment, staff exit only with a PIN',
         'Блокирует ПК до оплаты, показывает время и баланс, сам выключает или перезагружает ПК после сессии.' => 'Locks the PC until payment, shows time and balance, shuts down or restarts the PC after the session.',
         'Бронирование ПК на время для клиента: с карты зала или из списка, без накладок.' => 'Book a PC for a customer for a time slot: from the hall map or the list, without overlaps.',
-        'Весь клуб — в одном окне' => 'The whole club in one window',
+        'Весь клуб - в одном окне' => 'The whole club in one window',
         'Возможности' => 'Features',
         'Вопросы' => 'FAQ',
         'Всё, что нужно клубу каждый день' => 'Everything a club needs every day',

@@ -9,7 +9,7 @@ uses(RefreshDatabase::class);
 
 test('the home page presents Zafiro with sign-up for guests and the panel for signed-in users', function () {
     $this->get(route('home'))->assertOk()
-        ->assertSee('Весь клуб — в одном окне')
+        ->assertSee('Весь клуб - в одном окне')
         ->assertSee(route('auth.show-register'), false)
         ->assertSee(LandingController::AGENT_DOWNLOAD, false)
         ->assertSee(route('wiki'), false);

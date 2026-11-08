@@ -33,7 +33,7 @@
     <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-2 lg:pt-20">
         <div>
             <p class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ff0169]/40 bg-[#ff0169]/10 px-3 py-1 text-sm text-[#d90058]"><i class="fas fa-bolt" aria-hidden="true"></i>{{ __('Для компьютерных клубов и PS-клубов') }}</p>
-            <h1 class="bg-gradient-to-r from-gray-900 via-gray-900 to-[#ff0169] bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl lg:text-6xl">{{ __('Весь клуб — в одном окне') }}</h1>
+            <h1 class="text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl lg:text-6xl">{{ __('Весь клуб - в одном окне') }}</h1>
             <p class="mt-6 max-w-xl text-lg text-gray-600">{{ __('Касса, карта зала, брони, тарифы, магазин и агент на ПК в одной системе. Подключите свой компьютерный клуб за один вечер.') }}</p>
             <div class="mt-8 flex flex-wrap gap-3">
                 @auth
@@ -55,11 +55,6 @@
             <div class="relative rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl">
                 <div class="mb-4 flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-[#ff0169]"></span><span class="text-sm font-semibold">{{ __('Карта клуба') }}</span></div>
                 <img src="{{ asset('images/club-map.webp') }}" width="810" height="800" alt="{{ __('Карта клуба в панели Zafiro: зоны и ПК с их статусами') }}" class="w-full rounded-2xl border border-gray-100">
-                <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
-                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-emerald-500"></i>{{ __('Свободен') }}</span>
-                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#ff0169]"></i>{{ __('Идёт сессия') }}</span>
-                    <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-gray-800"></i>{{ __('Выключен') }}</span>
-                </div>
             </div>
         </div>
     </section>
