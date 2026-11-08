@@ -1395,7 +1395,7 @@ return [
         'Сотрудники, права и журнал действий' => 'Staff, rights and the activity log',
         'Русский, казахский и английский' => 'Russian, Kazakh and English',
         'Нужна ли карта для пробного периода?' => 'Do I need a card for the trial?',
-        'Нет. Зарегистрируйте клуб — пробный период начнётся сразу, без карты и договора.' => 'No. Register your club and the trial starts right away, without a card or contract.',
+        'Нет. Зарегистрируйте клуб - пробный период начнётся сразу, без карты и договора.' => 'No. Register your club and the trial starts right away, without a card or contract.',
         'Что будет, когда подписка закончится?' => 'What happens when the subscription ends?',
         'Панель, агенты на ПК и API клуба перестанут работать, пока подписку не продлят. Данные клуба при этом сохраняются.' => 'The panel, PC agents and the club API stop working until the subscription is extended. The club\'s data is kept.',
         'Можно ли сменить тариф?' => 'Can I change the plan?',

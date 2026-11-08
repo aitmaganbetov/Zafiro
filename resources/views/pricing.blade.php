@@ -5,19 +5,8 @@
 
 @section('content')
 @php
-    $included = [
-        ['fa-window-maximize', __('Панель клуба в браузере')],
-        ['fa-desktop', __('Агент на ПК и его обновления')],
-        ['fa-mobile-screen', __('Приложения для гостей и сотрудников')],
-        ['fa-cash-register', __('Касса, смены и X/Z-отчёты')],
-        ['fa-map-location-dot', __('Карта клуба, тарифы и брони')],
-        ['fa-boxes-stacked', __('Склад, магазин в агенте и услуги')],
-        ['fa-user-shield', __('Сотрудники, права и журнал действий')],
-        ['fa-plug', __('API и вебхуки')],
-        ['fa-language', __('Русский, казахский и английский')],
-    ];
     $questions = [
-        [__('Нужна ли карта для пробного периода?'), __('Нет. Зарегистрируйте клуб — пробный период начнётся сразу, без карты и договора.')],
+        [__('Нужна ли карта для пробного периода?'), __('Нет. Зарегистрируйте клуб - пробный период начнётся сразу, без карты и договора.')],
         [__('Что будет, когда подписка закончится?'), __('Панель, агенты на ПК и API клуба перестанут работать, пока подписку не продлят. Данные клуба при этом сохраняются.')],
         [__('Можно ли сменить тариф?'), __('Да. Тариф меняется без переноса данных: клуб, ПК, клиенты и история остаются на месте.')],
         [__('Есть ли скидки?'), __('Для сетей клубов и по договорённости Zafiro даёт клубу индивидуальную скидку на тариф.')],
@@ -60,22 +49,6 @@
         @empty
             <p class="text-gray-600">{{ __('Тарифы скоро появятся.') }}</p>
         @endforelse
-    </div>
-</section>
-
-<section class="border-t border-gray-100 py-16">
-    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#e6005e]">{{ __('В любом тарифе') }}</p>
-        <h2 class="mt-3 max-w-2xl text-3xl font-bold">{{ __('Без урезанных версий') }}</h2>
-        <ul class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @foreach($included as [$icon, $text])
-                <li class="flex items-center gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ff0169]/15 text-[#e6005e]"><i class="fas {{ $icon }}" aria-hidden="true"></i></span>
-                    <span class="font-medium">{{ $text }}</span>
-                </li>
-            @endforeach
-        </ul>
-        <a href="{{ route('product.features') }}" class="mt-8 inline-flex items-center gap-2 font-semibold text-[#d90058] hover:text-gray-900">{{ __('Все возможности') }}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>
     </div>
 </section>
 
