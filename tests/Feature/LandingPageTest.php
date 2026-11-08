@@ -55,6 +55,7 @@ test('the pricing page lists the plans open for subscription', function () {
     $this->get(route('pricing'))->assertOk()
         ->assertSee('Клуб до 30 ПК')
         ->assertSee('25 000 ₸', false)
+        ->assertSee('за ПК в месяц')
         ->assertSee('До 30 ПК')
         ->assertDontSee('Старый тариф')
         ->assertSee(route('auth.show-register'), false);

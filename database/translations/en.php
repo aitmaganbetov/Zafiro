@@ -1376,6 +1376,7 @@ return [
         'Вход по телефону, QR-коду или регистрация прямо на ПК' => 'Sign in by phone, QR code or sign up right on the PC',
         'Гости и друзья' => 'Guests and friends',
         'Готовы навести порядок в клубе?' => 'Ready to put your club in order?',
+        'за ПК в месяц' => 'per PC per month',
         'Мобильные приложения для гостей и сотрудников' => 'Mobile apps for guests and staff',
         'Гость пополняет баланс и входит на ПК по QR-коду, а администратор ведёт кассу и карту клуба прямо с телефона.' => 'Guests top up their balance and sign in to a PC with a QR code, while the administrator runs the till and the club map right from a phone.',
         'Для гостей' => 'For guests',
