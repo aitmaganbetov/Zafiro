@@ -52,7 +52,6 @@
 
         {{-- The club map, as staff see it in the panel. --}}
         <div class="relative">
-            <div class="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#ff0169]/15 to-transparent blur-2xl" aria-hidden="true"></div>
             <div class="relative rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl">
                 <div class="mb-4 flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-[#ff0169]"></span><span class="text-sm font-semibold">{{ __('Карта клуба') }}</span></div>
                 <img src="{{ asset('images/club-map.webp') }}" width="810" height="800" alt="{{ __('Карта клуба в панели Zafiro: зоны и ПК с их статусами') }}" class="w-full rounded-2xl border border-gray-100">

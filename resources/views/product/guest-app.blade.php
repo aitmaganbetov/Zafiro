@@ -34,7 +34,6 @@
 
     {{-- A stylised phone with the balance screen. --}}
     <div class="relative mx-auto w-full max-w-[300px]" aria-hidden="true">
-        <div class="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-[#ff0169]/20 to-transparent blur-2xl"></div>
         <div class="relative rounded-[2.5rem] border-[10px] border-gray-900 bg-white p-4 shadow-2xl">
             <div class="mx-auto mb-4 h-1.5 w-16 rounded-full bg-gray-200"></div>
             <p class="text-xs text-gray-500">{{ __('Клуб') }}</p>

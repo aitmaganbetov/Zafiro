@@ -33,10 +33,6 @@
     $panel = 'absolute top-full z-40 mt-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl shadow-gray-900/10';
 @endphp
 <body class="min-h-screen bg-white text-gray-900 antialiased" style="font-family: Inter, 'Segoe UI', system-ui, sans-serif">
-    <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-        <div class="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[#ff0169]/10 blur-[140px]"></div>
-        <div class="absolute bottom-0 right-[-200px] h-[420px] w-[520px] rounded-full bg-[#7c3aed]/10 blur-[140px]"></div>
-    </div>
 
     <header class="sticky top-0 z-30 border-b border-gray-100 bg-white/80 shadow-[0_2px_12px_rgba(17,24,39,0.06)] backdrop-blur">
         <nav class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
