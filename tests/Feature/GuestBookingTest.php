@@ -281,7 +281,7 @@ test('a guest books a PC as a tariff of its zone: the tariff price, its time, it
 
     freshRequest();
     $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $other->id, 'starts_at' => $start, 'tariff_id' => $tariff->id])
-        ->assertUnprocessable()->assertJsonValidationErrors('club_computer_id');
+        ->assertUnprocessable()->assertJsonValidationErrors('club_computer_ids');
     freshRequest();
     $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => $start, 'tariff_id' => $tariff->id])
         ->assertCreated()->assertJsonPath('booking.tariff', '3 часа')->assertJsonPath('booking.paid', '1200.00')
@@ -347,4 +347,67 @@ test('the journal and the agent show booking times in the club time zone', funct
     freshRequest();
     $this->withToken($strangerToken)->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 150])
         ->assertUnprocessable()->assertJsonPath('errors.computer_id.0', fn (string $message) => str_contains($message, '10:30'));
+});
+
+test('a guest books several PCs together: one payment, one code, cancelled together', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 10:00:00', 'UTC'));
+    bookingClub();
+    $first = bookingComputer();
+    $second = bookingComputer(2);
+    [$guest, $token] = bookingGuest('2000.00');
+
+    freshRequest();
+    $booking = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_ids' => [$first->id, $second->id], 'starts_at' => '2026-11-17T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()
+        ->assertJsonPath('booking.computers', ['PC-01', 'PC-02'])
+        ->assertJsonPath('booking.paid', '1200.00')
+        ->json('booking');
+    expect($booking['code'])->toMatch('/^\d{6}$/')
+        ->and(ComputerReservation::query()->pluck('code')->unique()->all())->toBe([$booking['code']])
+        ->and((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('800.00');
+
+    // The app lists them as one booking, and it counts once towards the limit of bookings ahead.
+    freshRequest();
+    expect($this->withToken($token)->getJson(route('api.guest.bookings.index'))->json('bookings'))->toHaveCount(1);
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.cancel', $booking['id']))->assertOk();
+    expect(ComputerReservation::query()->whereNull('cancelled_at')->count())->toBe(0)
+        ->and((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('2000.00');
+});
+
+test('the booking code opens only the booked PCs, from the interval before the booking, without an account', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 10:00:00', 'UTC'));
+    bookingClub();
+    $first = bookingComputer();
+    $second = bookingComputer(2);
+    $other = bookingComputer(3);
+    $agents = collect([$first, $second, $other])->mapWithKeys(fn (ClubComputer $pc) => [$pc->id => app(ClubComputerSessions::class)->issueAgentToken($pc)]);
+    [, $token] = bookingGuest('2000.00');
+
+    freshRequest();
+    $code = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_ids' => [$first->id, $second->id], 'starts_at' => '2026-11-17T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->json('booking.code');
+    $enter = function (ClubComputer $pc, string $code) use ($agents) {
+        freshRequest();
+
+        return $this->postJson(route('api.agent.booking-code'), ['code' => $code], ['X-Agent-Token' => $agents[$pc->id]]);
+    };
+
+    // Too early (the club's interval is 10 minutes).
+    $enter($first, $code)->assertUnprocessable()->assertJsonValidationErrors('code');
+
+    Carbon::setTestNow(Carbon::parse('2026-11-17 11:55:00', 'UTC'));
+    $enter($other, $code)->assertUnprocessable()->assertJsonPath('errors.code.0', fn (string $message) => str_contains($message, 'не для этого ПК'));
+    $enter($first, $code === '000000' ? '111111' : '000000')->assertUnprocessable();
+
+    $enter($first, $code)->assertOk()
+        ->assertJsonPath('session.guest', true)
+        ->assertJsonPath('session.ends_at', '2026-11-17T12:55:00+00:00');
+    $enter($second, $code)->assertOk()->assertJsonPath('session.guest', true);
+
+    // Used: the code does not open the PC again.
+    $enter($first, $code)->assertUnprocessable();
+    expect(ComputerReservation::query()->whereNull('arrived_at')->count())->toBe(0)
+        ->and($other->fresh()->current_session_id)->toBeNull();
 });

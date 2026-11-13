@@ -84,6 +84,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinutes(10, 5)->by('agent-register:'.$this->agentRateLimitKey($request)),
             Limit::perMinutes(10, 60)->by('agent-register-ip:'.$request->ip()),
         ]);
+        // Booking codes: 6 digits, so guessing is slowed per PC and per club.
+        RateLimiter::for('agent-booking-code', fn (Request $request): array => [
+            Limit::perMinute(5)->by('agent-booking-code:'.$this->agentRateLimitKey($request)),
+            Limit::perHour(200)->by('agent-booking-code-club:'.($request->attributes->get('agent_computer')?->club_id ?? $request->ip())),
+        ]);
         RateLimiter::for('agent-qr-login', fn (Request $request): Limit => Limit::perMinute(20)
             ->by('agent-qr-login:'.$this->agentRateLimitKey($request)));
         RateLimiter::for('agent-qr-poll', fn (Request $request): Limit => Limit::perMinute(60)

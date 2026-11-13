@@ -181,6 +181,50 @@ class ComputerReservations
             ->all();
     }
 
+    /**
+     * The code of a booking from the guest app typed on the PC's sign-in screen: when this PC is
+     * one of the booked ones and the booking is due (from the interval before it), its paid time
+     * starts here as a session without an account.
+     */
+    public function startByCode(ClubComputer $computer, string $code): ClubComputer
+    {
+        return DB::transaction(function () use ($computer, $code): ClubComputer {
+            $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computer->getKey());
+            $reservation = ComputerReservation::query()
+                ->where('club_computer_id', $computer->getKey())
+                ->where('code', $code)
+                ->pending()
+                ->where('ends_at', '>', now())
+                ->orderBy('starts_at')
+                ->lockForUpdate()
+                ->first();
+            if ($reservation === null) {
+                $elsewhere = ComputerReservation::query()->where('code', $code)->pending()->where('ends_at', '>', now())->exists();
+                throw ValidationException::withMessages(['code' => $elsewhere
+                    ? __('Этот код брони не для этого ПК: сядьте за забронированный ПК.')
+                    : __('Код брони не найден или бронь уже закончилась.')]);
+            }
+            $gap = $this->gapMinutes();
+            if ($reservation->starts_at->gt(now()->addMinutes($gap))) {
+                throw ValidationException::withMessages(['code' => __('Бронь начнётся в :time. Код заработает за :count мин до начала.', [
+                    'time' => $this->local($reservation->starts_at)->format('d.m H:i'),
+                    'count' => $gap,
+                ])]);
+            }
+            if (! $this->startPaidSession($reservation, $computer, true)) {
+                throw ValidationException::withMessages(['code' => __('На этом ПК уже идёт сессия.')]);
+            }
+            $names = ['computer' => $computer->displayName(), 'from' => $this->local($reservation->starts_at)->format('d.m.Y H:i')];
+            $this->activity->record('reservation.arrived', __('ПК :computer открыт по коду брони на :from', $names), $reservation->user_id, $reservation, [
+                'computer' => $names['computer'],
+                'starts_at' => $names['from'],
+                'by_code' => true,
+            ]);
+
+            return $computer;
+        });
+    }
+
     /** Times in texts are the club's local time: the API reads dates in UTC. */
     private function local(Carbon $time): Carbon
     {
@@ -224,10 +268,10 @@ class ComputerReservations
      * the missed part is not refunded). Paid by the hour, the amount goes with it as minutes, so a
      * session ended early gives back the unused part (SessionSettlement); a tariff, as that tariff.
      */
-    private function startPaidSession(ComputerReservation $reservation, ClubComputer $computer): bool
+    private function startPaidSession(ComputerReservation $reservation, ClubComputer $computer, bool $byCode = false): bool
     {
         $own = $computer->hasPaidSession();
-        if ($own && ($computer->session_guest || $computer->current_session_user_id !== $reservation->user_id)) {
+        if ($own && ($byCode || $computer->session_guest || $computer->current_session_user_id !== $reservation->user_id)) {
             return false;
         }
         $duration = $reservation->durationMinutes();
@@ -237,6 +281,20 @@ class ComputerReservations
         }
         $sessionId = $own ? $computer->current_session_id : (string) Str::uuid();
         $endsAt = ($own ? $computer->session_ends_at->copy() : now())->addMinutes($minutes);
+
+        if ($byCode) {
+            // Someone with the code, without an account: the agent opens the PC as for time sold at
+            // the cash register; the time was paid by the booking and is not refunded.
+            $computer->update([
+                'current_session_id' => (string) Str::uuid(),
+                'current_session_user_id' => null,
+                'session_guest' => true,
+                'session_ends_at' => now()->addMinutes($minutes),
+            ]);
+            $reservation->update(['arrived_at' => now()]);
+
+            return true;
+        }
 
         // Booked as a tariff, the time is that tariff's (not refunded; a usage limit keeps the rest).
         $tariff = $reservation->tariff_id === null ? null : Tariff::query()->find($reservation->tariff_id);

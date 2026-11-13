@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AgentBookingCodeController;
 use App\Http\Controllers\Api\AgentEnrollController;
 use App\Http\Controllers\Api\AgentExitPinController;
 use App\Http\Controllers\Api\AgentQrLoginController;
@@ -95,6 +96,11 @@ Route::post('/agent/qr-login', [AgentQrLoginController::class, 'store'])
 Route::post('/agent/qr-login/poll', [AgentQrLoginController::class, 'poll'])
     ->middleware(['agent.device', 'throttle:agent-qr-poll'])
     ->name('api.agent.qr-login.poll');
+
+// A booking code from the guest app opens this PC, when it is one of the booked PCs.
+Route::post('/agent/booking-code', AgentBookingCodeController::class)
+    ->middleware(['agent.device', 'throttle:agent-booking-code'])
+    ->name('api.agent.booking-code');
 
 // A customer registers on a club PC (sign-in window): a few per PC, then a pause.
 Route::post('/agent/register', AgentRegisterController::class)

@@ -75,6 +75,14 @@ class AgentTariffPurchaseService
         return $until === null ? $minutes : min($minutes, (int) ceil(($until->getTimestamp() - $localStart->getTimestamp()) / 60));
     }
 
+    /** Purchases of the tariff still allowed by its quantity limit; null — no limit. */
+    public function purchasesLeft(Tariff $tariff): ?int
+    {
+        return $tariff->quantity_limit_enabled && $tariff->quantity_limit !== null
+            ? $tariff->quantity_limit - $this->purchaseCount($tariff)
+            : null;
+    }
+
     /** The tariff's price for this customer (with their discount when the tariff takes it), in cents. */
     public function tariffPrice(User $user, Tariff $tariff): int
     {

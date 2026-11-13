@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * A PC booked for a customer for a period. While it is pending (not cancelled, the customer
  * has not arrived yet) nobody else can buy time on the PC that would run into it.
  */
-#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'from_app', 'paid_main_cents', 'paid_bonus_cents', 'tariff_id', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
+#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'from_app', 'paid_main_cents', 'paid_bonus_cents', 'tariff_id', 'code', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
 class ComputerReservation extends Model
 {
     use BelongsToClub, UsesClubTimezone;

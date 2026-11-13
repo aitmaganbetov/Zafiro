@@ -38,7 +38,7 @@ class GuestBookingController extends Controller
             'min_minutes' => GuestBookings::MIN_MINUTES,
             'max_minutes' => GuestBookings::MAX_MINUTES,
             'max_days_ahead' => GuestBookings::MAX_DAYS_AHEAD,
-            'bookings' => $list->map(fn (ComputerReservation $reservation): array => $this->bookings->present($reservation))->values(),
+            'bookings' => $this->bookings->presentAll($list),
         ]);
     }
 
@@ -50,14 +50,15 @@ class GuestBookingController extends Controller
         return response()->json(['zones' => $this->bookings->computers($request->user())]);
     }
 
-    /** Tariffs the guest may book for the start (of the PC's zone, when one is picked). */
+    /** Tariffs the guest may book for the start (valid in the zones of the picked PCs). */
     public function tariffs(Request $request): JsonResponse
     {
         $this->bookings->ensureEnabled();
         $startsAt = $this->start($request);
-        $computerId = $request->validate(['computer_id' => ['nullable', 'integer']])['computer_id'] ?? null;
+        $data = $request->validate(['computer_id' => ['nullable', 'integer'], 'computer_ids' => ['nullable', 'array', 'max:'.GuestBookings::MAX_COMPUTERS], 'computer_ids.*' => ['integer']]);
+        $computerIds = array_map('intval', $data['computer_ids'] ?? array_filter([$data['computer_id'] ?? null]));
 
-        return response()->json(['tariffs' => $this->bookings->tariffs($request->user(), $startsAt, $computerId === null ? null : (int) $computerId)]);
+        return response()->json(['tariffs' => $this->bookings->tariffs($request->user(), $startsAt, $computerIds)]);
     }
 
     /** Zones and PCs free for the period (by the hour or a tariff), with the price. */
@@ -70,17 +71,25 @@ class GuestBookingController extends Controller
         return response()->json(['minutes' => $plan['minutes'], 'zones' => $this->bookings->options($request->user(), $startsAt, $plan)]);
     }
 
+    /** One PC (club_computer_id, older apps) or several booked together (club_computer_ids). */
     public function store(Request $request): JsonResponse
     {
         $this->bookings->ensureEnabled();
-        $computerId = (int) $request->validate(['club_computer_id' => ['required', 'integer']])['club_computer_id'];
+        $data = $request->validate([
+            'club_computer_ids' => ['required_without:club_computer_id', 'array', 'min:1', 'max:'.GuestBookings::MAX_COMPUTERS],
+            'club_computer_ids.*' => ['integer'],
+            'club_computer_id' => ['required_without:club_computer_ids', 'integer'],
+        ]);
+        $computerIds = array_map('intval', $data['club_computer_ids'] ?? [$data['club_computer_id']]);
         [$startsAt, $minutes, $tariffId] = $this->period($request);
-        $reservation = $this->bookings->book($request->user(), $computerId, $startsAt, $minutes, $tariffId);
-        $reservation->load(['computer:id,club_zone_id,number,display_name,device_name', 'computer.zone:id,name']);
+        $group = $this->bookings->book($request->user(), $computerIds, $startsAt, $minutes, $tariffId);
+        $group->load(['computer:id,club_zone_id,number,display_name,device_name', 'computer.zone:id,name']);
 
         return response()->json([
-            'message' => __('ПК забронирован. Войдите на нём в своё время — оплаченное время начнётся само.'),
-            'booking' => $this->bookings->present($reservation),
+            'message' => count($computerIds) > 1
+                ? __('ПК забронированы. Код брони :code: на забронированных ПК его вводят на экране входа — оплаченное время начнётся само.', ['code' => $group->first()->code])
+                : __('ПК забронирован. Войдите на нём в своё время — оплаченное время начнётся само.'),
+            'booking' => $this->bookings->present($group),
         ], 201);
     }
 
