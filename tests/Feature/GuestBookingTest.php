@@ -1,0 +1,250 @@
+<?php
+
+use App\Models\ActivityLog;
+use App\Models\Club;
+use App\Models\ClubComputer;
+use App\Models\ClubZone;
+use App\Models\ComputerReservation;
+use App\Models\MemberBalance;
+use App\Models\SessionPurchase;
+use App\Models\User;
+use App\Services\ClubComputerSessions;
+use App\Services\CurrentClub;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+
+uses(RefreshDatabase::class);
+
+afterEach(fn () => Carbon::setTestNow());
+
+/** The test club in UTC with booking from the app switched on (unless a test says otherwise). */
+function bookingClub(array $club = []): Club
+{
+    $model = Club::query()->findOrFail(app(CurrentClub::class)->id());
+    $model->forceFill(['timezone' => 'UTC', 'settings' => ['club' => ['booking_interval' => 10, 'app_booking_enabled' => true, ...$club]]])->save();
+    app(CurrentClub::class)->set($model);
+
+    return $model;
+}
+
+function bookingComputer(int $number = 1, ?string $price = '600.00'): ClubComputer
+{
+    $zone = ClubZone::query()->firstOrCreate(['name' => 'VIP'], ['price_per_hour' => $price]);
+
+    return ClubComputer::query()->create(['club_zone_id' => $zone->id, 'number' => $number]);
+}
+
+/** A guest of the club with money on the balance, and their app token. */
+function bookingGuest(string $balance = '1000.00', string $bonus = '0.00'): array
+{
+    $guest = User::factory()->create();
+    MemberBalance::query()->where('user_id', $guest->id)->update(['balance' => $balance, 'bonus_balance' => $bonus]);
+
+    return [$guest, $guest->createToken('mobile', ['club:'.app(CurrentClub::class)->id()])->plainTextToken];
+}
+
+/** The next request starts without the club and the user of the previous one. */
+function freshRequest(): void
+{
+    app(CurrentClub::class)->clear();
+    app('auth')->forgetGuards();
+}
+
+test('booking from the app is off until the club switches it on', function () {
+    bookingClub(['app_booking_enabled' => false]);
+    $computer = bookingComputer();
+    [, $token] = bookingGuest();
+
+    freshRequest();
+    $this->withToken($token)->getJson(route('api.guest.bookings.index'))->assertOk()->assertJsonPath('enabled', false);
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => now()->addHour()->toIso8601String(), 'duration_minutes' => 60])
+        ->assertForbidden();
+    expect(ComputerReservation::query()->count())->toBe(0);
+});
+
+test('a guest books a free PC and pays the zone price from the balance', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    $other = bookingComputer(2);
+    [$guest, $token] = bookingGuest('1000.00');
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T17:00:00+05:00', 'duration_minutes' => 90])
+        ->assertCreated()
+        ->assertJsonPath('booking.computer', 'PC-01')
+        ->assertJsonPath('booking.zone', 'VIP')
+        ->assertJsonPath('booking.starts_at', '2026-11-15T12:00:00+00:00')
+        ->assertJsonPath('booking.paid', '900.00')
+        ->assertJsonPath('booking.state', 'pending');
+
+    $reservation = ComputerReservation::query()->sole();
+    expect($reservation->from_app)->toBeTrue()
+        ->and($reservation->paid_main_cents)->toBe(90000)
+        ->and($reservation->getRawOriginal('ends_at'))->toBe('2026-11-15 13:30:00')
+        ->and((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('100.00')
+        ->and(ActivityLog::query()->where('event', 'reservation.paid')->where('user_id', $guest->id)->exists())->toBeTrue();
+
+    // The booked PC is not free for an overlapping period (with the club's interval), the other one is.
+    freshRequest();
+    $zones = $this->withToken($token)->getJson(route('api.guest.bookings.options', ['starts_at' => '2026-11-15T13:35:00+00:00', 'duration_minutes' => 60]))
+        ->assertOk()->json('zones');
+    expect($zones[0]['price'])->toBe('600.00')
+        ->and(collect($zones[0]['computers'])->pluck('available', 'id')->all())->toBe([$computer->id => false, $other->id => true]);
+
+    // Not enough money for one more: nothing is booked or charged.
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $other->id, 'starts_at' => '2026-11-15T15:00:00+00:00', 'duration_minutes' => 60])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+    expect(ComputerReservation::query()->count())->toBe(1);
+});
+
+test('a guest has at most two bookings ahead and cannot book in the past or too far', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    [, $token] = bookingGuest('10000.00');
+    $book = function (string $start) use ($token, $computer) {
+        freshRequest();
+
+        return $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => $start, 'duration_minutes' => 60]);
+    };
+
+    $book('2026-11-15T09:00:00+00:00')->assertUnprocessable()->assertJsonValidationErrors('starts_at');
+    $book('2026-11-30T09:00:00+00:00')->assertUnprocessable()->assertJsonValidationErrors('starts_at');
+    $book('2026-11-15T12:00:00+00:00')->assertCreated();
+    $book('2026-11-15T14:00:00+00:00')->assertCreated();
+    $book('2026-11-15T16:00:00+00:00')->assertUnprocessable()->assertJsonValidationErrors('starts_at');
+});
+
+test('the guest cancels a booking before it starts and gets the money back, when the club allows it', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    [$guest, $token] = bookingGuest('1000.00');
+
+    freshRequest();
+    $id = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->json('booking.id');
+    expect((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('400.00');
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.cancel', $id))->assertOk();
+    expect(ComputerReservation::query()->sole()->cancelled_at)->not->toBeNull()
+        ->and((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('1000.00');
+
+    freshRequest();
+    $history = $this->withToken($token)->getJson(route('api.guest.history'))->assertOk()->json('data');
+    expect(collect($history)->pluck('kind')->take(2)->all())->toBe(['refund', 'purchase']);
+
+    // The club turned cancelling off: the booking stays paid.
+    bookingClub(['app_booking_cancel' => false]);
+    freshRequest();
+    $id = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T14:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->assertJsonPath('booking.can_cancel', false)->json('booking.id');
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.cancel', $id))->assertUnprocessable();
+    expect((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('400.00');
+});
+
+test('a guest cannot cancel a booking of someone else or one that has started', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    [, $token] = bookingGuest();
+    [, $strangerToken] = bookingGuest();
+
+    freshRequest();
+    $id = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T10:30:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->json('booking.id');
+
+    freshRequest();
+    $this->withToken($strangerToken)->postJson(route('api.guest.bookings.cancel', $id))->assertNotFound();
+
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:40:00', 'UTC'));
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.cancel', $id))->assertUnprocessable();
+});
+
+test('staff cancelling a paid booking give the money back', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    $staff = User::factory()->create();
+    bookingClub(['app_booking_cancel' => false]);
+    $computer = bookingComputer();
+    [$guest, $token] = bookingGuest('1000.00');
+
+    freshRequest();
+    $id = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->json('booking.id');
+
+    freshRequest();
+    $this->actingAs($staff)->post(route('reservations.cancel', $id))->assertSessionHasNoErrors();
+    expect((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('1000.00');
+});
+
+test('the paid time starts when the guest signs in on the booked PC during the booking', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    $agent = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    [$guest, $token] = bookingGuest('1000.00');
+    [, $strangerToken] = bookingGuest();
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated();
+
+    // Too early (the club's interval is 10 minutes), and someone else signed in: no session.
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $agent])->assertOk()->assertJsonPath('session', null);
+    Carbon::setTestNow(Carbon::parse('2026-11-15 11:55:00', 'UTC'));
+    freshRequest();
+    $this->withToken($strangerToken)->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $agent])->assertOk()->assertJsonPath('session', null);
+
+    // The guest, 5 minutes early: the booked hour starts now.
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $agent])->assertOk()
+        ->assertJsonPath('session.user_id', $guest->id)
+        ->assertJsonPath('session.ends_at', '2026-11-15T12:55:00+00:00');
+
+    expect(ComputerReservation::query()->sole()->arrived_at)->not->toBeNull()
+        ->and(SessionPurchase::query()->sole()->only(['minutes', 'main_cents']))->toBe(['minutes' => 60, 'main_cents' => 60000]);
+});
+
+test('a guest coming late gets the rest of the booking; staff marking the arrival start it too', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    $staff = User::factory()->create();
+    bookingClub();
+    $computer = bookingComputer();
+    [$guest, $token] = bookingGuest('1000.00');
+
+    freshRequest();
+    $id = $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T12:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated()->json('booking.id');
+
+    Carbon::setTestNow(Carbon::parse('2026-11-15 12:30:00', 'UTC'));
+    freshRequest();
+    $this->actingAs($staff)->post(route('reservations.arrive', $id))->assertSessionHasNoErrors();
+
+    $computer->refresh();
+    expect($computer->current_session_user_id)->toBe($guest->id)
+        ->and($computer->session_ends_at->utc()->format('H:i'))->toBe('13:00')
+        ->and(SessionPurchase::query()->sole()->only(['minutes', 'main_cents']))->toBe(['minutes' => 30, 'main_cents' => 30000]);
+});
+
+test('buying time on the PC does not close the guest\'s paid booking', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+    bookingClub();
+    $computer = bookingComputer();
+    [, $token] = bookingGuest('2000.00');
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-15T11:00:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated();
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 60])->assertOk();
+
+    expect(ComputerReservation::query()->sole()->arrived_at)->toBeNull();
+});

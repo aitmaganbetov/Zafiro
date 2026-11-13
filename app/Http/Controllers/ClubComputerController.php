@@ -15,6 +15,7 @@ use App\Models\ClubZone;
 use App\Models\Friendship;
 use App\Models\Language;
 use App\Models\MemberBalance;
+use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\AgentTariffPurchaseService;
 use App\Services\AgentUpdate;
@@ -23,6 +24,7 @@ use App\Services\ClubComputerResolver;
 use App\Services\ClubComputerSessions;
 use App\Services\ClubZoneComputerService;
 use App\Services\ComputerPower;
+use App\Services\ComputerReservations;
 use App\Services\CurrentClub;
 use App\Services\GuestFeatures;
 use App\Services\Integrations\WebhookDispatcher;
@@ -298,9 +300,13 @@ class ClubComputerController extends Controller
     }
 
     /** Heartbeat authenticated by the PC's device token (X-Agent-Token). */
-    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions, AgentUpdate $updates, ComputerPower $power): JsonResponse
+    public function agentHeartbeat(HeartbeatClubComputerRequest $request, ClubComputerSessions $sessions, AgentUpdate $updates, ComputerPower $power, ComputerReservations $reservations): JsonResponse
     {
         $computer = $request->attributes->get('agent_computer');
+        // The guest signed in on the PC of their paid booking: its time starts now.
+        if (($customer = $this->signedInCustomer($request, $computer)) !== null && $reservations->startForSignedIn($computer, $customer->getKey())) {
+            $computer->refresh();
+        }
 
         $result = $sessions->heartbeat($computer, $request->validated(), $request->ip());
         // Only agents that carry out staff power commands ask for them, so an older agent does not take one.
@@ -334,12 +340,8 @@ class ClubComputerController extends Controller
      */
     private function customerState(Request $request, ClubComputer $computer): ?array
     {
-        if ($request->bearerToken() === null) {
-            return null;
-        }
-        $user = Auth::guard('sanctum')->user();
-        $token = $user?->currentAccessToken();
-        if ($token === null || ! $token->can('club:'.$computer->club_id)) {
+        $user = $this->signedInCustomer($request, $computer);
+        if ($user === null) {
             return null;
         }
         $balance = MemberBalance::query()->where('user_id', $user->getKey())->first(['balance', 'bonus_balance']);
@@ -351,6 +353,18 @@ class ClubComputerController extends Controller
             'friend_requests' => Friendship::query()->where('addressee_id', $user->getKey())->whereNull('accepted_at')->count(),
             'chat_last_staff_id' => (int) ChatMessage::query()->where('customer_id', $user->getKey())->where('from_staff', true)->max('id'),
         ];
+    }
+
+    /** The customer signed in on the PC: their token rides on the agent heartbeat. */
+    private function signedInCustomer(Request $request, ClubComputer $computer): ?User
+    {
+        if ($request->bearerToken() === null) {
+            return null;
+        }
+        $user = Auth::guard('sanctum')->user();
+        $token = $user?->currentAccessToken();
+
+        return $token !== null && $token->can('club:'.$computer->club_id) ? $user : null;
     }
 
     /** Staff end the sessions of the selected PCs (the map): unused time goes back as in the agent. */

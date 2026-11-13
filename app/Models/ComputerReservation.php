@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * A PC booked for a customer for a period. While it is pending (not cancelled, the customer
  * has not arrived yet) nobody else can buy time on the PC that would run into it.
  */
-#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
+#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'from_app', 'paid_main_cents', 'paid_bonus_cents', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
 class ComputerReservation extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -24,6 +24,9 @@ class ComputerReservation extends Model
         return [
             'club_computer_id' => 'integer',
             'user_id' => 'integer',
+            'from_app' => 'boolean',
+            'paid_main_cents' => 'integer',
+            'paid_bonus_cents' => 'integer',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'arrived_at' => 'datetime',
@@ -47,6 +50,17 @@ class ComputerReservation extends Model
         $query->whereNull('cancelled_at')->whereNull('arrived_at');
     }
 
+    /** Paid from the guest app. */
+    public function scopePaid(Builder $query): void
+    {
+        $query->where(fn (Builder $paid) => $paid->where('paid_main_cents', '>', 0)->orWhere('paid_bonus_cents', '>', 0));
+    }
+
+    public function scopeUnpaid(Builder $query): void
+    {
+        $query->where('paid_main_cents', 0)->where('paid_bonus_cents', 0);
+    }
+
     /** Pending bookings that overlap [from, to). */
     public function scopeOverlapping(Builder $query, Carbon $from, Carbon $to): void
     {
@@ -66,6 +80,17 @@ class ComputerReservation extends Model
             $this->starts_at->isPast() => 'active',
             default => 'pending',
         };
+    }
+
+    /** Paid from the guest app: the paid time starts on the PC when the guest comes. */
+    public function isPaid(): bool
+    {
+        return $this->paid_main_cents + $this->paid_bonus_cents > 0;
+    }
+
+    public function durationMinutes(): int
+    {
+        return max(1, (int) round(($this->ends_at->getTimestamp() - $this->starts_at->getTimestamp()) / 60));
     }
 
     public function customerLabel(): string

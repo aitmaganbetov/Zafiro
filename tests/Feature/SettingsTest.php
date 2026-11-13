@@ -187,7 +187,7 @@ test('API settings page displays every setting with saved values', function () {
                 && $settings['guests']['allow_adding_friends'] === true
                 && $settings['guests']['allow_balance_transfer_to_friends'] === false;
         })
-        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 26)
+        ->assertViewHas('endpoints', fn (array $endpoints): bool => count($endpoints) === 28)
         ->assertViewHas('productEndpoint', fn (array $endpoint): bool => $endpoint['url'] === route('api.products.index'));
 });
 
@@ -218,7 +218,7 @@ test('the settings menu lists the sections of the open page as anchors', functio
 
     $club = $this->get(route('settings.club'))->assertOk();
     // Each section is its own card.
-    expect(substr_count($club->getContent(), 'rounded-2xl border border-gray-200 dark:border-gray-800 p-6'))->toBe(9);
+    expect(substr_count($club->getContent(), 'rounded-2xl border border-gray-200 dark:border-gray-800 p-6'))->toBe(10);
     $club->assertSee('data-settings-anchors', false)
         ->assertSeeInOrder(['href="#club-sessions"', 'href="#agent-settings"', 'href="#agent-pin"', 'id="club-sessions"', 'id="agent-pin"'], false);
     $this->get(route('settings.finances'))->assertOk()->assertSee('href="#loyalty"', false)->assertSee('id="loyalty"', false)

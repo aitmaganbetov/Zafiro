@@ -244,6 +244,8 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end',
                 'session_auto_terminate_when_pc_unavailable',
                 'booking_interval',
+                'app_booking_enabled',
+                'app_booking_cancel',
                 'max_cashiers_on_shift',
                 'max_operators_on_shift',
                 'agent_idle_logout_minutes',
@@ -285,6 +287,8 @@ class SettingsController extends Controller
             'agent_shop_enabled',
             'agent_auto_update',
             'guest_mode_enabled',
+            'app_booking_enabled',
+            'app_booking_cancel',
         ];
 
         $minuteFields = [
@@ -345,7 +349,7 @@ class SettingsController extends Controller
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {
-            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled', 'agent_auto_update'], true)) {
+            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled', 'agent_auto_update', 'app_booking_enabled', 'app_booking_cancel'], true)) {
                 $settings['club'][$field] = $this->minutes($settings['club'][$field]);
             }
         }
@@ -363,6 +367,9 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end' => 0.5,
                 'session_auto_terminate_when_pc_unavailable' => 5,
                 'booking_interval' => 30,
+                // Guests book and pay for PCs in the mobile app; they may cancel and get the money back.
+                'app_booking_enabled' => false,
+                'app_booking_cancel' => true,
                 // How many cashiers / operators may be signed in to the panel at once; 0 — no limit.
                 'max_cashiers_on_shift' => 0,
                 'max_operators_on_shift' => 0,
@@ -409,6 +416,8 @@ class SettingsController extends Controller
                 'pc_restart_after_session_end' => __('Через сколько минут выполнить действие после завершения сессии'),
                 'session_auto_terminate_when_pc_unavailable' => __('Время до автоматического завершения сессии при недоступности ПК (в минутах)'),
                 'booking_interval' => __('Интервал между бронированиями (в минутах)'),
+                'app_booking_enabled' => __('Бронь из приложения'),
+                'app_booking_cancel' => __('Гость может отменять бронь'),
                 'max_cashiers_on_shift' => __('Сколько кассиров может быть на смене'),
                 'max_operators_on_shift' => __('Сколько операторов может быть на смене'),
                 'agent_idle_logout_minutes' => __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)'),

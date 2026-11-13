@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClubCatalogController;
 use App\Http\Controllers\Api\ClubInstallationController;
+use App\Http\Controllers\Api\GuestBookingController;
 use App\Http\Controllers\Api\GuestChatController;
 use App\Http\Controllers\Api\GuestFriendController;
 use App\Http\Controllers\Api\GuestHistoryController;
@@ -143,6 +144,9 @@ Route::middleware(['auth:sanctum', 'current-club'])->group(function () {
     Route::post('/guest/friends/{friendship}/transfer/confirm', [GuestFriendController::class, 'transferConfirm'])->middleware('throttle:10,1,api.guest.friends.transfer.confirm')->name('api.guest.friends.transfer.confirm');
     Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
     Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
+    // PC bookings in the mobile app: the list and cancelling (the refund) do not depend on the subscription.
+    Route::get('/guest/bookings', [GuestBookingController::class, 'index'])->middleware('throttle:60,1,api.guest.bookings')->name('api.guest.bookings.index');
+    Route::post('/guest/bookings/{reservation}/cancel', [GuestBookingController::class, 'cancel'])->whereNumber('reservation')->middleware('throttle:10,1,api.guest.bookings.cancel')->name('api.guest.bookings.cancel');
 });
 
 Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(function () {
@@ -168,6 +172,8 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     // The customer's own name and password, in the agent profile.
     Route::post('/guest/profile/name', [GuestProfileController::class, 'name'])->middleware('throttle:10,1,api.guest.profile.name')->name('api.guest.profile.name');
     Route::post('/guest/profile/password', [GuestProfileController::class, 'password'])->middleware('throttle:5,1,api.guest.profile.password')->name('api.guest.profile.password');
+    Route::get('/guest/bookings/options', [GuestBookingController::class, 'options'])->middleware('throttle:60,1,api.guest.bookings.options')->name('api.guest.bookings.options');
+    Route::post('/guest/bookings', [GuestBookingController::class, 'store'])->middleware('throttle:10,1,api.guest.bookings.store')->name('api.guest.bookings.store');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');
     Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1,api.guest.seat-transfer')->name('api.guest.seat-transfer');
     // The mobile app scans the PC's QR code and confirms the sign-in there (like the /pc-login page).

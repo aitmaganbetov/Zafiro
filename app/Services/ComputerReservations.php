@@ -4,21 +4,40 @@ namespace App\Services;
 
 use App\Models\ClubComputer;
 use App\Models\ComputerReservation;
+use App\Models\MemberBalance;
+use App\Models\SessionPurchase;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
  * PC bookings. The club's "interval between bookings" is kept free before and after each
  * booking: no other booking or paid session may run into it, and the PC shows as reserved
  * that long before the booking starts.
+ *
+ * A booking from the guest app is paid in advance (GuestBookings). Its time starts on the PC when
+ * the guest signs in there during the booking (from the interval before it) or staff mark the
+ * arrival; a cancelled one gives the money back, a missed one does not.
  */
 class ComputerReservations
 {
     public const DEFAULT_GAP_MINUTES = 30;
 
-    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub) {}
+    public function __construct(private ActivityLogger $activity, private CurrentClub $currentClub, private LoyaltyProgram $loyalty) {}
+
+    /** Guests book and pay for PCs in the mobile app (club settings, off by default). */
+    public function appBookingEnabled(): bool
+    {
+        return filter_var($this->currentClub->settings()['club']['app_booking_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** A guest may cancel a paid booking before it starts and get the money back (on by default). */
+    public function guestMayCancel(): bool
+    {
+        return filter_var($this->currentClub->settings()['club']['app_booking_cancel'] ?? true, FILTER_VALIDATE_BOOLEAN);
+    }
 
     public function gapMinutes(): int
     {
@@ -80,7 +99,10 @@ class ComputerReservations
         $this->close($reservation, $actor, 'cancelled_at', 'reservation.cancelled', fn (array $names): string => __('Бронь ПК :computer на :from отменена', $names));
     }
 
-    /** The customer came: the PC is no longer held, anyone signed in on it may buy time. */
+    /**
+     * The customer came: the PC is no longer held, anyone signed in on it may buy time. The time of
+     * a paid booking starts on the PC now.
+     */
     public function arrive(ComputerReservation $reservation, User $actor): void
     {
         $this->close($reservation, $actor, 'arrived_at', 'reservation.arrived', fn (array $names): string => __('Клиент пришёл по брони ПК :computer на :from', $names));
@@ -106,8 +128,41 @@ class ComputerReservations
         ComputerReservation::query()
             ->where('club_computer_id', $computer->getKey())
             ->where('user_id', $userId)
+            ->unpaid()
             ->overlapping(now(), $until->copy()->addMinutes($this->gapMinutes()))
             ->update(['arrived_at' => now()]);
+    }
+
+    /**
+     * The guest is signed in on the PC (agent heartbeat): their paid booking that starts within the
+     * interval before it starts its time on the PC. Most heartbeats stop at the cheap check.
+     */
+    public function startForSignedIn(ClubComputer $computer, int $userId): bool
+    {
+        if ($computer->hasPaidSession() && ($computer->session_guest || $computer->current_session_user_id !== $userId)) {
+            return false;
+        }
+        $due = fn () => ComputerReservation::query()
+            ->where('club_computer_id', $computer->getKey())
+            ->where('user_id', $userId)
+            ->pending()
+            ->paid()
+            ->where('starts_at', '<=', now()->addMinutes($this->gapMinutes()))
+            ->where('ends_at', '>', now());
+        if (! $due()->exists()) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($computer, $userId, $due): bool {
+            $computer = ClubComputer::query()->lockForUpdate()->findOrFail($computer->getKey());
+            $reservation = $due()->orderBy('starts_at')->lockForUpdate()->first();
+            if ($reservation === null || ! $this->startPaidSession($reservation, $computer)) {
+                return false;
+            }
+            $this->recordArrival($reservation, $computer, $userId);
+
+            return true;
+        });
     }
 
     /**
@@ -129,17 +184,100 @@ class ComputerReservations
     private function close(ComputerReservation $reservation, User $actor, string $column, string $event, callable $description): void
     {
         DB::transaction(function () use ($reservation, $actor, $column, $event, $description): void {
-            $reservation = ComputerReservation::query()->with('computer')->lockForUpdate()->findOrFail($reservation->getKey());
+            // The PC first, as bookings and purchases on it lock it.
+            $computer = ClubComputer::query()->lockForUpdate()->find($reservation->club_computer_id);
+            $reservation = ComputerReservation::query()->lockForUpdate()->findOrFail($reservation->getKey());
+            $reservation->setRelation('computer', $computer);
             if (! in_array($reservation->state(), ['pending', 'active'], true)) {
                 throw ValidationException::withMessages(['reservation' => __('Эта бронь уже закрыта.')]);
             }
 
-            $reservation->update([$column => now()]);
-            $names = ['computer' => $reservation->computer?->displayName() ?? '—', 'from' => $reservation->starts_at->format('d.m.Y H:i')];
+            if ($column === 'arrived_at' && $reservation->isPaid()) {
+                if ($computer === null || ! $this->startPaidSession($reservation, $computer)) {
+                    throw ValidationException::withMessages(['reservation' => __('На ПК идёт сессия другого клиента: оплаченное время брони начнётся, когда ПК освободится.')]);
+                }
+            } else {
+                $reservation->update([$column => now()]);
+            }
+            if ($column === 'cancelled_at' && $reservation->isPaid()) {
+                $this->refund($reservation, $actor);
+            }
+
+            $names = ['computer' => $computer?->displayName() ?? '—', 'from' => $reservation->starts_at->format('d.m.Y H:i')];
             $this->activity->record($event, $description($names), $actor->getKey(), $reservation, [
                 'computer' => $names['computer'],
                 'starts_at' => $names['from'],
             ]);
         });
+    }
+
+    /**
+     * Starts the paid time of the booking on the locked PC, or adds it to the guest's own session
+     * there. The time is the booked duration but ends with the booking at the latest (late —
+     * the missed part is not refunded); the paid amount goes with it as minutes, so a session ended
+     * early gives back the unused part (SessionSettlement).
+     */
+    private function startPaidSession(ComputerReservation $reservation, ClubComputer $computer): bool
+    {
+        $own = $computer->hasPaidSession();
+        if ($own && ($computer->session_guest || $computer->current_session_user_id !== $reservation->user_id)) {
+            return false;
+        }
+        $duration = $reservation->durationMinutes();
+        $minutes = min($duration, intdiv(max(0, $reservation->ends_at->getTimestamp() - now()->getTimestamp()) + 59, 60));
+        if ($minutes <= 0) {
+            return false;
+        }
+        $sessionId = $own ? $computer->current_session_id : (string) Str::uuid();
+        $endsAt = ($own ? $computer->session_ends_at->copy() : now())->addMinutes($minutes);
+
+        SessionPurchase::query()->create([
+            'session_id' => $sessionId,
+            'user_id' => $reservation->user_id,
+            'kind' => SessionPurchase::KIND_MINUTES,
+            'tariff_id' => null,
+            'name' => __('Бронь'),
+            'minutes' => $minutes,
+            'main_cents' => intdiv($reservation->paid_main_cents * $minutes, $duration),
+            'bonus_cents' => intdiv($reservation->paid_bonus_cents * $minutes, $duration),
+            'expires_at' => null,
+        ]);
+        $computer->update([
+            'current_session_id' => $sessionId,
+            'current_session_user_id' => $reservation->user_id,
+            'session_guest' => false,
+            'session_ends_at' => $endsAt,
+        ]);
+        $reservation->update(['arrived_at' => now()]);
+
+        return true;
+    }
+
+    private function recordArrival(ComputerReservation $reservation, ClubComputer $computer, int $actorId): void
+    {
+        $names = ['computer' => $computer->displayName(), 'from' => $reservation->starts_at->format('d.m.Y H:i')];
+        $this->activity->record('reservation.arrived', __('Клиент пришёл по брони ПК :computer на :from', $names), $actorId, $reservation, [
+            'computer' => $names['computer'],
+            'starts_at' => $names['from'],
+        ]);
+    }
+
+    /** The paid amount goes back to the balances it was paid from. */
+    private function refund(ComputerReservation $reservation, User $actor): void
+    {
+        $balance = MemberBalance::query()->where('user_id', $reservation->user_id)->lockForUpdate()->first();
+        if ($balance === null) {
+            return;
+        }
+        $balance->update([
+            'balance' => AgentTariffPurchaseService::formatCents(AgentTariffPurchaseService::amountToCents((string) $balance->balance) + $reservation->paid_main_cents),
+            'bonus_balance' => AgentTariffPurchaseService::formatCents(AgentTariffPurchaseService::amountToCents((string) $balance->bonus_balance) + $reservation->paid_bonus_cents),
+        ]);
+        $this->loyalty->subtractSpending($reservation->user_id, $reservation->paid_main_cents);
+        $this->activity->record('reservation.refunded', __('Возврат за отменённую бронь ПК :computer', ['computer' => $reservation->computer?->displayName() ?? '—']), $actor->getKey(), User::query()->find($reservation->user_id), [
+            'main_balance_amount' => AgentTariffPurchaseService::formatCents($reservation->paid_main_cents),
+            'bonus_balance_amount' => AgentTariffPurchaseService::formatCents($reservation->paid_bonus_cents),
+            'reservation_id' => $reservation->getKey(),
+        ]);
     }
 }

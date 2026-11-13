@@ -51,6 +51,8 @@ class SaveSettingsRequest extends FormRequest
             'allow_balance_transfer_to_friends' => ['nullable', 'boolean'],
             'agent_idle_logout_minutes' => ['sometimes', 'numeric', 'min:0', 'max:1440'],
             'agent_shop_enabled' => ['nullable', 'boolean'],
+            'app_booking_enabled' => ['nullable', 'boolean'],
+            'app_booking_cancel' => ['nullable', 'boolean'],
             'agent_auto_update' => ['nullable', 'boolean'],
             'guest_mode_enabled' => ['nullable', 'boolean'],
         ];

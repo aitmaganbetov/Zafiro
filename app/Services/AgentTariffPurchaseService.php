@@ -260,33 +260,8 @@ class AgentTariffPurchaseService
         $balance = MemberBalance::query()->where('user_id', $user->getKey())->lockForUpdate()->firstOrFail();
         $mainBalance = self::amountToCents((string) $balance->balance);
         $bonusBalance = self::amountToCents((string) $balance->bonus_balance);
-        $bonusLimit = $paymentMethod === 'main_balance_only' ? 0 : $this->rules->bonusLimitCents($price);
-        $mixed = $this->rules->mixedPaymentAllowed();
-
-        if ($choice === 'bonus') {
-            if ($bonusLimit === 0 && $price > 0) {
-                throw ValidationException::withMessages(['balance' => $paymentMethod === 'main_balance_only'
-                    ? __('Этот тариф оплачивается только с основного баланса.')
-                    : __('В клубе бонусами нельзя оплачивать время.')]);
-            }
-            $bonusPayment = min($bonusBalance, $bonusLimit);
-            if (! $mixed && $bonusPayment < $price) {
-                throw ValidationException::withMessages(['balance' => $bonusLimit < $price
-                    ? __('Бонусами можно оплатить только :percent% цены, а смешанная оплата в клубе выключена. Оплатите с основного баланса.', ['percent' => $this->rules->bonusMaxPercent()])
-                    : __('Бонусов не хватает на всю цену. Оплатите с основного баланса.')]);
-            }
-        } elseif ($choice === 'main') {
-            $bonusPayment = 0;
-        } elseif ($mixed) {
-            $bonusPayment = min($bonusLimit, max(0, $price - $mainBalance));
-        } else {
-            // One balance: the main one, or bonuses for the whole price when the main one is short.
-            $bonusPayment = $mainBalance < $price && $bonusLimit >= $price && $bonusBalance >= $price ? $price : 0;
-        }
+        $bonusPayment = $this->bonusPayment($price, $paymentMethod, $choice, $mainBalance, $bonusBalance, __('Недостаточно средств для покупки тарифа.'));
         $mainPayment = $price - $bonusPayment;
-        if ($mainBalance < $mainPayment || $bonusBalance < $bonusPayment) {
-            throw ValidationException::withMessages(['balance' => __('Недостаточно средств для покупки тарифа.')]);
-        }
         $mainBalance -= $mainPayment;
         $bonusBalance -= $bonusPayment;
 
@@ -328,6 +303,42 @@ class AgentTariffPurchaseService
             'session_id' => $sessionId,
             'session_ends_at' => $sessionEndsAt->toIso8601String(),
         ];
+    }
+
+    /**
+     * The bonus part of a price by the customer's choice (see sell()); the rest is paid from the
+     * main balance. Throws when the balances do not cover it.
+     */
+    public function bonusPayment(int $price, string $paymentMethod, ?string $choice, int $mainBalance, int $bonusBalance, string $shortMessage): int
+    {
+        $bonusLimit = $paymentMethod === 'main_balance_only' ? 0 : $this->rules->bonusLimitCents($price);
+        $mixed = $this->rules->mixedPaymentAllowed();
+
+        if ($choice === 'bonus') {
+            if ($bonusLimit === 0 && $price > 0) {
+                throw ValidationException::withMessages(['balance' => $paymentMethod === 'main_balance_only'
+                    ? __('Этот тариф оплачивается только с основного баланса.')
+                    : __('В клубе бонусами нельзя оплачивать время.')]);
+            }
+            $bonusPayment = min($bonusBalance, $bonusLimit);
+            if (! $mixed && $bonusPayment < $price) {
+                throw ValidationException::withMessages(['balance' => $bonusLimit < $price
+                    ? __('Бонусами можно оплатить только :percent% цены, а смешанная оплата в клубе выключена. Оплатите с основного баланса.', ['percent' => $this->rules->bonusMaxPercent()])
+                    : __('Бонусов не хватает на всю цену. Оплатите с основного баланса.')]);
+            }
+        } elseif ($choice === 'main') {
+            $bonusPayment = 0;
+        } elseif ($mixed) {
+            $bonusPayment = min($bonusLimit, max(0, $price - $mainBalance));
+        } else {
+            // One balance: the main one, or bonuses for the whole price when the main one is short.
+            $bonusPayment = $mainBalance < $price && $bonusLimit >= $price && $bonusBalance >= $price ? $price : 0;
+        }
+        if ($mainBalance < $price - $bonusPayment || $bonusBalance < $bonusPayment) {
+            throw ValidationException::withMessages(['balance' => $shortMessage]);
+        }
+
+        return $bonusPayment;
     }
 
     private function isAvailable(Tariff $tariff, ClubMembership $membership, int $purchaseCount): bool

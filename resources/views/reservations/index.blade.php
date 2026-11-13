@@ -96,12 +96,13 @@
                         <td class="px-4 py-3 text-gray-800 dark:text-gray-200">{{ $reservation->computer?->displayName() ?? '—' }}@if($reservation->computer?->zone)<div class="text-xs text-gray-500">{{ $reservation->computer->zone->name }}</div>@endif</td>
                         <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $reservation->customerLabel() ?: '—' }}
                             @if($reservation->note)<div class="text-xs text-gray-500">{{ $reservation->note }}</div>@endif
+                            @if($reservation->from_app)<div class="text-xs text-gray-500">{{ $reservation->isPaid() ? __('Из приложения, оплачено :amount', ['amount' => number_format(($reservation->paid_main_cents + $reservation->paid_bonus_cents) / 100, 0, '.', ' ')]) : __('Из приложения') }}</div>@endif
                         </td>
                         <td class="px-4 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {{ $stateClass }}">{{ $stateLabel }}</span></td>
                         <td class="whitespace-nowrap px-4 py-3 text-right">
                             @if(in_array($reservation->state(), ['pending', 'active'], true))
                                 @if($currentMembership->hasPermission('reservations.update'))<form method="POST" action="{{ route('reservations.arrive', $reservation) }}" class="inline">@csrf<button type="submit" class="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 dark:border-green-800 dark:text-green-400">{{ __('Клиент пришёл') }}</button></form>@endif
-                                @if($currentMembership->hasPermission('reservations.delete'))<form method="POST" action="{{ route('reservations.cancel', $reservation) }}" class="inline" onsubmit="return confirm(@js(__('Отменить бронь?')))">@csrf<button type="submit" class="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 dark:border-red-800 dark:text-red-400">{{ __('Отменить') }}</button></form>@endif
+                                @if($currentMembership->hasPermission('reservations.delete'))<form method="POST" action="{{ route('reservations.cancel', $reservation) }}" class="inline" onsubmit="return confirm(@js($reservation->isPaid() ? __('Отменить бронь? Оплата вернётся клиенту на баланс.') : __('Отменить бронь?')))">@csrf<button type="submit" class="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 dark:border-red-800 dark:text-red-400">{{ __('Отменить') }}</button></form>@endif
                             @endif
                         </td>
                     </tr>

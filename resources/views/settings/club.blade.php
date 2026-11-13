@@ -3,6 +3,7 @@
 {{-- Подразделы страницы: якоря в левом меню настроек. --}}
 @php($settingsAnchors = [
     'club-sessions' => __('Сессии и ПК'),
+    'app-booking' => __('Бронь из приложения'),
     'agent-settings' => __('Агент на ПК'),
     'shift-limits' => __('Сотрудники на смене'),
     'club-key' => __('Ключ установки клуба'),
@@ -39,6 +40,26 @@
         </div>
     @endforeach
 </div>
+</x-settings.card>
+
+<x-settings.card id="app-booking" aria-labelledby="app-booking-title">
+    <h5 id="app-booking-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Бронь из приложения') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Гость выбирает в мобильном приложении зону, ПК и время и оплачивает бронь с баланса по цене зоны. Оплаченное время начнётся, когда гость войдёт на этом ПК (или вы отметите «Клиент пришёл»). Не пришёл — деньги остаются клубу.') }}</p>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="flex items-center gap-3 self-start rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+            <label for="app_booking_enabled" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Бронь из приложения') }}</label>
+            <input type="hidden" name="app_booking_enabled" value="0">
+            <input id="app_booking_enabled" type="checkbox" role="switch" name="app_booking_enabled" value="1" class="settings-switch" @checked(old('app_booking_enabled', $settings['club']['app_booking_enabled'] ?? false))>
+        </div>
+        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <label for="app_booking_cancel" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Гость может отменять бронь') }}</label>
+                <input type="hidden" name="app_booking_cancel" value="0">
+                <input id="app_booking_cancel" type="checkbox" role="switch" name="app_booking_cancel" value="1" class="settings-switch" @checked(old('app_booking_cancel', $settings['club']['app_booking_cancel'] ?? true))>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">{{ __('До начала брони гость может отменить её в приложении, деньги вернутся на баланс. Если выключено — отменить бронь может только администратор (тоже с возвратом).') }}</p>
+        </div>
+    </div>
 </x-settings.card>
 
 <x-settings.card id="agent-settings" aria-labelledby="agent-settings-title">

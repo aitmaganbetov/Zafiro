@@ -17,14 +17,14 @@ class GuestHistory
 
     /** Done by the customer. */
     // time.refunded: by the customer (ended the session) or staff, so both lists.
-    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
+    private const OWN_EVENTS = ['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'reservation.paid', 'reservation.refunded', 'balance.transferred', 'session.transferred', 'auth.api_login', 'auth.qr_login'];
 
     /** Done to the customer's account by someone else (staff, a friend). */
-    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'user.balance_refunded', 'user.balance_written_off', 'balance.transferred', 'shop.order_cancelled', 'time.refunded'];
+    private const RECEIVED_EVENTS = ['user.balance_topped_up', 'user.balance_refunded', 'user.balance_written_off', 'balance.transferred', 'shop.order_cancelled', 'time.refunded', 'reservation.refunded'];
 
     /** Filters of the history page in the agent: [own events, received events]. */
     public const FILTERS = [
-        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded'], ['shop.order_cancelled', 'time.refunded']],
+        'purchases' => [['tariff.purchased', 'time.purchased', 'shop.purchased', 'time.refunded', 'reservation.paid', 'reservation.refunded'], ['shop.order_cancelled', 'time.refunded', 'reservation.refunded']],
         'top_ups' => [[], ['user.balance_topped_up', 'user.balance_refunded', 'user.balance_written_off']],
         'transfers' => [['balance.transferred'], ['balance.transferred']],
         'visits' => [['session.transferred', 'auth.api_login', 'auth.qr_login'], []],
@@ -77,6 +77,19 @@ class GuestHistory
                 $entry['note'] = isset($details['price_per_hour']) ? __(':price за час', ['price' => $details['price_per_hour']]) : null;
                 $entry['amount'] = self::negative($details['main_balance_amount'] ?? $details['amount'] ?? null);
                 $entry['bonus_amount'] = self::negative($details['bonus_balance_amount'] ?? null);
+                break;
+            case 'reservation.paid':
+                $entry['kind'] = 'purchase';
+                $entry['title'] = __('Бронь ПК :computer', ['computer' => $details['computer'] ?? '—']);
+                $entry['note'] = $details['starts_at'] ?? null;
+                $entry['amount'] = self::negative($details['main_balance_amount'] ?? null);
+                $entry['bonus_amount'] = self::negative($details['bonus_balance_amount'] ?? null);
+                break;
+            case 'reservation.refunded':
+                $entry['kind'] = 'refund';
+                $entry['title'] = __('Возврат за отменённую бронь');
+                $entry['amount'] = self::positive($details['main_balance_amount'] ?? null);
+                $entry['bonus_amount'] = self::positive($details['bonus_balance_amount'] ?? null);
                 break;
             case 'shop.purchased':
                 $entry['kind'] = 'shop';
