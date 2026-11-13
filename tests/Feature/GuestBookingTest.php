@@ -330,3 +330,21 @@ test('the guest picks a PC first: the club PCs by zone, then only the tariffs of
     expect($tariffsOf($common))->toBe([$everywhere->id])
         ->and($tariffsOf($vip))->toBe([$everywhere->id, $vipOnly->id]);
 });
+
+test('the journal and the agent show booking times in the club time zone', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-16 03:00:00', 'UTC'));
+    bookingClub();
+    Club::query()->whereKey(app(CurrentClub::class)->id())->update(['timezone' => 'Asia/Almaty']); // UTC+5
+    $computer = bookingComputer();
+    [, $token] = bookingGuest();
+    [, $strangerToken] = bookingGuest('5000.00');
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-16T05:30:00+00:00', 'duration_minutes' => 60])
+        ->assertCreated();
+    expect(ActivityLog::query()->where('event', 'reservation.paid')->sole()->details['starts_at'])->toBe('16.11.2026 10:30');
+
+    freshRequest();
+    $this->withToken($strangerToken)->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 150])
+        ->assertUnprocessable()->assertJsonPath('errors.computer_id.0', fn (string $message) => str_contains($message, '10:30'));
+});

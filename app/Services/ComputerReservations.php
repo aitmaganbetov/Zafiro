@@ -66,14 +66,14 @@ class ComputerReservations
                 ->first();
             if ($conflict !== null) {
                 throw ValidationException::withMessages(['starts_at' => __('ПК уже забронирован с :from до :to (между бронями нужно :count мин).', [
-                    'from' => $conflict->starts_at->format('d.m H:i'),
-                    'to' => $conflict->ends_at->format('H:i'),
+                    'from' => $this->local($conflict->starts_at)->format('d.m H:i'),
+                    'to' => $this->local($conflict->ends_at)->format('H:i'),
                     'count' => $gap,
                 ])]);
             }
 
             if ($computer->hasPaidSession() && $computer->session_ends_at->gt($startsAt->copy()->subMinutes($gap))) {
-                throw ValidationException::withMessages(['starts_at' => __('На ПК идёт сессия до :time.', ['time' => $computer->session_ends_at->format('d.m H:i')])]);
+                throw ValidationException::withMessages(['starts_at' => __('На ПК идёт сессия до :time.', ['time' => $this->local($computer->session_ends_at)->format('d.m H:i')])]);
             }
 
             $reservation = ComputerReservation::query()->create([
@@ -83,12 +83,12 @@ class ComputerReservations
             $reservation->setRelation('computer', $computer);
             $this->activity->record('reservation.created', __('ПК :computer забронирован на :from – :to', [
                 'computer' => $computer->displayName(),
-                'from' => $startsAt->format('d.m.Y H:i'),
-                'to' => $endsAt->format('H:i'),
+                'from' => $this->local($startsAt)->format('d.m.Y H:i'),
+                'to' => $this->local($endsAt)->format('H:i'),
             ]), $actor->getKey(), $reservation, [
                 'computer' => $computer->displayName(),
-                'starts_at' => $startsAt->format('d.m.Y H:i'),
-                'ends_at' => $endsAt->format('d.m.Y H:i'),
+                'starts_at' => $this->local($startsAt)->format('d.m.Y H:i'),
+                'ends_at' => $this->local($endsAt)->format('d.m.Y H:i'),
             ]);
 
             return $reservation;
@@ -181,6 +181,12 @@ class ComputerReservations
             ->all();
     }
 
+    /** Times in texts are the club's local time: the API reads dates in UTC. */
+    private function local(Carbon $time): Carbon
+    {
+        return $time->copy()->setTimezone($this->currentClub->localTimezone());
+    }
+
     /** @param  callable(array{computer: string, from: string}): string  $description */
     private function close(ComputerReservation $reservation, User $actor, string $column, string $event, callable $description): void
     {
@@ -204,7 +210,7 @@ class ComputerReservations
                 $this->refund($reservation, $actor);
             }
 
-            $names = ['computer' => $computer?->displayName() ?? '—', 'from' => $reservation->starts_at->format('d.m.Y H:i')];
+            $names = ['computer' => $computer?->displayName() ?? '—', 'from' => $this->local($reservation->starts_at)->format('d.m.Y H:i')];
             $this->activity->record($event, $description($names), $actor->getKey(), $reservation, [
                 'computer' => $names['computer'],
                 'starts_at' => $names['from'],
@@ -258,7 +264,7 @@ class ComputerReservations
 
     private function recordArrival(ComputerReservation $reservation, ClubComputer $computer, int $actorId): void
     {
-        $names = ['computer' => $computer->displayName(), 'from' => $reservation->starts_at->format('d.m.Y H:i')];
+        $names = ['computer' => $computer->displayName(), 'from' => $this->local($reservation->starts_at)->format('d.m.Y H:i')];
         $this->activity->record('reservation.arrived', __('Клиент пришёл по брони ПК :computer на :from', $names), $actorId, $reservation, [
             'computer' => $names['computer'],
             'starts_at' => $names['from'],

@@ -296,7 +296,7 @@ class AgentTariffPurchaseService
         // Time that runs into someone else's booking is not sold; the booked customer may play.
         $booking = $this->reservations->blocking($computer, $user->getKey(), $sessionEndsAt);
         if ($booking !== null) {
-            throw ValidationException::withMessages(['computer_id' => __('ПК забронирован с :time. Выберите тариф короче или другой ПК.', ['time' => $booking->starts_at->format('H:i')])]);
+            throw ValidationException::withMessages(['computer_id' => __('ПК забронирован с :time. Выберите тариф короче или другой ПК.', ['time' => $booking->starts_at->copy()->setTimezone($this->currentClub->localTimezone())->format('H:i')])]);
         }
         $this->reservations->markArrivedBy($computer, $user->getKey(), $sessionEndsAt);
 

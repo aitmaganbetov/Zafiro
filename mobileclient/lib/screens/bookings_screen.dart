@@ -313,10 +313,11 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   late final Future<List<PcZone>> _pcs = widget.session.api.bookingComputers();
   PcZone? _pcZone;
   BookingPc? _pc;
+  // Время, вид брони и длительность гость выбирает сам: без них бронь не оформить.
   late DateTime _day;
-  late TimeOfDay _time;
-  bool _byTariff = false;
-  int _minutes = 60;
+  TimeOfDay? _time;
+  bool? _byTariff;
+  int? _minutes;
   Future<List<BookingTariff>>? _tariffs;
   BookingTariff? _tariff;
 
@@ -327,22 +328,22 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   @override
   void initState() {
     super.initState();
-    // Ближайшие полчаса, не раньше чем через 15 минут.
-    final soon = DateTime.now().add(const Duration(minutes: 15));
-    final start = DateTime(
-      soon.year,
-      soon.month,
-      soon.day,
-      soon.hour,
-    ).add(Duration(minutes: soon.minute <= 30 ? 30 : 60));
-    _day = DateTime(start.year, start.month, start.day);
-    _time = TimeOfDay(hour: start.hour, minute: start.minute);
+    final now = DateTime.now();
+    _day = DateTime(now.year, now.month, now.day);
   }
 
-  DateTime get _start =>
-      DateTime(_day.year, _day.month, _day.day, _time.hour, _time.minute);
+  DateTime? get _start => switch (_time) {
+    final time? => DateTime(
+      _day.year,
+      _day.month,
+      _day.day,
+      time.hour,
+      time.minute,
+    ),
+    null => null,
+  };
 
-  bool get _past => _start.isBefore(DateTime.now());
+  bool get _past => _start?.isBefore(DateTime.now()) ?? false;
 
   List<int> get _durations => [
     for (final m in const [60, 120, 180, 240, 300, 360])
@@ -353,20 +354,25 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   void _load() {
     setState(() {
       _tariff = null;
-      _tariffs = _pc != null && _byTariff && !_past
-          ? widget.session.api.bookingTariffs(_start, computerId: _pc!.id)
+      _tariffs = _pc != null && _start != null && _byTariff == true && !_past
+          ? widget.session.api.bookingTariffs(_start!, computerId: _pc!.id)
           : null;
       _loadQuote();
     });
   }
 
   void _loadQuote() {
-    _options = _pc == null || _past || (_byTariff && _tariff == null)
+    final ready = switch (_byTariff) {
+      true => _tariff != null,
+      false => _minutes != null,
+      null => false,
+    };
+    _options = _pc == null || _start == null || _past || !ready
         ? null
         : widget.session.api.bookingOptions(
-            _start,
-            minutes: _byTariff ? null : _minutes,
-            tariffId: _tariff?.id,
+            _start!,
+            minutes: _byTariff! ? null : _minutes,
+            tariffId: _byTariff! ? _tariff?.id : null,
           );
   }
 
@@ -381,7 +387,10 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _time ?? TimeOfDay.fromDateTime(DateTime.now()),
+    );
     if (picked == null) return;
     _time = picked;
     _load();
@@ -390,14 +399,15 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   Future<void> _confirm(BookingZone zone, int bookedMinutes) async {
     final pc = _pc!;
     final currency = widget.overview.currency;
-    final end = _start.add(Duration(minutes: bookedMinutes));
+    final start = _start!;
+    final end = start.add(Duration(minutes: bookedMinutes));
     final what = _tariff == null ? '' : 'Тариф «${_tariff!.name}». ';
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Забронировать ${pc.name}?'),
         content: Text(
-          '$what${zone.name}, ${_period(_start, end)}.\n'
+          '$what${zone.name}, ${_period(start, end)}.\n'
           'С баланса спишется ${money(zone.price, currency)}.'
           '${widget.overview.canCancel ? '' : '\nОтменить бронь в приложении будет нельзя.'}',
         ),
@@ -418,7 +428,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
     try {
       final message = await widget.session.api.book(
         pc.id,
-        _start,
+        start,
         minutes: _tariff == null ? _minutes : null,
         tariffId: _tariff?.id,
       );
@@ -477,7 +487,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
               child: OutlinedButton.icon(
                 onPressed: _pickTime,
                 icon: const FaIcon(FontAwesomeIcons.clock, size: 14),
-                label: Text(_time.format(context)),
+                label: Text(_time?.format(context) ?? 'Выбрать время'),
               ),
             ),
             const SizedBox(height: 24),
@@ -494,8 +504,10 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                   icon: FaIcon(FontAwesomeIcons.tags, size: 14),
                 ),
               ],
-              selected: {_byTariff},
+              emptySelectionAllowed: true,
+              selected: {?_byTariff},
               onSelectionChanged: (value) {
+                if (value.isEmpty) return; // выбор не снимается
                 _byTariff = value.first;
                 _load();
               },
@@ -506,7 +518,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                 icon: FontAwesomeIcons.clock,
                 text: 'Это время уже прошло — выберите другое.',
               )
-            else if (!_byTariff) ...[
+            else if (_byTariff == false) ...[
               const _Label('Длительность'),
               Wrap(
                 spacing: 8,
@@ -551,7 +563,13 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                       )
                     : Text(switch (()) {
                         _ when _pc == null => 'Выберите ПК',
-                        _ when _byTariff && _tariff == null => 'Выберите тариф',
+                        _ when _time == null => 'Выберите время',
+                        _ when _byTariff == null =>
+                          'Выберите: по часовой или тариф',
+                        _ when _byTariff == false && _minutes == null =>
+                          'Выберите длительность',
+                        _ when _byTariff == true && _tariff == null =>
+                          'Выберите тариф',
                         _ when free =>
                           'Забронировать ${_pc!.name} за ${money(quote.$1.price, currency)}',
                         _ => 'Забронировать',
@@ -711,7 +729,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
       if (quote == null) {
         return _Note(
           icon: FontAwesomeIcons.circleInfo,
-          text: _byTariff
+          text: _byTariff == true
               ? 'Этот тариф не действует для ${_pc!.name}.'
               : 'В зоне «${_pcZone?.name ?? ''}» нет цены за час — выберите тариф.',
         );
@@ -723,7 +741,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
           text: '${_pc!.name} занят в это время — выберите другое время.',
         );
       }
-      final end = _start.add(Duration(minutes: snapshot.data!.minutes));
+      final end = _start!.add(Duration(minutes: snapshot.data!.minutes));
       return GlassCard(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -743,7 +761,7 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _period(_start, end),
+                    _period(_start!, end),
                     style: TextStyle(color: Brand.muted, fontSize: 13),
                   ),
                 ],

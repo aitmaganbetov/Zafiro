@@ -220,7 +220,7 @@ class GuestBookings
             $this->loyalty->addSpending($user->getKey(), $main);
             $this->activity->record('reservation.paid', __('Оплачена бронь ПК :computer на :from', [
                 'computer' => $computer->displayName(),
-                'from' => $reservation->starts_at->format('d.m.Y H:i'),
+                'from' => $reservation->starts_at->copy()->setTimezone($this->currentClub->localTimezone())->format('d.m.Y H:i'),
             ]), $user->getKey(), $reservation, [
                 'amount' => AgentTariffPurchaseService::formatCents($price),
                 'currency' => data_get($this->currentClub->settings(), 'finances.currency', 'KZT'),
@@ -229,7 +229,7 @@ class GuestBookings
                 'computer' => $computer->displayName(),
                 'zone' => $zone->name,
                 'tariff' => $tariff?->name,
-                'starts_at' => $reservation->starts_at->format('d.m.Y H:i'),
+                'starts_at' => $reservation->starts_at->copy()->setTimezone($this->currentClub->localTimezone())->format('d.m.Y H:i'),
                 'duration_minutes' => $plan['minutes'],
             ]);
 
