@@ -89,6 +89,7 @@ $superadminDomain = SuperadminHost::domain();
         Route::post('/resellers', [SuperadminResellerController::class, 'store'])->name('resellers.store');
         Route::patch('/resellers/{reseller}', [SuperadminResellerController::class, 'update'])->name('resellers.update');
         Route::post('/resellers/{reseller}/payouts', [SuperadminResellerController::class, 'payout'])->name('resellers.payout');
+        Route::delete('/resellers/{reseller}', [SuperadminResellerController::class, 'destroy'])->name('resellers.destroy');
         Route::delete('/resellers/{reseller}/clubs/{club}', [SuperadminResellerController::class, 'detach'])->name('resellers.detach');
 
         Route::get('/invoices', [SuperadminInvoiceController::class, 'index'])->name('invoices.index');

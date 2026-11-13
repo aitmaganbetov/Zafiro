@@ -33,7 +33,10 @@
                     <h3 class="font-semibold text-gray-900 dark:text-white"><span class="font-mono">{{ $reseller->code }}</span> · {{ $reseller->name }}</h3>
                     <p class="text-sm text-gray-500">{{ $reseller->user?->name }} · {{ $reseller->user?->phone }} · {{ trans_choice(':count клуб|:count клуба|:count клубов', $reseller->clubs->count()) }}</p>
                 </div>
-                <p class="text-sm text-gray-700 dark:text-gray-300">{{ __('Заработано :earned, выплачено :paid, к выплате :balance', ['earned' => $money($reseller->earned), 'paid' => $money($reseller->paid_out), 'balance' => $money($balance)]) }}</p>
+                <div class="flex flex-wrap items-baseline gap-3">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">{{ __('Заработано :earned, выплачено :paid, к выплате :balance', ['earned' => $money($reseller->earned), 'paid' => $money($reseller->paid_out), 'balance' => $money($balance)]) }}</p>
+                    <form method="POST" action="{{ route('superadmin.resellers.destroy', $reseller) }}" onsubmit="return confirm(@js(__('Удалить реселлера :code? Аккаунт останется, клубы отвяжутся, выплаты удалятся.', ['code' => $reseller->code])))">@csrf @method('DELETE')<button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Удалить') }}</button></form>
+                </div>
             </div>
             <div class="grid gap-4 lg:grid-cols-2">
                 <form method="POST" action="{{ route('superadmin.resellers.update', $reseller) }}" class="flex flex-wrap items-end gap-3">@csrf @method('PATCH')

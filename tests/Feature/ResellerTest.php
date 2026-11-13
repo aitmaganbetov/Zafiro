@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\CurrentClub;
 use App\Services\SubscriptionBilling;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -142,4 +143,24 @@ test('the superadmin sets the percent and discount, stops a code and unlinks a c
 
     $this->delete(route('superadmin.resellers.detach', [$reseller, $club]))->assertSessionHasNoErrors();
     expect($club->fresh()->reseller_id)->toBeNull();
+});
+
+test('the superadmin deletes a reseller: the account stays, clubs are unlinked, payouts go', function () {
+    $reseller = makeReseller();
+    $reseller->payouts()->create(['amount' => 100]);
+    $club = Club::query()->findOrFail(app(CurrentClub::class)->id());
+    $club->forceFill(['reseller_id' => $reseller->id, 'reseller_attached_at' => now()])->save();
+    $admin = User::factory()->superadmin()->create(['phone' => '+77009990001']);
+
+    $this->actingAs(User::factory()->create())->delete(route('superadmin.resellers.destroy', $reseller))->assertForbidden();
+
+    $this->actingAs($admin)->delete(route('superadmin.resellers.destroy', $reseller))->assertRedirect(route('superadmin.resellers.index'));
+    expect(Reseller::query()->count())->toBe(0)
+        ->and(User::query()->whereKey($reseller->user_id)->exists())->toBeTrue()
+        ->and($club->fresh()->reseller_id)->toBeNull()
+        ->and(DB::table('reseller_payouts')->count())->toBe(0);
+
+    // The account may become a reseller again.
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Arman', 'phone' => $reseller->user->phone, 'code' => 'arman-games', 'commission_percent' => 10, 'discount_percent' => 15])
+        ->assertSessionHasNoErrors();
 });

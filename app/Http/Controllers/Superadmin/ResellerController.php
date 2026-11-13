@@ -18,7 +18,7 @@ use Illuminate\View\View;
 
 /**
  * Resellers: the superadmin creates them (with a new account or an existing one by phone), sets
- * their percent and discount, records payouts and unlinks clubs.
+ * their percent and discount, records payouts, unlinks clubs and deletes resellers.
  */
 class ResellerController extends Controller
 {
@@ -132,6 +132,25 @@ class ResellerController extends Controller
         });
 
         return back()->with('status', __('Клуб :club отвязан от реселлера.', ['club' => $club->name]));
+    }
+
+    /**
+     * The account stays and is no longer a reseller: its clubs are unlinked (new bills go without
+     * the discount and percent), its payouts go, paid bills stay without the reseller.
+     */
+    public function destroy(Request $request, Reseller $reseller): RedirectResponse
+    {
+        DB::transaction(function () use ($reseller, $request): void {
+            $clubs = Club::query()->where('reseller_id', $reseller->getKey())->update(['reseller_id' => null, 'reseller_attached_at' => null]);
+            $this->platformLog->record('superadmin.reseller_deleted', __('Удалён реселлер :name (код :code)', ['name' => $reseller->name, 'code' => $reseller->code]), $request->user(), null, null, [
+                'code' => $reseller->code,
+                'user_id' => $reseller->user_id,
+                'clubs' => $clubs,
+            ]);
+            $reseller->delete();
+        });
+
+        return redirect()->route('superadmin.resellers.index')->with('status', __('Реселлер :code удалён.', ['code' => $reseller->code]));
     }
 
     private function host(): string
