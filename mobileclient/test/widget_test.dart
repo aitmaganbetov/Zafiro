@@ -212,4 +212,27 @@ void main() {
     expect(zone.price, 900);
     expect(zone.freeCount, 1);
   });
+
+  test('бронь тарифом: тарифы и зоны без почасовой цены', () {
+    final tariff = BookingTariff.fromJson({
+      'id': 4,
+      'name': 'Ночь',
+      'description': ' ',
+      'minutes': 540,
+      'price': '2000.00',
+      'zone_ids': [1],
+    });
+    final options = BookingOptions.fromJson({
+      'minutes': 540,
+      'zones': [
+        {'id': 1, 'name': 'VIP', 'price_per_hour': null, 'price': '2000.00'},
+      ],
+    });
+
+    expect(tariff.description, isNull);
+    expect(tariff.price, 2000);
+    expect(options.minutes, 540);
+    expect(options.zones.single.pricePerHour, isNull);
+    expect(options.zones.single.price, 2000);
+  });
 }

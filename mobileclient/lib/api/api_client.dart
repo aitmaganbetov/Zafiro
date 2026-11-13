@@ -127,28 +127,51 @@ class ApiClient {
   Future<BookingsOverview> bookings() async =>
       BookingsOverview.fromJson(await _send('GET', '/guest/bookings'));
 
-  /// Зоны и ПК, свободные на это время, с ценой.
-  Future<List<BookingZone>> bookingOptions(DateTime start, int minutes) async =>
-      BookingZone.listFromJson(
-        (await _send(
-          'GET',
-          '/guest/bookings/options',
-          query: {
-            'starts_at': start.toUtc().toIso8601String(),
-            'duration_minutes': '$minutes',
-          },
-        ))['zones'],
-      );
+  /// Тарифы, которые можно забронировать на это начало.
+  Future<List<BookingTariff>> bookingTariffs(DateTime start) async => [
+    for (final item
+        in (await _send(
+                  'GET',
+                  '/guest/bookings/tariffs',
+                  query: {'starts_at': start.toUtc().toIso8601String()},
+                ))['tariffs']
+                as List? ??
+            const [])
+      BookingTariff.fromJson(item as Map<String, dynamic>),
+  ];
+
+  /// Зоны и ПК, свободные на это время, с ценой: по часовой ([minutes]) или тариф.
+  Future<BookingOptions> bookingOptions(
+    DateTime start, {
+    int? minutes,
+    int? tariffId,
+  }) async => BookingOptions.fromJson(
+    await _send(
+      'GET',
+      '/guest/bookings/options',
+      query: {
+        'starts_at': start.toUtc().toIso8601String(),
+        'duration_minutes': ?minutes?.toString(),
+        'tariff_id': ?tariffId?.toString(),
+      },
+    ),
+  );
 
   /// Бронь с оплатой с баланса; возвращает сообщение сервера.
-  Future<String> book(int computerId, DateTime start, int minutes) async =>
+  Future<String> book(
+    int computerId,
+    DateTime start, {
+    int? minutes,
+    int? tariffId,
+  }) async =>
       (await _send(
             'POST',
             '/guest/bookings',
             body: {
               'club_computer_id': computerId,
               'starts_at': start.toUtc().toIso8601String(),
-              'duration_minutes': minutes,
+              'duration_minutes': ?minutes,
+              'tariff_id': ?tariffId,
             },
           ))['message']
           as String? ??

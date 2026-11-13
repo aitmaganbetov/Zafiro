@@ -460,6 +460,7 @@ class Booking {
     required this.id,
     required this.computer,
     required this.zone,
+    required this.tariff,
     required this.startsAt,
     required this.endsAt,
     required this.state,
@@ -471,6 +472,7 @@ class Booking {
     id: json['id'] as int,
     computer: json['computer'] as String? ?? '—',
     zone: json['zone'] as String?,
+    tariff: json['tariff'] as String?,
     startsAt: _date(json['starts_at']) ?? DateTime.now(),
     endsAt: _date(json['ends_at']) ?? DateTime.now(),
     state: json['state'] as String? ?? 'pending',
@@ -481,6 +483,9 @@ class Booking {
   final int id;
   final String computer;
   final String? zone;
+
+  /// Тариф брони; null — по часовой.
+  final String? tariff;
   final DateTime startsAt;
   final DateTime endsAt;
 
@@ -506,7 +511,9 @@ class BookingZone {
   factory BookingZone.fromJson(Map<String, dynamic> json) => BookingZone(
     id: json['id'] as int,
     name: json['name'] as String? ?? '',
-    pricePerHour: _amount(json['price_per_hour']),
+    pricePerHour: json['price_per_hour'] == null
+        ? null
+        : _amount(json['price_per_hour']),
     price: _amount(json['price']),
     computers: [
       for (final item in json['computers'] as List? ?? const [])
@@ -514,14 +521,11 @@ class BookingZone {
     ],
   );
 
-  static List<BookingZone> listFromJson(Object? value) => [
-    for (final item in value as List? ?? const [])
-      BookingZone.fromJson(item as Map<String, dynamic>),
-  ];
-
   final int id;
   final String name;
-  final double pricePerHour;
+
+  /// null — у зоны нет почасовой цены (бронь тарифом).
+  final double? pricePerHour;
   final double price;
   final List<BookingPc> computers;
 
@@ -540,4 +544,47 @@ class BookingPc {
   final int id;
   final String name;
   final bool available;
+}
+
+/// Зоны и ПК для брони и сколько минут она даёт (у тарифа — его время).
+class BookingOptions {
+  BookingOptions({required this.minutes, required this.zones});
+
+  factory BookingOptions.fromJson(Map<String, dynamic> json) => BookingOptions(
+    minutes: json['minutes'] as int? ?? 0,
+    zones: [
+      for (final item in json['zones'] as List? ?? const [])
+        BookingZone.fromJson(item as Map<String, dynamic>),
+    ],
+  );
+
+  final int minutes;
+  final List<BookingZone> zones;
+}
+
+/// Тариф, который можно забронировать на выбранное начало.
+class BookingTariff {
+  BookingTariff({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.minutes,
+    required this.price,
+  });
+
+  factory BookingTariff.fromJson(Map<String, dynamic> json) => BookingTariff(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    description: (json['description'] as String?)?.trim().isEmpty ?? true
+        ? null
+        : json['description'] as String,
+    minutes: json['minutes'] as int? ?? 0,
+    price: _amount(json['price']),
+  );
+
+  final int id;
+  final String name;
+  final String? description;
+  final int minutes;
+  final double price;
 }
