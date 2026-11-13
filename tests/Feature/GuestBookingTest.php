@@ -7,6 +7,7 @@ use App\Models\ClubZone;
 use App\Models\ComputerReservation;
 use App\Models\MemberBalance;
 use App\Models\SessionPurchase;
+use App\Models\Tariff;
 use App\Models\User;
 use App\Services\ClubComputerSessions;
 use App\Services\CurrentClub;
@@ -247,4 +248,57 @@ test('buying time on the PC does not close the guest\'s paid booking', function 
     $this->withToken($token)->postJson(route('api.guest.minutes.purchase'), ['computer_id' => $computer->id, 'minutes' => 60])->assertOk();
 
     expect(ComputerReservation::query()->sole()->arrived_at)->toBeNull();
+});
+
+test('a guest books a PC as a tariff of its zone: the tariff price, its time, its purchase limit', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-16 10:00:00', 'UTC')); // Monday
+    bookingClub();
+    $computer = bookingComputer();
+    $other = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Общий', 'price_per_hour' => '300.00'])->id, 'number' => 2]);
+    [$guest, $token] = bookingGuest('5000.00');
+    $tariff = Tariff::query()->create(['name' => '3 часа', 'duration_minutes' => 180, 'price' => 1200, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true, 'quantity_limit_enabled' => true, 'quantity_limit' => 1]);
+    $tariff->zones()->attach($computer->club_zone_id, ['club_id' => app(CurrentClub::class)->id()]);
+    // Valid at night only: 22:00 – 08:00 every day of the week.
+    $night = Tariff::query()->create(['name' => 'Ночь', 'duration_minutes' => 600, 'price' => 2000, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true,
+        'validity_periods' => [['start_day' => 'mon', 'start_time' => '22:00', 'end_day' => 'tue', 'end_time' => '08:00']]]);
+    $start = '2026-11-16T12:00:00+00:00';
+
+    freshRequest();
+    $tariffs = $this->withToken($token)->getJson(route('api.guest.bookings.tariffs', ['starts_at' => $start]))->assertOk()->json('tariffs');
+    expect($tariffs)->toHaveCount(1)
+        ->and($tariffs[0])->toMatchArray(['id' => $tariff->id, 'minutes' => 180, 'price' => '1200.00', 'zone_ids' => [$computer->club_zone_id]]);
+
+    // At night the night tariff is offered, its time cut at 08:00.
+    freshRequest();
+    $nightTariffs = $this->withToken($token)->getJson(route('api.guest.bookings.tariffs', ['starts_at' => '2026-11-16T23:00:00+00:00']))->json('tariffs');
+    expect(collect($nightTariffs)->firstWhere('id', $night->id)['minutes'])->toBe(540);
+
+    // Only the tariff's zone, at the tariff price.
+    freshRequest();
+    $options = $this->withToken($token)->getJson(route('api.guest.bookings.options', ['starts_at' => $start, 'tariff_id' => $tariff->id]))->assertOk();
+    expect($options->json('minutes'))->toBe(180)
+        ->and(collect($options->json('zones'))->pluck('price', 'name')->all())->toBe(['VIP' => '1200.00']);
+
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $other->id, 'starts_at' => $start, 'tariff_id' => $tariff->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('club_computer_id');
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => $start, 'tariff_id' => $tariff->id])
+        ->assertCreated()->assertJsonPath('booking.tariff', '3 часа')->assertJsonPath('booking.paid', '1200.00')
+        ->assertJsonPath('booking.ends_at', '2026-11-16T15:00:00+00:00');
+    expect(ComputerReservation::query()->sole()->tariff_id)->toBe($tariff->id)
+        ->and((string) MemberBalance::query()->where('user_id', $guest->id)->value('balance'))->toBe('3800.00');
+
+    // The limit of one purchase is used up by the booking.
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.guest.bookings.store'), ['club_computer_id' => $computer->id, 'starts_at' => '2026-11-16T16:00:00+00:00', 'tariff_id' => $tariff->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('tariff_id');
+
+    // On the PC the time starts as that tariff.
+    $agent = app(ClubComputerSessions::class)->issueAgentToken($computer);
+    Carbon::setTestNow(Carbon::parse('2026-11-16 12:00:00', 'UTC'));
+    freshRequest();
+    $this->withToken($token)->postJson(route('api.agent.heartbeat'), [], ['X-Agent-Token' => $agent])->assertOk()
+        ->assertJsonPath('session.ends_at', '2026-11-16T15:00:00+00:00');
+    expect(SessionPurchase::query()->sole()->only(['kind', 'tariff_id', 'minutes']))->toBe(['kind' => 'tariff', 'tariff_id' => $tariff->id, 'minutes' => 180]);
 });

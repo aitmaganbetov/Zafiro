@@ -23,7 +23,7 @@ class GuestBookingController extends Controller
     public function index(Request $request, ComputerReservations $reservations, CurrentClub $currentClub): JsonResponse
     {
         $list = ComputerReservation::query()
-            ->with(['computer:id,club_zone_id,number,display_name,device_name', 'computer.zone:id,name'])
+            ->with(['computer:id,club_zone_id,number,display_name,device_name', 'computer.zone:id,name', 'tariff:id,name'])
             ->where('user_id', $request->user()->getKey())
             ->where('starts_at', '>=', now()->subDay())
             ->orderBy('starts_at')
@@ -42,21 +42,31 @@ class GuestBookingController extends Controller
         ]);
     }
 
-    /** Zones and PCs free for the period, with the price. */
+    /** Tariffs the guest may book for the start. */
+    public function tariffs(Request $request): JsonResponse
+    {
+        $this->bookings->ensureEnabled();
+        $startsAt = $this->start($request);
+
+        return response()->json(['tariffs' => $this->bookings->tariffs($request->user(), $startsAt)]);
+    }
+
+    /** Zones and PCs free for the period (by the hour or a tariff), with the price. */
     public function options(Request $request): JsonResponse
     {
         $this->bookings->ensureEnabled();
-        [$startsAt, $minutes] = $this->period($request);
+        [$startsAt, $minutes, $tariffId] = $this->period($request);
+        $plan = $this->bookings->plan($request->user(), $startsAt, $minutes, $tariffId);
 
-        return response()->json(['zones' => $this->bookings->options($request->user(), $startsAt, $minutes)]);
+        return response()->json(['minutes' => $plan['minutes'], 'zones' => $this->bookings->options($request->user(), $startsAt, $plan)]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $this->bookings->ensureEnabled();
         $computerId = (int) $request->validate(['club_computer_id' => ['required', 'integer']])['club_computer_id'];
-        [$startsAt, $minutes] = $this->period($request);
-        $reservation = $this->bookings->book($request->user(), $computerId, $startsAt, $minutes);
+        [$startsAt, $minutes, $tariffId] = $this->period($request);
+        $reservation = $this->bookings->book($request->user(), $computerId, $startsAt, $minutes, $tariffId);
         $reservation->load(['computer:id,club_zone_id,number,display_name,device_name', 'computer.zone:id,name']);
 
         return response()->json([
@@ -72,14 +82,21 @@ class GuestBookingController extends Controller
         return response()->json(['message' => __('Бронь отменена, деньги вернулись на баланс.')]);
     }
 
-    /** @return array{0: Carbon, 1: int} the start (to the minute) and the duration */
+    /** The start, to the minute. */
+    private function start(Request $request): Carbon
+    {
+        return Carbon::parse($request->validate(['starts_at' => ['required', 'date']])['starts_at'])->utc()->startOfMinute();
+    }
+
+    /** @return array{0: Carbon, 1: ?int, 2: ?int} the start, and the duration by the hour or the tariff */
     private function period(Request $request): array
     {
         $data = $request->validate([
-            'starts_at' => ['required', 'date'],
-            'duration_minutes' => ['required', 'integer', 'min:'.GuestBookings::MIN_MINUTES, 'max:'.GuestBookings::MAX_MINUTES],
+            'tariff_id' => ['nullable', 'integer'],
+            'duration_minutes' => ['required_without:tariff_id', 'nullable', 'integer', 'min:'.GuestBookings::MIN_MINUTES, 'max:'.GuestBookings::MAX_MINUTES],
         ]);
+        $tariffId = isset($data['tariff_id']) ? (int) $data['tariff_id'] : null;
 
-        return [Carbon::parse($data['starts_at'])->utc()->startOfMinute(), (int) $data['duration_minutes']];
+        return [$this->start($request), $tariffId === null ? (int) $data['duration_minutes'] : null, $tariffId];
     }
 }

@@ -6,11 +6,13 @@ use App\Models\ActivityLog;
 use App\Models\ClubComputer;
 use App\Models\ClubMembership;
 use App\Models\ClubZone;
+use App\Models\ComputerReservation;
 use App\Models\MemberBalance;
 use App\Models\SessionPurchase;
 use App\Models\Tariff;
 use App\Models\TimePackage;
 use App\Models\User;
+use App\Support\WeeklyPeriods;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -40,19 +42,43 @@ class AgentTariffPurchaseService
             ->orderBy('duration_minutes')
             ->orderBy('name')
             ->get();
-        $purchases = ActivityLog::query()
-            ->where('event', 'tariff.purchased')
-            ->where('subject_type', (new Tariff)->getMorphClass())
-            ->whereIn('subject_id', $tariffs->modelKeys())
-            ->selectRaw('subject_id, COUNT(*) as purchases_count')
-            ->groupBy('subject_id')
-            ->pluck('purchases_count', 'subject_id');
+        $purchases = $this->purchaseCounts($tariffs->modelKeys());
 
         return $tariffs
             ->filter(fn (Tariff $tariff): bool => $zoneId === null || $tariff->zones->isEmpty() || $tariff->zones->contains('id', $zoneId))
-            ->filter(fn (Tariff $tariff): bool => $this->isAvailable($tariff, $membership, (int) $purchases->get($tariff->getKey(), 0)))
+            ->filter(fn (Tariff $tariff): bool => $this->isAvailable($tariff, $membership, $purchases[$tariff->getKey()] ?? 0))
             ->map(fn (Tariff $tariff): array => $this->representation($tariff, $membership))
             ->values();
+    }
+
+    /**
+     * Tariffs a guest may book in the app for a start (club local time): on sale now, valid at the
+     * start, within the purchase limit and the guest's role.
+     *
+     * @return Collection<int, Tariff>
+     */
+    public function bookableTariffs(User $user, Carbon $localStart): Collection
+    {
+        $membership = $user->currentMembership()->firstOrFail();
+        $tariffs = Tariff::query()->where('is_active', true)->with('zones')->orderBy('duration_minutes')->orderBy('name')->get();
+        $purchases = $this->purchaseCounts($tariffs->modelKeys());
+
+        return $tariffs->filter(fn (Tariff $tariff): bool => $this->isAvailable($tariff, $membership, $purchases[$tariff->getKey()] ?? 0, $localStart))->values();
+    }
+
+    /** The minutes a tariff booked for a start (club local time) gives: its time, cut at the end of its validity period. */
+    public function bookedMinutes(Tariff $tariff, Carbon $localStart): int
+    {
+        $minutes = $this->effectiveMinutes($tariff);
+        $until = WeeklyPeriods::endOf($tariff->validity_periods, $localStart);
+
+        return $until === null ? $minutes : min($minutes, (int) ceil(($until->getTimestamp() - $localStart->getTimestamp()) / 60));
+    }
+
+    /** The tariff's price for this customer (with their discount when the tariff takes it), in cents. */
+    public function tariffPrice(User $user, Tariff $tariff): int
+    {
+        return $this->priceInCents($tariff, $user->currentMembership()->firstOrFail());
     }
 
     /**
@@ -341,7 +367,8 @@ class AgentTariffPurchaseService
         return $bonusPayment;
     }
 
-    private function isAvailable(Tariff $tariff, ClubMembership $membership, int $purchaseCount): bool
+    /** @param  ?Carbon  $validAt  club local time the tariff time is used at; null — now */
+    private function isAvailable(Tariff $tariff, ClubMembership $membership, int $purchaseCount, ?Carbon $validAt = null): bool
     {
         if (! $tariff->onSale()) {
             return false;
@@ -356,16 +383,42 @@ class AgentTariffPurchaseService
             return false;
         }
 
-        return $tariff->inValidityPeriod();
+        return $validAt === null ? $tariff->inValidityPeriod() : WeeklyPeriods::contains($tariff->validity_periods, $validAt);
     }
 
     private function purchaseCount(Tariff $tariff): int
     {
-        return ActivityLog::query()
+        return $this->purchaseCounts([$tariff->getKey()])[$tariff->getKey()] ?? 0;
+    }
+
+    /**
+     * Purchases of the tariffs for their quantity limit: bought in the agent and booked in the app
+     * (a cancelled booking does not count).
+     *
+     * @param  list<int>  $tariffIds
+     * @return array<int, int> tariff id => purchases
+     */
+    private function purchaseCounts(array $tariffIds): array
+    {
+        $counts = ActivityLog::query()
             ->where('event', 'tariff.purchased')
-            ->where('subject_type', $tariff->getMorphClass())
-            ->where('subject_id', $tariff->getKey())
-            ->count();
+            ->where('subject_type', (new Tariff)->getMorphClass())
+            ->whereIn('subject_id', $tariffIds)
+            ->selectRaw('subject_id, COUNT(*) as purchases_count')
+            ->groupBy('subject_id')
+            ->pluck('purchases_count', 'subject_id')
+            ->all();
+        $booked = ComputerReservation::query()
+            ->whereIn('tariff_id', $tariffIds)
+            ->whereNull('cancelled_at')
+            ->selectRaw('tariff_id, COUNT(*) as bookings_count')
+            ->groupBy('tariff_id')
+            ->pluck('bookings_count', 'tariff_id');
+        foreach ($booked as $tariffId => $count) {
+            $counts[$tariffId] = ($counts[$tariffId] ?? 0) + (int) $count;
+        }
+
+        return array_map('intval', $counts);
     }
 
     /** @return array<string, mixed> */

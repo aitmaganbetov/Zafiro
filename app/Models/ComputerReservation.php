@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * A PC booked for a customer for a period. While it is pending (not cancelled, the customer
  * has not arrived yet) nobody else can buy time on the PC that would run into it.
  */
-#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'from_app', 'paid_main_cents', 'paid_bonus_cents', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
+#[Fillable(['club_computer_id', 'user_id', 'customer_name', 'customer_phone', 'note', 'from_app', 'paid_main_cents', 'paid_bonus_cents', 'tariff_id', 'starts_at', 'ends_at', 'arrived_at', 'cancelled_at', 'created_by'])]
 class ComputerReservation extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -27,6 +27,7 @@ class ComputerReservation extends Model
             'from_app' => 'boolean',
             'paid_main_cents' => 'integer',
             'paid_bonus_cents' => 'integer',
+            'tariff_id' => 'integer',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'arrived_at' => 'datetime',
@@ -37,6 +38,12 @@ class ComputerReservation extends Model
     public function computer(): BelongsTo
     {
         return $this->belongsTo(ClubComputer::class, 'club_computer_id');
+    }
+
+    /** The tariff the booking was paid as; null — by the hour. */
+    public function tariff(): BelongsTo
+    {
+        return $this->belongsTo(Tariff::class);
     }
 
     public function user(): BelongsTo

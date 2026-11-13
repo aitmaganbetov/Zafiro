@@ -6,6 +6,7 @@ use App\Models\ClubComputer;
 use App\Models\ComputerReservation;
 use App\Models\MemberBalance;
 use App\Models\SessionPurchase;
+use App\Models\Tariff;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -214,8 +215,8 @@ class ComputerReservations
     /**
      * Starts the paid time of the booking on the locked PC, or adds it to the guest's own session
      * there. The time is the booked duration but ends with the booking at the latest (late —
-     * the missed part is not refunded); the paid amount goes with it as minutes, so a session ended
-     * early gives back the unused part (SessionSettlement).
+     * the missed part is not refunded). Paid by the hour, the amount goes with it as minutes, so a
+     * session ended early gives back the unused part (SessionSettlement); a tariff, as that tariff.
      */
     private function startPaidSession(ComputerReservation $reservation, ClubComputer $computer): bool
     {
@@ -231,16 +232,18 @@ class ComputerReservations
         $sessionId = $own ? $computer->current_session_id : (string) Str::uuid();
         $endsAt = ($own ? $computer->session_ends_at->copy() : now())->addMinutes($minutes);
 
+        // Booked as a tariff, the time is that tariff's (not refunded; a usage limit keeps the rest).
+        $tariff = $reservation->tariff_id === null ? null : Tariff::query()->find($reservation->tariff_id);
         SessionPurchase::query()->create([
             'session_id' => $sessionId,
             'user_id' => $reservation->user_id,
-            'kind' => SessionPurchase::KIND_MINUTES,
-            'tariff_id' => null,
-            'name' => __('Бронь'),
+            'kind' => $tariff === null ? SessionPurchase::KIND_MINUTES : SessionPurchase::KIND_TARIFF,
+            'tariff_id' => $tariff?->getKey(),
+            'name' => $tariff?->name ?? __('Бронь'),
             'minutes' => $minutes,
             'main_cents' => intdiv($reservation->paid_main_cents * $minutes, $duration),
             'bonus_cents' => intdiv($reservation->paid_bonus_cents * $minutes, $duration),
-            'expires_at' => null,
+            'expires_at' => $tariff?->usage_limit_enabled && $tariff->usage_limit_minutes !== null ? now()->addMinutes($tariff->usage_limit_minutes) : null,
         ]);
         $computer->update([
             'current_session_id' => $sessionId,

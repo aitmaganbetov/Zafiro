@@ -1376,6 +1376,7 @@ return [
         'Вход по телефону, QR-коду или регистрация прямо на ПК' => 'Sign in by phone, QR code or sign up right on the PC',
         'Гости и друзья' => 'Guests and friends',
         'Готовы навести порядок в клубе?' => 'Ready to put your club in order?',
+        'Этот тариф нельзя забронировать на это время.' => 'This tariff cannot be booked for this time.',
         'Бронь из приложения' => 'Booking from the app',
         'Бронь ПК :computer' => 'PC :computer booking',
         'Возврат за отменённую бронь' => 'Refund for a cancelled booking',

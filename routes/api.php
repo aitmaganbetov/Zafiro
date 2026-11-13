@@ -172,6 +172,7 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     // The customer's own name and password, in the agent profile.
     Route::post('/guest/profile/name', [GuestProfileController::class, 'name'])->middleware('throttle:10,1,api.guest.profile.name')->name('api.guest.profile.name');
     Route::post('/guest/profile/password', [GuestProfileController::class, 'password'])->middleware('throttle:5,1,api.guest.profile.password')->name('api.guest.profile.password');
+    Route::get('/guest/bookings/tariffs', [GuestBookingController::class, 'tariffs'])->middleware('throttle:60,1,api.guest.bookings.tariffs')->name('api.guest.bookings.tariffs');
     Route::get('/guest/bookings/options', [GuestBookingController::class, 'options'])->middleware('throttle:60,1,api.guest.bookings.options')->name('api.guest.bookings.options');
     Route::post('/guest/bookings', [GuestBookingController::class, 'store'])->middleware('throttle:10,1,api.guest.bookings.store')->name('api.guest.bookings.store');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');
