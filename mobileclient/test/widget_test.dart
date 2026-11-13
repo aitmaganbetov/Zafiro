@@ -249,4 +249,21 @@ void main() {
     expect(zone.pricePerHour, isNull);
     expect(zone.computers.single.name, 'PC-05');
   });
+
+  test('бронь на компанию: код и все ПК', () {
+    final booking = Booking.fromJson({
+      'id': 9,
+      'code': '048213',
+      'computer': 'PC-01, PC-02',
+      'computers': ['PC-01', 'PC-02'],
+      'starts_at': '2026-11-17T12:00:00+00:00',
+      'ends_at': '2026-11-17T13:00:00+00:00',
+      'state': 'pending',
+      'paid': '1200.00',
+    });
+
+    expect(booking.code, '048213');
+    expect(booking.computers, ['PC-01', 'PC-02']);
+    expect(booking.paid, 1200);
+  });
 }

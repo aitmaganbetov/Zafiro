@@ -136,10 +136,10 @@ class ApiClient {
       PcZone.fromJson(item as Map<String, dynamic>),
   ];
 
-  /// Тарифы, которые можно забронировать на это начало (для зоны ПК).
+  /// Тарифы, которые можно забронировать на это начало (действуют в зонах всех ПК).
   Future<List<BookingTariff>> bookingTariffs(
     DateTime start, {
-    int? computerId,
+    List<int> computerIds = const [],
   }) async => [
     for (final item
         in (await _send(
@@ -147,7 +147,7 @@ class ApiClient {
                   '/guest/bookings/tariffs',
                   query: {
                     'starts_at': start.toUtc().toIso8601String(),
-                    'computer_id': ?computerId?.toString(),
+                    'computer_ids[]': [for (final id in computerIds) '$id'],
                   },
                 ))['tariffs']
                 as List? ??
@@ -174,7 +174,7 @@ class ApiClient {
 
   /// Бронь с оплатой с баланса; возвращает сообщение сервера.
   Future<String> book(
-    int computerId,
+    List<int> computerIds,
     DateTime start, {
     int? minutes,
     int? tariffId,
@@ -183,7 +183,7 @@ class ApiClient {
             'POST',
             '/guest/bookings',
             body: {
-              'club_computer_id': computerId,
+              'club_computer_ids': computerIds,
               'starts_at': start.toUtc().toIso8601String(),
               'duration_minutes': ?minutes,
               'tariff_id': ?tariffId,
@@ -201,7 +201,7 @@ class ApiClient {
     String method,
     String path, {
     Map<String, dynamic>? body,
-    Map<String, String>? query,
+    Map<String, Object>? query,
   }) async {
     final uri = Uri.parse(
       '$apiBaseUrl$path',

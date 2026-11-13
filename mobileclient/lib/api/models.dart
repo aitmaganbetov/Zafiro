@@ -458,7 +458,9 @@ class BookingsOverview {
 class Booking {
   Booking({
     required this.id,
+    required this.code,
     required this.computer,
+    required this.computers,
     required this.zone,
     required this.tariff,
     required this.startsAt,
@@ -470,7 +472,11 @@ class Booking {
 
   factory Booking.fromJson(Map<String, dynamic> json) => Booking(
     id: json['id'] as int,
+    code: json['code'] as String?,
     computer: json['computer'] as String? ?? '—',
+    computers: [
+      for (final name in json['computers'] as List? ?? const []) '$name',
+    ],
     zone: json['zone'] as String?,
     tariff: json['tariff'] as String?,
     startsAt: _date(json['starts_at']) ?? DateTime.now(),
@@ -481,7 +487,13 @@ class Booking {
   );
 
   final int id;
+
+  /// Код брони: по нему садятся за забронированные ПК без аккаунта.
+  final String? code;
   final String computer;
+
+  /// ПК брони (несколько — бронь на компанию).
+  final List<String> computers;
   final String? zone;
 
   /// Тариф брони; null — по часовой.

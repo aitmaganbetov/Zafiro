@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -238,6 +239,10 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
+          if (active && booking.code != null) ...[
+            const SizedBox(height: 12),
+            _CodeBox(code: booking.code!, many: booking.computers.length > 1),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -260,6 +265,67 @@ class _BookingCard extends StatelessWidget {
               if (onCancel != null)
                 TextButton(onPressed: onCancel, child: const Text('Отменить')),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Код брони: его вводят на экране входа забронированного ПК, чтобы сесть без аккаунта.
+class _CodeBox extends StatelessWidget {
+  const _CodeBox({required this.code, required this.many});
+
+  final String code;
+  final bool many;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: Brand.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Код брони',
+                  style: TextStyle(color: Brand.muted, fontSize: 12),
+                ),
+                Text(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 4,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                Text(
+                  many
+                      ? 'Друзья вводят его на экране входа забронированных ПК'
+                      : 'Введите его на экране входа ПК или войдите в аккаунт',
+                  style: TextStyle(color: Brand.faint, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Скопировать код',
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Код скопирован')));
+              }
+            },
+            icon: const FaIcon(FontAwesomeIcons.copy, size: 18),
           ),
         ],
       ),
@@ -294,7 +360,7 @@ class _Note extends StatelessWidget {
   }
 }
 
-/// Новая бронь, шаг 1: гость выбирает ПК и жмёт «Далее».
+/// Новая бронь, шаг 1: гость выбирает один или несколько ПК и жмёт «Далее».
 class NewBookingScreen extends StatefulWidget {
   const NewBookingScreen({
     super.key,
@@ -310,9 +376,26 @@ class NewBookingScreen extends StatefulWidget {
 }
 
 class _NewBookingScreenState extends State<NewBookingScreen> {
+  /// Больше ПК за раз сервер не бронирует.
+  static const _maxPcs = 10;
+
   late final Future<List<PcZone>> _pcs = widget.session.api.bookingComputers();
-  PcZone? _pcZone;
-  BookingPc? _pc;
+
+  /// Выбранные ПК в порядке выбора и их зоны.
+  final _selected = <int, (BookingPc, PcZone)>{};
+
+  void _toggle(BookingPc pc, PcZone zone) {
+    if (_selected.remove(pc.id) == null) {
+      if (_selected.length >= _maxPcs) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('За раз — не больше $_maxPcs ПК')),
+        );
+        return;
+      }
+      _selected[pc.id] = (pc, zone);
+    }
+    setState(() {});
+  }
 
   Future<void> _next() async {
     final message = await Navigator.of(context).push<String>(
@@ -320,8 +403,8 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
         builder: (_) => BookingTimeScreen(
           session: widget.session,
           overview: widget.overview,
-          zone: _pcZone!,
-          pc: _pc!,
+          pcs: [for (final (pc, _) in _selected.values) pc],
+          zones: {for (final (_, zone) in _selected.values) zone.name}.toList(),
         ),
       ),
     );
@@ -334,14 +417,27 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
       appBar: AppBar(title: const Text('Выберите ПК')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-        children: [_pcPicker(widget.overview.currency)],
+        children: [
+          const _Note(
+            icon: FontAwesomeIcons.circleInfo,
+            text:
+                'Можно выбрать несколько ПК — для компании. После оплаты '
+                'появится код брони: по нему друзья сядут за эти ПК.',
+          ),
+          const SizedBox(height: 16),
+          _pcPicker(widget.overview.currency),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: FilledButton(
-            onPressed: _pc == null ? null : _next,
-            child: Text(_pc == null ? 'Выберите ПК' : 'Далее: ${_pc!.name}'),
+            onPressed: _selected.isEmpty ? null : _next,
+            child: Text(switch (_selected.length) {
+              0 => 'Выберите ПК',
+              1 => 'Далее: ${_selected.values.first.$1.name}',
+              final count => 'Далее: $count ПК',
+            }),
           ),
         ),
       ),
@@ -407,11 +503,8 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                       for (final pc in zone.computers)
                         ChoiceChip(
                           label: Text(pc.name),
-                          selected: _pc?.id == pc.id,
-                          onSelected: (_) => setState(() {
-                            _pc = pc;
-                            _pcZone = zone;
-                          }),
+                          selected: _selected.containsKey(pc.id),
+                          onSelected: (_) => _toggle(pc, zone),
                         ),
                     ],
                   ),
@@ -426,28 +519,30 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   );
 }
 
-/// Новая бронь, шаг 2: день и время, затем по часовой или тариф выбранного ПК.
+/// Новая бронь, шаг 2: день и время, затем по часовой или тариф выбранных ПК.
 class BookingTimeScreen extends StatefulWidget {
   const BookingTimeScreen({
     super.key,
     required this.session,
     required this.overview,
-    required this.zone,
-    required this.pc,
+    required this.pcs,
+    required this.zones,
   });
 
   final Session session;
   final BookingsOverview overview;
-  final PcZone zone;
-  final BookingPc pc;
+  final List<BookingPc> pcs;
+
+  /// Зоны выбранных ПК, без повторов.
+  final List<String> zones;
 
   @override
   State<BookingTimeScreen> createState() => _BookingTimeScreenState();
 }
 
 class _BookingTimeScreenState extends State<BookingTimeScreen> {
-  BookingPc? get _pc => widget.pc;
-  PcZone? get _pcZone => widget.zone;
+  /// «PC-01» или «PC-01, PC-02»: для подписей.
+  String get _names => widget.pcs.map((pc) => pc.name).join(', ');
   // Время, вид брони и длительность гость выбирает сам: без них бронь не оформить.
   late DateTime _day;
   TimeOfDay? _time;
@@ -489,8 +584,11 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
   void _load() {
     setState(() {
       _tariff = null;
-      _tariffs = _pc != null && _start != null && _byTariff == true && !_past
-          ? widget.session.api.bookingTariffs(_start!, computerId: _pc!.id)
+      _tariffs = _start != null && _byTariff == true && !_past
+          ? widget.session.api.bookingTariffs(
+              _start!,
+              computerIds: [for (final pc in widget.pcs) pc.id],
+            )
           : null;
       _loadQuote();
     });
@@ -502,7 +600,7 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
       false => _minutes != null,
       null => false,
     };
-    _options = _pc == null || _start == null || _past || !ready
+    _options = _start == null || _past || !ready
         ? null
         : widget.session.api.bookingOptions(
             _start!,
@@ -511,14 +609,26 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
           );
   }
 
-  /// Зона выбранного ПК в ответе: цена брони и свободен ли он.
-  (BookingZone, bool)? _quote(BookingOptions? options) {
-    for (final zone in options?.zones ?? const <BookingZone>[]) {
+  /// Выбранные ПК в ответе сервера: общая цена, занятые и ПК без цены.
+  _Quote? _quote(BookingOptions? options) {
+    if (options == null) return null;
+    final prices = <int, double>{};
+    final busy = <String>[];
+    for (final zone in options.zones) {
       for (final pc in zone.computers) {
-        if (pc.id == _pc?.id) return (zone, pc.available);
+        if (!widget.pcs.any((picked) => picked.id == pc.id)) continue;
+        prices[pc.id] = zone.price;
+        if (!pc.available) busy.add(pc.name);
       }
     }
-    return null;
+    return _Quote(
+      price: prices.values.fold(0, (sum, price) => sum + price),
+      busy: busy,
+      unpriced: [
+        for (final pc in widget.pcs)
+          if (!prices.containsKey(pc.id)) pc.name,
+      ],
+    );
   }
 
   Future<void> _pickTime() async {
@@ -531,8 +641,7 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
     _load();
   }
 
-  Future<void> _confirm(BookingZone zone, int bookedMinutes) async {
-    final pc = _pc!;
+  Future<void> _confirm(_Quote quote, int bookedMinutes) async {
     final currency = widget.overview.currency;
     final start = _start!;
     final end = start.add(Duration(minutes: bookedMinutes));
@@ -540,10 +649,11 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Забронировать ${pc.name}?'),
+        title: Text('Забронировать $_names?'),
         content: Text(
-          '$what${zone.name}, ${_period(start, end)}.\n'
-          'С баланса спишется ${money(zone.price, currency)}.'
+          '$what${widget.zones.join(', ')}, ${_period(start, end)}.\n'
+          'С баланса спишется ${money(quote.price, currency)}.'
+          '${widget.pcs.length > 1 ? '\nПосле оплаты появится код брони: по нему друзья сядут за эти ПК.' : ''}'
           '${widget.overview.canCancel ? '' : '\nОтменить бронь в приложении будет нельзя.'}',
         ),
         actions: [
@@ -562,7 +672,7 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
     setState(() => _saving = true);
     try {
       final message = await widget.session.api.book(
-        pc.id,
+        [for (final pc in widget.pcs) pc.id],
         start,
         minutes: _tariff == null ? _minutes : null,
         tariffId: _tariff?.id,
@@ -586,7 +696,13 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
         DateTime(today.year, today.month, today.day + i),
     ];
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.pc.name} · ${widget.zone.name}')),
+      appBar: AppBar(
+        title: Text(
+          widget.pcs.length == 1
+              ? '$_names · ${widget.zones.first}'
+              : '${widget.pcs.length} ПК: $_names',
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
         children: [
@@ -680,10 +796,10 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
             builder: (context, snapshot) {
               final ready = snapshot.connectionState == ConnectionState.done;
               final quote = ready ? _quote(snapshot.data) : null;
-              final free = quote != null && quote.$2;
+              final free = quote != null && quote.ok;
               return FilledButton(
                 onPressed: free && !_saving
-                    ? () => _confirm(quote.$1, snapshot.data!.minutes)
+                    ? () => _confirm(quote, snapshot.data!.minutes)
                     : null,
                 child: _saving
                     ? const SizedBox(
@@ -700,7 +816,7 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
                         _ when _byTariff == true && _tariff == null =>
                           'Выберите тариф',
                         _ when free =>
-                          'Забронировать ${_pc!.name} за ${money(quote.$1.price, currency)}',
+                          'Забронировать ${widget.pcs.length == 1 ? _names : '${widget.pcs.length} ПК'} за ${money(quote.price, currency)}',
                         _ => 'Забронировать',
                       }),
               );
@@ -734,13 +850,13 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
         return EmptyState(
           icon: FontAwesomeIcons.tags,
           text:
-              'Для ${_pc!.name} на это время тарифов нет — выберите другое время или по часовой',
+              'Для $_names на это время тарифов нет — выберите другое время или по часовой',
         );
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Label('Тарифы для ${_pc!.name}'),
+          _Label('Тарифы для $_names'),
           for (final tariff in tariffs) ...[
             _TariffCard(
               tariff: tariff,
@@ -776,20 +892,21 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
               : 'Не удалось проверить ПК',
         );
       }
-      final quote = _quote(snapshot.data);
-      if (quote == null) {
+      final quote = _quote(snapshot.data)!;
+      if (quote.unpriced.isNotEmpty) {
         return _Note(
           icon: FontAwesomeIcons.circleInfo,
           text: _byTariff == true
-              ? 'Этот тариф не действует для ${_pc!.name}.'
-              : 'В зоне «${_pcZone?.name ?? ''}» нет цены за час — выберите тариф.',
+              ? 'Этот тариф не действует для ${quote.unpriced.join(', ')}.'
+              : 'У ${quote.unpriced.join(', ')} нет цены за час — выберите тариф.',
         );
       }
-      final (zone, free) = quote;
-      if (!free) {
+      if (quote.busy.isNotEmpty) {
         return _Note(
           icon: FontAwesomeIcons.calendarXmark,
-          text: '${_pc!.name} занят в это время — выберите другое время.',
+          text: quote.busy.length == 1
+              ? '${quote.busy.single} занят в это время — выберите другое время или другой ПК.'
+              : '${quote.busy.join(', ')} заняты в это время — выберите другое время или другие ПК.',
         );
       }
       final end = _start!.add(Duration(minutes: snapshot.data!.minutes));
@@ -804,7 +921,9 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${_pc!.name} свободен',
+                    widget.pcs.length == 1
+                        ? '$_names свободен'
+                        : 'Свободны: $_names',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -819,7 +938,7 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
               ),
             ),
             Text(
-              money(zone.price, currency),
+              money(quote.price, currency),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ],
@@ -827,6 +946,17 @@ class _BookingTimeScreenState extends State<BookingTimeScreen> {
       );
     },
   );
+}
+
+/// Итог по выбранным ПК: общая цена, занятые на это время и ПК, к которым бронь не подходит.
+class _Quote {
+  _Quote({required this.price, required this.busy, required this.unpriced});
+
+  final double price;
+  final List<String> busy;
+  final List<String> unpriced;
+
+  bool get ok => busy.isEmpty && unpriced.isEmpty;
 }
 
 /// Тариф в списке: название, время, цена; выбранный подсвечен.
