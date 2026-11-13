@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubComputer;
 use App\Models\ClubSubscription;
 use App\Models\PlatformSetting;
+use App\Models\Reseller;
 use App\Models\SaasPlan;
 use App\Models\SubscriptionInvoice;
 use App\Models\User;
@@ -52,6 +53,18 @@ class SubscriptionBilling
         return round($pricePerComputer * $computers * $months * (100 - $discountPercent) / 100);
     }
 
+    /**
+     * The club's discount on the subscription: its own (set by the superadmin) or its reseller's,
+     * whichever is larger.
+     */
+    public function discountFor(Club $club, ?ClubSubscription $subscription = null): int
+    {
+        $subscription ??= ClubSubscription::query()->where('club_id', $club->getKey())->first();
+        $reseller = $club->reseller_id === null ? null : Reseller::query()->where('is_active', true)->find($club->reseller_id);
+
+        return max($subscription?->discountPercent() ?? 0, $reseller?->discount_percent ?? 0);
+    }
+
     /** A club has one open bill at a time. */
     public function open(Club $club, SaasPlan $plan, int $months, User $by): SubscriptionInvoice
     {
@@ -62,9 +75,12 @@ class SubscriptionBilling
             }
 
             $computers = $this->computers($club);
-            $discount = $subscription?->discountPercent() ?? 0;
+            $discount = $this->discountFor($club, $subscription);
+            $reseller = $club->reseller_id === null ? null : Reseller::query()->where('is_active', true)->find($club->reseller_id);
 
             return SubscriptionInvoice::query()->create([
+                'reseller_id' => $reseller?->getKey(),
+                'reseller_percent' => $reseller?->commission_percent,
                 'saas_plan_id' => $plan->getKey(),
                 'months' => $months,
                 'computers' => $computers,
@@ -96,7 +112,9 @@ class SubscriptionBilling
             $until = $from->copy()->addMonthsNoOverflow($invoice->months);
 
             $subscription->forceFill(['saas_plan_id' => $invoice->saas_plan_id, 'status' => 'active', 'current_period_ends_at' => $until, 'canceled_at' => null])->save();
-            $invoice->forceFill(['status' => 'paid', 'paid_at' => now(), 'confirmed_by' => $by->getKey(), 'period_ends_at' => $until])->save();
+            // The reseller earns their percent of the money paid.
+            $earning = $invoice->reseller_id === null ? null : round((float) $invoice->amount * (float) $invoice->reseller_percent / 100, 2);
+            $invoice->forceFill(['status' => 'paid', 'paid_at' => now(), 'confirmed_by' => $by->getKey(), 'period_ends_at' => $until, 'reseller_amount' => $earning])->save();
 
             $this->platformLog->record('superadmin.invoice_paid', __('Счёт :number оплачен: подписка клуба :club продлена до :date', [
                 'number' => $invoice->number(),

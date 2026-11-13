@@ -6,6 +6,7 @@
         <a href="{{ route('superadmin.clubs.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.clubs.*') ? 'active' : '' }}"><i class="fas fa-building"></i><span>{{ __('Клубы') }}</span></a>
         <a href="{{ route('superadmin.users.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.users.*') ? 'active' : '' }}"><i class="fas fa-users"></i><span>{{ __('Пользователи') }}</span></a>
         <a href="{{ route('superadmin.plans.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.plans.*') ? 'active' : '' }}"><i class="fas fa-tags"></i><span>{{ __('Тарифы платформы') }}</span></a>
+        <a href="{{ route('superadmin.resellers.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.resellers.*') ? 'active' : '' }}"><i class="fas fa-handshake"></i><span>{{ __('Реселлеры') }}</span></a>
         <a href="{{ route('superadmin.invoices.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.invoices.*') ? 'active' : '' }}"><i class="fas fa-receipt"></i><span>{{ __('Оплаты') }}</span></a>
         <a href="{{ route('superadmin.news.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.news.*') ? 'active' : '' }}"><i class="fas fa-newspaper"></i><span>{{ __('Новости') }}</span></a>
         <span class="sidebar-label">{{ __('Система') }}</span>

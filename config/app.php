@@ -57,6 +57,9 @@ return [
     // Host of the platform superadmin cabinet (superadmin.zafiro.kz). Empty: the cabinet is at /superadmin.
     'superadmin_domain' => env('SUPERADMIN_DOMAIN') ?: null,
 
+    // Host of the reseller cabinet (resseler.zafiro.kz). Empty: the cabinet is at /reseller.
+    'reseller_domain' => env('RESELLER_DOMAIN') ?: null,
+
     // Host of the Zafiro wiki (wiki.zafiro.kz). Empty: the wiki is at /wiki.
     'wiki_domain' => env('WIKI_DOMAIN') ?: null,
 

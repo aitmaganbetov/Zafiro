@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** A bill for N months of a plan for all the club's PCs, paid by Kaspi and confirmed by the superadmin. */
-#[Fillable(['saas_plan_id', 'months', 'computers', 'price_per_computer', 'discount_percent', 'amount', 'created_by'])]
+#[Fillable(['saas_plan_id', 'months', 'computers', 'price_per_computer', 'discount_percent', 'amount', 'reseller_id', 'reseller_percent', 'created_by'])]
 class SubscriptionInvoice extends Model
 {
     use BelongsToClub, UsesClubTimezone;
@@ -24,6 +24,8 @@ class SubscriptionInvoice extends Model
             'price_per_computer' => 'decimal:2',
             'discount_percent' => 'integer',
             'amount' => 'decimal:2',
+            'reseller_percent' => 'decimal:2',
+            'reseller_amount' => 'decimal:2',
             'paid_at' => 'datetime',
             'period_ends_at' => 'datetime',
         ];
@@ -33,6 +35,12 @@ class SubscriptionInvoice extends Model
     public function number(): string
     {
         return 'ZF-'.str_pad((string) $this->getKey(), 5, '0', STR_PAD_LEFT);
+    }
+
+    /** The reseller of the club when the bill was opened: they earn a percent of it. */
+    public function reseller(): BelongsTo
+    {
+        return $this->belongsTo(Reseller::class);
     }
 
     public function plan(): BelongsTo

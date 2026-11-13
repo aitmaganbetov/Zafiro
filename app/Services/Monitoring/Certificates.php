@@ -12,7 +12,7 @@ class Certificates
     /** @return list<string> */
     public function hosts(): array
     {
-        $hosts = config('monitoring.certificate_hosts') ?: [parse_url((string) config('app.url'), PHP_URL_HOST), config('app.superadmin_domain'), config('app.wiki_domain')];
+        $hosts = config('monitoring.certificate_hosts') ?: [parse_url((string) config('app.url'), PHP_URL_HOST), config('app.superadmin_domain'), config('app.wiki_domain'), config('app.reseller_domain')];
 
         return array_values(array_unique(array_filter($hosts, fn ($host) => is_string($host) && $host !== '' && $host !== 'localhost' && ! str_ends_with($host, '.localhost'))));
     }

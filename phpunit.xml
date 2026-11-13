@@ -26,6 +26,7 @@
         <env name="MONITORING_RECORD_REQUESTS" value="false"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="SUPERADMIN_DOMAIN" value="superadmin.localhost"/>
+        <env name="RESELLER_DOMAIN" value="resseler.localhost"/>
         <env name="WIKI_DOMAIN" value="wiki.localhost"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>

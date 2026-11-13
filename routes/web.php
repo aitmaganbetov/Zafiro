@@ -29,6 +29,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductDeleteController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\QrLoginController;
+use App\Http\Controllers\ResellerController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopOrderController;
 use App\Http\Controllers\StockController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\Superadmin\LanguageController as SuperadminLanguageCont
 use App\Http\Controllers\Superadmin\LogController as SuperadminLogController;
 use App\Http\Controllers\Superadmin\NewsController as SuperadminNewsController;
 use App\Http\Controllers\Superadmin\PlanController as SuperadminPlanController;
+use App\Http\Controllers\Superadmin\ResellerController as SuperadminResellerController;
 use App\Http\Controllers\Superadmin\TelegramController as SuperadminTelegramController;
 use App\Http\Controllers\Superadmin\UserController as SuperadminUserController;
 use App\Http\Controllers\TariffController;
@@ -48,6 +50,7 @@ use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WorkerController;
+use App\Support\ResellerHost;
 use App\Support\SuperadminHost;
 use Illuminate\Support\Facades\Route;
 
@@ -82,6 +85,11 @@ $superadminDomain = SuperadminHost::domain();
         Route::post('/plans', [SuperadminPlanController::class, 'store'])->name('plans.store');
         Route::patch('/plans/{plan}', [SuperadminPlanController::class, 'update'])->name('plans.update');
 
+        Route::get('/resellers', [SuperadminResellerController::class, 'index'])->name('resellers.index');
+        Route::patch('/resellers/{reseller}', [SuperadminResellerController::class, 'update'])->name('resellers.update');
+        Route::post('/resellers/{reseller}/payouts', [SuperadminResellerController::class, 'payout'])->name('resellers.payout');
+        Route::delete('/resellers/{reseller}/clubs/{club}', [SuperadminResellerController::class, 'detach'])->name('resellers.detach');
+
         Route::get('/invoices', [SuperadminInvoiceController::class, 'index'])->name('invoices.index');
         Route::post('/invoices/kaspi', [SuperadminInvoiceController::class, 'kaspi'])->name('invoices.kaspi');
         Route::post('/invoices/{invoice}/pay', [SuperadminInvoiceController::class, 'pay'])->whereNumber('invoice')->name('invoices.pay');
@@ -111,6 +119,20 @@ $superadminDomain = SuperadminHost::domain();
     Route::delete('/languages/{language}', [SuperadminLanguageController::class, 'destroy'])->name('languages.destroy');
     Route::get('/languages/{language}/translations', [SuperadminLanguageController::class, 'translations'])->name('languages.translations');
     Route::put('/languages/{language}/translations', [SuperadminLanguageController::class, 'saveTranslations'])->name('languages.translations.save');
+});
+
+// Reseller cabinet: their code, clubs and earnings. On its own host (RESELLER_DOMAIN) from the root,
+// before the landing page's "/"; without the host — at /reseller.
+$resellerDomain = ResellerHost::domain();
+($resellerDomain === null ? Route::prefix('reseller') : Route::domain($resellerDomain))->name('reseller.')->group(function () {
+    Route::middleware('guest')->group(function () {
+        Route::get('/join', [ResellerController::class, 'showRegister'])->name('register');
+        Route::post('/join', [ResellerController::class, 'register'])->middleware('throttle:10,1,reseller.register')->name('register.store');
+    });
+    Route::middleware('auth')->group(function () {
+        Route::get('/', [ResellerController::class, 'dashboard'])->name('dashboard');
+        Route::post('/', [ResellerController::class, 'store'])->middleware('throttle:10,1,reseller.store')->name('store');
+    });
 });
 
 // Zafiro wiki: the whole documentation as one static page. On its own host (WIKI_DOMAIN) from the
@@ -235,6 +257,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
         Route::post('/settings/location', [SettingsController::class, 'location'])->name('settings.location');
+        Route::post('/settings/reseller', [SettingsController::class, 'reseller'])->middleware('throttle:10,1,settings.reseller')->name('settings.reseller');
         Route::get('/settings/profile', [ClubProfileController::class, 'show'])->name('settings.profile');
         Route::post('/settings/profile', [ClubProfileController::class, 'update'])->name('settings.profile.update');
         Route::post('/settings/profile/photos', [ClubProfileController::class, 'storePhotos'])->middleware('throttle:20,1')->name('settings.photos.store');

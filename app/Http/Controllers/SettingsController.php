@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveSettingsRequest;
 use App\Models\Language;
+use App\Models\Reseller;
 use App\Models\Translation;
 use App\Services\ActivityLogger;
 use App\Services\ClubComputerSessions;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
@@ -58,6 +60,30 @@ class SettingsController extends Controller
         }
 
         return back()->with('status', __('Город и адрес сохранены.'));
+    }
+
+    /**
+     * The club enters its reseller's code once: the club is the reseller's, pays the subscription
+     * with their discount and they earn a percent of it. Only the superadmin changes it later.
+     */
+    public function reseller(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $code = Reseller::normalizeCode($request->input('reseller_code'));
+        $club = $this->currentClub->get();
+        if ($club->reseller_id !== null) {
+            throw ValidationException::withMessages(['reseller_code' => __('Клуб уже привязан к реселлеру. Сменить реселлера можно через поддержку Zafiro.')]);
+        }
+        $reseller = Reseller::query()->where('code', $code)->where('is_active', true)->first();
+        if ($code === '' || $reseller === null) {
+            throw ValidationException::withMessages(['reseller_code' => __('Реселлер с таким кодом не найден.')]);
+        }
+
+        DB::transaction(function () use ($club, $reseller, $request, $activity): void {
+            $club->forceFill(['reseller_id' => $reseller->getKey(), 'reseller_attached_at' => now()])->save();
+            $activity->record('club.reseller_attached', __('Клуб привязан к реселлеру :code', ['code' => $reseller->code]), $request->user()->getKey(), $club);
+        });
+
+        return back()->with('status', __('Клуб привязан к реселлеру :name.', ['name' => $reseller->name]));
     }
 
     public function timezone(Request $request, ActivityLogger $activity): RedirectResponse

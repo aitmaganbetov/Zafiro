@@ -6,6 +6,7 @@ use App\Models\Concerns\UsesClubTimezone;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
@@ -19,7 +20,7 @@ class Club extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array', 'profile' => 'array', 'installation_key' => 'encrypted', 'agent_exit_pin_changed_at' => 'datetime'];
+        return ['settings' => 'array', 'profile' => 'array', 'installation_key' => 'encrypted', 'agent_exit_pin_changed_at' => 'datetime', 'reseller_attached_at' => 'datetime'];
     }
 
     protected static function booted(): void
@@ -52,6 +53,12 @@ class Club extends Model
     public function subscription(): HasOne
     {
         return $this->hasOne(ClubSubscription::class);
+    }
+
+    /** The reseller whose code the club entered: the club pays with their discount. */
+    public function reseller(): BelongsTo
+    {
+        return $this->belongsTo(Reseller::class);
     }
 
     /** Public logo URL; a new upload changes it, so the agent refetches only then. */

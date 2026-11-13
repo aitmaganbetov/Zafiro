@@ -12,6 +12,7 @@ use App\Services\Monitoring\TelegramAlerts;
 use App\Services\PlatformLogger;
 use App\Services\StaffShifts;
 use App\Support\ClubRoles;
+use App\Support\ResellerHost;
 use App\Support\SuperadminHost;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -53,6 +54,11 @@ class AuthController extends Controller
                 $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'blocked');
 
                 return back()->withErrors(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')])->onlyInput('phone');
+            }
+
+            // The reseller host: any account, to the reseller cabinet (or to joining as a reseller).
+            if (ResellerHost::is($request)) {
+                return redirect()->intended(route('reseller.dashboard'));
             }
 
             // The cabinet host: superadmins only, straight to the cabinet.

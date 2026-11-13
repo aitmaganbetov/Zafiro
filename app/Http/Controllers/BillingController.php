@@ -31,7 +31,7 @@ class BillingController extends Controller
             'canPay' => ClubPermissions::allows($this->currentClub->membership(), 'billing.pay'),
             'plans' => $this->billing->payablePlans(),
             'computers' => $this->billing->computers($this->currentClub->get()),
-            'discount' => $subscription?->discountPercent() ?? 0,
+            'discount' => $this->billing->discountFor($this->currentClub->get(), $subscription),
             'kaspi' => $this->billing->kaspi(),
             'pending' => $invoices->firstWhere('status', 'pending'),
             'invoices' => $invoices,

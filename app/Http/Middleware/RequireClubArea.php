@@ -61,7 +61,7 @@ class RequireClubArea
         'news.delete' => ['news.destroy'],
         'activity_logs.view' => ['activity-logs.index'],
         'settings.view' => ['settings', 'settings.club', 'settings.languages', 'settings.finances', 'settings.guests', 'settings.api', 'settings.profile'],
-        'settings.update' => ['settings.save', 'settings.language', 'settings.timezone', 'settings.location', 'settings.profile.update', 'settings.photos.store', 'settings.photos.destroy', 'settings.photos.cover', 'settings.profile.zone', 'settings.logo', 'settings.logo.destroy', 'settings.signin-image', 'settings.signin-image.destroy'],
+        'settings.update' => ['settings.save', 'settings.language', 'settings.timezone', 'settings.location', 'settings.reseller', 'settings.profile.update', 'settings.photos.store', 'settings.photos.destroy', 'settings.photos.cover', 'settings.profile.zone', 'settings.logo', 'settings.logo.destroy', 'settings.signin-image', 'settings.signin-image.destroy'],
         'workers.view' => ['workers.index'],
         'workers.create' => ['workers.store', 'club-invitations.store'],
         'workers.update' => ['workers.update', 'settings.agent-pin', 'settings.agent-staff-time'],
