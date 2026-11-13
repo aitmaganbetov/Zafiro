@@ -121,10 +121,14 @@ Route::get('/products', ProductController::class)
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1,api.products.index'])
     ->name('api.products.index');
 
-// The guest app before signing in: the clubs of a city.
-Route::get('/catalog/clubs', ClubCatalogController::class)
+// The guest app before signing in: the clubs of a city and a club's page.
+Route::get('/catalog/clubs', [ClubCatalogController::class, 'index'])
     ->middleware('throttle:30,1,api.catalog.clubs')
     ->name('api.catalog.clubs');
+Route::get('/catalog/clubs/{club}', [ClubCatalogController::class, 'show'])
+    ->whereNumber('club')
+    ->middleware('throttle:60,1,api.catalog.club')
+    ->name('api.catalog.club');
 
 // What a guest sees of a club (balance, news, history, friends) does not depend on the club's
 // subscription; buying time and signing in on a PC do.

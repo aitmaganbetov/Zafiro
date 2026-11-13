@@ -19,7 +19,7 @@ class Club extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array', 'installation_key' => 'encrypted', 'agent_exit_pin_changed_at' => 'datetime'];
+        return ['settings' => 'array', 'profile' => 'array', 'installation_key' => 'encrypted', 'agent_exit_pin_changed_at' => 'datetime'];
     }
 
     protected static function booted(): void
@@ -55,6 +55,21 @@ class Club extends Model
     }
 
     /** Public logo URL; a new upload changes it, so the agent refetches only then. */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ClubPhoto::class)->withoutGlobalScope('club')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function zones(): HasMany
+    {
+        return $this->hasMany(ClubZone::class)->withoutGlobalScope('club');
+    }
+
+    public function computers(): HasMany
+    {
+        return $this->hasMany(ClubComputer::class)->withoutGlobalScope('club');
+    }
+
     public function logoUrl(): ?string
     {
         return $this->logo_path === null ? null : route('club-logos.show', [$this, basename($this->logo_path)]);

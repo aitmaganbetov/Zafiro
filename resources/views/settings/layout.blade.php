@@ -17,6 +17,10 @@
                     <i class="fas fa-building w-4"></i>{{ __('Настройка клуба') }}
                 </a>
                 @includeWhen(request()->routeIs('settings.club'), 'settings.anchors')
+                <a href="{{ route('settings.profile') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.profile') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
+                    <i class="fas fa-mobile-screen w-4"></i>{{ __('Профиль клуба') }}
+                </a>
+                @includeWhen(request()->routeIs('settings.profile'), 'settings.anchors')
                 <a href="{{ route('settings.languages') }}" class="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl {{ request()->routeIs('settings.languages') ? 'brand-tab' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }} font-medium transition">
                     <i class="fas fa-language w-4"></i>{{ __('Языки') }}
                 </a>

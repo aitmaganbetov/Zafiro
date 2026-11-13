@@ -10,6 +10,7 @@ use App\Http\Controllers\ClubComputerListController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubInvitationController;
 use App\Http\Controllers\ClubLogoController;
+use App\Http\Controllers\ClubProfileController;
 use App\Http\Controllers\ClubServiceController;
 use App\Http\Controllers\ClubSignInImageController;
 use App\Http\Controllers\ClubZoneController;
@@ -144,6 +145,10 @@ Route::get('/docs/api/openapi.yaml', fn () => response()->file(resource_path('ap
 Route::get('/club-logos/{club}/{file}', [ClubLogoController::class, 'show'])
     ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
     ->name('club-logos.show');
+// Club photos for the guest app: public by their random file names.
+Route::get('/club-photos/{club}/{file}', [ClubProfileController::class, 'photo'])
+    ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg|webp)')
+    ->name('club-photos.show');
 // The club's picture on the agent's sign-in screen: public by its random file name.
 Route::get('/club-signin-images/{club}/{file}', [ClubSignInImageController::class, 'show'])
     ->where('file', '[A-Za-z0-9]{40}\\.(png|jpg)')
@@ -230,6 +235,12 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
         Route::post('/settings/location', [SettingsController::class, 'location'])->name('settings.location');
+        Route::get('/settings/profile', [ClubProfileController::class, 'show'])->name('settings.profile');
+        Route::post('/settings/profile', [ClubProfileController::class, 'update'])->name('settings.profile.update');
+        Route::post('/settings/profile/photos', [ClubProfileController::class, 'storePhotos'])->middleware('throttle:20,1')->name('settings.photos.store');
+        Route::delete('/settings/profile/photos/{photo}', [ClubProfileController::class, 'destroyPhoto'])->whereNumber('photo')->name('settings.photos.destroy');
+        Route::post('/settings/profile/photos/{photo}/cover', [ClubProfileController::class, 'coverPhoto'])->whereNumber('photo')->name('settings.photos.cover');
+        Route::put('/settings/profile/zones/{zone}', [ClubProfileController::class, 'updateZone'])->whereNumber('zone')->name('settings.profile.zone');
         Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
         Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
         Route::post('/settings/signin-image', [ClubSignInImageController::class, 'update'])->name('settings.signin-image');
