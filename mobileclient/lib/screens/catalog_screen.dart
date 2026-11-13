@@ -4,11 +4,12 @@ import 'package:geolocator/geolocator.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../format.dart';
 import '../geo.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'login_screen.dart';
+import 'club_screen.dart';
 
 /// Первый экран приложения: клубы Zafiro в городе гостя. Город находится по геолокации
 /// (или выбирается вручную) и запоминается.
@@ -165,29 +166,24 @@ class _CatalogScreenState extends State<CatalogScreen> {
     if (city != null) await _chooseCity(city);
   }
 
-  /// Вошедший гость — сразу в клуб; иначе — вход в этот клуб.
+  /// Клуб из «Моих клубов»: вошедший гость — сразу в клуб.
   Future<void> _open(int id, String name) async {
     if (_busyId != null) return;
-    if (!_session.signedIn) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => LoginScreen(
-            session: _session,
-            club: CatalogClub(id: id, name: name),
-          ),
-        ),
-      );
-      return;
-    }
     setState(() => _busyId = id);
     try {
-      await _session.enterClub(id);
+      await openClub(context, _session, id, name);
     } on ApiException catch (e) {
       _showMessage(e.message);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
   }
+
+  void _showClub(CatalogClub club) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => ClubScreen(session: _session, club: club),
+    ),
+  );
 
   void _showMessage(String text) {
     if (!mounted) return;
@@ -297,14 +293,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 )
               else
                 for (final club in _clubs)
-                  _ClubCard(
-                    name: club.name,
-                    address: club.address,
-                    logoUrl: club.logoUrl,
+                  _CoverCard(
+                    club: club,
                     member: _session.signedIn && _session.isMember(club.id),
-                    current: _session.signedIn && club.id == _session.clubId,
-                    busy: _busyId == club.id,
-                    onTap: () => _open(club.id, club.name),
+                    onTap: () => _showClub(club),
                   ),
             ],
           ),
@@ -314,32 +306,22 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 }
 
+/// Клуб аккаунта в «Моих клубах»: открывается сразу, без страницы клуба.
 class _ClubCard extends StatelessWidget {
   const _ClubCard({
     required this.name,
     required this.onTap,
-    this.address,
-    this.logoUrl,
-    this.member = false,
     this.current = false,
     this.busy = false,
   });
 
   final String name;
-  final String? address;
-  final String? logoUrl;
-  final bool member;
   final bool current;
   final bool busy;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final badge = IconBadge(
-      FontAwesomeIcons.store,
-      size: 46,
-      color: current ? Brand.accentSoft : Colors.white,
-    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
@@ -347,46 +329,19 @@ class _ClubCard extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            if (logoUrl == null)
-              badge
-            else
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  logoUrl!,
-                  width: 46,
-                  height: 46,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => badge,
-                ),
-              ),
+            IconBadge(
+              FontAwesomeIcons.store,
+              size: 46,
+              color: current ? Brand.accentSoft : Colors.white,
+            ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (address != null && address!.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      address!,
-                      style: TextStyle(color: Brand.muted, fontSize: 13),
-                    ),
-                  ],
-                  if (member && !current) ...[
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Вы клиент',
-                      style: TextStyle(color: Brand.accentSoft, fontSize: 12),
-                    ),
-                  ],
-                ],
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             if (busy)
@@ -407,6 +362,174 @@ class _ClubCard extends StatelessWidget {
                 color: Brand.faint,
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Карточка клуба в списке города: обложка, название, адрес, цена и свободные ПК.
+class _CoverCard extends StatelessWidget {
+  const _CoverCard({
+    required this.club,
+    required this.onTap,
+    this.member = false,
+  });
+
+  final CatalogClub club;
+  final bool member;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(22);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Brand.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: Brand.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClubCover(name: club.name, imageUrl: club.photoUrl),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.75),
+                          ],
+                          stops: const [0.45, 1],
+                        ),
+                      ),
+                    ),
+                    if (club.priceFrom != null)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Brand.accent,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'от ${money(club.priceFrom!, 'KZT')}/ч',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (member)
+                      const Positioned(
+                        top: 12,
+                        left: 12,
+                        child: InfoChip(
+                          FontAwesomeIcons.circleCheck,
+                          'Вы клиент',
+                          color: Colors.white,
+                        ),
+                      ),
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 12,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (club.logoUrl != null) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                color: Colors.black,
+                                padding: const EdgeInsets.all(4),
+                                child: Image.network(
+                                  club.logoUrl!,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) =>
+                                      const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: Text(
+                              club.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (club.address != null && club.address!.isNotEmpty)
+                      Row(
+                        children: [
+                          const FaIcon(
+                            FontAwesomeIcons.locationDot,
+                            size: 12,
+                            color: Brand.accentSoft,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              club.address!,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Brand.muted),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (club.pcs > 0)
+                          FreeChip(free: club.freePcs, total: club.pcs),
+                        if (club.hours != null)
+                          InfoChip(FontAwesomeIcons.clock, club.hours!),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

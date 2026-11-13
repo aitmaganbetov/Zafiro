@@ -138,4 +138,38 @@ void main() {
     expect(nearestCity(cities, 43.30, 76.95)?.key, 'almaty');
     expect(nearestCity(const [], 0, 0), isNull);
   });
+
+  test('страница клуба: зоны, свободные ПК и оборудование', () {
+    final club = ClubDetails.fromJson({
+      'id': 5,
+      'name': 'Asia Game Club',
+      'city': 'Актобе',
+      'address': 'ул. Есет батыра, 138А',
+      'photos': ['https://zafiro.kz/club-photos/5/a.jpg'],
+      'zones': [
+        {
+          'id': 1,
+          'name': 'VIP',
+          'price_per_hour': 800,
+          'pcs': 10,
+          'free_pcs': 4,
+          'devices': [
+            {'key': 'gpu', 'label': 'Видеокарта', 'value': 'RTX 3060'},
+          ],
+        },
+        {
+          'id': 2,
+          'name': 'Main',
+          'price_per_hour': 500,
+          'pcs': 19,
+          'free_pcs': 0,
+        },
+      ],
+    });
+
+    expect(club.pcs, 29);
+    expect(club.freePcs, 4);
+    expect(club.zones.first.devices.single.value, 'RTX 3060');
+    expect(club.photos.single, endsWith('a.jpg'));
+  });
 }

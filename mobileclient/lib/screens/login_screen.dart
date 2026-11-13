@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _password.text,
         widget.club.id,
       );
-      if (mounted) Navigator.of(context).pop();
+      // Главный экран клуба: экраны списка и страницы клуба закрываются.
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {

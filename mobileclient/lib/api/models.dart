@@ -110,6 +110,11 @@ class CatalogClub {
     required this.name,
     this.address,
     this.logoUrl,
+    this.photoUrl,
+    this.hours,
+    this.pcs = 0,
+    this.freePcs = 0,
+    this.priceFrom,
   });
 
   factory CatalogClub.fromJson(Map<String, dynamic> json) => CatalogClub(
@@ -117,12 +122,123 @@ class CatalogClub {
     name: json['name'] as String? ?? '',
     address: json['address'] as String?,
     logoUrl: json['logo_url'] as String?,
+    photoUrl: json['photo_url'] as String?,
+    hours: json['hours'] as String?,
+    pcs: json['pcs'] as int? ?? 0,
+    freePcs: json['free_pcs'] as int? ?? 0,
+    priceFrom: (json['price_from'] as num?)?.toDouble(),
   );
 
   final int id;
   final String name;
   final String? address;
   final String? logoUrl;
+
+  /// Обложка — первое фото клуба.
+  final String? photoUrl;
+  final String? hours;
+  final int pcs;
+
+  /// ПК, за которые можно сесть сейчас (агент в сети, без сессии и брони).
+  final int freePcs;
+
+  /// Самая низкая цена часа среди зон.
+  final double? priceFrom;
+}
+
+/// Оборудование зоны: подпись и значение («Видеокарта» — «RTX 3060»).
+class ZoneDevice {
+  ZoneDevice({required this.key, required this.label, required this.value});
+
+  factory ZoneDevice.fromJson(Map<String, dynamic> json) => ZoneDevice(
+    key: json['key'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    value: json['value'] as String? ?? '',
+  );
+
+  final String key;
+  final String label;
+  final String value;
+}
+
+class ClubZoneInfo {
+  ClubZoneInfo({
+    required this.id,
+    required this.name,
+    this.description,
+    this.pricePerHour = 0,
+    this.pcs = 0,
+    this.freePcs = 0,
+    this.devices = const [],
+  });
+
+  factory ClubZoneInfo.fromJson(Map<String, dynamic> json) => ClubZoneInfo(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    description: json['description'] as String?,
+    pricePerHour: (json['price_per_hour'] as num?)?.toDouble() ?? 0,
+    pcs: json['pcs'] as int? ?? 0,
+    freePcs: json['free_pcs'] as int? ?? 0,
+    devices: (json['devices'] as List? ?? const [])
+        .map((e) => ZoneDevice.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
+  final int id;
+  final String name;
+  final String? description;
+  final double pricePerHour;
+  final int pcs;
+  final int freePcs;
+  final List<ZoneDevice> devices;
+}
+
+/// Страница клуба (/api/catalog/clubs/{id}).
+class ClubDetails {
+  ClubDetails({
+    required this.id,
+    required this.name,
+    this.city,
+    this.address,
+    this.logoUrl,
+    this.description,
+    this.phone,
+    this.hours,
+    this.instagram,
+    this.photos = const [],
+    this.zones = const [],
+  });
+
+  factory ClubDetails.fromJson(Map<String, dynamic> json) => ClubDetails(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    city: json['city'] as String?,
+    address: json['address'] as String?,
+    logoUrl: json['logo_url'] as String?,
+    description: json['description'] as String?,
+    phone: json['phone'] as String?,
+    hours: json['hours'] as String?,
+    instagram: json['instagram'] as String?,
+    photos: (json['photos'] as List? ?? const []).cast<String>(),
+    zones: (json['zones'] as List? ?? const [])
+        .map((e) => ClubZoneInfo.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
+  final int id;
+  final String name;
+  final String? city;
+  final String? address;
+  final String? logoUrl;
+  final String? description;
+  final String? phone;
+  final String? hours;
+  final String? instagram;
+  final List<String> photos;
+  final List<ClubZoneInfo> zones;
+
+  int get pcs => zones.fold(0, (sum, zone) => sum + zone.pcs);
+  int get freePcs => zones.fold(0, (sum, zone) => sum + zone.freePcs);
 }
 
 /// Ответ /api/catalog/clubs: все города и клубы выбранного.

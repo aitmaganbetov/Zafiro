@@ -43,12 +43,12 @@ class ApiClient {
 
   /// Города и клубы города (без входа).
   Future<Catalog> catalog({String? city}) async => Catalog.fromJson(
-    await _send(
-      'GET',
-      '/catalog/clubs',
-      query: {'city': ?city},
-    ),
+    await _send('GET', '/catalog/clubs', query: {'city': ?city}),
   );
+
+  /// Страница клуба: фото, описание, зоны с оборудованием (без входа).
+  Future<ClubDetails> club(int id) async =>
+      ClubDetails.fromJson(await _send('GET', '/catalog/clubs/$id'));
 
   Future<void> logout() => _send('POST', '/auth/logout');
 
