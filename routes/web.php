@@ -229,6 +229,7 @@ Route::middleware(['auth', 'current-club'])->group(function () {
         Route::post('/settings/save', [SettingsController::class, 'save'])->name('settings.save');
         Route::post('/settings/language', [LanguageController::class, 'select'])->name('settings.language');
         Route::post('/settings/timezone', [SettingsController::class, 'timezone'])->name('settings.timezone');
+        Route::post('/settings/location', [SettingsController::class, 'location'])->name('settings.location');
         Route::post('/settings/logo', [ClubLogoController::class, 'update'])->name('settings.logo');
         Route::delete('/settings/logo', [ClubLogoController::class, 'destroy'])->name('settings.logo.destroy');
         Route::post('/settings/signin-image', [ClubSignInImageController::class, 'update'])->name('settings.signin-image');

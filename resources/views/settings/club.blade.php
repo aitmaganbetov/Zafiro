@@ -8,6 +8,7 @@
     'club-key' => __('Ключ установки клуба'),
     'club-logo' => __('Логотип клуба'),
     'signin-image' => __('Картинка экрана входа'),
+    'location' => __('Город и адрес'),
     'timezone' => __('Часовой пояс'),
     'agent-pin' => __('PIN-код для выхода из агента'),
 ])
@@ -147,6 +148,29 @@
             @endif
         </div>
     </div>
+</x-settings.card>
+
+<x-settings.card id="location" aria-labelledby="location-title">
+    <h5 id="location-title" class="mb-2 font-semibold text-gray-900 dark:text-white">{{ __('Город и адрес') }}</h5>
+    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ __('Гости видят клуб в мобильном приложении в списке клубов своего города. Без города клуба в списке нет.') }}</p>
+    @if($errors->hasAny(['city', 'address']))<div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ $errors->first('city') ?: $errors->first('address') }}</div>@endif
+    <form method="POST" action="{{ route('settings.location') }}" class="flex flex-wrap items-end gap-3">
+        @csrf
+        <label class="min-w-0 flex-1 basis-48">
+            <span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Город') }}</span>
+            <select name="city" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="">{{ __('Не указан') }}</option>
+                @foreach($cities as $key => $name)
+                    <option value="{{ $key }}" @selected(old('city', $currentClub->city) === $key)>{{ $name }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label class="min-w-0 flex-[2] basis-64">
+            <span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Адрес') }}</span>
+            <input type="text" name="address" maxlength="255" value="{{ old('address', $currentClub->address) }}" placeholder="{{ __('ул. Абая, 10') }}" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+        </label>
+        <button type="submit" class="brand-button rounded-lg px-4 py-2 text-sm">{{ __('Сохранить') }}</button>
+    </form>
 </x-settings.card>
 
 <x-settings.card id="timezone" aria-labelledby="timezone-title">

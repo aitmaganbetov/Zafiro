@@ -13,11 +13,13 @@ use App\Services\LocaleResolver;
 use App\Services\LoyaltyProgram;
 use App\Services\TopUpBonus;
 use App\Services\TranslationCatalog;
+use App\Support\Cities;
 use App\Support\ClubPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
@@ -32,7 +34,30 @@ class SettingsController extends Controller
             'agentStaffMinutes' => $this->currentClub->get()->agent_staff_minutes ?? ClubComputerSessions::DEFAULT_STAFF_MINUTES,
             'canManageAgentPin' => ClubPermissions::allows(app(CurrentClub::class)->membership(), 'workers.update'),
             'timezones' => $this->timezoneOptions(),
+            'cities' => Cities::options(),
         ]);
+    }
+
+    /** City and address: guests find the club in the app by its city. */
+    public function location(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $data = $request->validate([
+            'city' => ['nullable', 'string', Rule::in(Cities::keys())],
+            'address' => ['nullable', 'string', 'max:255'],
+        ]);
+        $club = $this->currentClub->get();
+        $club->forceFill(['city' => $data['city'] ?? null, 'address' => $data['address'] ?? null]);
+
+        if ($club->isDirty(['city', 'address'])) {
+            DB::transaction(function () use ($club, $request, $activity): void {
+                $club->save();
+                $activity->record('club.location_changed', __('Город и адрес клуба изменены: :location', [
+                    'location' => collect([Cities::name($club->city), $club->address])->filter()->implode(', ') ?: '—',
+                ]), $request->user()->getKey(), $club);
+            });
+        }
+
+        return back()->with('status', __('Город и адрес сохранены.'));
     }
 
     public function timezone(Request $request, ActivityLogger $activity): RedirectResponse

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
+use App\Models\Club;
 use App\Models\ClubMembership;
 use App\Models\ClubSubscription;
 use App\Models\MemberBalance;
@@ -12,8 +13,10 @@ use App\Services\ActivityLogger;
 use App\Services\AgentSignIns;
 use App\Services\ClubInstallationKey;
 use App\Services\CurrentClub;
+use App\Support\ClubRoles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -81,6 +84,12 @@ class AuthController extends Controller
                 ->orderBy('id'))
             ->first();
 
+        // The guest app signs in to a club picked from its city's list: the account joins it.
+        if (! $membership && ! $agentContract && $requestedClubId !== null
+            && ($club = Club::query()->whereNotNull('city')->find($requestedClubId)) !== null) {
+            $membership = $this->joinClub($user, $club, $currentClub, $activity);
+        }
+
         if (! $membership) {
             $failed('no_club_access');
 
@@ -91,9 +100,9 @@ class AuthController extends Controller
         }
 
         $currentClub->set($membership->club);
-        $subscription = ClubSubscription::query()->where('club_id', $membership->club_id)->first();
 
-        if ($subscription?->isActive() !== true) {
+        if ($this->needsSubscription($membership, $agentContract)
+            && ClubSubscription::query()->where('club_id', $membership->club_id)->first()?->isActive() !== true) {
             $failed('subscription_inactive');
 
             return response()->json(['message' => __('Подписка клуба не активна.')], 402);
@@ -170,12 +179,17 @@ class AuthController extends Controller
             ->where('club_id', $clubId)
             ->first();
 
+        if (! $membership && ($club = Club::query()->whereNotNull('city')->find($clubId)) !== null) {
+            $membership = $this->joinClub($user, $club, $currentClub, $activity);
+        }
+
         if (! $membership) {
             return response()->json(['message' => __('У аккаунта нет доступа к выбранному клубу.')], 403);
         }
 
         $currentClub->set($membership->club, $membership);
-        if (ClubSubscription::query()->where('club_id', $clubId)->first()?->isActive() !== true) {
+        if ($this->needsSubscription($membership, false)
+            && ClubSubscription::query()->where('club_id', $clubId)->first()?->isActive() !== true) {
             return response()->json(['message' => __('Подписка клуба не активна.')], 402);
         }
 
@@ -195,6 +209,29 @@ class AuthController extends Controller
             'club_name' => $membership->club->name,
             'clubs' => $this->clubList($user, $clubId),
         ]);
+    }
+
+    /**
+     * A guest of the app does not depend on the club's subscription (balance, news, friends);
+     * staff and the PC agent work in the club, so they need it.
+     */
+    private function needsSubscription(ClubMembership $membership, bool $agentContract): bool
+    {
+        return $agentContract || ClubRoles::isStaff($membership->role);
+    }
+
+    /** The account becomes a customer of a club listed in the app, with an empty balance there. */
+    private function joinClub(User $user, Club $club, CurrentClub $currentClub, ActivityLogger $activity): ClubMembership
+    {
+        $currentClub->set($club);
+
+        return DB::transaction(function () use ($user, $club, $activity): ClubMembership {
+            $membership = ClubMembership::query()->create(['user_id' => $user->getKey(), 'role' => ClubRoles::CLIENT, 'discount' => 0]);
+            MemberBalance::query()->firstOrCreate(['user_id' => $user->getKey()], ['balance' => 0, 'bonus_balance' => 0]);
+            $activity->record('user.joined_club', __('Клиент стал клиентом клуба в мобильном приложении: :user', ['user' => $user->name]), $user->getKey(), $user);
+
+            return $membership->setRelation('club', $club);
+        });
     }
 
     /**

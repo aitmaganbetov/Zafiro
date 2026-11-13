@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AgentRegisterController;
 use App\Http\Controllers\Api\AgentTariffController;
 use App\Http\Controllers\Api\AgentTranslationController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ClubCatalogController;
 use App\Http\Controllers\Api\ClubInstallationController;
 use App\Http\Controllers\Api\GuestChatController;
 use App\Http\Controllers\Api\GuestFriendController;
@@ -51,9 +52,8 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
         ->name('password.reset');
 
     Route::middleware(['auth:sanctum', 'current-club'])->group(function () {
-        Route::middleware('subscription')
-            ->get('/me', [AuthController::class, 'me'])
-            ->name('me');
+        // The guest app does not depend on the club's subscription (see AuthController::needsSubscription).
+        Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         // The mobile app: the account's clubs and moving to another one (no subscription check:
         // a customer of an expired club can still move to an active one).
@@ -121,6 +121,26 @@ Route::get('/products', ProductController::class)
     ->middleware(['auth:sanctum', 'current-club', 'subscription', 'throttle:60,1,api.products.index'])
     ->name('api.products.index');
 
+// The guest app before signing in: the clubs of a city.
+Route::get('/catalog/clubs', ClubCatalogController::class)
+    ->middleware('throttle:30,1,api.catalog.clubs')
+    ->name('api.catalog.clubs');
+
+// What a guest sees of a club (balance, news, history, friends) does not depend on the club's
+// subscription; buying time and signing in on a PC do.
+Route::middleware(['auth:sanctum', 'current-club'])->group(function () {
+    Route::get('/guest/friends', [GuestFriendController::class, 'index'])->middleware('throttle:60,1,api.guest.friends.index')->name('api.guest.friends.index');
+    Route::post('/guest/friends', [GuestFriendController::class, 'store'])->middleware('throttle:10,1,api.guest.friends.store')->name('api.guest.friends.store');
+    Route::post('/guest/friends/{friendship}/accept', [GuestFriendController::class, 'accept'])->middleware('throttle:30,1,api.guest.friends.accept')->name('api.guest.friends.accept');
+    Route::post('/guest/friends/{friendship}/remove', [GuestFriendController::class, 'remove'])->middleware('throttle:30,1,api.guest.friends.remove')->name('api.guest.friends.remove');
+    Route::post('/guest/friends/{friendship}/transfer', [GuestFriendController::class, 'transfer'])->middleware('throttle:10,1,api.guest.friends.transfer')->name('api.guest.friends.transfer');
+    // Mobile app: the transfer is confirmed with a code from Telegram instead of the password.
+    Route::post('/guest/friends/{friendship}/transfer/code', [GuestFriendController::class, 'transferCode'])->middleware('throttle:5,1,api.guest.friends.transfer.code')->name('api.guest.friends.transfer.code');
+    Route::post('/guest/friends/{friendship}/transfer/confirm', [GuestFriendController::class, 'transferConfirm'])->middleware('throttle:10,1,api.guest.friends.transfer.confirm')->name('api.guest.friends.transfer.confirm');
+    Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
+    Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
+});
+
 Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(function () {
     Route::get('/tariffs', [AgentTariffController::class, 'index'])
         ->middleware('throttle:60,1,api.tariffs.index')
@@ -131,14 +151,6 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
         ->name('api.tariffs.purchase');
 
     // Customer features in the PC agent, each switched on in the club's "Guests" settings.
-    Route::get('/guest/friends', [GuestFriendController::class, 'index'])->middleware('throttle:60,1,api.guest.friends.index')->name('api.guest.friends.index');
-    Route::post('/guest/friends', [GuestFriendController::class, 'store'])->middleware('throttle:10,1,api.guest.friends.store')->name('api.guest.friends.store');
-    Route::post('/guest/friends/{friendship}/accept', [GuestFriendController::class, 'accept'])->middleware('throttle:30,1,api.guest.friends.accept')->name('api.guest.friends.accept');
-    Route::post('/guest/friends/{friendship}/remove', [GuestFriendController::class, 'remove'])->middleware('throttle:30,1,api.guest.friends.remove')->name('api.guest.friends.remove');
-    Route::post('/guest/friends/{friendship}/transfer', [GuestFriendController::class, 'transfer'])->middleware('throttle:10,1,api.guest.friends.transfer')->name('api.guest.friends.transfer');
-    // Mobile app: the transfer is confirmed with a code from Telegram instead of the password.
-    Route::post('/guest/friends/{friendship}/transfer/code', [GuestFriendController::class, 'transferCode'])->middleware('throttle:5,1,api.guest.friends.transfer.code')->name('api.guest.friends.transfer.code');
-    Route::post('/guest/friends/{friendship}/transfer/confirm', [GuestFriendController::class, 'transferConfirm'])->middleware('throttle:10,1,api.guest.friends.transfer.confirm')->name('api.guest.friends.transfer.confirm');
     // Time by the minute at the zone's hourly price.
     Route::get('/guest/minutes', [GuestMinutesController::class, 'show'])->middleware('throttle:60,1,api.guest.minutes')->name('api.guest.minutes');
     Route::post('/guest/minutes/purchase', [GuestMinutesController::class, 'purchase'])->middleware('throttle:10,1,api.guest.minutes.purchase')->name('api.guest.minutes.purchase');
@@ -148,12 +160,10 @@ Route::middleware(['auth:sanctum', 'current-club', 'subscription'])->group(funct
     Route::get('/guest/chat', [GuestChatController::class, 'index'])->middleware('throttle:60,1,api.guest.chat')->name('api.guest.chat');
     Route::post('/guest/chat', [GuestChatController::class, 'store'])->middleware('throttle:20,1,api.guest.chat.store')->name('api.guest.chat.store');
     Route::get('/guest/telegram', [GuestTelegramController::class, 'show'])->middleware('throttle:30,1,api.guest.telegram')->name('api.guest.telegram');
-    Route::get('/guest/news', GuestNewsController::class)->middleware('throttle:30,1,api.guest.news')->name('api.guest.news');
     Route::post('/guest/shop/purchase', [GuestShopController::class, 'purchase'])->middleware('throttle:10,1,api.guest.shop.purchase')->name('api.guest.shop.purchase');
     // The customer's own name and password, in the agent profile.
     Route::post('/guest/profile/name', [GuestProfileController::class, 'name'])->middleware('throttle:10,1,api.guest.profile.name')->name('api.guest.profile.name');
     Route::post('/guest/profile/password', [GuestProfileController::class, 'password'])->middleware('throttle:5,1,api.guest.profile.password')->name('api.guest.profile.password');
-    Route::get('/guest/history', GuestHistoryController::class)->middleware('throttle:60,1,api.guest.history')->name('api.guest.history');
     Route::get('/guest/seats', [GuestSeatController::class, 'index'])->middleware('throttle:30,1,api.guest.seats.index')->name('api.guest.seats.index');
     Route::post('/guest/seat-transfer', [GuestSeatController::class, 'store'])->middleware('throttle:10,1,api.guest.seat-transfer')->name('api.guest.seat-transfer');
     // The mobile app scans the PC's QR code and confirms the sign-in there (like the /pc-login page).
