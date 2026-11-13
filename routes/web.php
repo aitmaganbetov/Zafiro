@@ -86,6 +86,7 @@ $superadminDomain = SuperadminHost::domain();
         Route::patch('/plans/{plan}', [SuperadminPlanController::class, 'update'])->name('plans.update');
 
         Route::get('/resellers', [SuperadminResellerController::class, 'index'])->name('resellers.index');
+        Route::post('/resellers', [SuperadminResellerController::class, 'store'])->name('resellers.store');
         Route::patch('/resellers/{reseller}', [SuperadminResellerController::class, 'update'])->name('resellers.update');
         Route::post('/resellers/{reseller}/payouts', [SuperadminResellerController::class, 'payout'])->name('resellers.payout');
         Route::delete('/resellers/{reseller}/clubs/{club}', [SuperadminResellerController::class, 'detach'])->name('resellers.detach');
@@ -121,18 +122,11 @@ $superadminDomain = SuperadminHost::domain();
     Route::put('/languages/{language}/translations', [SuperadminLanguageController::class, 'saveTranslations'])->name('languages.translations.save');
 });
 
-// Reseller cabinet: their code, clubs and earnings. On its own host (RESELLER_DOMAIN) from the root,
-// before the landing page's "/"; without the host — at /reseller.
+// Reseller cabinet: their code, clubs and earnings (the superadmin creates resellers). On its own
+// host (RESELLER_DOMAIN) from the root, before the landing page's "/"; without the host — at /reseller.
 $resellerDomain = ResellerHost::domain();
-($resellerDomain === null ? Route::prefix('reseller') : Route::domain($resellerDomain))->name('reseller.')->group(function () {
-    Route::middleware('guest')->group(function () {
-        Route::get('/join', [ResellerController::class, 'showRegister'])->name('register');
-        Route::post('/join', [ResellerController::class, 'register'])->middleware('throttle:10,1,reseller.register')->name('register.store');
-    });
-    Route::middleware('auth')->group(function () {
-        Route::get('/', [ResellerController::class, 'dashboard'])->name('dashboard');
-        Route::post('/', [ResellerController::class, 'store'])->middleware('throttle:10,1,reseller.store')->name('store');
-    });
+($resellerDomain === null ? Route::prefix('reseller') : Route::domain($resellerDomain))->name('reseller.')->middleware('auth')->group(function () {
+    Route::get('/', [ResellerController::class, 'dashboard'])->name('dashboard');
 });
 
 // Zafiro wiki: the whole documentation as one static page. On its own host (WIKI_DOMAIN) from the

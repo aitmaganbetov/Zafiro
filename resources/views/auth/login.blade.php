@@ -9,5 +9,5 @@
 <div class="auth-field"><label for="password">{{ __('Пароль') }}</label><div class="auth-input-wrap"><i class="fas fa-lock"></i><input type="password" id="password" name="password" required placeholder="{{ __('Введите пароль') }}"></div></div>
 <div class="auth-row"><label class="auth-check"><input type="checkbox" name="remember"> {{ __('Запомнить меня') }}</label><a href="{{ route('auth.password.forgot') }}">{{ __('Забыли пароль?') }}</a></div>
 <button class="auth-submit">{{ __('Войти в систему') }}</button>
-</form><p class="auth-footer">{{ __('Нет аккаунта?') }} <a href="{{ route('auth.show-register') }}">{{ __('Зарегистрироваться') }}</a></p>
+</form>@if(\App\Support\ResellerHost::is(request()))<p class="auth-footer">{{ __('Кабинет реселлера Zafiro. Аккаунт реселлера создаёт Zafiro.') }}</p>@else<p class="auth-footer">{{ __('Нет аккаунта?') }} <a href="{{ route('auth.show-register') }}">{{ __('Зарегистрироваться') }}</a></p>@endif
 @endsection

@@ -24,38 +24,52 @@ function makeReseller(string $code = 'arman-games', float $percent = 10, int $di
     return $reseller;
 }
 
-test('a reseller signs up on the reseller host with a latin code of their own', function () {
+test('the superadmin creates resellers: a new account, or an existing one by phone', function () {
+    $admin = User::factory()->superadmin()->create(['phone' => '+77009990001']);
+    $existing = User::factory()->create(['phone' => '+77005556677']);
     makeReseller('taken');
 
-    $this->get(route('reseller.register'))->assertOk()->assertSee('Код реселлера');
-
-    $this->post(route('reseller.register.store'), ['name' => 'Arman', 'code' => 'taken', 'phone' => '7001234567', 'password' => 'secret12', 'password_confirmation' => 'secret12'])
+    $this->actingAs($admin);
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Arman', 'phone' => '7001234567', 'password' => 'secret12', 'code' => 'taken', 'commission_percent' => 10, 'discount_percent' => 15])
         ->assertSessionHasErrors('code');
-    $this->post(route('reseller.register.store'), ['name' => 'Arman', 'code' => 'Арман', 'phone' => '7001234567', 'password' => 'secret12', 'password_confirmation' => 'secret12'])
-        ->assertSessionHasErrors('code');
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Arman', 'phone' => '7001234567', 'code' => 'arman', 'commission_percent' => 10, 'discount_percent' => 15])
+        ->assertSessionHasErrors('password');
 
-    $this->post(route('reseller.register.store'), ['name' => 'Arman', 'code' => 'Arman-Games', 'phone' => '700 123-45-67', 'password' => 'secret12', 'password_confirmation' => 'secret12'])
-        ->assertRedirect(route('reseller.dashboard'));
-
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Arman', 'phone' => '8 700 123-45-67', 'password' => 'secret12', 'code' => 'Arman-Games', 'commission_percent' => 10, 'discount_percent' => 15])
+        ->assertSessionHasNoErrors();
     $reseller = Reseller::query()->where('code', 'arman-games')->sole();
     expect($reseller->user->phone)->toBe('+77001234567')
-        ->and((float) $reseller->commission_percent)->toBe(0.0)
-        ->and($reseller->discount_percent)->toBe(0);
-    $this->get(route('reseller.dashboard'))->assertOk()->assertSee('arman-games')->assertSee('Пока ни один клуб не ввёл ваш код.');
+        ->and((float) $reseller->commission_percent)->toBe(10.0)
+        ->and($reseller->discount_percent)->toBe(15);
+
+    // An existing account keeps its password and becomes a reseller once.
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Club Partner', 'phone' => '+77005556677', 'code' => 'partner', 'commission_percent' => 5, 'discount_percent' => 0])
+        ->assertSessionHasNoErrors();
+    expect(Reseller::query()->where('user_id', $existing->id)->value('code'))->toBe('partner');
+    $this->post(route('superadmin.resellers.store'), ['name' => 'Again', 'phone' => '+77005556677', 'code' => 'again', 'commission_percent' => 5, 'discount_percent' => 0])
+        ->assertSessionHasErrors('phone');
+
+    // Others cannot create resellers.
+    $this->actingAs($existing)->post(route('superadmin.resellers.store'), ['name' => 'X', 'phone' => '7001112233', 'password' => 'secret12', 'code' => 'xx-x', 'commission_percent' => 90, 'discount_percent' => 90])
+        ->assertForbidden();
 });
 
-test('an account signs in on the reseller host and becomes a reseller; other pages there lead to the cabinet', function () {
-    $user = User::factory()->create(['phone' => '+77005556677', 'password' => 'secret12']);
+test('only resellers sign in on the reseller host; there is no sign-up there', function () {
+    $reseller = makeReseller();
+    $reseller->user->forceFill(['phone' => '+77001234567', 'password' => 'secret12'])->save();
+    User::factory()->create(['phone' => '+77005556677', 'password' => 'secret12']);
     $host = 'http://'.config('app.reseller_domain');
 
-    $this->post($host.'/login', ['phone' => '+77005556677', 'password' => 'secret12'])->assertRedirect(route('reseller.dashboard'));
-    $this->get(route('reseller.dashboard'))->assertOk()->assertSee('Стать реселлером');
+    $this->get($host.'/login')->assertOk()->assertDontSee('Зарегистрироваться');
 
-    $this->post(route('reseller.store'), ['name' => 'Club Partner', 'code' => 'partner'])->assertRedirect(route('reseller.dashboard'));
-    expect(Reseller::query()->where('user_id', $user->id)->value('code'))->toBe('partner');
+    $this->post($host.'/login', ['phone' => '+77005556677', 'password' => 'secret12'])->assertSessionHasErrors('phone');
+    $this->assertGuest();
 
+    $this->post($host.'/login', ['phone' => '+77001234567', 'password' => 'secret12'])->assertRedirect(route('reseller.dashboard'));
+    $this->get(route('reseller.dashboard'))->assertOk()->assertSee('arman-games')->assertSee('Пока ни один клуб не ввёл ваш код.');
+    // The club panel and the club sign-up are not on this host.
     $this->get($host.'/dashboard')->assertRedirect(route('reseller.dashboard'));
-    $this->get($host.'/register')->assertRedirect(route('reseller.register'));
+    $this->get($host.'/register')->assertRedirect(route('reseller.dashboard'));
 });
 
 test('a club enters the reseller code once; unknown or stopped codes are refused', function () {

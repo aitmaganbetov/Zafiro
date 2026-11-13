@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\MemberBalance;
+use App\Models\Reseller;
 use App\Models\SaasPlan;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -56,8 +57,16 @@ class AuthController extends Controller
                 return back()->withErrors(['phone' => __('Аккаунт заблокирован. Обратитесь в поддержку Zafiro.')])->onlyInput('phone');
             }
 
-            // The reseller host: any account, to the reseller cabinet (or to joining as a reseller).
+            // The reseller host: resellers only (the superadmin creates them), straight to the cabinet.
             if (ResellerHost::is($request)) {
+                if (! Reseller::query()->where('user_id', $user->getKey())->exists()) {
+                    Auth::logout();
+                    $request->session()->regenerateToken();
+                    $activity->recordFailedLogin('auth.login_failed', $credentials['phone'], 'not_reseller');
+
+                    return back()->withErrors(['phone' => __('Здесь входят только реселлеры Zafiro.')])->onlyInput('phone');
+                }
+
                 return redirect()->intended(route('reseller.dashboard'));
             }
 

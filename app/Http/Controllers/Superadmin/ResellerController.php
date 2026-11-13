@@ -5,13 +5,21 @@ namespace App\Http\Controllers\Superadmin;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Reseller;
+use App\Models\User;
 use App\Services\PlatformLogger;
+use App\Support\ResellerHost;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/** Resellers: the superadmin sets their percent and discount, records payouts and unlinks clubs. */
+/**
+ * Resellers: the superadmin creates them (with a new account or an existing one by phone), sets
+ * their percent and discount, records payouts and unlinks clubs.
+ */
 class ResellerController extends Controller
 {
     public function __construct(private PlatformLogger $platformLog) {}
@@ -32,6 +40,47 @@ class ResellerController extends Controller
                 ->paginate(30)
                 ->withQueryString(),
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $digits = preg_replace('/\D+/', '', (string) $request->input('phone', ''));
+        $digits = strlen($digits) === 11 && in_array($digits[0], ['7', '8'], true) ? substr($digits, 1) : $digits;
+        $request->merge(['phone' => $digits === '' ? '' : '+7'.$digits, 'code' => Reseller::normalizeCode($request->input('code'))]);
+        $existing = User::query()->where('phone', $request->input('phone'))->first();
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'phone' => ['required', 'string', 'regex:/^\+7\d{10}$/'],
+            // An existing account keeps its password; a new one needs it.
+            'password' => [$existing === null ? 'required' : 'nullable', 'string', 'min:6'],
+            'code' => ['required', 'string', 'regex:'.Reseller::CODE_PATTERN, Rule::unique('resellers', 'code')],
+            'commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+        ], [
+            'phone.regex' => __('Введите корректный номер телефона.'),
+            'code.regex' => __('Код — от 3 до 32 символов: латинские буквы, цифры и дефис, начинается с буквы или цифры.'),
+            'code.unique' => __('Этот код уже занят — выберите другой.'),
+        ]);
+        if ($existing !== null && Reseller::query()->where('user_id', $existing->getKey())->exists()) {
+            throw ValidationException::withMessages(['phone' => __('Аккаунт с этим телефоном уже реселлер.')]);
+        }
+
+        $reseller = DB::transaction(function () use ($existing, $data, $request): Reseller {
+            $user = $existing ?? User::query()->create(['name' => $data['name'], 'phone' => $data['phone'], 'password' => Hash::make($data['password'])]);
+            $reseller = new Reseller(['code' => $data['code'], 'name' => $data['name']]);
+            $reseller->forceFill([
+                'user_id' => $user->getKey(),
+                'commission_percent' => $data['commission_percent'],
+                'discount_percent' => (int) $data['discount_percent'],
+            ])->save();
+            $this->platformLog->record('superadmin.reseller_created', __('Новый реселлер: :name (код :code)', ['name' => $reseller->name, 'code' => $reseller->code]), $request->user(), null, $reseller);
+
+            return $reseller;
+        });
+
+        return back()->with('status', $existing === null
+            ? __('Реселлер :code создан. Он входит на :host со своим телефоном и паролем.', ['code' => $reseller->code, 'host' => $this->host()])
+            : __('Реселлер :code создан для существующего аккаунта: он входит на :host со своим паролем.', ['code' => $reseller->code, 'host' => $this->host()]));
     }
 
     public function update(Request $request, Reseller $reseller): RedirectResponse
@@ -83,5 +132,10 @@ class ResellerController extends Controller
         });
 
         return back()->with('status', __('Клуб :club отвязан от реселлера.', ['club' => $club->name]));
+    }
+
+    private function host(): string
+    {
+        return ResellerHost::domain() ?? url('/reseller');
     }
 }

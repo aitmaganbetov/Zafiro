@@ -4,7 +4,20 @@
 @php($money = fn ($value) => number_format((float) $value, 0, '.', ' ').' ₸')
 @php($field = 'rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100')
 @section('content')
-<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{{ __('Реселлеры регистрируются сами на :host и выбирают код. Клуб, который ввёл код, платит подписку со скидкой реселлера, а реселлер получает свой процент с каждой оплаты. Новый реселлер начинает с 0% и без скидки.', ['host' => config('app.reseller_domain') ?? url('/reseller')]) }}</p>
+<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{{ __('Реселлеров создаёте вы: они входят в свой кабинет на :host по телефону и паролю. Клуб, который ввёл код реселлера, платит подписку с его скидкой, а реселлер получает свой процент с каждой оплаты.', ['host' => config('app.reseller_domain') ?? url('/reseller')]) }}</p>
+
+<form method="POST" action="{{ route('superadmin.resellers.store') }}" class="mb-6 rounded-xl border border-dashed border-violet-300 bg-white p-4 dark:border-violet-800 dark:bg-gray-900">@csrf
+    <h3 class="mb-3 font-semibold text-gray-900 dark:text-white">{{ __('Новый реселлер') }}</h3>
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Имя или компания') }}</span><input type="text" name="name" value="{{ old('name') }}" required maxlength="120" class="{{ $field }} w-full"></label>
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Телефон') }}</span><input type="tel" name="phone" value="{{ old('phone') }}" required placeholder="+7 700 123-45-67" class="{{ $field }} w-full"></label>
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Пароль') }}</span><input type="text" name="password" minlength="6" autocomplete="new-password" class="{{ $field }} w-full"><span class="mt-1 block text-xs text-gray-500">{{ __('Если аккаунт с этим телефоном уже есть, оставьте пустым: пароль останется прежним.') }}</span></label>
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Код реселлера') }}</span><input type="text" name="code" value="{{ old('code') }}" required maxlength="32" autocapitalize="none" spellcheck="false" placeholder="arman-games" class="{{ $field }} w-full"><span class="mt-1 block text-xs text-gray-500">{{ __('Латинские буквы, цифры и дефис, от 3 до 32 символов.') }}</span></label>
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Процент реселлера') }}</span><input type="number" name="commission_percent" min="0" max="100" step="0.01" value="{{ old('commission_percent', 0) }}" required class="{{ $field }} w-full"></label>
+        <label class="text-sm"><span class="mb-1 block text-gray-600 dark:text-gray-400">{{ __('Скидка клубам, %') }}</span><input type="number" name="discount_percent" min="0" max="100" step="1" value="{{ old('discount_percent', 0) }}" required class="{{ $field }} w-full"></label>
+    </div>
+    <button type="submit" class="brand-button mt-3 rounded-lg px-4 py-2 text-sm">{{ __('Создать реселлера') }}</button>
+</form>
 
 <form method="GET" class="mb-4 flex flex-wrap gap-2">
     <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Код или имя') }}" class="{{ $field }}">
