@@ -74,6 +74,11 @@ class AuthController extends Controller
             ->with('club')
             ->where('user_id', $user->getKey())
             ->when($requestedClubId, fn ($query, $clubId) => $query->where('club_id', $clubId))
+            // Without a chosen club, a club with an active subscription goes first,
+            // so a lapsed club of the account does not block signing in to the others.
+            ->when(! $requestedClubId, fn ($query) => $query
+                ->orderByDesc(ClubSubscription::query()->active()->whereColumn('club_subscriptions.club_id', 'club_memberships.club_id')->selectRaw('1'))
+                ->orderBy('id'))
             ->first();
 
         if (! $membership) {

@@ -259,6 +259,25 @@ test('agent user login requires active subscription for the selected club', func
     ])->assertStatus(402)->assertJsonPath('message', 'Подписка клуба не активна.');
 });
 
+test('mobile login without a club picks a club of the account with an active subscription', function () {
+    $user = User::factory()->create(['phone' => '+79990000005', 'password' => Hash::make('secret-password')]);
+    $lapsedId = app(CurrentClub::class)->id();
+    ClubSubscription::query()->where('club_id', $lapsedId)->update(['status' => 'trialing', 'trial_ends_at' => now()->subDay()]);
+
+    $active = Club::query()->create(['name' => 'Active Club', 'slug' => 'active-club']);
+    $plan = SaasPlan::query()->firstOrCreate(['slug' => 'trial'], ['name' => 'Пробный период', 'trial_days' => 14, 'is_active' => true]);
+    $active->subscription()->create(['saas_plan_id' => $plan->id, 'status' => 'active', 'started_at' => now()->subMonth()]);
+    ClubMembership::query()->withoutGlobalScope('club')->forceCreate(['club_id' => $active->id, 'user_id' => $user->id, 'role' => 'client']);
+
+    $this->postJson('/api/auth/login', ['phone' => '+79990000005', 'password' => 'secret-password'])
+        ->assertOk()->assertJsonPath('club_id', $active->id);
+
+    // When no club of the account is active, the answer stays the same.
+    $active->subscription()->update(['status' => 'expired']);
+    $this->postJson('/api/auth/login', ['phone' => '+79990000005', 'password' => 'secret-password'])
+        ->assertStatus(402)->assertJsonPath('message', 'Подписка клуба не активна.');
+});
+
 test('get api me returns the authenticated users balance and profile from the bearer token', function () {
     $club = Club::query()->create(['name' => 'Token Club', 'slug' => 'token-club']);
     app(CurrentClub::class)->set($club);
