@@ -34,6 +34,8 @@ namespace ZafiroAgent.Views
         private bool _busy;
         private bool _qrRunning;
         private bool _registering;
+        // Вход по коду брони из мобильного приложения (бронь на компанию): без аккаунта.
+        private bool _bookingCode;
         private Recovery _recovery;
         private string? _recoveryPhone;
         private bool _guestWatching;
@@ -79,10 +81,13 @@ namespace ZafiroAgent.Views
             SubmitButton.Click += async (_, _) =>
             {
                 if (_recovery != Recovery.None) await RecoverAsync();
+                else if (_bookingCode) await EnterBookingCodeAsync();
                 else if (_registering) await RegisterAsync();
                 else await SubmitAsync();
             };
             RegisterToggle.Click += (_, _) => SetRegistering(!_registering);
+            BookingToggle.Click += (_, _) => SetBookingCode(!_bookingCode);
+            BookingCodeBox.PreviewTextInput += (_, e) => e.Handled = !e.Text.All(char.IsAsciiDigit);
             // Со входа — к номеру для кода; с номера — обратно ко входу; с кода — заново к номеру.
             ForgotToggle.Click += (_, _) => SetRecovery(_recovery == Recovery.Phone ? Recovery.None : Recovery.Phone);
             PhoneBox.TextChanged += (_, _) => FormatPhone();
@@ -100,6 +105,7 @@ namespace ZafiroAgent.Views
                 if (!_relogin) return;
                 RegisterToggle.Visibility = Visibility.Visible;
                 ForgotToggle.Visibility = Visibility.Visible;
+                BookingToggle.Visibility = Visibility.Visible;
                 _ = RunQrLoginAsync();
                 _ = RunGuestWatchAsync();
             };
@@ -286,6 +292,14 @@ namespace ZafiroAgent.Views
                 Recovery.Code => L.T("Запросить новый код"),
                 _ => L.T("Забыли пароль?")
             };
+            BookingCodeLabel.Text = L.T("Код брони");
+            BookingToggle.Content = _bookingCode ? L.T("Вернуться ко входу") : L.T("Есть код брони?");
+            if (_bookingCode)
+            {
+                HeaderText.Text = L.T("Вход по коду брони");
+                ClubText.Text = L.T("Введите код из приложения Zafiro того, кто бронировал. Код работает только на забронированных ПК и только во время брони.");
+                SubmitButton.Content = L.T("Начать по коду");
+            }
             if (_recovery != Recovery.None)
             {
                 HeaderText.Text = L.T("Восстановление пароля");
@@ -495,6 +509,7 @@ namespace ZafiroAgent.Views
             App.Instance.RefreshKiosk();
             PhoneBox.Focus();
             RegisterToggle.Visibility = Visibility.Visible;
+            BookingToggle.Visibility = Visibility.Visible;
             _ = RunQrLoginAsync();
             _ = RunGuestWatchAsync();
         }
@@ -512,9 +527,33 @@ namespace ZafiroAgent.Views
             if (registering) NameBox.Focus(); else PhoneBox.Focus();
         }
 
+        /// <summary>Вход по коду брони вместо телефона и пароля: только на подключённом ПК.</summary>
+        private void SetBookingCode(bool bookingCode)
+        {
+            if (_busy) return;
+            _bookingCode = bookingCode;
+            _registering = false;
+            _recovery = Recovery.None;
+            BookingCodePanel.Visibility = bookingCode ? Visibility.Visible : Visibility.Collapsed;
+            PhonePanel.Visibility = bookingCode ? Visibility.Collapsed : Visibility.Visible;
+            PasswordPanel.Visibility = bookingCode ? Visibility.Collapsed : Visibility.Visible;
+            NamePanel.Visibility = Visibility.Collapsed;
+            CodePanel.Visibility = Visibility.Collapsed;
+            ConfirmPanel.Visibility = Visibility.Collapsed;
+            PhoneBox.IsReadOnly = false;
+            RegisterToggle.Visibility = bookingCode || !_relogin ? Visibility.Collapsed : Visibility.Visible;
+            ForgotToggle.Visibility = bookingCode || !_relogin ? Visibility.Collapsed : Visibility.Visible;
+            BookingCodeBox.Clear();
+            ErrorText.Text = string.Empty;
+            NoticeText.Visibility = Visibility.Collapsed;
+            ApplyTexts();
+            if (bookingCode) BookingCodeBox.Focus(); else PhoneBox.Focus();
+        }
+
         private void SetRecovery(Recovery step)
         {
             if (_busy) return;
+            if (_bookingCode) SetBookingCode(false);
             _recovery = step;
             _registering = false;
             NamePanel.Visibility = Visibility.Collapsed;
@@ -682,6 +721,50 @@ namespace ZafiroAgent.Views
             {
                 SafeLog.Write("[Register] failed: " + ex.Message);
                 ErrorText.Text = L.T("Не удалось зарегистрироваться. Повторите попытку или обратитесь к администратору клуба.");
+            }
+            finally
+            {
+                _busy = false;
+                SubmitButton.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Код брони: сервер открывает на этом ПК оплаченную гостевую сессию, если ПК — один из
+        /// забронированных. Окно сразу проверяет сессию, не дожидаясь следующей проверки.
+        /// </summary>
+        private async Task EnterBookingCodeAsync()
+        {
+            if (_busy) return;
+            var code = BookingCodeBox.Text.Trim();
+            if (code.Length != 6 || !code.All(char.IsAsciiDigit)) { ErrorText.Text = L.T("Код брони — 6 цифр."); return; }
+
+            _busy = true;
+            SubmitButton.IsEnabled = false;
+            ErrorText.Text = string.Empty;
+            try
+            {
+                var result = await _setup.EnterBookingCodeAsync(code, _cts.Token);
+                if (!result.Success)
+                {
+                    ErrorText.Text = result.Message;
+                    return;
+                }
+
+                SafeLog.Write("[Booking] opened with a booking code");
+                _busy = false;
+                SetBookingCode(false);
+                var check = await _setup.CheckGuestSessionAsync(_cts.Token);
+                if (check.Success) ApplyGuestSession(check.Value);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                SafeLog.Write("[Booking] code failed: " + ex.Message);
+                ErrorText.Text = L.T("Не удалось проверить код. Повторите попытку или обратитесь к администратору клуба.");
             }
             finally
             {

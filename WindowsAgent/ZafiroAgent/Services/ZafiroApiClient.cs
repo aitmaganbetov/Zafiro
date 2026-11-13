@@ -32,6 +32,7 @@ namespace ZafiroAgent.Services
         public static readonly Uri QrLoginEndpoint = new("https://zafiro.kz/api/agent/qr-login");
         public static readonly Uri AgentHeartbeatEndpoint = new("https://zafiro.kz/api/agent/heartbeat");
         public static readonly Uri AgentRegisterEndpoint = new("https://zafiro.kz/api/agent/register");
+        public static readonly Uri BookingCodeEndpoint = new("https://zafiro.kz/api/agent/booking-code");
         public static readonly Uri QrLoginPollEndpoint = new("https://zafiro.kz/api/agent/qr-login/poll");
         // «Забыли пароль?»: код в Telegram на номер аккаунта, затем код и новый пароль.
         public static readonly Uri PasswordCodeEndpoint = new("https://zafiro.kz/api/auth/password/code");

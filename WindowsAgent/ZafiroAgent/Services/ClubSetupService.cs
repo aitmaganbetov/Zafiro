@@ -369,6 +369,13 @@ namespace ZafiroAgent.Services
             return ApiResult<ClubSession>.Ok(new ClubSession(clubId, cfg.ClubName, apiBase, login.Value!.Token, login.Value.ExpiresAtUtc));
         }
 
+        /// <summary>
+        /// Код брони из мобильного приложения: если этот ПК — один из забронированных и бронь
+        /// началась, сервер открывает на нём оплаченную гостевую сессию (без аккаунта).
+        /// </summary>
+        public async Task<ApiResult<JsonElement>> EnterBookingCodeAsync(string code, CancellationToken cancellationToken) =>
+            await _api.PostWithDeviceTokenAsync(ZafiroApiClient.BookingCodeEndpoint, new Dictionary<string, object?> { ["code"] = code }, await DeviceTokenAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+
         /// <summary>«Забыли пароль?»: сервер отправляет код в Telegram на номер аккаунта (Telegram Gateway).</summary>
         public Task<ApiResult<JsonElement>> RequestPasswordCodeAsync(string phone, CancellationToken cancellationToken) =>
             _api.PostPublicAsync(ZafiroApiClient.PasswordCodeEndpoint, new Dictionary<string, object?> { ["phone"] = phone }, cancellationToken);
