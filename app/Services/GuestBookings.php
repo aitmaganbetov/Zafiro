@@ -70,16 +70,44 @@ class GuestBookings
     }
 
     /**
-     * Tariffs the guest may book for the start, with their price and time.
+     * The club's PCs by zone, for the guest to pick one first (whether it is free depends on the
+     * time, see options()).
      *
      * @return list<array<string, mixed>>
      */
-    public function tariffs(User $user, Carbon $startsAt): array
+    public function computers(User $user): array
+    {
+        $zones = ClubZone::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'name', 'price_per_hour']);
+        $computers = ClubComputer::query()
+            ->whereIn('club_zone_id', $zones->modelKeys())
+            ->where('is_reserved', false)
+            ->orderBy('number')
+            ->get(['id', 'club_zone_id', 'number', 'display_name', 'device_name'])
+            ->groupBy('club_zone_id');
+
+        return $zones->filter(fn (ClubZone $zone): bool => isset($computers[$zone->id]))
+            ->map(fn (ClubZone $zone): array => [
+                'id' => $zone->id,
+                'name' => $zone->name,
+                'price_per_hour' => $zone->price_per_hour === null ? null : $this->purchases->hourlyPrice($user, $zone),
+                'computers' => $computers[$zone->id]->map(fn (ClubComputer $computer): array => ['id' => $computer->id, 'name' => $computer->displayName()])->values()->all(),
+            ])->values()->all();
+    }
+
+    /**
+     * Tariffs the guest may book for the start, with their price and time; with a PC — only the
+     * tariffs of its zone.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function tariffs(User $user, Carbon $startsAt, ?int $computerId = null): array
     {
         $this->ensureStart($startsAt);
         $local = $startsAt->copy()->setTimezone($this->currentClub->localTimezone());
+        $zoneId = $computerId === null ? null : ClubComputer::query()->findOrFail($computerId)->club_zone_id;
 
         return $this->purchases->bookableTariffs($user, $local)
+            ->filter(fn (Tariff $tariff): bool => $zoneId === null || $tariff->zones->isEmpty() || $tariff->zones->contains('id', $zoneId))
             ->map(fn (Tariff $tariff): array => [
                 'id' => $tariff->id,
                 'name' => $tariff->name,

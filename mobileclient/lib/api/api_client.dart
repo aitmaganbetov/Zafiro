@@ -127,13 +127,28 @@ class ApiClient {
   Future<BookingsOverview> bookings() async =>
       BookingsOverview.fromJson(await _send('GET', '/guest/bookings'));
 
-  /// Тарифы, которые можно забронировать на это начало.
-  Future<List<BookingTariff>> bookingTariffs(DateTime start) async => [
+  /// ПК клуба по зонам: гость сначала выбирает ПК.
+  Future<List<PcZone>> bookingComputers() async => [
+    for (final item
+        in (await _send('GET', '/guest/bookings/computers'))['zones']
+                as List? ??
+            const [])
+      PcZone.fromJson(item as Map<String, dynamic>),
+  ];
+
+  /// Тарифы, которые можно забронировать на это начало (для зоны ПК).
+  Future<List<BookingTariff>> bookingTariffs(
+    DateTime start, {
+    int? computerId,
+  }) async => [
     for (final item
         in (await _send(
                   'GET',
                   '/guest/bookings/tariffs',
-                  query: {'starts_at': start.toUtc().toIso8601String()},
+                  query: {
+                    'starts_at': start.toUtc().toIso8601String(),
+                    'computer_id': ?computerId?.toString(),
+                  },
                 ))['tariffs']
                 as List? ??
             const [])

@@ -302,3 +302,31 @@ test('a guest books a PC as a tariff of its zone: the tariff price, its time, it
         ->assertJsonPath('session.ends_at', '2026-11-16T15:00:00+00:00');
     expect(SessionPurchase::query()->sole()->only(['kind', 'tariff_id', 'minutes']))->toBe(['kind' => 'tariff', 'tariff_id' => $tariff->id, 'minutes' => 180]);
 });
+
+test('the guest picks a PC first: the club PCs by zone, then only the tariffs of its zone', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-16 10:00:00', 'UTC'));
+    bookingClub();
+    $vip = bookingComputer();
+    $common = ClubComputer::query()->create(['club_zone_id' => ClubZone::query()->create(['name' => 'Общий'])->id, 'number' => 2]);
+    ClubComputer::query()->create(['club_zone_id' => $common->club_zone_id, 'number' => 3, 'is_reserved' => true]);
+    [, $token] = bookingGuest();
+    $vipOnly = Tariff::query()->create(['name' => 'VIP 3 часа', 'duration_minutes' => 180, 'price' => 1200, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+    $vipOnly->zones()->attach($vip->club_zone_id, ['club_id' => app(CurrentClub::class)->id()]);
+    $everywhere = Tariff::query()->create(['name' => 'Час', 'duration_minutes' => 60, 'price' => 300, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+
+    freshRequest();
+    $zones = $this->withToken($token)->getJson(route('api.guest.bookings.computers'))->assertOk()->json('zones');
+    expect(collect($zones)->pluck('name')->all())->toBe(['VIP', 'Общий'])
+        ->and($zones[0]['price_per_hour'])->toBe('600.00')
+        ->and($zones[1]['price_per_hour'])->toBeNull()
+        ->and($zones[1]['computers'])->toBe([['id' => $common->id, 'name' => 'PC-02']]);
+
+    $tariffsOf = function (ClubComputer $computer) use ($token) {
+        freshRequest();
+
+        return collect($this->withToken($token)->getJson(route('api.guest.bookings.tariffs', ['starts_at' => '2026-11-16T12:00:00+00:00', 'computer_id' => $computer->id]))
+            ->assertOk()->json('tariffs'))->pluck('id')->all();
+    };
+    expect($tariffsOf($common))->toBe([$everywhere->id])
+        ->and($tariffsOf($vip))->toBe([$everywhere->id, $vipOnly->id]);
+});

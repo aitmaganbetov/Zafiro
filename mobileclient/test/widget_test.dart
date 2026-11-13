@@ -235,4 +235,18 @@ void main() {
     expect(options.zones.single.pricePerHour, isNull);
     expect(options.zones.single.price, 2000);
   });
+
+  test('ПК для брони: зоны без цены за час бронируют только тарифом', () {
+    final zone = PcZone.fromJson({
+      'id': 2,
+      'name': 'Общий',
+      'price_per_hour': null,
+      'computers': [
+        {'id': 5, 'name': 'PC-05'},
+      ],
+    });
+
+    expect(zone.pricePerHour, isNull);
+    expect(zone.computers.single.name, 'PC-05');
+  });
 }

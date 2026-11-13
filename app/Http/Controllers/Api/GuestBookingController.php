@@ -42,13 +42,22 @@ class GuestBookingController extends Controller
         ]);
     }
 
-    /** Tariffs the guest may book for the start. */
+    /** The club's PCs by zone: the guest picks one first. */
+    public function computers(Request $request): JsonResponse
+    {
+        $this->bookings->ensureEnabled();
+
+        return response()->json(['zones' => $this->bookings->computers($request->user())]);
+    }
+
+    /** Tariffs the guest may book for the start (of the PC's zone, when one is picked). */
     public function tariffs(Request $request): JsonResponse
     {
         $this->bookings->ensureEnabled();
         $startsAt = $this->start($request);
+        $computerId = $request->validate(['computer_id' => ['nullable', 'integer']])['computer_id'] ?? null;
 
-        return response()->json(['tariffs' => $this->bookings->tariffs($request->user(), $startsAt)]);
+        return response()->json(['tariffs' => $this->bookings->tariffs($request->user(), $startsAt, $computerId === null ? null : (int) $computerId)]);
     }
 
     /** Zones and PCs free for the period (by the hour or a tariff), with the price. */

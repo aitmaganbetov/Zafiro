@@ -588,3 +588,32 @@ class BookingTariff {
   final int minutes;
   final double price;
 }
+
+/// Зона клуба с её ПК: гость сначала выбирает ПК (GET /guest/bookings/computers).
+class PcZone {
+  PcZone({
+    required this.id,
+    required this.name,
+    required this.pricePerHour,
+    required this.computers,
+  });
+
+  factory PcZone.fromJson(Map<String, dynamic> json) => PcZone(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    pricePerHour: json['price_per_hour'] == null
+        ? null
+        : _amount(json['price_per_hour']),
+    computers: [
+      for (final item in json['computers'] as List? ?? const [])
+        BookingPc.fromJson(item as Map<String, dynamic>),
+    ],
+  );
+
+  final int id;
+  final String name;
+
+  /// null — по часовой в зоне не бронируют, только тарифом.
+  final double? pricePerHour;
+  final List<BookingPc> computers;
+}
