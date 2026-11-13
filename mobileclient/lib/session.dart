@@ -11,6 +11,8 @@ class Session extends ChangeNotifier {
 
   static const _tokenKey = 'auth_token';
   static const _clubKey = 'club_name';
+  static const _clubIdKey = 'club_id';
+  static const _cityKey = 'city';
 
   final ApiClient api;
   final FlutterSecureStorage _storage;
@@ -18,12 +20,16 @@ class Session extends ChangeNotifier {
   bool restoring = true;
   Profile? profile;
   String clubName = '';
+  int? clubId;
 
-  /// Клубы аккаунта; больше одного — в профиле можно сменить клуб.
+  /// Город списка клубов, выбранный или найденный по геолокации.
+  String? city;
+
+  /// Клубы аккаунта: в списке клубов города они отмечены.
   List<ClubInfo> clubs = const [];
 
-  /// Сразу после входа гость с несколькими клубами выбирает клуб.
-  bool choosingClub = false;
+  /// Приложение открывается списком клубов города; гость входит в клуб из него.
+  bool inClub = false;
 
   /// Меняется при смене клуба: экраны с данными клуба создаются заново.
   int clubVersion = 0;
@@ -33,10 +39,15 @@ class Session extends ChangeNotifier {
   Future<void> restore() async {
     api.token = await _storage.read(key: _tokenKey);
     clubName = await _storage.read(key: _clubKey) ?? '';
+    clubId = int.tryParse(await _storage.read(key: _clubIdKey) ?? '');
+    city = await _storage.read(key: _cityKey);
     if (api.token != null) {
       try {
         profile = await api.me();
         clubs = await api.clubs();
+        for (final club in clubs) {
+          if (club.current) clubId = club.id;
+        }
       } on ApiException catch (e) {
         if (e.isUnauthorized) await _forget();
       }
@@ -45,24 +56,32 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> login(String phone, String password) async {
-    final result = await api.login(phone, password);
-    await _apply(result);
-    choosingClub = result.clubs.length > 1;
+  bool isMember(int id) => clubs.any((club) => club.id == id);
+
+  /// Вход в клуб из списка (гость без аккаунта в клубе становится его клиентом).
+  Future<void> login(String phone, String password, int clubId) async {
+    await _apply(await api.login(phone, password, clubId));
+    clubVersion++;
+    inClub = true;
     notifyListeners();
   }
 
-  /// Выбор клуба после входа: тот же клуб — просто дальше.
-  Future<void> chooseClub(ClubInfo club) async {
-    if (!club.current) await _switch(club.id);
-    choosingClub = false;
+  /// Уже вошедший гость открывает клуб из списка: свой — сразу, другой — сменой клуба.
+  Future<void> enterClub(int id) async {
+    if (id != clubId) await _switch(id);
+    inClub = true;
     notifyListeners();
   }
 
-  /// Смена клуба из профиля.
-  Future<void> switchClub(ClubInfo club) async {
-    if (club.current) return;
-    await _switch(club.id);
+  /// Назад к списку клубов города.
+  void leaveClub() {
+    inClub = false;
+    notifyListeners();
+  }
+
+  Future<void> setCity(String key) async {
+    city = key;
+    await _storage.write(key: _cityKey, value: key);
     notifyListeners();
   }
 
@@ -96,16 +115,20 @@ class Session extends ChangeNotifier {
     api.token = result.token;
     profile = result.profile;
     clubName = result.clubName;
+    clubId = result.clubId;
     clubs = result.clubs;
     await _storage.write(key: _tokenKey, value: result.token);
     await _storage.write(key: _clubKey, value: result.clubName);
+    await _storage.write(key: _clubIdKey, value: '${result.clubId}');
   }
 
   Future<void> _forget() async {
     api.token = null;
     profile = null;
     clubs = const [];
-    choosingClub = false;
+    clubId = null;
+    inClub = false;
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _clubIdKey);
   }
 }

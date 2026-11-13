@@ -3,13 +3,17 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../api/api_client.dart';
+import '../api/models.dart';
 import '../session.dart';
 import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.session});
+  const LoginScreen({super.key, required this.session, required this.club});
 
   final Session session;
+
+  /// Клуб из списка: после входа гость в нём (и становится его клиентом, если ещё не был).
+  final CatalogClub club;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -40,7 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await widget.session.login(_digits(_phone.text), _password.text);
+      await widget.session.login(
+        _digits(_phone.text),
+        _password.text,
+        widget.club.id,
+      );
+      if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -51,6 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(backgroundColor: Colors.transparent),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -77,8 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     shaderCallback: (rect) => const LinearGradient(
                       colors: [Colors.white, Colors.white, Brand.accentLight],
                     ).createShader(rect),
-                    child: const Text(
-                      'Ваш клуб — в телефоне',
+                    child: Text(
+                      widget.club.name,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 30,
@@ -90,7 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Войдите тем же номером и паролем, что и на ПК клуба',
+                    'Войдите тем же номером и паролем, что и на ПК клуба. '
+                    'Если вы ещё не клиент этого клуба — станете им.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Brand.muted, height: 1.4),
                   ),
@@ -168,6 +179,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Нет аккаунта Zafiro? Зарегистрируйтесь на ПК в любом клубе '
+                    'Zafiro, потом входите здесь тем же номером и паролем.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Brand.faint, fontSize: 13),
                   ),
                 ],
               ),

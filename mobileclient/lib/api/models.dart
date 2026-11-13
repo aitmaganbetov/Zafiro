@@ -55,7 +55,7 @@ class LoginResult {
   final String clubName;
   final Profile profile;
 
-  /// Все клубы аккаунта: несколько — гость выбирает клуб после входа.
+  /// Все клубы аккаунта: в списке клубов города они отмечены.
   final List<ClubInfo> clubs;
 }
 
@@ -76,6 +76,70 @@ class ClubInfo {
   final int id;
   final String name;
   final bool current;
+}
+
+/// Город из списка Zafiro: координаты — чтобы найти ближайший к телефону.
+class City {
+  City({
+    required this.key,
+    required this.name,
+    required this.lat,
+    required this.lng,
+    this.clubs = 0,
+  });
+
+  factory City.fromJson(Map<String, dynamic> json) => City(
+    key: json['key'] as String,
+    name: json['name'] as String? ?? '',
+    lat: (json['lat'] as num).toDouble(),
+    lng: (json['lng'] as num).toDouble(),
+    clubs: json['clubs'] as int? ?? 0,
+  );
+
+  final String key;
+  final String name;
+  final double lat;
+  final double lng;
+  final int clubs;
+}
+
+/// Клуб в списке клубов города.
+class CatalogClub {
+  CatalogClub({
+    required this.id,
+    required this.name,
+    this.address,
+    this.logoUrl,
+  });
+
+  factory CatalogClub.fromJson(Map<String, dynamic> json) => CatalogClub(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    address: json['address'] as String?,
+    logoUrl: json['logo_url'] as String?,
+  );
+
+  final int id;
+  final String name;
+  final String? address;
+  final String? logoUrl;
+}
+
+/// Ответ /api/catalog/clubs: все города и клубы выбранного.
+class Catalog {
+  Catalog({required this.cities, required this.clubs});
+
+  factory Catalog.fromJson(Map<String, dynamic> json) => Catalog(
+    cities: (json['cities'] as List? ?? const [])
+        .map((e) => City.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    clubs: (json['clubs'] as List? ?? const [])
+        .map((e) => CatalogClub.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
+  final List<City> cities;
+  final List<CatalogClub> clubs;
 }
 
 class NewsItem {

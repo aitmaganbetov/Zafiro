@@ -26,14 +26,29 @@ class ApiClient {
   String locale;
   String? token;
 
-  Future<LoginResult> login(String phone, String password) async {
+  /// Вход в клуб из списка: если гость ещё не клиент этого клуба, он им станет.
+  Future<LoginResult> login(String phone, String password, int clubId) async {
     final json = await _send(
       'POST',
       '/auth/login',
-      body: {'phone': phone, 'password': password, 'device_name': deviceName},
+      body: {
+        'phone': phone,
+        'password': password,
+        'device_name': deviceName,
+        'club_id': clubId,
+      },
     );
     return LoginResult.fromJson(json);
   }
+
+  /// Города и клубы города (без входа).
+  Future<Catalog> catalog({String? city}) async => Catalog.fromJson(
+    await _send(
+      'GET',
+      '/catalog/clubs',
+      query: {'city': ?city},
+    ),
+  );
 
   Future<void> logout() => _send('POST', '/auth/logout');
 
@@ -64,7 +79,8 @@ class ApiClient {
   Future<List<ClubInfo>> clubs() async =>
       ClubInfo.listFromJson((await _send('GET', '/auth/clubs'))['clubs']);
 
-  /// Перейти в другой клуб: сервер выдаёт новый токен, старый перестаёт работать.
+  /// Перейти в другой клуб (в том числе новый из списка — гость станет его клиентом):
+  /// сервер выдаёт новый токен, старый перестаёт работать.
   Future<LoginResult> switchClub(int clubId) async => LoginResult.fromJson(
     await _send('POST', '/auth/switch-club', body: {'club_id': clubId}),
   );

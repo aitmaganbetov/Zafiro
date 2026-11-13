@@ -4,7 +4,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'club_picker.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key, required this.session});
@@ -63,10 +62,8 @@ class ProfileTab extends StatelessWidget {
                   icon: FontAwesomeIcons.store,
                   label: 'Клуб',
                   value: session.clubName,
-                  action: session.clubs.length > 1 ? 'Сменить' : null,
-                  onTap: session.clubs.length > 1
-                      ? () => showClubSwitcher(context, session)
-                      : null,
+                  action: 'Сменить',
+                  onTap: session.leaveClub,
                 ),
               ],
             ],

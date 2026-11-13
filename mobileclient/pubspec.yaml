@@ -37,6 +37,7 @@ dependencies:
   flutter_svg: ^2.3.0
   font_awesome_flutter: ^11.0.0
   mobile_scanner: ^7.4.2
+  geolocator: ^14.1.2
 
 dev_dependencies:
   flutter_test:

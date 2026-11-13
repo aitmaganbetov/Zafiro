@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:zafiro_client/api/models.dart';
 import 'package:zafiro_client/format.dart';
+import 'package:zafiro_client/geo.dart';
 import 'package:zafiro_client/qr.dart';
 
 void main() {
@@ -103,5 +104,38 @@ void main() {
     expect(overview.transfersEnabled, isFalse);
     expect(overview.friends.single.id, 3);
     expect(overview.outgoing.single.phone, '');
+  });
+
+  test('список клубов: города и клубы города из /api/catalog/clubs', () {
+    final catalog = Catalog.fromJson({
+      'cities': [
+        {
+          'key': 'aktobe',
+          'name': 'Актобе',
+          'lat': 50.28,
+          'lng': 57.17,
+          'clubs': 2,
+        },
+      ],
+      'city': 'aktobe',
+      'clubs': [
+        {'id': 5, 'name': 'Asia Game Club', 'address': null, 'logo_url': null},
+      ],
+    });
+
+    expect(catalog.cities.single.clubs, 2);
+    expect(catalog.clubs.single.name, 'Asia Game Club');
+  });
+
+  test('ближайший город по координатам телефона', () {
+    final cities = [
+      City(key: 'astana', name: 'Астана', lat: 51.17, lng: 71.45),
+      City(key: 'aktobe', name: 'Актобе', lat: 50.28, lng: 57.17),
+      City(key: 'almaty', name: 'Алматы', lat: 43.24, lng: 76.89),
+    ];
+
+    expect(nearestCity(cities, 50.30, 57.20)?.key, 'aktobe');
+    expect(nearestCity(cities, 43.30, 76.95)?.key, 'almaty');
+    expect(nearestCity(const [], 0, 0), isNull);
   });
 }

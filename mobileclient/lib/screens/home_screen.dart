@@ -5,7 +5,6 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'balance_tab.dart';
-import 'club_picker.dart';
 import 'friends_tab.dart';
 import 'history_tab.dart';
 import 'news_tab.dart';
@@ -47,9 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: GestureDetector(
-                onTap: session.clubs.length > 1
-                    ? () => showClubSwitcher(context, session)
-                    : null,
+                onTap: session.leaveClub,
                 child: _ClubChip(session.clubName),
               ),
             ),
