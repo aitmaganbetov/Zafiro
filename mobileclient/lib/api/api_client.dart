@@ -124,6 +124,41 @@ class ApiClient {
           as String? ??
       '';
 
+  Future<BookingsOverview> bookings() async =>
+      BookingsOverview.fromJson(await _send('GET', '/guest/bookings'));
+
+  /// Зоны и ПК, свободные на это время, с ценой.
+  Future<List<BookingZone>> bookingOptions(DateTime start, int minutes) async =>
+      BookingZone.listFromJson(
+        (await _send(
+          'GET',
+          '/guest/bookings/options',
+          query: {
+            'starts_at': start.toUtc().toIso8601String(),
+            'duration_minutes': '$minutes',
+          },
+        ))['zones'],
+      );
+
+  /// Бронь с оплатой с баланса; возвращает сообщение сервера.
+  Future<String> book(int computerId, DateTime start, int minutes) async =>
+      (await _send(
+            'POST',
+            '/guest/bookings',
+            body: {
+              'club_computer_id': computerId,
+              'starts_at': start.toUtc().toIso8601String(),
+              'duration_minutes': minutes,
+            },
+          ))['message']
+          as String? ??
+      '';
+
+  Future<String> cancelBooking(int id) async =>
+      (await _send('POST', '/guest/bookings/$id/cancel'))['message']
+          as String? ??
+      '';
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {

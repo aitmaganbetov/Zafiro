@@ -415,3 +415,129 @@ class CodeSent {
   final String message;
   final int resendSeconds;
 }
+
+/// Суммы брони сервер отдаёт строкой «900.00».
+double _amount(Object? value) =>
+    value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+
+/// Брони гостя в клубе и что клуб разрешает (GET /guest/bookings).
+class BookingsOverview {
+  BookingsOverview({
+    required this.enabled,
+    required this.canCancel,
+    required this.currency,
+    required this.minMinutes,
+    required this.maxMinutes,
+    required this.maxDaysAhead,
+    required this.bookings,
+  });
+
+  factory BookingsOverview.fromJson(Map<String, dynamic> json) =>
+      BookingsOverview(
+        enabled: json['enabled'] == true,
+        canCancel: json['can_cancel'] == true,
+        currency: json['currency'] as String? ?? 'KZT',
+        minMinutes: json['min_minutes'] as int? ?? 30,
+        maxMinutes: json['max_minutes'] as int? ?? 720,
+        maxDaysAhead: json['max_days_ahead'] as int? ?? 7,
+        bookings: [
+          for (final item in json['bookings'] as List? ?? const [])
+            Booking.fromJson(item as Map<String, dynamic>),
+        ],
+      );
+
+  final bool enabled;
+  final bool canCancel;
+  final String currency;
+  final int minMinutes;
+  final int maxMinutes;
+  final int maxDaysAhead;
+  final List<Booking> bookings;
+}
+
+class Booking {
+  Booking({
+    required this.id,
+    required this.computer,
+    required this.zone,
+    required this.startsAt,
+    required this.endsAt,
+    required this.state,
+    required this.paid,
+    required this.canCancel,
+  });
+
+  factory Booking.fromJson(Map<String, dynamic> json) => Booking(
+    id: json['id'] as int,
+    computer: json['computer'] as String? ?? '—',
+    zone: json['zone'] as String?,
+    startsAt: _date(json['starts_at']) ?? DateTime.now(),
+    endsAt: _date(json['ends_at']) ?? DateTime.now(),
+    state: json['state'] as String? ?? 'pending',
+    paid: _amount(json['paid']),
+    canCancel: json['can_cancel'] == true,
+  );
+
+  final int id;
+  final String computer;
+  final String? zone;
+  final DateTime startsAt;
+  final DateTime endsAt;
+
+  /// pending, active, finished, arrived или cancelled.
+  final String state;
+  final double paid;
+  final bool canCancel;
+
+  /// Ещё впереди или идёт: такие брони показываются сверху.
+  bool get isUpcoming => state == 'pending' || state == 'active';
+}
+
+/// Зона с ценой за выбранное время и её ПК (GET /guest/bookings/options).
+class BookingZone {
+  BookingZone({
+    required this.id,
+    required this.name,
+    required this.pricePerHour,
+    required this.price,
+    required this.computers,
+  });
+
+  factory BookingZone.fromJson(Map<String, dynamic> json) => BookingZone(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    pricePerHour: _amount(json['price_per_hour']),
+    price: _amount(json['price']),
+    computers: [
+      for (final item in json['computers'] as List? ?? const [])
+        BookingPc.fromJson(item as Map<String, dynamic>),
+    ],
+  );
+
+  static List<BookingZone> listFromJson(Object? value) => [
+    for (final item in value as List? ?? const [])
+      BookingZone.fromJson(item as Map<String, dynamic>),
+  ];
+
+  final int id;
+  final String name;
+  final double pricePerHour;
+  final double price;
+  final List<BookingPc> computers;
+
+  int get freeCount => computers.where((pc) => pc.available).length;
+}
+
+class BookingPc {
+  BookingPc({required this.id, required this.name, required this.available});
+
+  factory BookingPc.fromJson(Map<String, dynamic> json) => BookingPc(
+    id: json['id'] as int,
+    name: json['name'] as String? ?? '',
+    available: json['available'] == true,
+  );
+
+  final int id;
+  final String name;
+  final bool available;
+}

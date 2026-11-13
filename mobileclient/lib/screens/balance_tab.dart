@@ -6,6 +6,7 @@ import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'bookings_screen.dart';
 import 'scan_screen.dart';
 
 class BalanceTab extends StatelessWidget {
@@ -47,38 +48,21 @@ class BalanceTab extends StatelessWidget {
             const SizedBox(height: 20),
             _MainBalance(amount: money(profile.balance, profile.currency)),
             const SizedBox(height: 14),
-            GlassCard(
-              padding: const EdgeInsets.all(16),
+            _Action(
+              icon: FontAwesomeIcons.qrcode,
+              title: 'Войти на ПК',
+              subtitle: 'Отсканируйте QR-код на экране ПК',
               onTap: () => openScanner(context, session),
-              child: Row(
-                children: [
-                  const IconBadge(FontAwesomeIcons.qrcode, size: 44),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Войти на ПК',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Отсканируйте QR-код на экране ПК',
-                          style: TextStyle(color: Brand.faint, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                  FaIcon(
-                    FontAwesomeIcons.chevronRight,
-                    size: 14,
-                    color: Brand.faint,
-                  ),
-                ],
+            ),
+            const SizedBox(height: 14),
+            _Action(
+              icon: FontAwesomeIcons.calendarCheck,
+              title: 'Забронировать ПК',
+              subtitle: 'Выберите зону, ПК и время',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BookingsScreen(session: session),
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -184,6 +168,55 @@ class _MainBalance extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Карточка-действие: иконка, заголовок, подпись и стрелка.
+class _Action extends StatelessWidget {
+  const _Action({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final FaIconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Row(
+        children: [
+          IconBadge(icon, size: 44),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: Brand.faint, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          FaIcon(FontAwesomeIcons.chevronRight, size: 14, color: Brand.faint),
         ],
       ),
     );

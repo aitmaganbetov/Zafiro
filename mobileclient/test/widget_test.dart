@@ -172,4 +172,44 @@ void main() {
     expect(club.zones.first.devices.single.value, 'RTX 3060');
     expect(club.photos.single, endsWith('a.jpg'));
   });
+
+  test('брони: суммы строкой, время в часовом поясе телефона', () {
+    final overview = BookingsOverview.fromJson({
+      'enabled': true,
+      'can_cancel': false,
+      'currency': 'KZT',
+      'bookings': [
+        {
+          'id': 3,
+          'computer': 'PC-01',
+          'zone': 'VIP',
+          'starts_at': '2026-11-15T12:00:00+00:00',
+          'ends_at': '2026-11-15T13:30:00+00:00',
+          'state': 'pending',
+          'paid': '900.00',
+          'can_cancel': false,
+        },
+      ],
+    });
+    final booking = overview.bookings.single;
+
+    expect(overview.canCancel, isFalse);
+    expect(overview.maxDaysAhead, 7);
+    expect(booking.paid, 900);
+    expect(booking.isUpcoming, isTrue);
+    expect(booking.startsAt, DateTime.utc(2026, 11, 15, 12).toLocal());
+
+    final zone = BookingZone.fromJson({
+      'id': 1,
+      'name': 'VIP',
+      'price_per_hour': '600.00',
+      'price': '900.00',
+      'computers': [
+        {'id': 1, 'name': 'PC-01', 'available': false},
+        {'id': 2, 'name': 'PC-02', 'available': true},
+      ],
+    });
+    expect(zone.price, 900);
+    expect(zone.freeCount, 1);
+  });
 }
