@@ -13,8 +13,11 @@ class AgentSignIns
 {
     public const ACTIVE_MINUTES = 2;
 
-    /** Tokens of the mobile app, not of a PC. */
-    private const NOT_A_PC = 'mobile';
+    /**
+     * Tokens of the mobile apps, not of a PC: the default name and the device names the guest app
+     * (mobileclient/lib/config.dart) and the staff app (mobileemployee/lib/config.dart) sign in with.
+     */
+    private const NOT_A_PC = ['mobile', 'mobileclient', 'Zafiro Staff'];
 
     /** Name of the other PC the customer is signed in on now; null — nowhere else. Staff are not limited. */
     public function elsewhere(User $user, ?string $deviceName, ?string $role): ?string
@@ -24,7 +27,7 @@ class AgentSignIns
         }
 
         return $user->tokens()
-            ->where('name', '!=', self::NOT_A_PC)
+            ->whereNotIn('name', self::NOT_A_PC)
             ->when($deviceName !== null && $deviceName !== '', fn ($query) => $query->where('name', '!=', $deviceName))
             ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->where('last_used_at', '>=', now()->subMinutes(self::ACTIVE_MINUTES))

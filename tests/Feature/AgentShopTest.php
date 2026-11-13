@@ -261,6 +261,11 @@ test('a customer signed in on one PC cannot sign in on another until signing out
     $customer->tokens()->update(['last_used_at' => now()->subMinutes(5)]);
     $login('PC-02')->assertOk();
 
+    // Signed in in the mobile app (just used): that is not a PC.
+    $customer->tokens()->delete();
+    $customer->createToken('mobileclient', ['club:'.$clubId])->accessToken->forceFill(['last_used_at' => now()])->save();
+    $login('PC-02')->assertOk();
+
     // Staff are not limited.
     $operator = User::factory()->create(['phone' => '+77015550022']);
     ClubMembership::query()->where('user_id', $operator->id)->update(['role' => 'operator']);
