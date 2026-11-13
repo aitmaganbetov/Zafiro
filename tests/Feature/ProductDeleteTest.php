@@ -23,6 +23,8 @@ test('the owner deletes a product: off the cash register and the warehouse, hist
         ->and(StockMovement::query()->where('product_id', $cola->id)->exists())->toBeTrue()
         ->and(ActivityLog::query()->where('event', 'product.deleted')->sole()->details)->toMatchArray(['sku' => 'COLA-05']);
     $this->get(route('cash-register.index'))->assertOk()->assertDontSee('data-name="Coca Cola"', false);
+    // The warehouse still opens and its history names the deleted product.
+    $this->get(route('warehouse'))->assertOk()->assertSee('Coca Cola');
 
     // A new product may take the SKU again.
     Product::factory()->create(['sku' => 'COLA-05', 'name' => 'Coca Cola 1 л']);
