@@ -294,7 +294,7 @@ class _Note extends StatelessWidget {
   }
 }
 
-/// Новая бронь: ПК, затем день и время, затем по часовой или тариф этого ПК.
+/// Новая бронь, шаг 1: гость выбирает ПК и жмёт «Далее».
 class NewBookingScreen extends StatefulWidget {
   const NewBookingScreen({
     super.key,
@@ -313,6 +313,141 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
   late final Future<List<PcZone>> _pcs = widget.session.api.bookingComputers();
   PcZone? _pcZone;
   BookingPc? _pc;
+
+  Future<void> _next() async {
+    final message = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => BookingTimeScreen(
+          session: widget.session,
+          overview: widget.overview,
+          zone: _pcZone!,
+          pc: _pc!,
+        ),
+      ),
+    );
+    if (message != null && mounted) Navigator.of(context).pop(message);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Выберите ПК')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+        children: [_pcPicker(widget.overview.currency)],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: FilledButton(
+            onPressed: _pc == null ? null : _next,
+            child: Text(_pc == null ? 'Выберите ПК' : 'Далее: ${_pc!.name}'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pcPicker(String currency) => FutureBuilder<List<PcZone>>(
+    future: _pcs,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (snapshot.hasError) {
+        return EmptyState(
+          icon: FontAwesomeIcons.triangleExclamation,
+          text: snapshot.error is ApiException
+              ? (snapshot.error as ApiException).message
+              : 'Не удалось загрузить ПК клуба',
+        );
+      }
+      final zones = snapshot.data ?? const <PcZone>[];
+      if (zones.isEmpty) {
+        return const EmptyState(
+          icon: FontAwesomeIcons.desktop,
+          text: 'В клубе нет ПК для брони',
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final zone in zones) ...[
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          zone.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (zone.pricePerHour != null)
+                        Text(
+                          '${money(zone.pricePerHour!, currency)}/час',
+                          style: TextStyle(color: Brand.faint, fontSize: 13),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final pc in zone.computers)
+                        ChoiceChip(
+                          label: Text(pc.name),
+                          selected: _pc?.id == pc.id,
+                          onSelected: (_) => setState(() {
+                            _pc = pc;
+                            _pcZone = zone;
+                          }),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+/// Новая бронь, шаг 2: день и время, затем по часовой или тариф выбранного ПК.
+class BookingTimeScreen extends StatefulWidget {
+  const BookingTimeScreen({
+    super.key,
+    required this.session,
+    required this.overview,
+    required this.zone,
+    required this.pc,
+  });
+
+  final Session session;
+  final BookingsOverview overview;
+  final PcZone zone;
+  final BookingPc pc;
+
+  @override
+  State<BookingTimeScreen> createState() => _BookingTimeScreenState();
+}
+
+class _BookingTimeScreenState extends State<BookingTimeScreen> {
+  BookingPc? get _pc => widget.pc;
+  PcZone? get _pcZone => widget.zone;
   // Время, вид брони и длительность гость выбирает сам: без них бронь не оформить.
   late DateTime _day;
   TimeOfDay? _time;
@@ -451,95 +586,90 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
         DateTime(today.year, today.month, today.day + i),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Новая бронь')),
+      appBar: AppBar(title: Text('${widget.pc.name} · ${widget.zone.name}')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
         children: [
-          const _Label('ПК'),
-          _pcPicker(currency),
-          if (_pc != null) ...[
-            const SizedBox(height: 24),
-            const _Label('День'),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: days.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, i) => ChoiceChip(
-                  label: Text(switch (i) {
-                    0 => 'Сегодня',
-                    1 => 'Завтра',
-                    _ => DateFormat('E, d MMM', 'ru').format(days[i]),
-                  }),
-                  selected: days[i] == _day,
-                  onSelected: (_) {
-                    _day = days[i];
-                    _load();
-                  },
-                ),
+          const _Label('День'),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: days.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, i) => ChoiceChip(
+                label: Text(switch (i) {
+                  0 => 'Сегодня',
+                  1 => 'Завтра',
+                  _ => DateFormat('E, d MMM', 'ru').format(days[i]),
+                }),
+                selected: days[i] == _day,
+                onSelected: (_) {
+                  _day = days[i];
+                  _load();
+                },
               ),
             ),
-            const SizedBox(height: 20),
-            const _Label('Начало'),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: _pickTime,
-                icon: const FaIcon(FontAwesomeIcons.clock, size: 14),
-                label: Text(_time?.format(context) ?? 'Выбрать время'),
-              ),
+          ),
+          const SizedBox(height: 20),
+          const _Label('Начало'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _pickTime,
+              icon: const FaIcon(FontAwesomeIcons.clock, size: 14),
+              label: Text(_time?.format(context) ?? 'Выбрать время'),
             ),
-            const SizedBox(height: 24),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: false,
-                  label: Text('По часовой'),
-                  icon: FaIcon(FontAwesomeIcons.hourglassHalf, size: 14),
-                ),
-                ButtonSegment(
-                  value: true,
-                  label: Text('Тариф'),
-                  icon: FaIcon(FontAwesomeIcons.tags, size: 14),
-                ),
+          ),
+          const SizedBox(height: 24),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                label: Text('По часовой'),
+                icon: FaIcon(FontAwesomeIcons.hourglassHalf, size: 14),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('Тариф'),
+                icon: FaIcon(FontAwesomeIcons.tags, size: 14),
+              ),
+            ],
+            emptySelectionAllowed: true,
+            selected: {?_byTariff},
+            onSelectionChanged: (value) {
+              if (value.isEmpty) return; // выбор не снимается
+              _byTariff = value.first;
+              _load();
+            },
+          ),
+          const SizedBox(height: 20),
+          if (_past)
+            const _Note(
+              icon: FontAwesomeIcons.clock,
+              text: 'Это время уже прошло — выберите другое.',
+            )
+          else if (_byTariff == false) ...[
+            const _Label('Длительность'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in _durations)
+                  ChoiceChip(
+                    label: Text('${m ~/ 60} ч'),
+                    selected: m == _minutes,
+                    onSelected: (_) {
+                      _minutes = m;
+                      _load();
+                    },
+                  ),
               ],
-              emptySelectionAllowed: true,
-              selected: {?_byTariff},
-              onSelectionChanged: (value) {
-                if (value.isEmpty) return; // выбор не снимается
-                _byTariff = value.first;
-                _load();
-              },
             ),
-            const SizedBox(height: 20),
-            if (_past)
-              const _Note(
-                icon: FontAwesomeIcons.clock,
-                text: 'Это время уже прошло — выберите другое.',
-              )
-            else if (_byTariff == false) ...[
-              const _Label('Длительность'),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final m in _durations)
-                    ChoiceChip(
-                      label: Text('${m ~/ 60} ч'),
-                      selected: m == _minutes,
-                      onSelected: (_) {
-                        _minutes = m;
-                        _load();
-                      },
-                    ),
-                ],
-              ),
-            ] else if (_tariffs != null)
-              _tariffList(currency),
-            const SizedBox(height: 24),
-            if (_options != null) _quoteNote(currency),
-          ],
+          ] else if (_tariffs != null)
+            _tariffList(currency),
+          const SizedBox(height: 24),
+          if (_options != null) _quoteNote(currency),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -562,7 +692,6 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(switch (()) {
-                        _ when _pc == null => 'Выберите ПК',
                         _ when _time == null => 'Выберите время',
                         _ when _byTariff == null =>
                           'Выберите: по часовой или тариф',
@@ -581,84 +710,6 @@ class _NewBookingScreenState extends State<NewBookingScreen> {
       ),
     );
   }
-
-  Widget _pcPicker(String currency) => FutureBuilder<List<PcZone>>(
-    future: _pcs,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
-        );
-      }
-      if (snapshot.hasError) {
-        return EmptyState(
-          icon: FontAwesomeIcons.triangleExclamation,
-          text: snapshot.error is ApiException
-              ? (snapshot.error as ApiException).message
-              : 'Не удалось загрузить ПК клуба',
-        );
-      }
-      final zones = snapshot.data ?? const <PcZone>[];
-      if (zones.isEmpty) {
-        return const EmptyState(
-          icon: FontAwesomeIcons.desktop,
-          text: 'В клубе нет ПК для брони',
-        );
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final zone in zones) ...[
-            GlassCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          zone.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (zone.pricePerHour != null)
-                        Text(
-                          '${money(zone.pricePerHour!, currency)}/час',
-                          style: TextStyle(color: Brand.faint, fontSize: 13),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final pc in zone.computers)
-                        ChoiceChip(
-                          label: Text(pc.name),
-                          selected: _pc?.id == pc.id,
-                          onSelected: (_) {
-                            _pc = pc;
-                            _pcZone = zone;
-                            _load();
-                          },
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ],
-      );
-    },
-  );
 
   Widget _tariffList(String currency) => FutureBuilder<List<BookingTariff>>(
     future: _tariffs,
