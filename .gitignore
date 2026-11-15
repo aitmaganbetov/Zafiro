@@ -52,3 +52,8 @@ secrets.json
 # saved HTTP responses from debugging (server paths and traces)
 /WindowsAgent/body.txt
 /WindowsAgent/headers.txt
+
+# Local tooling output
+/graphify-out/
+/.tmp_log.txt
+/xanexe/
