@@ -14,7 +14,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * A customer moves the rest of their paid session to another free PC of the club. The PC is
  * free when it is online, has no session, no staff on it, is not reserved and no booking of
- * someone else runs into the rest of the session; the session's tariff must be valid in its zone.
+ * someone else runs into the rest of the session; the session's tariff must be valid in its zone
+ * or the zone must have the level of the customer's current zone.
  */
 class SeatTransfers
 {
@@ -128,7 +129,8 @@ class SeatTransfers
 
     /**
      * Zones where the session's last purchase is valid; null — every zone. Time bought by the
-     * minute is priced by its zone, so it moves only within that zone.
+     * minute is priced by its zone, so it moves only within that zone. A tariff also moves to
+     * the zones of the same level as the customer's current zone (zone settings → level).
      *
      * @return list<int>|null
      */
@@ -148,6 +150,9 @@ class SeatTransfers
             return null;
         }
 
-        return $tariff->zones->modelKeys();
+        $level = ClubZone::query()->whereKey($computer->club_zone_id)->value('level');
+        $sameLevel = $level === null ? [] : ClubZone::query()->where('level', $level)->pluck('id')->all();
+
+        return array_values(array_unique([...$tariff->zones->modelKeys(), ...$sameLevel]));
     }
 }

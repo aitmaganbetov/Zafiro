@@ -203,6 +203,46 @@ test('a customer moves the rest of the session to a free PC where the tariff is 
     expect($offline->fresh()->current_session_id)->toBeNull();
 });
 
+test('a tariff moves to a zone of the same level, time by the minute stays in its zone', function () {
+    allGuestFeatures();
+    $customer = User::factory()->create();
+    $vip1 = ClubZone::query()->create(['name' => 'VIP1', 'level' => 1, 'price_per_hour' => 600]);
+    $vip2 = ClubZone::query()->create(['name' => 'VIP2', 'level' => 1]);
+    $hall = ClubZone::query()->create(['name' => 'Hall', 'level' => 2]);
+    $plain = ClubZone::query()->create(['name' => 'Plain']);
+    $from = guestComputer(1, $vip1);
+    $inVip2 = guestComputer(2, $vip2);
+    $inHall = guestComputer(3, $hall);
+    $inPlain = guestComputer(4, $plain);
+    $from->update(['current_session_id' => 'sess-1', 'current_session_user_id' => $customer->id, 'session_ends_at' => now()->addHour()]);
+    $tariff = Tariff::query()->create(['name' => 'VIP1', 'duration_minutes' => 120, 'price' => 100, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
+    $tariff->zones()->syncWithPivotValues([$vip1->id], ['club_id' => $vip1->club_id]);
+    app(ActivityLogger::class)->record('tariff.purchased', 'test', $customer->id, $tariff, ['session_id' => 'sess-1']);
+    $available = fn (): array => collect($this->getJson(route('api.guest.seats.index', ['computer_id' => $from->id]), guestApi($customer))->assertOk()->json('computers'))
+        ->pluck('available', 'id')->all();
+
+    expect($available())->toBe([$from->id => false, $inVip2->id => true, $inHall->id => false, $inPlain->id => false]);
+
+    // Time bought by the minute in VIP1 stays in VIP1, whatever the level.
+    app(ActivityLogger::class)->record('time.purchased', 'test', $customer->id, $vip1, ['session_id' => 'sess-1']);
+    expect($available())->toBe([$from->id => false, $inVip2->id => false, $inHall->id => false, $inPlain->id => false]);
+});
+
+test('the club sets a zone level on the map', function () {
+    $owner = User::factory()->create();
+    $zone = ClubZone::query()->create(['name' => 'VIP1']);
+    $form = ['name' => 'VIP1', 'icon' => 'desktop', 'theme' => 'purple', 'status' => 'available', 'is_featured' => '0', 'sort_order' => 0];
+
+    $this->actingAs($owner)->get(route('club-map.index'))->assertOk()->assertSee('Уровень зоны');
+    $this->put(route('club-map.update', $zone), [...$form, 'level' => 3])->assertRedirect()->assertSessionHasNoErrors();
+    expect($zone->fresh()->level)->toBe(3);
+    $this->get(route('club-map.index'))->assertSee('data-level="3"', false);
+
+    $this->put(route('club-map.update', $zone), [...$form, 'level' => ''])->assertSessionHasNoErrors();
+    expect($zone->fresh()->level)->toBeNull();
+    $this->put(route('club-map.update', $zone), [...$form, 'level' => 0])->assertSessionHasErrors('level');
+});
+
 test('seat transfer is closed when the club has it switched off', function () {
     guestSettings(['allow_guest_self_transfer' => false]);
     $customer = User::factory()->create();
