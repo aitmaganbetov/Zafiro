@@ -5,6 +5,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\CurrentClub;
+use App\Support\ClubRoles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -30,6 +31,26 @@ test('the user list shows the club customers with their balances, not the staff'
         ->assertSee('12.50%')
         ->assertSee('1 250.50')
         ->assertSee('75.00');
+});
+
+test('the user list finds customers by name, phone in any format or email', function () {
+    $admin = User::factory()->create();
+    User::factory()->create(['name' => 'Иван Петров', 'phone' => '+77001234567', 'email' => 'ivan@example.com'])->currentMembership()->firstOrFail()->update(['role' => ClubRoles::CLIENT]);
+    User::factory()->create(['name' => 'Дана Ахметова', 'phone' => '+77019998877', 'email' => 'dana@example.com'])->currentMembership()->firstOrFail()->update(['role' => ClubRoles::CLIENT]);
+    User::factory()->create(['name' => 'Ерлан', 'phone' => '+77025556644'])->currentMembership()->firstOrFail()->update(['role' => ClubRoles::CLIENT]);
+    $this->actingAs($admin);
+
+    $found = fn (string $search): array => collect($this->get(route('users.index', ['search' => $search]))->assertOk()->viewData('users')->items())
+        ->map(fn ($membership) => $membership->user->name)->all();
+
+    expect($found('Петров'))->toBe(['Иван Петров'])
+        ->and($found('8 700 123-45-67'))->toBe(['Иван Петров'])
+        ->and($found('999 88'))->toBe(['Дана Ахметова'])
+        ->and($found('DANA@'))->toBe(['Дана Ахметова'])
+        ->and($found(''))->toHaveCount(3);
+    $this->get(route('users.index', ['search' => 'нет такого']))->assertSee('Никого не нашли по запросу «нет такого»');
+    // The page link keeps the search.
+    expect($this->get(route('users.index', ['search' => 'Иван']))->viewData('users')->url(2))->toContain('search=');
 });
 
 test('guest users are redirected away from the user list', function () {

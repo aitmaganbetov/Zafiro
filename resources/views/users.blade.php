@@ -72,6 +72,12 @@
         </div>
     </dialog>
 
+    <form method="GET" action="{{ route('users.index') }}" role="search" class="mb-4 flex flex-wrap items-center gap-2">
+        <input type="search" name="search" value="{{ $search }}" maxlength="100" placeholder="{{ __('Имя, телефон или email') }}" aria-label="{{ __('Поиск пользователей') }}" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 sm:max-w-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+        <button type="submit" class="brand-button min-h-10 px-4">{{ __('Найти') }}</button>
+        @if ($search !== '')<a href="{{ route('users.index') }}" class="text-sm font-medium text-gray-600 hover:underline dark:text-gray-300">{{ __('Сбросить') }}</a>@endif
+    </form>
+
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div class="overflow-x-auto">
             <table class="w-full min-w-[760px] text-left text-sm">
@@ -110,7 +116,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ __('Пользователей пока нет') }}</td>
+                            <td colspan="7" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">{{ $search === '' ? __('Пользователей пока нет') : __('Никого не нашли по запросу «:search»', ['search' => $search]) }}</td>
                         </tr>
                     @endforelse
                 </tbody>

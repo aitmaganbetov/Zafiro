@@ -12,6 +12,7 @@ use App\Services\LoyaltyProgram;
 use App\Support\ClubPermissions;
 use App\Support\ClubRoles;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -35,14 +36,27 @@ class UserController extends Controller
         return app(CurrentClub::class)->membership()?->role === 'owner';
     }
 
-    public function index(LoyaltyProgram $loyalty): View
+    public function index(Request $request, LoyaltyProgram $loyalty): View
     {
+        $search = trim((string) ($request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? ''));
+        $like = '%'.$search.'%';
+        // Phone by its digits: "8 700 123-45-67" finds +77001234567.
+        $digits = preg_replace('/\D+/', '', $search);
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7'.substr($digits, 1);
+        }
+
         // Customers only; staff are on the Workers page.
         $users = ClubMembership::query()
             ->whereNotIn('role', ClubRoles::STAFF)
+            ->when($search !== '', fn (Builder $query) => $query->whereHas('user', fn (Builder $user) => $user->where(fn (Builder $match) => $match
+                ->where('name', 'like', $like)
+                ->orWhere('email', 'like', $like)
+                ->when(strlen($digits) >= 3, fn (Builder $phone) => $phone->orWhere('phone', 'like', '%'.$digits.'%')))))
             ->with(['user:id,name,phone,email,is_superadmin', 'balance'])
             ->orderBy('user_id')
-            ->paginate(25);
+            ->paginate(25)
+            ->withQueryString();
 
         $staffElsewhere = ClubMembership::query()->withoutGlobalScope('club')
             ->whereIn('user_id', $users->pluck('user_id'))->whereIn('role', ClubRoles::STAFF)
@@ -50,7 +64,7 @@ class UserController extends Controller
             ->merge($users->filter(fn (ClubMembership $membership): bool => $membership->user->isSuperadmin())->pluck('user_id'))
             ->flip();
 
-        return view('users', ['users' => $users, 'staffElsewhere' => $staffElsewhere, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty]);
+        return view('users', ['users' => $users, 'staffElsewhere' => $staffElsewhere, 'canSetMoney' => self::canSetMoney(), 'canTopUp' => self::canTopUpWithoutCash(), 'loyalty' => $loyalty, 'search' => $search]);
     }
 
     public function store(StoreUserRequest $request, ActivityLogger $activity): RedirectResponse
