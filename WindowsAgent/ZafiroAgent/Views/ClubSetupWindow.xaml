@@ -102,8 +102,8 @@
     <Border Margin="20" Background="{DynamicResource ThemePanelBrush}" CornerRadius="12" ClipToBounds="True">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.3*"/>
-                <ColumnDefinition Width="0.7*" MinWidth="440"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- Картинка клуба — на всё окно; форма входа справа сверху поверх неё, без своего фона. -->
@@ -148,11 +148,12 @@
             </Grid>
 
             <!-- Форма входа — карточка с полупрозрачным тёмным фоном: картинка видна, текст читается. -->
-            <Border Grid.Column="1" VerticalAlignment="Top" Margin="0,24,24,24" CornerRadius="16"
+            <!-- Ширина карточки постоянная: на широком мониторе форма не растягивается. -->
+            <Border Grid.Column="1" Width="380" VerticalAlignment="Top" Margin="0,24,24,24" CornerRadius="16"
                     Background="#B3141220" BorderBrush="#26FFFFFF" BorderThickness="1">
                 <!-- Прокрутка нужна только на маленьких экранах или при крупном масштабе Windows. -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="38,28">
-                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Stretch" MaxWidth="420">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="30,26">
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Stretch">
                     <!-- Тень у подписей (не у полей ввода): белый текст читается на светлой картинке клуба. -->
                     <StackPanel.Resources>
                         <Style TargetType="TextBlock">
@@ -235,15 +236,20 @@
 
                     <!-- Вход с телефона: виден, только если клуб включил QR-код в настройках «Гости». -->
                     <Border x:Name="QrPanel" Visibility="Collapsed" Margin="0,22,0,0" Padding="16" Background="#2A2738" CornerRadius="10">
-                        <StackPanel Orientation="Horizontal">
+                        <!-- Сетка, а не горизонтальная панель: текст переносится по ширине карточки. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <Border Background="White" CornerRadius="6" Padding="6" VerticalAlignment="Top">
-                                <Image x:Name="QrImage" Width="132" Height="132" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                <Image x:Name="QrImage" Width="112" Height="112" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                             </Border>
-                            <StackPanel Margin="16,0,0,0" VerticalAlignment="Center" MaxWidth="220">
+                            <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                                 <TextBlock x:Name="QrTitle" Text="Вход с телефона" Foreground="#F5F3FA" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="QrHint" Text="Наведите камеру телефона на QR-код, войдите на сайте и подтвердите вход." Margin="0,6,0,0" Foreground="#AAA5B8" FontSize="13" TextWrapping="Wrap"/>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </StackPanel>
                 </ScrollViewer>
