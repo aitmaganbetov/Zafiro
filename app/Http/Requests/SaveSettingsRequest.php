@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Services\LoyaltyProgram;
 use App\Services\PaymentRules;
 use App\Services\TopUpBonus;
+use App\Support\ShellThemes;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -51,6 +52,7 @@ class SaveSettingsRequest extends FormRequest
             'allow_balance_transfer_to_friends' => ['nullable', 'boolean'],
             'agent_idle_logout_minutes' => ['sometimes', 'numeric', 'min:0', 'max:1440'],
             'agent_shop_enabled' => ['nullable', 'boolean'],
+            'agent_shell_theme' => ['nullable', Rule::in(ShellThemes::keys())],
             'app_booking_enabled' => ['nullable', 'boolean'],
             'app_booking_cancel' => ['nullable', 'boolean'],
             'agent_auto_update' => ['nullable', 'boolean'],

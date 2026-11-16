@@ -637,6 +637,11 @@ namespace ZafiroAgent.Services
                 }
                 if (club.TryGetProperty("idle_logout_minutes", out var idleLogout) && idleLogout.ValueKind == JsonValueKind.Number && idleLogout.TryGetInt32(out var idleMinutes))
                     heartbeat.IdleLogoutMinutes = Math.Max(0, idleMinutes);
+                if (ShellThemes.TryRead(club, out var shellTheme))
+                {
+                    heartbeat.ShellThemeReported = true;
+                    heartbeat.ShellTheme = shellTheme;
+                }
                 if (club.TryGetProperty("after_session", out var afterSession) && afterSession.ValueKind == JsonValueKind.Object &&
                     TryGetString(afterSession, "action", out var afterAction))
                 {

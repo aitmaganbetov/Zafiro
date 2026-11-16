@@ -40,6 +40,9 @@ namespace ZafiroAgent.Services
         /// <summary>Картинка клуба для экрана входа (из heartbeat); null — стандартная.</summary>
         public string? SignInImageUrl => _config.Load().SignInImageUrl is { Length: > 0 } url ? url : null;
 
+        /// <summary>Тема клуба для окна входа (из heartbeat); null — стандартная.</summary>
+        public Dictionary<string, string>? ShellTheme => _config.Load().ShellTheme;
+
         public string ComputerId => _config.Load().ComputerId;
 
         public string ComputerNumber => _config.Load().ComputerNumber;
@@ -329,6 +332,7 @@ namespace ZafiroAgent.Services
             var root = result.Value;
             RememberComputer(root);
             RememberSignInImage(root);
+            RememberShellTheme(root);
             RememberQrLogin(root);
             Infrastructure.WakeOnLan.Send(StaffCommands.WakeMacs(root));
             PendingPowerCommand = StaffCommands.PowerCommand(root) ?? PendingPowerCommand;
@@ -488,6 +492,13 @@ namespace ZafiroAgent.Services
             var url = value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : string.Empty;
             if (_config.Load().SignInImageUrl == url) return;
             _config.Update(c => c.SignInImageUrl = url);
+        }
+
+        private void RememberShellTheme(JsonElement root)
+        {
+            if (!root.TryGetProperty("club", out var club) || !ShellThemes.TryRead(club, out var theme)) return;
+            if (ShellThemes.Same(_config.Load().ShellTheme, theme)) return;
+            _config.Update(c => c.ShellTheme = theme);
         }
 
         private Task<string?> DeviceTokenAsync(CancellationToken cancellationToken) =>

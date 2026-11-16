@@ -1438,7 +1438,20 @@
     if (!sessionEndsAt && !hasActiveSession) clearSessionDetails();
   };
 
+  // Тема клуба (настройки → «Агент на ПК»): цвета приходят от агента; null — стандартные из styles.css.
+  const shellThemeVars = { accent: '--accent', accent_2: '--accent-2', soft: '--soft', highlight: '--highlight', bg_0: '--bg-0', bg_1: '--bg-1' };
+  const applyShellTheme = (theme) => {
+    const style = document.documentElement.style;
+    Object.entries(shellThemeVars).forEach(([key, name]) => {
+      const color = theme && typeof theme === 'object' ? theme[key] : null;
+      if (typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)) style.setProperty(name, color);
+      else style.removeProperty(name);
+    });
+  };
+
   webview?.addEventListener('message', (event) => {
+    if (event.data?.type === 'shellTheme') applyShellTheme(event.data.theme);
+
     if (event.data?.type === 'i18n') {
       lines = event.data.lines && typeof event.data.lines === 'object' ? event.data.lines : {};
       locale = typeof event.data.locale === 'string' ? event.data.locale : 'ru';
@@ -1815,6 +1828,7 @@
   requestChat();
   webview?.postMessage({ type: 'requestSession' });
   webview?.postMessage({ type: 'requestGuestFeatures' });
+  webview?.postMessage({ type: 'requestShellTheme' });
   renderCart();
   fetchProducts();
   showProfileName();

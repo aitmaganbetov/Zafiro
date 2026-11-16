@@ -22,10 +22,14 @@ namespace ZafiroAgent.Views
         // «Забыли пароль?»: None — обычный вход, Phone — номер для кода, Code — код из Telegram и новый пароль.
         private enum Recovery { None, Phone, Code }
 
-        private static readonly Brush CurrentLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x75, 0x54, 0xC8)));
         private static readonly Brush OtherLanguageBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x30, 0x2D, 0x3D)));
 
         private readonly ClubSetupService _setup;
+
+        // Кисти темы из ресурсов окна и цвет темы клуба для каждой (ShellThemes).
+        private static readonly string[] ThemeBrushes = { "ThemeWindowBrush", "ThemePanelBrush", "ThemeAccentBrush", "ThemeAccentHoverBrush", "ThemeKickerBrush", "ThemeLinkBrush" };
+        private readonly Dictionary<string, object> _standardTheme;
+        private Dictionary<string, string>? _shownTheme;
         private bool _relogin;
         private Mode _mode;
         private string? _connectedNumber;
@@ -63,7 +67,9 @@ namespace ZafiroAgent.Views
             InitializeComponent();
             _setup = setup;
             _standardSignInImage = SignInImage.Source;
+            _standardTheme = ThemeBrushes.ToDictionary(key => key, key => Resources[key]);
             ShowSignInImage();
+            ApplyShellTheme();
             _relogin = setup.IsClubConfigured;
             _mode = _relogin ? Mode.Relogin : Mode.Setup;
             if (_relogin) KeyPanel.Visibility = Visibility.Collapsed;
@@ -369,9 +375,11 @@ namespace ZafiroAgent.Views
                     Height = 30,
                     Margin = new Thickness(4, 0, 0, 0),
                     Padding = new Thickness(10, 0, 10, 0),
-                    FontSize = 12,
-                    Background = language.Code == L.Current ? CurrentLanguageBrush : OtherLanguageBrush
+                    FontSize = 12
                 };
+                // Текущий язык — цветом темы клуба (меняется вместе с ней).
+                if (language.Code == L.Current) button.SetResourceReference(BackgroundProperty, "ThemeAccentBrush");
+                else button.Background = OtherLanguageBrush;
                 System.Windows.Automation.AutomationProperties.SetName(button, language.Name);
                 button.Click += (_, _) =>
                 {
@@ -572,6 +580,33 @@ namespace ZafiroAgent.Views
             if (step == Recovery.Code) CodeBox.Focus();
             else if (step == Recovery.Phone) PhoneBox.Focus();
             else PasswordBox.Focus();
+        }
+
+        /// <summary>Цвета темы клуба (настройки клуба на сайте); стандартная — цвета из разметки окна.</summary>
+        private void ApplyShellTheme()
+        {
+            var theme = _setup.ShellTheme;
+            if (ShellThemes.Same(theme, _shownTheme)) return;
+            _shownTheme = theme;
+            foreach (var key in ThemeBrushes)
+            {
+                Resources[key] = theme is null ? _standardTheme[key] : Freeze(new SolidColorBrush(ThemeColor(theme, key)));
+            }
+        }
+
+        private static Color ThemeColor(IReadOnlyDictionary<string, string> theme, string brush)
+        {
+            var hex = theme[brush switch
+            {
+                "ThemeWindowBrush" => "bg_0",
+                "ThemePanelBrush" => "bg_1",
+                "ThemeKickerBrush" or "ThemeLinkBrush" => "soft",
+                _ => "accent"
+            }];
+            var color = (Color)ColorConverter.ConvertFromString(hex);
+            // Наведение на круглые кнопки поверх картинки — полупрозрачным цветом, как стандартное.
+            if (brush == "ThemeAccentHoverBrush") color.A = 0xCC;
+            return color;
         }
 
         /// <summary>Картинка клуба вместо стандартной (настройки клуба на сайте); удалили — снова стандартная.</summary>
@@ -791,6 +826,7 @@ namespace ZafiroAgent.Views
                     {
                         ShowComputer();
                         ShowSignInImage();
+                        ApplyShellTheme();
                         ApplyGuestSession(check.Value);
                         // Сотрудник перезагрузил или выключил ПК из панели или приложения.
                         var staffCommand = _setup.TakePowerCommand();

@@ -358,6 +358,7 @@ namespace ZafiroAgent
                             _idleLogoutMinutes = hb.IdleLogoutMinutes;
                             SendGuestFeatures();
                         }
+                        ApplyShellTheme(hb);
                     });
                 };
                 service.OnError += ex =>
@@ -869,6 +870,17 @@ namespace ZafiroAgent
             }
         }
 
+        /// <summary>Тема клуба сменилась: запоминаем (окно входа и следующий запуск) и перекрашиваем шелл.</summary>
+        private void ApplyShellTheme(HeartbeatResponse hb)
+        {
+            if (!hb.ShellThemeReported || ShellThemes.Same(_cfgService.Load().ShellTheme, hb.ShellTheme)) return;
+            _cfgService.Update(c => c.ShellTheme = hb.ShellTheme);
+            SendShellTheme();
+        }
+
+        private void SendShellTheme() =>
+            SendMessageToWeb(JsonSerializer.Serialize(new { type = "shellTheme", theme = _cfgService.Load().ShellTheme }));
+
         private void SendGuestFeatures()
         {
             if (_guestFeatures is { } features)
@@ -983,6 +995,10 @@ namespace ZafiroAgent
                 if (type == "refreshBalance")
                 {
                     await RefreshBalanceAsync(manual: true);
+                }
+                else if (type == "requestShellTheme")
+                {
+                    SendShellTheme();
                 }
                 else if (type == "requestGuestFeatures")
                 {

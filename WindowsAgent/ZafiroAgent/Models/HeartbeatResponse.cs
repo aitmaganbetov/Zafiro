@@ -48,6 +48,10 @@ namespace ZafiroAgent.Models
         // Через сколько минут без оплаченной сессии вошедший клиент выходит из аккаунта (0 — не выходит).
         public int? IdleLogoutMinutes { get; set; }
 
+        // Тема клуба (ShellThemes): false — сервер старой версии о ней не сообщает; null — стандартная.
+        public bool ShellThemeReported { get; set; }
+        public Dictionary<string, string>? ShellTheme { get; set; }
+
         // Вошедший клиент (агент отправил его токен вместе с heartbeat): баланс и что у него нового.
         // null — сервер старой версии: агент опрашивает баланс, друзей и чат сам, как раньше.
         public CustomerState? Customer { get; set; }

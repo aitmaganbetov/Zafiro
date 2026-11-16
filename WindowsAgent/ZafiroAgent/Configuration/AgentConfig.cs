@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ZafiroAgent.Configuration
 {
@@ -15,6 +16,9 @@ namespace ZafiroAgent.Configuration
 
         // Картинка клуба для экрана входа из последнего heartbeat: после перезапуска ПК сразу она.
         public string SignInImageUrl { get; set; } = string.Empty;
+
+        // Тема клуба из последнего heartbeat (ShellThemes): после перезапуска ПК шелл и окно входа сразу в ней.
+        public Dictionary<string, string>? ShellTheme { get; set; }
 
         // Язык клуба из последнего heartbeat: окно входа после перезапуска сразу на нём.
         public string ClubLocale { get; set; } = string.Empty;

@@ -145,6 +145,35 @@ public sealed class HeartbeatTests : IDisposable
     }
 
     [Fact]
+    public async Task DeviceHeartbeat_ReadsTheClubShellTheme()
+    {
+        var session = new ClubSession(1, "Club", new Uri("https://zafiro.kz/api/"), Token, Now.AddDays(1));
+        var request = new HeartbeatRequest(ComputerState.Idle, null, "1.2.3", "TEST-PC", HardwareSnapshot.Empty);
+        async Task<HeartbeatResponse> Send(string json)
+        {
+            var api = new ZafiroApiClient(new HttpClient(new StubHandler((_, _) => StubHandler.Json(HttpStatusCode.OK, json))), () => Now);
+            return await api.SendHeartbeatAsync(session, 45, request, CancellationToken.None, "device-token");
+        }
+
+        var red = await Send("""{"computer_id":45,"club":{"name":"Asia","shell_theme":{"accent":"#DC2626","accent_2":"#fb7185","soft":"#fca5a5","highlight":"#fda4af","bg_0":"#0a0304","bg_1":"#1f0709"}}}""");
+        Assert.True(red.ShellThemeReported);
+        var theme = Assert.IsType<Dictionary<string, string>>(red.ShellTheme);
+        Assert.Equal("#dc2626", theme["accent"]);
+        Assert.Equal(6, theme.Count);
+
+        // Стандартная тема — null; цвет не в формате #RRGGBB — тоже стандартная (в шелл не попадает).
+        var standard = await Send("""{"computer_id":45,"club":{"name":"Asia","shell_theme":null}}""");
+        Assert.True(standard.ShellThemeReported);
+        Assert.Null(standard.ShellTheme);
+        var broken = await Send("""{"computer_id":45,"club":{"name":"Asia","shell_theme":{"accent":"red;background:url(x)","accent_2":"#fb7185","soft":"#fca5a5","highlight":"#fda4af","bg_0":"#0a0304","bg_1":"#1f0709"}}}""");
+        Assert.True(broken.ShellThemeReported);
+        Assert.Null(broken.ShellTheme);
+
+        // Сервер старой версии о теме не сообщает: сохранённая остаётся.
+        Assert.False((await Send("""{"computer_id":45,"club":{"name":"Asia"}}""")).ShellThemeReported);
+    }
+
+    [Fact]
     public async Task Start_ResolvesComputerThenSendsStatusWithBearerToken()
     {
         var (service, handler, config) = Create();

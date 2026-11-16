@@ -84,6 +84,24 @@
             </div>
             <p class="mt-1 text-xs text-gray-500">{{ __('Новая версия агента ставится сама, когда ПК свободен: никто не вошёл и нет оплаченной сессии. На бездисковой системе обновление пропадает после перезагрузки — выключите автообновление и обновите агент в образе на сервере загрузки.') }}</p>
         </div>
+        <fieldset class="rounded-xl border border-gray-200 p-4 md:col-span-2 dark:border-gray-700">
+            <legend class="px-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Тема оформления на ПК') }}</legend>
+            <p class="mb-3 text-xs text-gray-500">{{ __('Цвета экрана гостя и экрана входа на ПК клуба. Агент применит тему в течение минуты.') }}</p>
+            @php($shellTheme = old('agent_shell_theme', $settings['club']['agent_shell_theme'] ?? \App\Support\ShellThemes::DEFAULT))
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                @foreach(\App\Support\ShellThemes::names() as $theme => $themeName)
+                    @php($swatch = \App\Support\ShellThemes::swatch($theme))
+                    <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 p-2 text-sm text-gray-700 has-[:checked]:border-gray-900 has-[:checked]:ring-1 has-[:checked]:ring-gray-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 dark:border-gray-700 dark:text-gray-300 dark:has-[:checked]:border-white dark:has-[:checked]:ring-white">
+                        <input type="radio" name="agent_shell_theme" value="{{ $theme }}" class="sr-only" @checked($shellTheme === $theme)>
+                        <span class="flex h-7 w-10 flex-none items-end gap-0.5 rounded p-1" style="background: {{ $swatch['bg_1'] }}" aria-hidden="true">
+                            <span class="h-full flex-1 rounded-sm" style="background: {{ $swatch['accent'] }}"></span>
+                            <span class="h-2/3 flex-1 rounded-sm" style="background: {{ $swatch['accent_2'] }}"></span>
+                        </span>
+                        {{ $themeName }}
+                    </label>
+                @endforeach
+            </div>
+        </fieldset>
     </div>
 </x-settings.card>
 

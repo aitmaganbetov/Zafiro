@@ -16,6 +16,7 @@ use App\Services\TopUpBonus;
 use App\Services\TranslationCatalog;
 use App\Support\Cities;
 use App\Support\ClubPermissions;
+use App\Support\ShellThemes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -277,6 +278,7 @@ class SettingsController extends Controller
                 'agent_idle_logout_minutes',
                 'agent_shop_enabled',
                 'agent_auto_update',
+                'agent_shell_theme',
             ],
             'finances' => [
                 'currency',
@@ -375,7 +377,7 @@ class SettingsController extends Controller
         );
 
         foreach (array_keys($this->defaultSettings()['club']) as $field) {
-            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled', 'agent_auto_update', 'app_booking_enabled', 'app_booking_cancel'], true)) {
+            if (! in_array($field, ['pc_action_after_session_end', 'agent_shop_enabled', 'agent_auto_update', 'agent_shell_theme', 'app_booking_enabled', 'app_booking_cancel'], true)) {
                 $settings['club'][$field] = $this->minutes($settings['club'][$field]);
             }
         }
@@ -404,6 +406,8 @@ class SettingsController extends Controller
                 'agent_shop_enabled' => true,
                 // The agent service installs a new agent release itself (see AgentUpdate::offerFor).
                 'agent_auto_update' => true,
+                // Colours of the guest shell and the sign-in screen on PCs (see ShellThemes).
+                'agent_shell_theme' => ShellThemes::DEFAULT,
             ],
             'finances' => [
                 'currency' => 'KZT',
@@ -449,6 +453,7 @@ class SettingsController extends Controller
                 'agent_idle_logout_minutes' => __('Если нет активной сессии, через сколько отлогинить пользователя (в минутах)'),
                 'agent_shop_enabled' => __('Включить магазин в агенте'),
                 'agent_auto_update' => __('Автообновление агента'),
+                'agent_shell_theme' => __('Тема оформления на ПК'),
             ],
             'finances' => [
                 'currency' => __('Валюта'),

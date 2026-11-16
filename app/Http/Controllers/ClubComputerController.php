@@ -30,6 +30,7 @@ use App\Services\GuestFeatures;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\LocaleResolver;
 use App\Services\TranslationCatalog;
+use App\Support\ShellThemes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -481,6 +482,8 @@ class ClubComputerController extends Controller
                 'guest_features' => [...app(GuestFeatures::class)->all(), 'shop' => app(GuestFeatures::class)->shopEnabled()],
                 // A customer signed in without a paid session is signed out after this many minutes.
                 'idle_logout_minutes' => app(GuestFeatures::class)->idleLogoutMinutes(),
+                // Colours of the shell and the sign-in screen (club settings); null — the agent's own.
+                'shell_theme' => ShellThemes::colors(app(CurrentClub::class)->settings()['club']['agent_shell_theme'] ?? null),
             ],
             'last_seen_at' => $computer->last_seen_at->utc()->toIso8601String(),
             // The agent counts the session end against the server clock, not the PC's.
