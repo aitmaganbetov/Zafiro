@@ -203,17 +203,19 @@ test('a customer moves the rest of the session to a free PC where the tariff is 
     expect($offline->fresh()->current_session_id)->toBeNull();
 });
 
-test('a tariff moves to a zone of the same level, time by the minute stays in its zone', function () {
+test('a tariff moves to a zone of the same or a lower level, time by the minute stays in its zone', function () {
     allGuestFeatures();
     $customer = User::factory()->create();
-    $vip1 = ClubZone::query()->create(['name' => 'VIP1', 'level' => 1, 'price_per_hour' => 600]);
-    $vip2 = ClubZone::query()->create(['name' => 'VIP2', 'level' => 1]);
-    $hall = ClubZone::query()->create(['name' => 'Hall', 'level' => 2]);
+    $vip1 = ClubZone::query()->create(['name' => 'VIP1', 'level' => 3, 'price_per_hour' => 600]);
+    $vip2 = ClubZone::query()->create(['name' => 'VIP2', 'level' => 3]);
+    $hall = ClubZone::query()->create(['name' => 'Hall', 'level' => 1]);
+    $top = ClubZone::query()->create(['name' => 'Top', 'level' => 4]);
     $plain = ClubZone::query()->create(['name' => 'Plain']);
     $from = guestComputer(1, $vip1);
     $inVip2 = guestComputer(2, $vip2);
     $inHall = guestComputer(3, $hall);
-    $inPlain = guestComputer(4, $plain);
+    $inTop = guestComputer(4, $top);
+    $inPlain = guestComputer(5, $plain);
     $from->update(['current_session_id' => 'sess-1', 'current_session_user_id' => $customer->id, 'session_ends_at' => now()->addHour()]);
     $tariff = Tariff::query()->create(['name' => 'VIP1', 'duration_minutes' => 120, 'price' => 100, 'currency' => 'KZT', 'payment_method' => 'main_or_bonus', 'is_active' => true]);
     $tariff->zones()->syncWithPivotValues([$vip1->id], ['club_id' => $vip1->club_id]);
@@ -221,11 +223,12 @@ test('a tariff moves to a zone of the same level, time by the minute stays in it
     $available = fn (): array => collect($this->getJson(route('api.guest.seats.index', ['computer_id' => $from->id]), guestApi($customer))->assertOk()->json('computers'))
         ->pluck('available', 'id')->all();
 
-    expect($available())->toBe([$from->id => false, $inVip2->id => true, $inHall->id => false, $inPlain->id => false]);
+    // Level 3: the same level and lower ones, not a higher one and not a zone without a level.
+    expect($available())->toBe([$from->id => false, $inVip2->id => true, $inHall->id => true, $inTop->id => false, $inPlain->id => false]);
 
     // Time bought by the minute in VIP1 stays in VIP1, whatever the level.
     app(ActivityLogger::class)->record('time.purchased', 'test', $customer->id, $vip1, ['session_id' => 'sess-1']);
-    expect($available())->toBe([$from->id => false, $inVip2->id => false, $inHall->id => false, $inPlain->id => false]);
+    expect($available())->toBe([$from->id => false, $inVip2->id => false, $inHall->id => false, $inTop->id => false, $inPlain->id => false]);
 });
 
 test('the club sets a zone level on the map', function () {

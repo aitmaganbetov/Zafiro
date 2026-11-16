@@ -24,7 +24,7 @@ class StoreClubZoneRequest extends FormRequest
             'capacity' => ['nullable', 'integer', 'min:0', 'max:10000'],
             // Empty: no per-minute time in this zone, only tariffs.
             'price_per_hour' => ['nullable', 'numeric', 'min:0.01', 'max:1000000', 'decimal:0,2'],
-            // Empty: no level; a customer with a tariff moves between zones of the same level.
+            // Empty: no level; a customer with a tariff moves to zones of the same or a lower level.
             'level' => ['nullable', 'integer', 'min:1', 'max:99'],
             'icon' => ['required', Rule::in(['crown', 'desktop', 'gamepad', 'mug-hot', 'couch', 'dice', 'door-open', 'bong', 'smoking'])],
             'theme' => ['required', Rule::in(['green', 'neutral', 'yellow', 'purple', 'blue'])],

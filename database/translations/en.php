@@ -1378,7 +1378,7 @@ return [
         'Готовы навести порядок в клубе?' => 'Ready to put your club in order?',
         'Уровень зоны' => 'Zone level',
         'Без уровня' => 'No level',
-        'Гость с тарифом может сам пересесть в другую зону того же уровня. Поминутное время переносится только в своей зоне.' => 'A guest with a tariff may move to another zone of the same level by themselves. Per-minute time moves only within its own zone.',
+        'Гость с тарифом может сам пересесть в зону того же или более низкого уровня. Поминутное время переносится только в своей зоне.' => 'A guest with a tariff may move by themselves to a zone of the same or a lower level. Per-minute time moves only within its own zone.',
         'Тема оформления на ПК' => 'PC colour theme',
         'Цвета экрана гостя и экрана входа на ПК клуба. Агент применит тему в течение минуты.' => 'Colours of the guest screen and the sign-in screen on the club\'s PCs. The agent applies the theme within a minute.',
         'Стандартная (фиолетовая)' => 'Standard (purple)',

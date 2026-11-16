@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // The zone's level, set by the club: a customer with a tariff moves between zones of the same level.
+        // The zone's level, set by the club: a customer with a tariff moves to zones of the same or a lower level.
         Schema::table('club_zones', function (Blueprint $table) {
             $table->unsignedTinyInteger('level')->nullable()->after('price_per_hour');
         });
