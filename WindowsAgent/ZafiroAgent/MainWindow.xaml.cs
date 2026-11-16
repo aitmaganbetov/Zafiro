@@ -135,7 +135,7 @@ namespace ZafiroAgent
             Hide();
         }
 
-        private void RestoreFromTray()
+        internal void RestoreFromTray()
         {
             ShowInTaskbar = true;
             WindowState = WindowState.Maximized;

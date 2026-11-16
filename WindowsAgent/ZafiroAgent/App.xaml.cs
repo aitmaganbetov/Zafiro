@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,6 +23,15 @@ namespace ZafiroAgent
     {
         // Одна копия агента на компьютер: вторая дублировала бы heartbeat и сессии.
         private static Mutex? _singleInstance;
+
+        // Повторный запуск (ярлык Zafiro на рабочем столе): работающий агент по этому сигналу
+        // разворачивает шелл, а новая копия закрывается.
+        private const string ShowSignalName = @"Local\ZafiroAgent.Show";
+        private static EventWaitHandle? _showSignal;
+
+        [DllImport("user32.dll")]
+        private static extern bool AllowSetForegroundWindow(int processId);
+        private const int AnyProcess = -1;
 
         private ConfigurationService _config = null!;
         private ZafiroApiClient _api = null!;
@@ -74,10 +84,21 @@ namespace ZafiroAgent
             _singleInstance = new Mutex(true, @"Local\ZafiroAgent", out var isFirst);
             if (!isFirst && !e.Args.Contains("--watchdog"))
             {
-                MessageBox.Show(L.T("Zafiro Agent уже запущен на этом компьютере."), "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (EventWaitHandle.TryOpenExisting(ShowSignalName, out var running))
+                {
+                    // Эту копию запустил клиент, у неё есть право на передний план: отдаём его агенту.
+                    AllowSetForegroundWindow(AnyProcess);
+                    using (running) running.Set();
+                }
+                else
+                {
+                    // Работает агент старой версии: он сигнала не ждёт.
+                    MessageBox.Show(L.T("Zafiro Agent уже запущен на этом компьютере."), "Zafiro Agent", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
                 Shutdown();
                 return;
             }
+            ListenForShowRequests();
 
             _config = new ConfigurationService();
             var clubLocale = _config.Load().ClubLocale;
@@ -113,6 +134,23 @@ namespace ZafiroAgent
             MainWindow = window;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             window.Show();
+        }
+
+        private void ListenForShowRequests()
+        {
+            _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignalName);
+            var signal = _showSignal;
+            new Thread(() =>
+            {
+                while (signal.WaitOne()) Dispatcher.BeginInvoke(ShowShell);
+            }) { IsBackground = true, Name = "ShowRequests" }.Start();
+        }
+
+        /// <summary>Шелл свёрнут в трей — разворачиваем; открыто окно входа — выводим его вперёд.</summary>
+        private void ShowShell()
+        {
+            if (MainWindow is ZafiroAgent.MainWindow shell) shell.RestoreFromTray();
+            else Windows.OfType<Window>().FirstOrDefault(window => window.IsVisible)?.Activate();
         }
 
         /// <summary>
